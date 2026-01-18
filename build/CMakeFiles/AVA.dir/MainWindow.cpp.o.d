@@ -967,10 +967,13 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QMenuBar \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qmenubar.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qmenu.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/QAction \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/QAudioOutput \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qaudiooutput.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimediaglobal.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimedia-config.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimediaexports.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtaudio.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qaudio.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QFileDialog \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qfiledialog.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qdir.h \
@@ -1018,36 +1021,24 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/qtimezone.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qurl.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QMessageBox \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qmessagebox.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qdialogbuttonbox.h \
-  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/QVideoWidget \
-  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qvideowidget.h \
-  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qtmultimediawidgetsglobal.h \
-  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qtmultimediawidgetsexports.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/QMediaPlayer \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qmediaplayer.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimediaglobal.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimedia-config.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimediaexports.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtaudio.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qaudio.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qlayout.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qlayoutitem.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qframe.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qpicture.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qtextdocument.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/QMediaPlayer \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qmediaplayer.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QPushButton \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractbutton.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QSlider \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qslider.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractslider.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/QAudioOutput \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qaudiooutput.h
+  /opt/homebrew/lib/QtCore.framework/Headers/QUrl \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qlayout.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qlayoutitem.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \
+  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/QVideoWidget \
+  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qvideowidget.h \
+  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qtmultimediawidgetsglobal.h \
+  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qtmultimediawidgetsexports.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget

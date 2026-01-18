@@ -1,14 +1,12 @@
-#include <QApplication>
-#include <QWidget>
-#include <QMediaPlayer>
-#include <QDebug>
 #include "MainWindow.h"
+#include <QApplication>
 
-
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
-    MainWindow window;
-    window.setWindowTitle("Developing AVA");
-    window.show();
+
+    MainWindow w;
+    w.show();
+
     return app.exec();
+
 }

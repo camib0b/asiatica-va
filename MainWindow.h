@@ -1,40 +1,32 @@
-// Updated MainWindow.h
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#pragma once
 
 #include <QMainWindow>
-#include <QMenuBar>
-#include <QAction>
-#include <QFileDialog>
-#include <QMessageBox>
-#include <QVideoWidget>
-#include <QMediaPlayer>
-#include <QVBoxLayout>
-#include <QWidget>
-#include <QLabel>      // For text
-#include <QPushButton> // For button object
-#include <QSlider>     // For slider object
-#include <QAudioOutput> // Add this for audio handling in Qt 6
 
-class MainWindow : public QMainWindow {
-    Q_OBJECT
+class QLabel;
+class QPushButton;
+class QVideoWidget;
+class QMediaPlayer;
+class QAudioOutput;
+
+class MainWindow final : public QMainWindow {
+  Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
-    ~MainWindow();
+  explicit MainWindow(QWidget* parent = nullptr);
+  ~MainWindow() override = default;
 
 private slots:
-    void openVideoFile();
-    void onButtonClicked(); // Slot for button practice
+  void onImportVideoClicked();
 
 private:
-    QVideoWidget *videoWidget;
-    QMediaPlayer *mediaPlayer;
-    QAudioOutput *audioOutput; // Add this for volume control
-    QWidget *centralWidget;
-    QLabel *welcomeLabel;   // Text element
-    QPushButton *startButton; // Button object
-    QSlider *controlSlider;   // Slider object
-};
+  void buildUi();
+  void wireSignals();
 
-#endif // MAINWINDOW_H
+  QLabel* headerLabel_ = nullptr;
+  QLabel* subtitleLabel_ = nullptr;
+  QPushButton* importButton_ = nullptr;
+
+  QVideoWidget* videoWidget_ = nullptr;
+  QMediaPlayer* player_ = nullptr;
+  QAudioOutput* audioOutput_ = nullptr;
+};
