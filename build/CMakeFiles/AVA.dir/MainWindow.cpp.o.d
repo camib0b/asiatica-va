@@ -1042,4 +1042,20 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: \
   /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/QVideoWidget \
   /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qvideowidget.h \
   /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qtmultimediawidgetsglobal.h \
-  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qtmultimediawidgetsexports.h
+  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qtmultimediawidgetsexports.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/QAction \
+  /opt/homebrew/lib/QtGui.framework/Headers/QKeySequence \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QApplication \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qcoreapplication.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qcoreevent.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qbasictimer.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qabstracteventdispatcher.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qeventloop.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qdeadlinetimer.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qnativeinterface.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qcoreapplication_platform.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qinputmethod.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication_platform.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QDebug

@@ -3169,6 +3169,8 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: /Users/cam/asiatica-va/MainWindow.cpp \
   /opt/homebrew/lib/QtCore.framework/Headers/qversiontagging.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qxptype_traits.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qyieldcpu.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/QAction \
+  /opt/homebrew/lib/QtGui.framework/Headers/QKeySequence \
   /opt/homebrew/lib/QtGui.framework/Headers/qaction.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbrush.h \
@@ -4263,6 +4265,8 @@ CMakeFiles/AVA.dir/main.cpp.o: /Users/cam/asiatica-va/main.cpp \
 /opt/homebrew/lib/QtMultimedia.framework/Headers/QAudioOutput:
 
 /opt/homebrew/lib/QtGui.framework/Headers/qtextdocument.h:
+
+/opt/homebrew/lib/QtGui.framework/Headers/QKeySequence:
 
 /opt/homebrew/lib/QtCore.framework/Headers/qurl.h:
 
@@ -5773,6 +5777,8 @@ AVA_autogen/mocs_compilation.cpp:
 /opt/homebrew/lib/cmake/Qt6Network/Qt6QTlsBackendOpenSSLPluginAdditionalTargetInfo.cmake:
 
 /opt/homebrew/share/cmake/Modules/CMakeFindDependencyMacro.cmake:
+
+/opt/homebrew/lib/QtGui.framework/Headers/QAction:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_function.h:
 
