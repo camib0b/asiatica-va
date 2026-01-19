@@ -725,17 +725,24 @@ AVA_autogen/timestamp: \
 	/Library/Developer/CommandLineTools/usr/lib/clang/17/include/ptrcheck.h \
 	/Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdarg.h \
 	/Users/cam/asiatica-va/CMakeLists.txt \
-	/Users/cam/asiatica-va/MainWindow.cpp \
-	/Users/cam/asiatica-va/MainWindow.h \
-	/Users/cam/asiatica-va/TimelineBar.cpp \
-	/Users/cam/asiatica-va/TimelineBar.h \
-	/Users/cam/asiatica-va/VideoControlsBar.cpp \
-	/Users/cam/asiatica-va/VideoControlsBar.h \
 	/Users/cam/asiatica-va/build/AVA_autogen/moc_predefs.h \
 	/Users/cam/asiatica-va/build/CMakeFiles/4.2.1/CMakeCXXCompiler.cmake \
 	/Users/cam/asiatica-va/build/CMakeFiles/4.2.1/CMakeSystem.cmake \
+	/Users/cam/asiatica-va/components/TimelineBar.cpp \
+	/Users/cam/asiatica-va/components/TimelineBar.h \
+	/Users/cam/asiatica-va/components/VideoControlsBar.cpp \
+	/Users/cam/asiatica-va/components/VideoControlsBar.h \
 	/Users/cam/asiatica-va/main.cpp \
+	/Users/cam/asiatica-va/style/theme.cpp \
+	/Users/cam/asiatica-va/style/theme.h \
+	/Users/cam/asiatica-va/ui/MainWindow.cpp \
+	/Users/cam/asiatica-va/ui/MainWindow.h \
+	/Users/cam/asiatica-va/ui/WelcomeWindow.cpp \
+	/Users/cam/asiatica-va/ui/WelcomeWindow.h \
+	/Users/cam/asiatica-va/ui/WorkWindow.cpp \
+	/Users/cam/asiatica-va/ui/WorkWindow.h \
 	/opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/QHash \
+	/opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/QString \
 	/opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/QtGlobal \
 	/opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/q17memory.h \
 	/opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/q20functional.h \

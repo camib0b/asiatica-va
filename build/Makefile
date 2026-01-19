@@ -179,77 +179,53 @@ AVA_autogen/mocs_compilation.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.s
 .PHONY : AVA_autogen/mocs_compilation.cpp.s
 
-MainWindow.o: MainWindow.cpp.o
-.PHONY : MainWindow.o
+components/TimelineBar.o: components/TimelineBar.cpp.o
+.PHONY : components/TimelineBar.o
 
 # target to build an object file
-MainWindow.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/MainWindow.cpp.o
-.PHONY : MainWindow.cpp.o
+components/TimelineBar.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/TimelineBar.cpp.o
+.PHONY : components/TimelineBar.cpp.o
 
-MainWindow.i: MainWindow.cpp.i
-.PHONY : MainWindow.i
+components/TimelineBar.i: components/TimelineBar.cpp.i
+.PHONY : components/TimelineBar.i
 
 # target to preprocess a source file
-MainWindow.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/MainWindow.cpp.i
-.PHONY : MainWindow.cpp.i
+components/TimelineBar.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/TimelineBar.cpp.i
+.PHONY : components/TimelineBar.cpp.i
 
-MainWindow.s: MainWindow.cpp.s
-.PHONY : MainWindow.s
+components/TimelineBar.s: components/TimelineBar.cpp.s
+.PHONY : components/TimelineBar.s
 
 # target to generate assembly for a file
-MainWindow.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/MainWindow.cpp.s
-.PHONY : MainWindow.cpp.s
+components/TimelineBar.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/TimelineBar.cpp.s
+.PHONY : components/TimelineBar.cpp.s
 
-TimelineBar.o: TimelineBar.cpp.o
-.PHONY : TimelineBar.o
+components/VideoControlsBar.o: components/VideoControlsBar.cpp.o
+.PHONY : components/VideoControlsBar.o
 
 # target to build an object file
-TimelineBar.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/TimelineBar.cpp.o
-.PHONY : TimelineBar.cpp.o
+components/VideoControlsBar.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o
+.PHONY : components/VideoControlsBar.cpp.o
 
-TimelineBar.i: TimelineBar.cpp.i
-.PHONY : TimelineBar.i
-
-# target to preprocess a source file
-TimelineBar.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/TimelineBar.cpp.i
-.PHONY : TimelineBar.cpp.i
-
-TimelineBar.s: TimelineBar.cpp.s
-.PHONY : TimelineBar.s
-
-# target to generate assembly for a file
-TimelineBar.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/TimelineBar.cpp.s
-.PHONY : TimelineBar.cpp.s
-
-VideoControlsBar.o: VideoControlsBar.cpp.o
-.PHONY : VideoControlsBar.o
-
-# target to build an object file
-VideoControlsBar.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/VideoControlsBar.cpp.o
-.PHONY : VideoControlsBar.cpp.o
-
-VideoControlsBar.i: VideoControlsBar.cpp.i
-.PHONY : VideoControlsBar.i
+components/VideoControlsBar.i: components/VideoControlsBar.cpp.i
+.PHONY : components/VideoControlsBar.i
 
 # target to preprocess a source file
-VideoControlsBar.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/VideoControlsBar.cpp.i
-.PHONY : VideoControlsBar.cpp.i
+components/VideoControlsBar.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.i
+.PHONY : components/VideoControlsBar.cpp.i
 
-VideoControlsBar.s: VideoControlsBar.cpp.s
-.PHONY : VideoControlsBar.s
+components/VideoControlsBar.s: components/VideoControlsBar.cpp.s
+.PHONY : components/VideoControlsBar.s
 
 # target to generate assembly for a file
-VideoControlsBar.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/VideoControlsBar.cpp.s
-.PHONY : VideoControlsBar.cpp.s
+components/VideoControlsBar.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.s
+.PHONY : components/VideoControlsBar.cpp.s
 
 main.o: main.cpp.o
 .PHONY : main.o
@@ -275,6 +251,102 @@ main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/main.cpp.s
 .PHONY : main.cpp.s
 
+style/theme.o: style/theme.cpp.o
+.PHONY : style/theme.o
+
+# target to build an object file
+style/theme.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/style/theme.cpp.o
+.PHONY : style/theme.cpp.o
+
+style/theme.i: style/theme.cpp.i
+.PHONY : style/theme.i
+
+# target to preprocess a source file
+style/theme.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/style/theme.cpp.i
+.PHONY : style/theme.cpp.i
+
+style/theme.s: style/theme.cpp.s
+.PHONY : style/theme.s
+
+# target to generate assembly for a file
+style/theme.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/style/theme.cpp.s
+.PHONY : style/theme.cpp.s
+
+ui/MainWindow.o: ui/MainWindow.cpp.o
+.PHONY : ui/MainWindow.o
+
+# target to build an object file
+ui/MainWindow.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/MainWindow.cpp.o
+.PHONY : ui/MainWindow.cpp.o
+
+ui/MainWindow.i: ui/MainWindow.cpp.i
+.PHONY : ui/MainWindow.i
+
+# target to preprocess a source file
+ui/MainWindow.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/MainWindow.cpp.i
+.PHONY : ui/MainWindow.cpp.i
+
+ui/MainWindow.s: ui/MainWindow.cpp.s
+.PHONY : ui/MainWindow.s
+
+# target to generate assembly for a file
+ui/MainWindow.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/MainWindow.cpp.s
+.PHONY : ui/MainWindow.cpp.s
+
+ui/WelcomeWindow.o: ui/WelcomeWindow.cpp.o
+.PHONY : ui/WelcomeWindow.o
+
+# target to build an object file
+ui/WelcomeWindow.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.o
+.PHONY : ui/WelcomeWindow.cpp.o
+
+ui/WelcomeWindow.i: ui/WelcomeWindow.cpp.i
+.PHONY : ui/WelcomeWindow.i
+
+# target to preprocess a source file
+ui/WelcomeWindow.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.i
+.PHONY : ui/WelcomeWindow.cpp.i
+
+ui/WelcomeWindow.s: ui/WelcomeWindow.cpp.s
+.PHONY : ui/WelcomeWindow.s
+
+# target to generate assembly for a file
+ui/WelcomeWindow.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.s
+.PHONY : ui/WelcomeWindow.cpp.s
+
+ui/WorkWindow.o: ui/WorkWindow.cpp.o
+.PHONY : ui/WorkWindow.o
+
+# target to build an object file
+ui/WorkWindow.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o
+.PHONY : ui/WorkWindow.cpp.o
+
+ui/WorkWindow.i: ui/WorkWindow.cpp.i
+.PHONY : ui/WorkWindow.i
+
+# target to preprocess a source file
+ui/WorkWindow.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/WorkWindow.cpp.i
+.PHONY : ui/WorkWindow.cpp.i
+
+ui/WorkWindow.s: ui/WorkWindow.cpp.s
+.PHONY : ui/WorkWindow.s
+
+# target to generate assembly for a file
+ui/WorkWindow.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/WorkWindow.cpp.s
+.PHONY : ui/WorkWindow.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -289,18 +361,27 @@ help:
 	@echo "... AVA_autogen/mocs_compilation.o"
 	@echo "... AVA_autogen/mocs_compilation.i"
 	@echo "... AVA_autogen/mocs_compilation.s"
-	@echo "... MainWindow.o"
-	@echo "... MainWindow.i"
-	@echo "... MainWindow.s"
-	@echo "... TimelineBar.o"
-	@echo "... TimelineBar.i"
-	@echo "... TimelineBar.s"
-	@echo "... VideoControlsBar.o"
-	@echo "... VideoControlsBar.i"
-	@echo "... VideoControlsBar.s"
+	@echo "... components/TimelineBar.o"
+	@echo "... components/TimelineBar.i"
+	@echo "... components/TimelineBar.s"
+	@echo "... components/VideoControlsBar.o"
+	@echo "... components/VideoControlsBar.i"
+	@echo "... components/VideoControlsBar.s"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
+	@echo "... style/theme.o"
+	@echo "... style/theme.i"
+	@echo "... style/theme.s"
+	@echo "... ui/MainWindow.o"
+	@echo "... ui/MainWindow.i"
+	@echo "... ui/MainWindow.s"
+	@echo "... ui/WelcomeWindow.o"
+	@echo "... ui/WelcomeWindow.i"
+	@echo "... ui/WelcomeWindow.s"
+	@echo "... ui/WorkWindow.o"
+	@echo "... ui/WorkWindow.i"
+	@echo "... ui/WorkWindow.s"
 .PHONY : help
 
 

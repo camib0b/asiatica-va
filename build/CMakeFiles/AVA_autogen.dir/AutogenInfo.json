@@ -439,21 +439,39 @@
 	"HEADERS" : 
 	[
 		[
-			"/Users/cam/asiatica-va/MainWindow.h",
+			"/Users/cam/asiatica-va/components/TimelineBar.h",
 			"MU",
-			"EWIEGA46WW/moc_MainWindow.cpp",
+			"XDQFSXMG3O/moc_TimelineBar.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/TimelineBar.h",
+			"/Users/cam/asiatica-va/components/VideoControlsBar.h",
 			"MU",
-			"EWIEGA46WW/moc_TimelineBar.cpp",
+			"XDQFSXMG3O/moc_VideoControlsBar.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/VideoControlsBar.h",
+			"/Users/cam/asiatica-va/style/theme.h",
 			"MU",
-			"EWIEGA46WW/moc_VideoControlsBar.cpp",
+			"HI6LWCXMXM/moc_theme.cpp",
+			null
+		],
+		[
+			"/Users/cam/asiatica-va/ui/MainWindow.h",
+			"MU",
+			"UYX5XTB5RZ/moc_MainWindow.cpp",
+			null
+		],
+		[
+			"/Users/cam/asiatica-va/ui/WelcomeWindow.h",
+			"MU",
+			"UYX5XTB5RZ/moc_WelcomeWindow.cpp",
+			null
+		],
+		[
+			"/Users/cam/asiatica-va/ui/WorkWindow.h",
+			"MU",
+			"UYX5XTB5RZ/moc_WorkWindow.cpp",
 			null
 		]
 	],
@@ -479,6 +497,8 @@
 	],
 	"MOC_INCLUDES" : 
 	[
+		"/Users/cam/asiatica-va/ui",
+		"/Users/cam/asiatica-va/components",
 		"/opt/homebrew/lib/QtCore.framework/Headers",
 		"/opt/homebrew/lib/QtCore.framework",
 		"/opt/homebrew/share/qt/mkspecs/macx-clang",
@@ -531,10 +551,13 @@
 	"SETTINGS_FILE" : "/Users/cam/asiatica-va/build/CMakeFiles/AVA_autogen.dir/AutogenUsed.txt",
 	"SOURCES" : 
 	[
-		[ "/Users/cam/asiatica-va/MainWindow.cpp", "MU", null ],
-		[ "/Users/cam/asiatica-va/TimelineBar.cpp", "MU", null ],
-		[ "/Users/cam/asiatica-va/VideoControlsBar.cpp", "MU", null ],
-		[ "/Users/cam/asiatica-va/main.cpp", "MU", null ]
+		[ "/Users/cam/asiatica-va/components/TimelineBar.cpp", "MU", null ],
+		[ "/Users/cam/asiatica-va/components/VideoControlsBar.cpp", "MU", null ],
+		[ "/Users/cam/asiatica-va/main.cpp", "MU", null ],
+		[ "/Users/cam/asiatica-va/style/theme.cpp", "MU", null ],
+		[ "/Users/cam/asiatica-va/ui/MainWindow.cpp", "MU", null ],
+		[ "/Users/cam/asiatica-va/ui/WelcomeWindow.cpp", "MU", null ],
+		[ "/Users/cam/asiatica-va/ui/WorkWindow.cpp", "MU", null ]
 	],
 	"UIC_OPTIONS" : [],
 	"UIC_SEARCH_PATHS" : [],

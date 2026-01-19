@@ -1,5 +1,5 @@
 CMakeFiles/AVA.dir/main.cpp.o: /Users/cam/asiatica-va/main.cpp \
-  /Users/cam/asiatica-va/MainWindow.h \
+  /Users/cam/asiatica-va/ui/MainWindow.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QMainWindow \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qmainwindow.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsglobal.h \
@@ -966,6 +966,7 @@ CMakeFiles/AVA.dir/main.cpp.o: /Users/cam/asiatica-va/main.cpp \
   /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QString \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QApplication \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qcoreapplication.h \
@@ -979,4 +980,5 @@ CMakeFiles/AVA.dir/main.cpp.o: /Users/cam/asiatica-va/main.cpp \
   /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qinputmethod.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qlocale.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication_platform.h
+  /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication_platform.h \
+  /Users/cam/asiatica-va/style/theme.h

@@ -22,7 +22,7 @@ events:
     candidate_directories:
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -39,11 +39,12 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
     searched_directories:
       - "/Users/cam/.bun/bin/uname"
       - "/Users/cam/.local/bin/uname"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/uname"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/uname"
       - "/Library/gurobi1101/mac64/bin/uname"
       - "/Users/cam/.pyenv/shims/uname"
       - "/opt/homebrew/bin/uname"
@@ -55,7 +56,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -72,6 +73,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
   -
     kind: "message-v1"
@@ -103,7 +108,7 @@ events:
     candidate_directories:
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -120,11 +125,12 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
     searched_directories:
       - "/Users/cam/.bun/bin/gmake"
       - "/Users/cam/.local/bin/gmake"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/gmake"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/gmake"
       - "/Library/gurobi1101/mac64/bin/gmake"
       - "/Users/cam/.pyenv/shims/gmake"
       - "/opt/homebrew/bin/gmake"
@@ -141,10 +147,11 @@ events:
       - "/opt/pmk/env/global/bin/gmake"
       - "/Library/Apple/usr/bin/gmake"
       - "/Library/TeX/texbin/gmake"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/gmake"
       - "/Users/cam/.cargo/bin/gmake"
       - "/Users/cam/.bun/bin/make"
       - "/Users/cam/.local/bin/make"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/make"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/make"
       - "/Library/gurobi1101/mac64/bin/make"
       - "/Users/cam/.pyenv/shims/make"
       - "/opt/homebrew/bin/make"
@@ -156,7 +163,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -173,6 +180,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
   -
     kind: "find-v1"
@@ -202,7 +213,7 @@ events:
     candidate_directories:
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -219,11 +230,12 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
     searched_directories:
       - "/Users/cam/.bun/bin/c++"
       - "/Users/cam/.local/bin/c++"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/c++"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/c++"
       - "/Library/gurobi1101/mac64/bin/c++"
       - "/Users/cam/.pyenv/shims/c++"
       - "/opt/homebrew/bin/c++"
@@ -235,7 +247,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -252,6 +264,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
   -
     kind: "find-v1"
@@ -282,7 +298,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -299,6 +315,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
   -
     kind: "message-v1"
@@ -386,7 +406,7 @@ events:
       - "/usr/bin/"
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -402,13 +422,14 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
     found: "/usr/bin/ar"
     search_context:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -425,6 +446,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
   -
     kind: "find-v1"
@@ -449,7 +474,7 @@ events:
       - "/usr/bin/"
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -465,13 +490,14 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
     found: "/usr/bin/ranlib"
     search_context:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -488,6 +514,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
   -
     kind: "find-v1"
@@ -512,7 +542,7 @@ events:
       - "/usr/bin/"
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -528,13 +558,14 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
     found: "/usr/bin/strip"
     search_context:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -551,6 +582,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
   -
     kind: "find-v1"
@@ -575,7 +610,7 @@ events:
       - "/usr/bin/"
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -591,13 +626,14 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
     found: "/usr/bin/ld"
     search_context:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -614,6 +650,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
   -
     kind: "find-v1"
@@ -638,7 +678,7 @@ events:
       - "/usr/bin/"
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -654,13 +694,14 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
     found: "/usr/bin/nm"
     search_context:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -677,6 +718,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
   -
     kind: "find-v1"
@@ -701,7 +746,7 @@ events:
       - "/usr/bin/"
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -717,13 +762,14 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
     found: "/usr/bin/objdump"
     search_context:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -740,6 +786,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
   -
     kind: "find-v1"
@@ -764,7 +814,7 @@ events:
       - "/usr/bin/"
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -780,12 +830,13 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
     searched_directories:
       - "/usr/bin/objcopy"
       - "/Users/cam/.bun/bin/objcopy"
       - "/Users/cam/.local/bin/objcopy"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/objcopy"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/objcopy"
       - "/Library/gurobi1101/mac64/bin/objcopy"
       - "/Users/cam/.pyenv/shims/objcopy"
       - "/opt/homebrew/bin/objcopy"
@@ -801,13 +852,14 @@ events:
       - "/opt/pmk/env/global/bin/objcopy"
       - "/Library/Apple/usr/bin/objcopy"
       - "/Library/TeX/texbin/objcopy"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/objcopy"
       - "/Users/cam/.cargo/bin/objcopy"
     found: false
     search_context:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -824,6 +876,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
   -
     kind: "find-v1"
@@ -848,7 +904,7 @@ events:
       - "/usr/bin/"
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -864,12 +920,13 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
     searched_directories:
       - "/usr/bin/readelf"
       - "/Users/cam/.bun/bin/readelf"
       - "/Users/cam/.local/bin/readelf"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/readelf"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/readelf"
       - "/Library/gurobi1101/mac64/bin/readelf"
       - "/Users/cam/.pyenv/shims/readelf"
       - "/opt/homebrew/bin/readelf"
@@ -885,13 +942,14 @@ events:
       - "/opt/pmk/env/global/bin/readelf"
       - "/Library/Apple/usr/bin/readelf"
       - "/Library/TeX/texbin/readelf"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/readelf"
       - "/Users/cam/.cargo/bin/readelf"
     found: false
     search_context:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -908,6 +966,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
   -
     kind: "find-v1"
@@ -932,7 +994,7 @@ events:
       - "/usr/bin/"
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -948,12 +1010,13 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
     searched_directories:
       - "/usr/bin/dlltool"
       - "/Users/cam/.bun/bin/dlltool"
       - "/Users/cam/.local/bin/dlltool"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/dlltool"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/dlltool"
       - "/Library/gurobi1101/mac64/bin/dlltool"
       - "/Users/cam/.pyenv/shims/dlltool"
       - "/opt/homebrew/bin/dlltool"
@@ -969,13 +1032,14 @@ events:
       - "/opt/pmk/env/global/bin/dlltool"
       - "/Library/Apple/usr/bin/dlltool"
       - "/Library/TeX/texbin/dlltool"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/dlltool"
       - "/Users/cam/.cargo/bin/dlltool"
     found: false
     search_context:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -992,6 +1056,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
   -
     kind: "find-v1"
@@ -1016,7 +1084,7 @@ events:
       - "/usr/bin/"
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -1032,12 +1100,13 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
     searched_directories:
       - "/usr/bin/addr2line"
       - "/Users/cam/.bun/bin/addr2line"
       - "/Users/cam/.local/bin/addr2line"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/addr2line"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/addr2line"
       - "/Library/gurobi1101/mac64/bin/addr2line"
       - "/Users/cam/.pyenv/shims/addr2line"
       - "/opt/homebrew/bin/addr2line"
@@ -1053,13 +1122,14 @@ events:
       - "/opt/pmk/env/global/bin/addr2line"
       - "/Library/Apple/usr/bin/addr2line"
       - "/Library/TeX/texbin/addr2line"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/addr2line"
       - "/Users/cam/.cargo/bin/addr2line"
     found: false
     search_context:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -1076,6 +1146,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
   -
     kind: "find-v1"
@@ -1100,7 +1174,7 @@ events:
       - "/usr/bin/"
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -1116,12 +1190,13 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
     searched_directories:
       - "/usr/bin/tapi"
       - "/Users/cam/.bun/bin/tapi"
       - "/Users/cam/.local/bin/tapi"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/tapi"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/tapi"
       - "/Library/gurobi1101/mac64/bin/tapi"
       - "/Users/cam/.pyenv/shims/tapi"
       - "/opt/homebrew/bin/tapi"
@@ -1137,13 +1212,14 @@ events:
       - "/opt/pmk/env/global/bin/tapi"
       - "/Library/Apple/usr/bin/tapi"
       - "/Library/TeX/texbin/tapi"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/tapi"
       - "/Users/cam/.cargo/bin/tapi"
     found: false
     search_context:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -1160,6 +1236,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
   -
     kind: "find-v1"
@@ -1183,7 +1263,7 @@ events:
     candidate_directories:
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -1200,11 +1280,12 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
     searched_directories:
       - "/Users/cam/.bun/bin/install_name_tool"
       - "/Users/cam/.local/bin/install_name_tool"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/install_name_tool"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/install_name_tool"
       - "/Library/gurobi1101/mac64/bin/install_name_tool"
       - "/Users/cam/.pyenv/shims/install_name_tool"
       - "/opt/homebrew/bin/install_name_tool"
@@ -1216,7 +1297,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -1233,6 +1314,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
   -
@@ -1244,8 +1329,8 @@ events:
     checks:
       - "Detecting CXX compiler ABI info"
     directories:
-      source: "/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-ziGKxe"
-      binary: "/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-ziGKxe"
+      source: "/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-sxpZkz"
+      binary: "/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-sxpZkz"
     cmakeVariables:
       CMAKE_CXX_FLAGS: ""
       CMAKE_CXX_FLAGS_DEBUG: "-g"
@@ -1258,19 +1343,19 @@ events:
       variable: "CMAKE_CXX_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: '/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-ziGKxe'
+        Change Dir: '/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-sxpZkz'
         
-        Run Build Command(s): /opt/homebrew/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_54cbe/fast
-        /Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/cmTC_54cbe.dir/build.make CMakeFiles/cmTC_54cbe.dir/build
-        Building CXX object CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o
-        /usr/bin/c++   -arch arm64   -v -Wl,-v -MD -MT CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o -MF CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o.d -o CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o -c /opt/homebrew/share/cmake/Modules/CMakeCXXCompilerABI.cpp
+        Run Build Command(s): /opt/homebrew/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_a8d74/fast
+        /Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/cmTC_a8d74.dir/build.make CMakeFiles/cmTC_a8d74.dir/build
+        Building CXX object CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o
+        /usr/bin/c++   -arch arm64   -v -Wl,-v -MD -MT CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o -MF CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o.d -o CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o -c /opt/homebrew/share/cmake/Modules/CMakeCXXCompilerABI.cpp
         Apple clang version 17.0.0 (clang-1700.6.3.2)
         Target: arm64-apple-darwin25.2.0
         Thread model: posix
         InstalledDir: /Library/Developer/CommandLineTools/usr/bin
         clang++: warning: -Wl,-v: 'linker' input unused [-Wunused-command-line-argument]
         ignoring nonexistent directory "/Library/Developer/CommandLineTools/usr/bin/../include/c++/v1"
-         "/Library/Developer/CommandLineTools/usr/bin/clang" -cc1 -triple arm64-apple-macosx26.0.0 -Wundef-prefix=TARGET_OS_ -Wdeprecated-objc-isa-usage -Werror=deprecated-objc-isa-usage -Werror=implicit-function-declaration -emit-obj -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCXXCompilerABI.cpp -mrelocation-model pic -pic-level 2 -mframe-pointer=non-leaf -fno-strict-return -ffp-contract=on -fno-rounding-math -funwind-tables=1 -fobjc-msgsend-selector-stubs -target-sdk-version=26.2 -fvisibility-inlines-hidden-static-local-var -fdefine-target-os-macros -fno-assume-unique-vtables -fno-modulemap-allow-subdirectory-search -target-cpu apple-m1 -target-feature +zcm -target-feature +zcz -target-feature +v8.5a -target-feature +aes -target-feature +altnzcv -target-feature +ccdp -target-feature +complxnum -target-feature +crc -target-feature +dotprod -target-feature +fp-armv8 -target-feature +fp16fml -target-feature +fptoint -target-feature +fullfp16 -target-feature +jsconv -target-feature +lse -target-feature +neon -target-feature +pauth -target-feature +perfmon -target-feature +predres -target-feature +ras -target-feature +rcpc -target-feature +rdm -target-feature +sb -target-feature +sha2 -target-feature +sha3 -target-feature +specrestrict -target-feature +ssbs -target-abi darwinpcs -debugger-tuning=lldb -fdebug-compilation-dir=/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-ziGKxe -target-linker-version 1230.1 -v -fcoverage-compilation-dir=/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-ziGKxe -resource-dir /Library/Developer/CommandLineTools/usr/lib/clang/17 -dependency-file CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o.d -skip-unused-modulemap-deps -MT CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o -sys-header-deps -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/usr/lib/clang/17/include -internal-externc-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -internal-externc-isystem /Library/Developer/CommandLineTools/usr/include -internal-iframework /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks -internal-iframework /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/SubFrameworks -internal-iframework /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks -Wno-reorder-init-list -Wno-implicit-int-float-conversion -Wno-c99-designator -Wno-final-dtor-non-final-class -Wno-extra-semi-stmt -Wno-misleading-indentation -Wno-quoted-include-in-framework-header -Wno-implicit-fallthrough -Wno-enum-enum-conversion -Wno-enum-float-conversion -Wno-elaborated-enum-base -fdeprecated-macro -ferror-limit 19 -stack-protector 1 -fstack-check -mdarwin-stkchk-strong-link -fblocks -fencode-extended-block-signature -fregister-global-dtors-with-atexit -fgnuc-version=4.2.1 -fno-cxx-modules -fskip-odr-check-in-gmf -fcxx-exceptions -fexceptions -fmax-type-align=16 -fcommon -clang-vendor-feature=+disableNonDependentMemberExprInCurrentInstantiation -fno-odr-hash-protocols -clang-vendor-feature=+enableAggressiveVLAFolding -clang-vendor-feature=+revert09abecef7bbf -clang-vendor-feature=+thisNoAlignAttr -clang-vendor-feature=+thisNoNullAttr -clang-vendor-feature=+disableAtImportPrivateFrameworkInImplementationError -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o -x c++ /opt/homebrew/share/cmake/Modules/CMakeCXXCompilerABI.cpp
+         "/Library/Developer/CommandLineTools/usr/bin/clang" -cc1 -triple arm64-apple-macosx26.0.0 -Wundef-prefix=TARGET_OS_ -Wdeprecated-objc-isa-usage -Werror=deprecated-objc-isa-usage -Werror=implicit-function-declaration -emit-obj -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCXXCompilerABI.cpp -mrelocation-model pic -pic-level 2 -mframe-pointer=non-leaf -fno-strict-return -ffp-contract=on -fno-rounding-math -funwind-tables=1 -fobjc-msgsend-selector-stubs -target-sdk-version=26.2 -fvisibility-inlines-hidden-static-local-var -fdefine-target-os-macros -fno-assume-unique-vtables -fno-modulemap-allow-subdirectory-search -target-cpu apple-m1 -target-feature +zcm -target-feature +zcz -target-feature +v8.5a -target-feature +aes -target-feature +altnzcv -target-feature +ccdp -target-feature +complxnum -target-feature +crc -target-feature +dotprod -target-feature +fp-armv8 -target-feature +fp16fml -target-feature +fptoint -target-feature +fullfp16 -target-feature +jsconv -target-feature +lse -target-feature +neon -target-feature +pauth -target-feature +perfmon -target-feature +predres -target-feature +ras -target-feature +rcpc -target-feature +rdm -target-feature +sb -target-feature +sha2 -target-feature +sha3 -target-feature +specrestrict -target-feature +ssbs -target-abi darwinpcs -debugger-tuning=lldb -fdebug-compilation-dir=/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-sxpZkz -target-linker-version 1230.1 -v -fcoverage-compilation-dir=/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-sxpZkz -resource-dir /Library/Developer/CommandLineTools/usr/lib/clang/17 -dependency-file CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o.d -skip-unused-modulemap-deps -MT CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o -sys-header-deps -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/usr/lib/clang/17/include -internal-externc-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -internal-externc-isystem /Library/Developer/CommandLineTools/usr/include -internal-iframework /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks -internal-iframework /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/SubFrameworks -internal-iframework /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks -Wno-reorder-init-list -Wno-implicit-int-float-conversion -Wno-c99-designator -Wno-final-dtor-non-final-class -Wno-extra-semi-stmt -Wno-misleading-indentation -Wno-quoted-include-in-framework-header -Wno-implicit-fallthrough -Wno-enum-enum-conversion -Wno-enum-float-conversion -Wno-elaborated-enum-base -fdeprecated-macro -ferror-limit 19 -stack-protector 1 -fstack-check -mdarwin-stkchk-strong-link -fblocks -fencode-extended-block-signature -fregister-global-dtors-with-atexit -fgnuc-version=4.2.1 -fno-cxx-modules -fskip-odr-check-in-gmf -fcxx-exceptions -fexceptions -fmax-type-align=16 -fcommon -clang-vendor-feature=+disableNonDependentMemberExprInCurrentInstantiation -fno-odr-hash-protocols -clang-vendor-feature=+enableAggressiveVLAFolding -clang-vendor-feature=+revert09abecef7bbf -clang-vendor-feature=+thisNoAlignAttr -clang-vendor-feature=+thisNoNullAttr -clang-vendor-feature=+disableAtImportPrivateFrameworkInImplementationError -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o -x c++ /opt/homebrew/share/cmake/Modules/CMakeCXXCompilerABI.cpp
         clang -cc1 version 17.0.0 (clang-1700.6.3.2) default target arm64-apple-darwin25.2.0
         ignoring nonexistent directory "/usr/local/include"
         ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/local/include"
@@ -1284,13 +1369,13 @@ events:
          /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks (framework directory)
          /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/SubFrameworks (framework directory)
         End of search list.
-        Linking CXX executable cmTC_54cbe
-        /opt/homebrew/bin/cmake -E cmake_link_script CMakeFiles/cmTC_54cbe.dir/link.txt --verbose=1
+        Linking CXX executable cmTC_a8d74
+        /opt/homebrew/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a8d74.dir/link.txt --verbose=1
         Apple clang version 17.0.0 (clang-1700.6.3.2)
         Target: arm64-apple-darwin25.2.0
         Thread model: posix
         InstalledDir: /Library/Developer/CommandLineTools/usr/bin
-         "/Library/Developer/CommandLineTools/usr/bin/ld" -demangle -lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib -dynamic -arch arm64 -platform_version macos 26.0.0 26.2 -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mllvm -enable-linkonceodr-outlining -o cmTC_54cbe -L/usr/local/lib -search_paths_first -headerpad_max_install_names -v CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o -lc++ -lSystem /Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a
+         "/Library/Developer/CommandLineTools/usr/bin/ld" -demangle -lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib -dynamic -arch arm64 -platform_version macos 26.0.0 26.2 -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mllvm -enable-linkonceodr-outlining -o cmTC_a8d74 -L/usr/local/lib -search_paths_first -headerpad_max_install_names -v CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o -lc++ -lSystem /Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a
         @(#)PROGRAM:ld PROJECT:ld-1230.1
         BUILD 06:36:05 Dec  2 2025
         configured to support archs: armv6 armv7 armv7s arm64 arm64e arm64_32 i386 x86_64 x86_64h armv6m armv7k armv7m armv7em armv8m.main armv8.1m.main
@@ -1303,7 +1388,7 @@ events:
         	/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/swift
         Framework search paths:
         	/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks
-        /usr/bin/c++  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names  -v -Wl,-v CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_54cbe
+        /usr/bin/c++  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names  -v -Wl,-v CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_a8d74
         
       exitCode: 0
   -
@@ -1347,19 +1432,19 @@ events:
       Parsed CXX implicit link information:
         link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
         linker tool regex: [^[ 	]*(->|"|[0-9]+>[ 	-]*Build:[ 	0-9]+ ms[ 	]*)?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)))("|,| |$)]
-        ignore line: [Change Dir: '/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-ziGKxe']
+        ignore line: [Change Dir: '/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-sxpZkz']
         ignore line: []
-        ignore line: [Run Build Command(s): /opt/homebrew/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_54cbe/fast]
-        ignore line: [/Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/cmTC_54cbe.dir/build.make CMakeFiles/cmTC_54cbe.dir/build]
-        ignore line: [Building CXX object CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o]
-        ignore line: [/usr/bin/c++   -arch arm64   -v -Wl -v -MD -MT CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o -MF CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o.d -o CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o -c /opt/homebrew/share/cmake/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [Run Build Command(s): /opt/homebrew/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_a8d74/fast]
+        ignore line: [/Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/cmTC_a8d74.dir/build.make CMakeFiles/cmTC_a8d74.dir/build]
+        ignore line: [Building CXX object CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o]
+        ignore line: [/usr/bin/c++   -arch arm64   -v -Wl -v -MD -MT CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o -MF CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o.d -o CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o -c /opt/homebrew/share/cmake/Modules/CMakeCXXCompilerABI.cpp]
         ignore line: [Apple clang version 17.0.0 (clang-1700.6.3.2)]
         ignore line: [Target: arm64-apple-darwin25.2.0]
         ignore line: [Thread model: posix]
         ignore line: [InstalledDir: /Library/Developer/CommandLineTools/usr/bin]
         ignore line: [clang++: warning: -Wl -v: 'linker' input unused [-Wunused-command-line-argument]]
         ignore line: [ignoring nonexistent directory "/Library/Developer/CommandLineTools/usr/bin/../include/c++/v1"]
-        ignore line: [ "/Library/Developer/CommandLineTools/usr/bin/clang" -cc1 -triple arm64-apple-macosx26.0.0 -Wundef-prefix=TARGET_OS_ -Wdeprecated-objc-isa-usage -Werror=deprecated-objc-isa-usage -Werror=implicit-function-declaration -emit-obj -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCXXCompilerABI.cpp -mrelocation-model pic -pic-level 2 -mframe-pointer=non-leaf -fno-strict-return -ffp-contract=on -fno-rounding-math -funwind-tables=1 -fobjc-msgsend-selector-stubs -target-sdk-version=26.2 -fvisibility-inlines-hidden-static-local-var -fdefine-target-os-macros -fno-assume-unique-vtables -fno-modulemap-allow-subdirectory-search -target-cpu apple-m1 -target-feature +zcm -target-feature +zcz -target-feature +v8.5a -target-feature +aes -target-feature +altnzcv -target-feature +ccdp -target-feature +complxnum -target-feature +crc -target-feature +dotprod -target-feature +fp-armv8 -target-feature +fp16fml -target-feature +fptoint -target-feature +fullfp16 -target-feature +jsconv -target-feature +lse -target-feature +neon -target-feature +pauth -target-feature +perfmon -target-feature +predres -target-feature +ras -target-feature +rcpc -target-feature +rdm -target-feature +sb -target-feature +sha2 -target-feature +sha3 -target-feature +specrestrict -target-feature +ssbs -target-abi darwinpcs -debugger-tuning=lldb -fdebug-compilation-dir=/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-ziGKxe -target-linker-version 1230.1 -v -fcoverage-compilation-dir=/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-ziGKxe -resource-dir /Library/Developer/CommandLineTools/usr/lib/clang/17 -dependency-file CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o.d -skip-unused-modulemap-deps -MT CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o -sys-header-deps -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/usr/lib/clang/17/include -internal-externc-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -internal-externc-isystem /Library/Developer/CommandLineTools/usr/include -internal-iframework /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks -internal-iframework /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/SubFrameworks -internal-iframework /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks -Wno-reorder-init-list -Wno-implicit-int-float-conversion -Wno-c99-designator -Wno-final-dtor-non-final-class -Wno-extra-semi-stmt -Wno-misleading-indentation -Wno-quoted-include-in-framework-header -Wno-implicit-fallthrough -Wno-enum-enum-conversion -Wno-enum-float-conversion -Wno-elaborated-enum-base -fdeprecated-macro -ferror-limit 19 -stack-protector 1 -fstack-check -mdarwin-stkchk-strong-link -fblocks -fencode-extended-block-signature -fregister-global-dtors-with-atexit -fgnuc-version=4.2.1 -fno-cxx-modules -fskip-odr-check-in-gmf -fcxx-exceptions -fexceptions -fmax-type-align=16 -fcommon -clang-vendor-feature=+disableNonDependentMemberExprInCurrentInstantiation -fno-odr-hash-protocols -clang-vendor-feature=+enableAggressiveVLAFolding -clang-vendor-feature=+revert09abecef7bbf -clang-vendor-feature=+thisNoAlignAttr -clang-vendor-feature=+thisNoNullAttr -clang-vendor-feature=+disableAtImportPrivateFrameworkInImplementationError -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o -x c++ /opt/homebrew/share/cmake/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [ "/Library/Developer/CommandLineTools/usr/bin/clang" -cc1 -triple arm64-apple-macosx26.0.0 -Wundef-prefix=TARGET_OS_ -Wdeprecated-objc-isa-usage -Werror=deprecated-objc-isa-usage -Werror=implicit-function-declaration -emit-obj -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCXXCompilerABI.cpp -mrelocation-model pic -pic-level 2 -mframe-pointer=non-leaf -fno-strict-return -ffp-contract=on -fno-rounding-math -funwind-tables=1 -fobjc-msgsend-selector-stubs -target-sdk-version=26.2 -fvisibility-inlines-hidden-static-local-var -fdefine-target-os-macros -fno-assume-unique-vtables -fno-modulemap-allow-subdirectory-search -target-cpu apple-m1 -target-feature +zcm -target-feature +zcz -target-feature +v8.5a -target-feature +aes -target-feature +altnzcv -target-feature +ccdp -target-feature +complxnum -target-feature +crc -target-feature +dotprod -target-feature +fp-armv8 -target-feature +fp16fml -target-feature +fptoint -target-feature +fullfp16 -target-feature +jsconv -target-feature +lse -target-feature +neon -target-feature +pauth -target-feature +perfmon -target-feature +predres -target-feature +ras -target-feature +rcpc -target-feature +rdm -target-feature +sb -target-feature +sha2 -target-feature +sha3 -target-feature +specrestrict -target-feature +ssbs -target-abi darwinpcs -debugger-tuning=lldb -fdebug-compilation-dir=/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-sxpZkz -target-linker-version 1230.1 -v -fcoverage-compilation-dir=/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-sxpZkz -resource-dir /Library/Developer/CommandLineTools/usr/lib/clang/17 -dependency-file CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o.d -skip-unused-modulemap-deps -MT CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o -sys-header-deps -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1 -internal-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/local/include -internal-isystem /Library/Developer/CommandLineTools/usr/lib/clang/17/include -internal-externc-isystem /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include -internal-externc-isystem /Library/Developer/CommandLineTools/usr/include -internal-iframework /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks -internal-iframework /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/SubFrameworks -internal-iframework /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks -Wno-reorder-init-list -Wno-implicit-int-float-conversion -Wno-c99-designator -Wno-final-dtor-non-final-class -Wno-extra-semi-stmt -Wno-misleading-indentation -Wno-quoted-include-in-framework-header -Wno-implicit-fallthrough -Wno-enum-enum-conversion -Wno-enum-float-conversion -Wno-elaborated-enum-base -fdeprecated-macro -ferror-limit 19 -stack-protector 1 -fstack-check -mdarwin-stkchk-strong-link -fblocks -fencode-extended-block-signature -fregister-global-dtors-with-atexit -fgnuc-version=4.2.1 -fno-cxx-modules -fskip-odr-check-in-gmf -fcxx-exceptions -fexceptions -fmax-type-align=16 -fcommon -clang-vendor-feature=+disableNonDependentMemberExprInCurrentInstantiation -fno-odr-hash-protocols -clang-vendor-feature=+enableAggressiveVLAFolding -clang-vendor-feature=+revert09abecef7bbf -clang-vendor-feature=+thisNoAlignAttr -clang-vendor-feature=+thisNoNullAttr -clang-vendor-feature=+disableAtImportPrivateFrameworkInImplementationError -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o -x c++ /opt/homebrew/share/cmake/Modules/CMakeCXXCompilerABI.cpp]
         ignore line: [clang -cc1 version 17.0.0 (clang-1700.6.3.2) default target arm64-apple-darwin25.2.0]
         ignore line: [ignoring nonexistent directory "/usr/local/include"]
         ignore line: [ignoring nonexistent directory "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/local/include"]
@@ -1373,13 +1458,13 @@ events:
         ignore line: [ /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks (framework directory)]
         ignore line: [ /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/SubFrameworks (framework directory)]
         ignore line: [End of search list.]
-        ignore line: [Linking CXX executable cmTC_54cbe]
-        ignore line: [/opt/homebrew/bin/cmake -E cmake_link_script CMakeFiles/cmTC_54cbe.dir/link.txt --verbose=1]
+        ignore line: [Linking CXX executable cmTC_a8d74]
+        ignore line: [/opt/homebrew/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a8d74.dir/link.txt --verbose=1]
         ignore line: [Apple clang version 17.0.0 (clang-1700.6.3.2)]
         ignore line: [Target: arm64-apple-darwin25.2.0]
         ignore line: [Thread model: posix]
         ignore line: [InstalledDir: /Library/Developer/CommandLineTools/usr/bin]
-        link line: [ "/Library/Developer/CommandLineTools/usr/bin/ld" -demangle -lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib -dynamic -arch arm64 -platform_version macos 26.0.0 26.2 -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mllvm -enable-linkonceodr-outlining -o cmTC_54cbe -L/usr/local/lib -search_paths_first -headerpad_max_install_names -v CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o -lc++ -lSystem /Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a]
+        link line: [ "/Library/Developer/CommandLineTools/usr/bin/ld" -demangle -lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib -dynamic -arch arm64 -platform_version macos 26.0.0 26.2 -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -mllvm -enable-linkonceodr-outlining -o cmTC_a8d74 -L/usr/local/lib -search_paths_first -headerpad_max_install_names -v CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o -lc++ -lSystem /Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a]
           arg [/Library/Developer/CommandLineTools/usr/bin/ld] ==> ignore
           arg [-demangle] ==> ignore
           arg [-lto_library] ==> ignore, skip following value
@@ -1396,12 +1481,12 @@ events:
           arg [-mllvm] ==> ignore
           arg [-enable-linkonceodr-outlining] ==> ignore
           arg [-o] ==> ignore
-          arg [cmTC_54cbe] ==> ignore
+          arg [cmTC_a8d74] ==> ignore
           arg [-L/usr/local/lib] ==> dir [/usr/local/lib]
           arg [-search_paths_first] ==> ignore
           arg [-headerpad_max_install_names] ==> ignore
           arg [-v] ==> ignore
-          arg [CMakeFiles/cmTC_54cbe.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+          arg [CMakeFiles/cmTC_a8d74.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
           arg [-lc++] ==> lib [c++]
           arg [-lSystem] ==> lib [System]
           arg [/Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a] ==> lib [/Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a]
@@ -1448,12 +1533,12 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6/QtPublicDependencyHelpers.cmake:36 (find_dependency)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Dependencies.cmake:38 (_qt_internal_find_third_party_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:176 (include)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     checks:
       - "Performing Test CMAKE_HAVE_LIBC_PTHREAD"
     directories:
-      source: "/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-XqqyS3"
-      binary: "/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-XqqyS3"
+      source: "/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-rkyzO2"
+      binary: "/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-rkyzO2"
     cmakeVariables:
       CMAKE_CXX_FLAGS: ""
       CMAKE_CXX_FLAGS_DEBUG: "-g"
@@ -1466,15 +1551,15 @@ events:
       variable: "CMAKE_HAVE_LIBC_PTHREAD"
       cached: true
       stdout: |
-        Change Dir: '/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-XqqyS3'
+        Change Dir: '/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-rkyzO2'
         
-        Run Build Command(s): /opt/homebrew/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_9aab0/fast
-        /Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/cmTC_9aab0.dir/build.make CMakeFiles/cmTC_9aab0.dir/build
-        Building CXX object CMakeFiles/cmTC_9aab0.dir/src.cxx.o
-        /usr/bin/c++ -DCMAKE_HAVE_LIBC_PTHREAD  -std=gnu++17 -arch arm64 -MD -MT CMakeFiles/cmTC_9aab0.dir/src.cxx.o -MF CMakeFiles/cmTC_9aab0.dir/src.cxx.o.d -o CMakeFiles/cmTC_9aab0.dir/src.cxx.o -c /Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-XqqyS3/src.cxx
-        Linking CXX executable cmTC_9aab0
-        /opt/homebrew/bin/cmake -E cmake_link_script CMakeFiles/cmTC_9aab0.dir/link.txt --verbose=1
-        /usr/bin/c++  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/cmTC_9aab0.dir/src.cxx.o -o cmTC_9aab0
+        Run Build Command(s): /opt/homebrew/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_ca13d/fast
+        /Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/cmTC_ca13d.dir/build.make CMakeFiles/cmTC_ca13d.dir/build
+        Building CXX object CMakeFiles/cmTC_ca13d.dir/src.cxx.o
+        /usr/bin/c++ -DCMAKE_HAVE_LIBC_PTHREAD  -std=gnu++17 -arch arm64 -MD -MT CMakeFiles/cmTC_ca13d.dir/src.cxx.o -MF CMakeFiles/cmTC_ca13d.dir/src.cxx.o.d -o CMakeFiles/cmTC_ca13d.dir/src.cxx.o -c /Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-rkyzO2/src.cxx
+        Linking CXX executable cmTC_ca13d
+        /opt/homebrew/bin/cmake -E cmake_link_script CMakeFiles/cmTC_ca13d.dir/link.txt --verbose=1
+        /usr/bin/c++  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/cmTC_ca13d.dir/src.cxx.o -o cmTC_ca13d
         
       exitCode: 0
   -
@@ -1487,7 +1572,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:42 (_qt_internal_find_tool_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     name: "Qt6CoreTools"
     configs:
       -
@@ -1549,11 +1634,11 @@ events:
         mode: "config"
         reason: "no_exist"
       -
-        path: "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/Qt6CoreToolsConfig.cmake"
+        path: "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/Qt6CoreToolsConfig.cmake"
         mode: "config"
         reason: "no_exist"
       -
-        path: "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/qt6coretools-config.cmake"
+        path: "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/qt6coretools-config.cmake"
         mode: "config"
         reason: "no_exist"
       -
@@ -1580,7 +1665,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -1597,6 +1682,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -1632,7 +1721,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:42 (_qt_internal_find_tool_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     name: "Qt6GuiTools"
     configs:
       -
@@ -1694,11 +1783,11 @@ events:
         mode: "config"
         reason: "no_exist"
       -
-        path: "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/Qt6GuiToolsConfig.cmake"
+        path: "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/Qt6GuiToolsConfig.cmake"
         mode: "config"
         reason: "no_exist"
       -
-        path: "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/qt6guitools-config.cmake"
+        path: "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/qt6guitools-config.cmake"
         mode: "config"
         reason: "no_exist"
       -
@@ -1725,7 +1814,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -1742,6 +1831,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -1774,7 +1867,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:42 (_qt_internal_find_tool_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     name: "Qt6WidgetsTools"
     configs:
       -
@@ -1836,11 +1929,11 @@ events:
         mode: "config"
         reason: "no_exist"
       -
-        path: "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/Qt6WidgetsToolsConfig.cmake"
+        path: "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/Qt6WidgetsToolsConfig.cmake"
         mode: "config"
         reason: "no_exist"
       -
-        path: "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/qt6widgetstools-config.cmake"
+        path: "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/qt6widgetstools-config.cmake"
         mode: "config"
         reason: "no_exist"
       -
@@ -1867,7 +1960,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -1884,6 +1977,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -1926,12 +2023,12 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:50 (_qt_internal_find_qt_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     checks:
       - "Performing Test HAVE_STDATOMIC"
     directories:
-      source: "/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-6rxES8"
-      binary: "/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-6rxES8"
+      source: "/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-xvHybo"
+      binary: "/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-xvHybo"
     cmakeVariables:
       CMAKE_CXX_FLAGS: ""
       CMAKE_CXX_FLAGS_DEBUG: "-g"
@@ -1944,15 +2041,15 @@ events:
       variable: "HAVE_STDATOMIC"
       cached: true
       stdout: |
-        Change Dir: '/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-6rxES8'
+        Change Dir: '/Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-xvHybo'
         
-        Run Build Command(s): /opt/homebrew/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_b4592/fast
-        /Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/cmTC_b4592.dir/build.make CMakeFiles/cmTC_b4592.dir/build
-        Building CXX object CMakeFiles/cmTC_b4592.dir/src.cxx.o
-        /usr/bin/c++ -DHAVE_STDATOMIC  -std=gnu++17 -arch arm64 -MD -MT CMakeFiles/cmTC_b4592.dir/src.cxx.o -MF CMakeFiles/cmTC_b4592.dir/src.cxx.o.d -o CMakeFiles/cmTC_b4592.dir/src.cxx.o -c /Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-6rxES8/src.cxx
-        Linking CXX executable cmTC_b4592
-        /opt/homebrew/bin/cmake -E cmake_link_script CMakeFiles/cmTC_b4592.dir/link.txt --verbose=1
-        /usr/bin/c++  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/cmTC_b4592.dir/src.cxx.o -o cmTC_b4592
+        Run Build Command(s): /opt/homebrew/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_23e69/fast
+        /Library/Developer/CommandLineTools/usr/bin/make  -f CMakeFiles/cmTC_23e69.dir/build.make CMakeFiles/cmTC_23e69.dir/build
+        Building CXX object CMakeFiles/cmTC_23e69.dir/src.cxx.o
+        /usr/bin/c++ -DHAVE_STDATOMIC  -std=gnu++17 -arch arm64 -MD -MT CMakeFiles/cmTC_23e69.dir/src.cxx.o -MF CMakeFiles/cmTC_23e69.dir/src.cxx.o.d -o CMakeFiles/cmTC_23e69.dir/src.cxx.o -c /Users/cam/asiatica-va/build/CMakeFiles/CMakeScratch/TryCompile-xvHybo/src.cxx
+        Linking CXX executable cmTC_23e69
+        /opt/homebrew/bin/cmake -E cmake_link_script CMakeFiles/cmTC_23e69.dir/link.txt --verbose=1
+        /usr/bin/c++  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/cmTC_23e69.dir/src.cxx.o -o cmTC_23e69
         
       exitCode: 0
   -
@@ -1967,7 +2064,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:50 (_qt_internal_find_qt_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     mode: "program"
     variable: "MACDEPLOYQT_EXECUTABLE"
     description: "Path to a program."
@@ -1985,7 +2082,7 @@ events:
       - "/opt/homebrew/bin/"
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/sbin/"
@@ -2001,6 +2098,7 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/bin/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/sbin/"
@@ -2037,7 +2135,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -2054,6 +2152,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -2080,7 +2182,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:50 (_qt_internal_find_qt_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     name: "Qt6Core"
     configs:
       -
@@ -2173,7 +2275,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -2190,6 +2292,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -2231,7 +2337,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:50 (_qt_internal_find_qt_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     mode: "library"
     variable: "OPENGL_gl_LIBRARY"
     description: "OpenGL GL library"
@@ -2249,7 +2355,7 @@ events:
     candidate_directories:
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
       - "/opt/homebrew/sbin/"
@@ -2261,6 +2367,7 @@ events:
       - "/sbin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
@@ -2280,7 +2387,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -2297,6 +2404,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -2340,7 +2451,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:50 (_qt_internal_find_qt_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     mode: "library"
     variable: "OPENGL_glu_LIBRARY"
     description: "OpenGL GLU library"
@@ -2358,7 +2469,7 @@ events:
     candidate_directories:
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
       - "/opt/homebrew/sbin/"
@@ -2370,6 +2481,7 @@ events:
       - "/sbin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
@@ -2389,7 +2501,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -2406,6 +2518,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -2449,7 +2565,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:50 (_qt_internal_find_qt_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     mode: "path"
     variable: "OPENGL_INCLUDE_DIR"
     description: "Include for OpenGL"
@@ -2467,7 +2583,7 @@ events:
     candidate_directories:
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -2484,6 +2600,7 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
@@ -2516,7 +2633,7 @@ events:
     searched_directories:
       - "/Users/cam/.bun/bin/OpenGL.framework/Headers/gl.h"
       - "/Users/cam/.local/bin/OpenGL.framework/Headers/gl.h"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/OpenGL.framework/Headers/gl.h"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/OpenGL.framework/Headers/gl.h"
       - "/Library/gurobi1101/mac64/bin/OpenGL.framework/Headers/gl.h"
       - "/Users/cam/.pyenv/shims/OpenGL.framework/Headers/gl.h"
       - "/opt/homebrew/bin/OpenGL.framework/Headers/gl.h"
@@ -2533,6 +2650,7 @@ events:
       - "/opt/pmk/env/global/bin/OpenGL.framework/Headers/gl.h"
       - "/Library/Apple/usr/bin/OpenGL.framework/Headers/gl.h"
       - "/Library/TeX/texbin/OpenGL.framework/Headers/gl.h"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/OpenGL.framework/Headers/gl.h"
       - "/Users/cam/.cargo/bin/OpenGL.framework/Headers/gl.h"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/OpenGL.framework/Headers/gl.h"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/OpenGL.framework/Headers/gl.h"
@@ -2562,7 +2680,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -2579,6 +2697,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -2622,7 +2744,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:50 (_qt_internal_find_qt_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     mode: "path"
     variable: "OPENGL_GLU_INCLUDE_DIR"
     description: "Include for the OpenGL GLU library"
@@ -2640,7 +2762,7 @@ events:
     candidate_directories:
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -2657,6 +2779,7 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
@@ -2689,7 +2812,7 @@ events:
     searched_directories:
       - "/Users/cam/.bun/bin/OpenGL.framework/Headers/glu.h"
       - "/Users/cam/.local/bin/OpenGL.framework/Headers/glu.h"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/OpenGL.framework/Headers/glu.h"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/OpenGL.framework/Headers/glu.h"
       - "/Library/gurobi1101/mac64/bin/OpenGL.framework/Headers/glu.h"
       - "/Users/cam/.pyenv/shims/OpenGL.framework/Headers/glu.h"
       - "/opt/homebrew/bin/OpenGL.framework/Headers/glu.h"
@@ -2706,6 +2829,7 @@ events:
       - "/opt/pmk/env/global/bin/OpenGL.framework/Headers/glu.h"
       - "/Library/Apple/usr/bin/OpenGL.framework/Headers/glu.h"
       - "/Library/TeX/texbin/OpenGL.framework/Headers/glu.h"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/OpenGL.framework/Headers/glu.h"
       - "/Users/cam/.cargo/bin/OpenGL.framework/Headers/glu.h"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/OpenGL.framework/Headers/glu.h"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/OpenGL.framework/Headers/glu.h"
@@ -2735,7 +2859,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -2752,6 +2876,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -2793,7 +2921,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:50 (_qt_internal_find_qt_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     mode: "path"
     variable: "Vulkan_INCLUDE_DIR"
     description: "Path to a file."
@@ -2811,7 +2939,7 @@ events:
       - "/include/"
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -2828,6 +2956,7 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
@@ -2861,7 +2990,7 @@ events:
       - "/include/vulkan.framework/Headers/vulkan.h"
       - "/Users/cam/.bun/bin/vulkan.framework/Headers/vulkan.h"
       - "/Users/cam/.local/bin/vulkan.framework/Headers/vulkan.h"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/vulkan.framework/Headers/vulkan.h"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/vulkan.framework/Headers/vulkan.h"
       - "/Library/gurobi1101/mac64/bin/vulkan.framework/Headers/vulkan.h"
       - "/Users/cam/.pyenv/shims/vulkan.framework/Headers/vulkan.h"
       - "/opt/homebrew/bin/vulkan.framework/Headers/vulkan.h"
@@ -2878,6 +3007,7 @@ events:
       - "/opt/pmk/env/global/bin/vulkan.framework/Headers/vulkan.h"
       - "/Library/Apple/usr/bin/vulkan.framework/Headers/vulkan.h"
       - "/Library/TeX/texbin/vulkan.framework/Headers/vulkan.h"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/vulkan.framework/Headers/vulkan.h"
       - "/Users/cam/.cargo/bin/vulkan.framework/Headers/vulkan.h"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/vulkan.framework/Headers/vulkan.h"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/vulkan.framework/Headers/vulkan.h"
@@ -2910,7 +3040,7 @@ events:
       - "/include/vulkan/vulkan.h"
       - "/Users/cam/.bun/bin/vulkan/vulkan.h"
       - "/Users/cam/.local/bin/vulkan/vulkan.h"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/vulkan/vulkan.h"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/vulkan/vulkan.h"
       - "/Library/gurobi1101/mac64/bin/vulkan/vulkan.h"
       - "/Users/cam/.pyenv/shims/vulkan/vulkan.h"
       - "/opt/homebrew/bin/vulkan/vulkan.h"
@@ -2927,6 +3057,7 @@ events:
       - "/opt/pmk/env/global/bin/vulkan/vulkan.h"
       - "/Library/Apple/usr/bin/vulkan/vulkan.h"
       - "/Library/TeX/texbin/vulkan/vulkan.h"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/vulkan/vulkan.h"
       - "/Users/cam/.cargo/bin/vulkan/vulkan.h"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/vulkan/vulkan.h"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/vulkan/vulkan.h"
@@ -2935,7 +3066,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -2952,6 +3083,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -2993,7 +3128,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:50 (_qt_internal_find_qt_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     mode: "library"
     variable: "Vulkan_LIBRARY"
     description: "Path to a library."
@@ -3010,7 +3145,7 @@ events:
     candidate_directories:
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
       - "/opt/homebrew/sbin/"
@@ -3022,6 +3157,7 @@ events:
       - "/sbin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
@@ -3039,7 +3175,7 @@ events:
     searched_directories:
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
       - "/opt/homebrew/sbin/"
@@ -3051,6 +3187,7 @@ events:
       - "/sbin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
@@ -3059,7 +3196,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -3076,6 +3213,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -3117,7 +3258,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:50 (_qt_internal_find_qt_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     mode: "program"
     variable: "Vulkan_GLSLC_EXECUTABLE"
     description: "Path to a program."
@@ -3135,7 +3276,7 @@ events:
       - "/bin/"
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -3151,6 +3292,7 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/bin/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/sbin/"
@@ -3186,7 +3328,7 @@ events:
       - "/bin/glslc"
       - "/Users/cam/.bun/bin/glslc"
       - "/Users/cam/.local/bin/glslc"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/glslc"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/glslc"
       - "/Library/gurobi1101/mac64/bin/glslc"
       - "/Users/cam/.pyenv/shims/glslc"
     found: "/opt/homebrew/bin/glslc"
@@ -3194,7 +3336,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -3211,6 +3353,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -3242,7 +3388,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:50 (_qt_internal_find_qt_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     mode: "program"
     variable: "Vulkan_GLSLANG_VALIDATOR_EXECUTABLE"
     description: "Path to a program."
@@ -3260,7 +3406,7 @@ events:
       - "/bin/"
       - "/Users/cam/.bun/bin/"
       - "/Users/cam/.local/bin/"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/"
       - "/Library/gurobi1101/mac64/bin/"
       - "/Users/cam/.pyenv/shims/"
       - "/opt/homebrew/bin/"
@@ -3276,6 +3422,7 @@ events:
       - "/opt/pmk/env/global/bin/"
       - "/Library/Apple/usr/bin/"
       - "/Library/TeX/texbin/"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/"
       - "/Users/cam/.cargo/bin/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/bin/"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/sbin/"
@@ -3311,7 +3458,7 @@ events:
       - "/bin/glslangValidator"
       - "/Users/cam/.bun/bin/glslangValidator"
       - "/Users/cam/.local/bin/glslangValidator"
-      - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin/glslangValidator"
+      - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin/glslangValidator"
       - "/Library/gurobi1101/mac64/bin/glslangValidator"
       - "/Users/cam/.pyenv/shims/glslangValidator"
       - "/opt/homebrew/bin/glslangValidator"
@@ -3327,6 +3474,7 @@ events:
       - "/opt/pmk/env/global/bin/glslangValidator"
       - "/Library/Apple/usr/bin/glslangValidator"
       - "/Library/TeX/texbin/glslangValidator"
+      - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin/glslangValidator"
       - "/Users/cam/.cargo/bin/glslangValidator"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/bin/glslangValidator"
       - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/sbin/glslangValidator"
@@ -3363,7 +3511,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -3380,6 +3528,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -3414,7 +3566,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:50 (_qt_internal_find_qt_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     name: "Qt6DBusTools"
     configs:
       -
@@ -3476,11 +3628,11 @@ events:
         mode: "config"
         reason: "no_exist"
       -
-        path: "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/Qt6DBusToolsConfig.cmake"
+        path: "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/Qt6DBusToolsConfig.cmake"
         mode: "config"
         reason: "no_exist"
       -
-        path: "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/qt6dbustools-config.cmake"
+        path: "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/qt6dbustools-config.cmake"
         mode: "config"
         reason: "no_exist"
       -
@@ -3507,7 +3659,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -3524,6 +3676,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -3563,7 +3719,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:50 (_qt_internal_find_qt_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     name: "Qt6DBus"
     configs:
       -
@@ -3640,7 +3796,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -3657,6 +3813,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -3691,7 +3851,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsDependencies.cmake:50 (_qt_internal_find_qt_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     name: "Qt6Gui"
     configs:
       -
@@ -3768,7 +3928,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -3785,6 +3945,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -3814,7 +3978,7 @@ events:
     kind: "find_package-v1"
     backtrace:
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     name: "Qt6Widgets"
     configs:
       -
@@ -3888,7 +4052,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -3905,6 +4069,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -3939,7 +4107,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Multimedia/Qt6MultimediaDependencies.cmake:50 (_qt_internal_find_qt_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Multimedia/Qt6MultimediaConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     name: "Qt6Concurrent"
     configs:
       -
@@ -4000,7 +4168,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -4017,6 +4185,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -4051,7 +4223,7 @@ events:
       - "/opt/homebrew/lib/cmake/Qt6Multimedia/Qt6MultimediaDependencies.cmake:50 (_qt_internal_find_qt_dependencies)"
       - "/opt/homebrew/lib/cmake/Qt6Multimedia/Qt6MultimediaConfig.cmake:40 (include)"
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     name: "Qt6Network"
     configs:
       -
@@ -4136,7 +4308,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -4153,6 +4325,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -4182,7 +4358,7 @@ events:
     kind: "find_package-v1"
     backtrace:
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     name: "Qt6Multimedia"
     configs:
       -
@@ -4280,7 +4456,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -4297,6 +4473,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -4326,7 +4506,7 @@ events:
     kind: "find_package-v1"
     backtrace:
       - "/opt/homebrew/lib/cmake/Qt6/Qt6Config.cmake:237 (find_package)"
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     name: "Qt6MultimediaWidgets"
     configs:
       -
@@ -4392,7 +4572,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -4409,6 +4589,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -4437,7 +4621,7 @@ events:
   -
     kind: "find_package-v1"
     backtrace:
-      - "CMakeLists.txt:8 (find_package)"
+      - "CMakeLists.txt:9 (find_package)"
     name: "Qt6"
     components:
       -
@@ -4507,11 +4691,11 @@ events:
         mode: "config"
         reason: "no_exist"
       -
-        path: "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/Qt6Config.cmake"
+        path: "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/Qt6Config.cmake"
         mode: "config"
         reason: "no_exist"
       -
-        path: "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/qt6-config.cmake"
+        path: "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/qt6-config.cmake"
         mode: "config"
         reason: "no_exist"
       -
@@ -7266,7 +7450,7 @@ events:
       ENV{PATH}:
         - "/Users/cam/.bun/bin"
         - "/Users/cam/.local/bin"
-        - "/Users/cam/.local/state/fnm_multishells/3823_1768757191756/bin"
+        - "/Users/cam/.local/state/fnm_multishells/53496_1768840474610/bin"
         - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.pyenv/shims"
         - "/opt/homebrew/bin"
@@ -7283,6 +7467,10 @@ events:
         - "/opt/pmk/env/global/bin"
         - "/Library/Apple/usr/bin"
         - "/Library/TeX/texbin"
+        - "/Users/cam/.bun/bin"
+        - "/Users/cam/.local/bin"
+        - "/Users/cam/.local/state/fnm_multishells/52950_1768840472529/bin"
+        - "/Library/gurobi1101/mac64/bin"
         - "/Users/cam/.cargo/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:

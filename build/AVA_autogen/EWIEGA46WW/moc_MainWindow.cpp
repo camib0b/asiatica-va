@@ -39,55 +39,16 @@ template <> constexpr inline auto MainWindow::qt_create_metaobjectdata<qt_meta_t
     namespace QMC = QtMocConstants;
     QtMocHelpers::StringRefStorage qt_stringData {
         "MainWindow",
-        "onImportVideoClicked",
+        "onVideoImportRequested",
         "",
-        "onPlayClicked",
-        "onPauseClicked",
-        "onFasterClicked",
-        "onSlowerClicked",
-        "onResetSpeedClicked",
-        "onMuteToggled",
-        "muted",
-        "onTogglePlayPause",
-        "onSeekSmallBackward",
-        "onSeekSmallForward",
-        "onSeekBigBackward",
-        "onSeekBigForward",
-        "onReplaceVideo",
-        "onDiscardVideo"
+        "onVideoClosed"
     };
 
     QtMocHelpers::UintData qt_methods {
-        // Slot 'onImportVideoClicked'
+        // Slot 'onVideoImportRequested'
         QtMocHelpers::SlotData<void()>(1, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onPlayClicked'
+        // Slot 'onVideoClosed'
         QtMocHelpers::SlotData<void()>(3, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onPauseClicked'
-        QtMocHelpers::SlotData<void()>(4, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onFasterClicked'
-        QtMocHelpers::SlotData<void()>(5, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onSlowerClicked'
-        QtMocHelpers::SlotData<void()>(6, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onResetSpeedClicked'
-        QtMocHelpers::SlotData<void()>(7, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onMuteToggled'
-        QtMocHelpers::SlotData<void(bool)>(8, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::Bool, 9 },
-        }}),
-        // Slot 'onTogglePlayPause'
-        QtMocHelpers::SlotData<void()>(10, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onSeekSmallBackward'
-        QtMocHelpers::SlotData<void()>(11, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onSeekSmallForward'
-        QtMocHelpers::SlotData<void()>(12, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onSeekBigBackward'
-        QtMocHelpers::SlotData<void()>(13, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onSeekBigForward'
-        QtMocHelpers::SlotData<void()>(14, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onReplaceVideo'
-        QtMocHelpers::SlotData<void()>(15, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onDiscardVideo'
-        QtMocHelpers::SlotData<void()>(16, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -111,23 +72,12 @@ void MainWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
     auto *_t = static_cast<MainWindow *>(_o);
     if (_c == QMetaObject::InvokeMetaMethod) {
         switch (_id) {
-        case 0: _t->onImportVideoClicked(); break;
-        case 1: _t->onPlayClicked(); break;
-        case 2: _t->onPauseClicked(); break;
-        case 3: _t->onFasterClicked(); break;
-        case 4: _t->onSlowerClicked(); break;
-        case 5: _t->onResetSpeedClicked(); break;
-        case 6: _t->onMuteToggled((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1]))); break;
-        case 7: _t->onTogglePlayPause(); break;
-        case 8: _t->onSeekSmallBackward(); break;
-        case 9: _t->onSeekSmallForward(); break;
-        case 10: _t->onSeekBigBackward(); break;
-        case 11: _t->onSeekBigForward(); break;
-        case 12: _t->onReplaceVideo(); break;
-        case 13: _t->onDiscardVideo(); break;
+        case 0: _t->onVideoImportRequested(); break;
+        case 1: _t->onVideoClosed(); break;
         default: ;
         }
     }
+    (void)_a;
 }
 
 const QMetaObject *MainWindow::metaObject() const
@@ -149,14 +99,14 @@ int MainWindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 14)
+        if (_id < 2)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 14;
+        _id -= 2;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 14)
+        if (_id < 2)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 14;
+        _id -= 2;
     }
     return _id;
 }

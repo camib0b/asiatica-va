@@ -107,64 +107,112 @@ CMakeFiles/AVA.dir/main.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AVA.dir/main.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/cam/asiatica-va/main.cpp -o CMakeFiles/AVA.dir/main.cpp.s
 
-CMakeFiles/AVA.dir/MainWindow.cpp.o: CMakeFiles/AVA.dir/flags.make
-CMakeFiles/AVA.dir/MainWindow.cpp.o: /Users/cam/asiatica-va/MainWindow.cpp
-CMakeFiles/AVA.dir/MainWindow.cpp.o: CMakeFiles/AVA.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/cam/asiatica-va/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/AVA.dir/MainWindow.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AVA.dir/MainWindow.cpp.o -MF CMakeFiles/AVA.dir/MainWindow.cpp.o.d -o CMakeFiles/AVA.dir/MainWindow.cpp.o -c /Users/cam/asiatica-va/MainWindow.cpp
+CMakeFiles/AVA.dir/style/theme.cpp.o: CMakeFiles/AVA.dir/flags.make
+CMakeFiles/AVA.dir/style/theme.cpp.o: /Users/cam/asiatica-va/style/theme.cpp
+CMakeFiles/AVA.dir/style/theme.cpp.o: CMakeFiles/AVA.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/cam/asiatica-va/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/AVA.dir/style/theme.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AVA.dir/style/theme.cpp.o -MF CMakeFiles/AVA.dir/style/theme.cpp.o.d -o CMakeFiles/AVA.dir/style/theme.cpp.o -c /Users/cam/asiatica-va/style/theme.cpp
 
-CMakeFiles/AVA.dir/MainWindow.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AVA.dir/MainWindow.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/cam/asiatica-va/MainWindow.cpp > CMakeFiles/AVA.dir/MainWindow.cpp.i
+CMakeFiles/AVA.dir/style/theme.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AVA.dir/style/theme.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/cam/asiatica-va/style/theme.cpp > CMakeFiles/AVA.dir/style/theme.cpp.i
 
-CMakeFiles/AVA.dir/MainWindow.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AVA.dir/MainWindow.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/cam/asiatica-va/MainWindow.cpp -o CMakeFiles/AVA.dir/MainWindow.cpp.s
+CMakeFiles/AVA.dir/style/theme.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AVA.dir/style/theme.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/cam/asiatica-va/style/theme.cpp -o CMakeFiles/AVA.dir/style/theme.cpp.s
 
-CMakeFiles/AVA.dir/VideoControlsBar.cpp.o: CMakeFiles/AVA.dir/flags.make
-CMakeFiles/AVA.dir/VideoControlsBar.cpp.o: /Users/cam/asiatica-va/VideoControlsBar.cpp
-CMakeFiles/AVA.dir/VideoControlsBar.cpp.o: CMakeFiles/AVA.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/cam/asiatica-va/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/AVA.dir/VideoControlsBar.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AVA.dir/VideoControlsBar.cpp.o -MF CMakeFiles/AVA.dir/VideoControlsBar.cpp.o.d -o CMakeFiles/AVA.dir/VideoControlsBar.cpp.o -c /Users/cam/asiatica-va/VideoControlsBar.cpp
+CMakeFiles/AVA.dir/ui/MainWindow.cpp.o: CMakeFiles/AVA.dir/flags.make
+CMakeFiles/AVA.dir/ui/MainWindow.cpp.o: /Users/cam/asiatica-va/ui/MainWindow.cpp
+CMakeFiles/AVA.dir/ui/MainWindow.cpp.o: CMakeFiles/AVA.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/cam/asiatica-va/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/AVA.dir/ui/MainWindow.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AVA.dir/ui/MainWindow.cpp.o -MF CMakeFiles/AVA.dir/ui/MainWindow.cpp.o.d -o CMakeFiles/AVA.dir/ui/MainWindow.cpp.o -c /Users/cam/asiatica-va/ui/MainWindow.cpp
 
-CMakeFiles/AVA.dir/VideoControlsBar.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AVA.dir/VideoControlsBar.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/cam/asiatica-va/VideoControlsBar.cpp > CMakeFiles/AVA.dir/VideoControlsBar.cpp.i
+CMakeFiles/AVA.dir/ui/MainWindow.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AVA.dir/ui/MainWindow.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/cam/asiatica-va/ui/MainWindow.cpp > CMakeFiles/AVA.dir/ui/MainWindow.cpp.i
 
-CMakeFiles/AVA.dir/VideoControlsBar.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AVA.dir/VideoControlsBar.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/cam/asiatica-va/VideoControlsBar.cpp -o CMakeFiles/AVA.dir/VideoControlsBar.cpp.s
+CMakeFiles/AVA.dir/ui/MainWindow.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AVA.dir/ui/MainWindow.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/cam/asiatica-va/ui/MainWindow.cpp -o CMakeFiles/AVA.dir/ui/MainWindow.cpp.s
 
-CMakeFiles/AVA.dir/TimelineBar.cpp.o: CMakeFiles/AVA.dir/flags.make
-CMakeFiles/AVA.dir/TimelineBar.cpp.o: /Users/cam/asiatica-va/TimelineBar.cpp
-CMakeFiles/AVA.dir/TimelineBar.cpp.o: CMakeFiles/AVA.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/cam/asiatica-va/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/AVA.dir/TimelineBar.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AVA.dir/TimelineBar.cpp.o -MF CMakeFiles/AVA.dir/TimelineBar.cpp.o.d -o CMakeFiles/AVA.dir/TimelineBar.cpp.o -c /Users/cam/asiatica-va/TimelineBar.cpp
+CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.o: CMakeFiles/AVA.dir/flags.make
+CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.o: /Users/cam/asiatica-va/ui/WelcomeWindow.cpp
+CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.o: CMakeFiles/AVA.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/cam/asiatica-va/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.o -MF CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.o.d -o CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.o -c /Users/cam/asiatica-va/ui/WelcomeWindow.cpp
 
-CMakeFiles/AVA.dir/TimelineBar.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AVA.dir/TimelineBar.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/cam/asiatica-va/TimelineBar.cpp > CMakeFiles/AVA.dir/TimelineBar.cpp.i
+CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/cam/asiatica-va/ui/WelcomeWindow.cpp > CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.i
 
-CMakeFiles/AVA.dir/TimelineBar.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AVA.dir/TimelineBar.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/cam/asiatica-va/TimelineBar.cpp -o CMakeFiles/AVA.dir/TimelineBar.cpp.s
+CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/cam/asiatica-va/ui/WelcomeWindow.cpp -o CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.s
+
+CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: CMakeFiles/AVA.dir/flags.make
+CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: /Users/cam/asiatica-va/ui/WorkWindow.cpp
+CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: CMakeFiles/AVA.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/cam/asiatica-va/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o -MF CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o.d -o CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o -c /Users/cam/asiatica-va/ui/WorkWindow.cpp
+
+CMakeFiles/AVA.dir/ui/WorkWindow.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AVA.dir/ui/WorkWindow.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/cam/asiatica-va/ui/WorkWindow.cpp > CMakeFiles/AVA.dir/ui/WorkWindow.cpp.i
+
+CMakeFiles/AVA.dir/ui/WorkWindow.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AVA.dir/ui/WorkWindow.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/cam/asiatica-va/ui/WorkWindow.cpp -o CMakeFiles/AVA.dir/ui/WorkWindow.cpp.s
+
+CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o: CMakeFiles/AVA.dir/flags.make
+CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o: /Users/cam/asiatica-va/components/VideoControlsBar.cpp
+CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o: CMakeFiles/AVA.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/cam/asiatica-va/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o -MF CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o.d -o CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o -c /Users/cam/asiatica-va/components/VideoControlsBar.cpp
+
+CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/cam/asiatica-va/components/VideoControlsBar.cpp > CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.i
+
+CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/cam/asiatica-va/components/VideoControlsBar.cpp -o CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.s
+
+CMakeFiles/AVA.dir/components/TimelineBar.cpp.o: CMakeFiles/AVA.dir/flags.make
+CMakeFiles/AVA.dir/components/TimelineBar.cpp.o: /Users/cam/asiatica-va/components/TimelineBar.cpp
+CMakeFiles/AVA.dir/components/TimelineBar.cpp.o: CMakeFiles/AVA.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/cam/asiatica-va/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/AVA.dir/components/TimelineBar.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AVA.dir/components/TimelineBar.cpp.o -MF CMakeFiles/AVA.dir/components/TimelineBar.cpp.o.d -o CMakeFiles/AVA.dir/components/TimelineBar.cpp.o -c /Users/cam/asiatica-va/components/TimelineBar.cpp
+
+CMakeFiles/AVA.dir/components/TimelineBar.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AVA.dir/components/TimelineBar.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/cam/asiatica-va/components/TimelineBar.cpp > CMakeFiles/AVA.dir/components/TimelineBar.cpp.i
+
+CMakeFiles/AVA.dir/components/TimelineBar.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AVA.dir/components/TimelineBar.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/cam/asiatica-va/components/TimelineBar.cpp -o CMakeFiles/AVA.dir/components/TimelineBar.cpp.s
 
 # Object files for target AVA
 AVA_OBJECTS = \
 "CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o" \
 "CMakeFiles/AVA.dir/main.cpp.o" \
-"CMakeFiles/AVA.dir/MainWindow.cpp.o" \
-"CMakeFiles/AVA.dir/VideoControlsBar.cpp.o" \
-"CMakeFiles/AVA.dir/TimelineBar.cpp.o"
+"CMakeFiles/AVA.dir/style/theme.cpp.o" \
+"CMakeFiles/AVA.dir/ui/MainWindow.cpp.o" \
+"CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.o" \
+"CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o" \
+"CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o" \
+"CMakeFiles/AVA.dir/components/TimelineBar.cpp.o"
 
 # External object files for target AVA
 AVA_EXTERNAL_OBJECTS =
 
 AVA: CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o
 AVA: CMakeFiles/AVA.dir/main.cpp.o
-AVA: CMakeFiles/AVA.dir/MainWindow.cpp.o
-AVA: CMakeFiles/AVA.dir/VideoControlsBar.cpp.o
-AVA: CMakeFiles/AVA.dir/TimelineBar.cpp.o
+AVA: CMakeFiles/AVA.dir/style/theme.cpp.o
+AVA: CMakeFiles/AVA.dir/ui/MainWindow.cpp.o
+AVA: CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.o
+AVA: CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o
+AVA: CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o
+AVA: CMakeFiles/AVA.dir/components/TimelineBar.cpp.o
 AVA: CMakeFiles/AVA.dir/build.make
 AVA: /opt/homebrew/lib/QtMultimediaWidgets.framework/Versions/A/QtMultimediaWidgets
 AVA: /opt/homebrew/lib/QtWidgets.framework/Versions/A/QtWidgets
@@ -173,7 +221,7 @@ AVA: /opt/homebrew/lib/QtNetwork.framework/Versions/A/QtNetwork
 AVA: /opt/homebrew/lib/QtGui.framework/Versions/A/QtGui
 AVA: /opt/homebrew/lib/QtCore.framework/Versions/A/QtCore
 AVA: CMakeFiles/AVA.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/cam/asiatica-va/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Linking CXX executable AVA"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/cam/asiatica-va/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Linking CXX executable AVA"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/AVA.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

@@ -967,35 +967,13 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qframe.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/qpicture.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qiodevice.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/qtextdocument.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qurl.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QPushButton \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractbutton.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qlayout.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qlayoutitem.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/QAudioOutput \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qaudiooutput.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimediaglobal.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimedia-config.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimediaexports.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtaudio.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qaudio.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QString \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QFileDialog \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qfiledialog.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qdir.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qdirlisting.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qfiledevice.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qiodevice.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qcalendar.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qlocale.h \
@@ -1035,16 +1013,8 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__filesystem/u8path.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qfileinfo.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qtimezone.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qurl.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/QMediaPlayer \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qmediaplayer.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QUrl \
-  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/QVideoWidget \
-  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qvideowidget.h \
-  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qtmultimediawidgetsglobal.h \
-  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qtmultimediawidgetsexports.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/QAction \
-  /opt/homebrew/lib/QtGui.framework/Headers/QKeySequence \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QApplication \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qcoreapplication.h \
@@ -1058,45 +1028,9 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qinputmethod.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication_platform.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QDebug \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QSlider \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qslider.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractslider.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/QMouseEvent \
-  /opt/homebrew/lib/QtGui.framework/Headers/qevent.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/qeventpoint.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/qvector2d.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/qvectornd.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/qpointingdevice.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/qinputdevice.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/qscreen.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QList \
-  /opt/homebrew/lib/QtCore.framework/Headers/QObject \
-  /opt/homebrew/lib/QtCore.framework/Headers/QRect \
-  /opt/homebrew/lib/QtCore.framework/Headers/QSize \
-  /opt/homebrew/lib/QtCore.framework/Headers/QSizeF \
-  /opt/homebrew/lib/QtGui.framework/Headers/QTransform \
-  /opt/homebrew/lib/QtGui.framework/Headers/qscreen_platform.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer \
-  /opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QStyleOptionSlider \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qstyleoption.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractspinbox.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/qvalidator.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qregularexpression.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qtabbar.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qrubberband.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qabstractitemmodel.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QToolButton \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qtoolbutton.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QMenu \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qmenu.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QStackedLayout \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qstackedlayout.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QFrame \
-  /Users/cam/asiatica-va/VideoControlsBar.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QHash \
-  /Users/cam/asiatica-va/TimelineBar.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QStackedWidget \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qstackedwidget.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qframe.h \
+  /Users/cam/asiatica-va/WelcomeWindow.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
+  /Users/cam/asiatica-va/WorkWindow.h

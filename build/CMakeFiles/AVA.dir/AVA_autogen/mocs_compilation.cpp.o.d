@@ -1,9 +1,9 @@
 CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /Users/cam/asiatica-va/build/AVA_autogen/mocs_compilation.cpp \
-  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/moc_MainWindow.cpp \
-  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/../../../MainWindow.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QMainWindow \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qmainwindow.h \
+  /Users/cam/asiatica-va/build/AVA_autogen/XDQFSXMG3O/moc_TimelineBar.cpp \
+  /Users/cam/asiatica-va/build/AVA_autogen/XDQFSXMG3O/../../../components/TimelineBar.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qwidget.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsglobal.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qtguiglobal.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qglobal.h \
@@ -709,7 +709,6 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/qtguiexports.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgets-config.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsexports.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qwidget.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qwindowdefs.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qobjectdefs.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qnamespace.h \
@@ -967,14 +966,20 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qsizepolicy.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
   /opt/homebrew/lib/QtCore.framework/Headers/qtmochelpers.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qtmocconstants.h \
   /opt/homebrew/lib/QtCore.framework/Headers/q20algorithm.h \
-  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/moc_TimelineBar.cpp \
-  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/../../../TimelineBar.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
-  /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
-  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/moc_VideoControlsBar.cpp \
-  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/../../../VideoControlsBar.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QHash
+  /Users/cam/asiatica-va/build/AVA_autogen/XDQFSXMG3O/moc_VideoControlsBar.cpp \
+  /Users/cam/asiatica-va/build/AVA_autogen/XDQFSXMG3O/../../../components/VideoControlsBar.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QHash \
+  /Users/cam/asiatica-va/build/AVA_autogen/UYX5XTB5RZ/moc_MainWindow.cpp \
+  /Users/cam/asiatica-va/build/AVA_autogen/UYX5XTB5RZ/../../../ui/MainWindow.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QMainWindow \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qmainwindow.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QString \
+  /Users/cam/asiatica-va/build/AVA_autogen/UYX5XTB5RZ/moc_WelcomeWindow.cpp \
+  /Users/cam/asiatica-va/build/AVA_autogen/UYX5XTB5RZ/../../../ui/WelcomeWindow.h \
+  /Users/cam/asiatica-va/build/AVA_autogen/UYX5XTB5RZ/moc_WorkWindow.cpp \
+  /Users/cam/asiatica-va/build/AVA_autogen/UYX5XTB5RZ/../../../ui/WorkWindow.h
