@@ -1097,5 +1097,6 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstackedlayout.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QFrame \
   /Users/cam/asiatica-va/VideoControlsBar.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QHash \
   /Users/cam/asiatica-va/TimelineBar.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal

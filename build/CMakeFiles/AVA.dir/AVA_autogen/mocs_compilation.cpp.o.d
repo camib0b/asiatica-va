@@ -976,4 +976,5 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
   /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
   /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/moc_VideoControlsBar.cpp \
-  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/../../../VideoControlsBar.h
+  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/../../../VideoControlsBar.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QHash
