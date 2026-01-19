@@ -1092,4 +1092,8 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QToolButton \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtoolbutton.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QMenu \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qmenu.h
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qmenu.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QStackedLayout \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qstackedlayout.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QFrame \
+  /Users/cam/asiatica-va/VideoControlsBar.h

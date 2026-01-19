@@ -1,9 +1,8 @@
-CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
-  /Users/cam/asiatica-va/build/AVA_autogen/mocs_compilation.cpp \
-  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/moc_MainWindow.cpp \
-  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/../../../MainWindow.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QMainWindow \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qmainwindow.h \
+CMakeFiles/AVA.dir/VideoControlsBar.cpp.o: \
+  /Users/cam/asiatica-va/VideoControlsBar.cpp \
+  /Users/cam/asiatica-va/VideoControlsBar.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qwidget.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsglobal.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qtguiglobal.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qglobal.h \
@@ -709,7 +708,6 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/qtguiexports.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgets-config.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsexports.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qwidget.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qwindowdefs.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qobjectdefs.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qnamespace.h \
@@ -967,10 +965,18 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qsizepolicy.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qtmochelpers.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qtmocconstants.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/q20algorithm.h \
-  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/moc_VideoControlsBar.cpp \
-  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/../../../VideoControlsBar.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qlayout.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qlayoutitem.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qframe.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qpicture.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qiodevice.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qtextdocument.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qurl.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QPushButton \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractbutton.h

@@ -443,6 +443,12 @@
 			"MU",
 			"EWIEGA46WW/moc_MainWindow.cpp",
 			null
+		],
+		[
+			"/Users/cam/asiatica-va/VideoControlsBar.h",
+			"MU",
+			"EWIEGA46WW/moc_VideoControlsBar.cpp",
+			null
 		]
 	],
 	"HEADER_EXTENSIONS" : [ "h", "hh", "h++", "hm", "hpp", "hxx", "in", "txx" ],
@@ -520,6 +526,7 @@
 	"SOURCES" : 
 	[
 		[ "/Users/cam/asiatica-va/MainWindow.cpp", "MU", null ],
+		[ "/Users/cam/asiatica-va/VideoControlsBar.cpp", "MU", null ],
 		[ "/Users/cam/asiatica-va/main.cpp", "MU", null ]
 	],
 	"UIC_OPTIONS" : [],
