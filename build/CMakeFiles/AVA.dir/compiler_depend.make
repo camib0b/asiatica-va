@@ -3047,6 +3047,7 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: /Users/cam/asiatica-va/MainWindow.cpp \
   /opt/homebrew/lib/QtCore.framework/Headers/q23type_traits.h \
   /opt/homebrew/lib/QtCore.framework/Headers/q23utility.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qabstracteventdispatcher.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qabstractitemmodel.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qalgorithms.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qalloc.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qanystringview.h \
@@ -3132,6 +3133,7 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: /Users/cam/asiatica-va/MainWindow.cpp \
   /opt/homebrew/lib/QtCore.framework/Headers/qprocessordetection.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qrect.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qrefcount.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qregularexpression.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qscopedpointer.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qscopeguard.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qset.h \
@@ -3224,6 +3226,7 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: /Users/cam/asiatica-va/MainWindow.cpp \
   /opt/homebrew/lib/QtGui.framework/Headers/qtguiexports.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qtguiglobal.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qtransform.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qvalidator.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qvector2d.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qvectornd.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qwindowdefs.h \
@@ -3248,10 +3251,12 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: /Users/cam/asiatica-va/MainWindow.cpp \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QPushButton \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QSlider \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QStyleOptionSlider \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractbutton.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractslider.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractspinbox.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
@@ -3263,9 +3268,12 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: /Users/cam/asiatica-va/MainWindow.cpp \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qlayoutitem.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qmainwindow.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qrubberband.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qsizepolicy.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qslider.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qstyleoption.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qtabbar.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgets-config.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsexports.h \
@@ -4256,6 +4264,10 @@ CMakeFiles/AVA.dir/main.cpp.o: /Users/cam/asiatica-va/main.cpp \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qwidget.h
 
 
+/opt/homebrew/lib/QtWidgets.framework/Headers/qstyleoption.h:
+
+/opt/homebrew/lib/QtWidgets.framework/Headers/qrubberband.h:
+
 /opt/homebrew/lib/QtWidgets.framework/Headers/qlayoutitem.h:
 
 /opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h:
@@ -4263,6 +4275,8 @@ CMakeFiles/AVA.dir/main.cpp.o: /Users/cam/asiatica-va/main.cpp \
 /opt/homebrew/lib/QtWidgets.framework/Headers/qfiledialog.h:
 
 /opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h:
+
+/opt/homebrew/lib/QtWidgets.framework/Headers/qabstractspinbox.h:
 
 /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget:
 
@@ -4296,6 +4310,8 @@ CMakeFiles/AVA.dir/main.cpp.o: /Users/cam/asiatica-va/main.cpp \
 
 /opt/homebrew/lib/QtGui.framework/Headers/qvector2d.h:
 
+/opt/homebrew/lib/QtGui.framework/Headers/qvalidator.h:
+
 /opt/homebrew/lib/QtGui.framework/Headers/qtextdocument.h:
 
 /opt/homebrew/lib/QtGui.framework/Headers/qscreen_platform.h:
@@ -4316,6 +4332,8 @@ CMakeFiles/AVA.dir/main.cpp.o: /Users/cam/asiatica-va/main.cpp \
 
 /opt/homebrew/lib/QtCore.framework/Headers/qtimezone.h:
 
+/opt/homebrew/lib/QtCore.framework/Headers/qregularexpression.h:
+
 /opt/homebrew/lib/QtCore.framework/Headers/qnativeinterface.h:
 
 /opt/homebrew/lib/QtCore.framework/Headers/qlocale.h:
@@ -4335,6 +4353,8 @@ CMakeFiles/AVA.dir/main.cpp.o: /Users/cam/asiatica-va/main.cpp \
 /opt/homebrew/lib/QtCore.framework/Headers/qcoreapplication.h:
 
 /opt/homebrew/lib/QtCore.framework/Headers/qbasictimer.h:
+
+/opt/homebrew/lib/QtCore.framework/Headers/qabstractitemmodel.h:
 
 /opt/homebrew/lib/QtCore.framework/Headers/qabstracteventdispatcher.h:
 
@@ -6674,6 +6694,8 @@ AVA_autogen/mocs_compilation.cpp:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__utility/move.h:
 
+/opt/homebrew/lib/QtWidgets.framework/Headers/QStyleOptionSlider:
+
 /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/qdarwinhelpers.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__ios/fpos.h:
@@ -8567,6 +8589,8 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/replace_copy.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/ctype.h:
+
+/opt/homebrew/lib/QtWidgets.framework/Headers/qtabbar.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__chrono/high_resolution_clock.h:
 
