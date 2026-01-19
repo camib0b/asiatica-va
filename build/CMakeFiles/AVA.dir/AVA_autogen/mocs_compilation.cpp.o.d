@@ -971,6 +971,9 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/qtmochelpers.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qtmocconstants.h \
   /opt/homebrew/lib/QtCore.framework/Headers/q20algorithm.h \
+  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/moc_TimelineBar.cpp \
+  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/../../../TimelineBar.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
+  /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
   /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/moc_VideoControlsBar.cpp \
-  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/../../../VideoControlsBar.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget
+  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/../../../VideoControlsBar.h

@@ -445,6 +445,12 @@
 			null
 		],
 		[
+			"/Users/cam/asiatica-va/TimelineBar.h",
+			"MU",
+			"EWIEGA46WW/moc_TimelineBar.cpp",
+			null
+		],
+		[
 			"/Users/cam/asiatica-va/VideoControlsBar.h",
 			"MU",
 			"EWIEGA46WW/moc_VideoControlsBar.cpp",
@@ -526,6 +532,7 @@
 	"SOURCES" : 
 	[
 		[ "/Users/cam/asiatica-va/MainWindow.cpp", "MU", null ],
+		[ "/Users/cam/asiatica-va/TimelineBar.cpp", "MU", null ],
 		[ "/Users/cam/asiatica-va/VideoControlsBar.cpp", "MU", null ],
 		[ "/Users/cam/asiatica-va/main.cpp", "MU", null ]
 	],

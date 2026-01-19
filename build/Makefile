@@ -203,6 +203,30 @@ MainWindow.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/MainWindow.cpp.s
 .PHONY : MainWindow.cpp.s
 
+TimelineBar.o: TimelineBar.cpp.o
+.PHONY : TimelineBar.o
+
+# target to build an object file
+TimelineBar.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/TimelineBar.cpp.o
+.PHONY : TimelineBar.cpp.o
+
+TimelineBar.i: TimelineBar.cpp.i
+.PHONY : TimelineBar.i
+
+# target to preprocess a source file
+TimelineBar.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/TimelineBar.cpp.i
+.PHONY : TimelineBar.cpp.i
+
+TimelineBar.s: TimelineBar.cpp.s
+.PHONY : TimelineBar.s
+
+# target to generate assembly for a file
+TimelineBar.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/TimelineBar.cpp.s
+.PHONY : TimelineBar.cpp.s
+
 VideoControlsBar.o: VideoControlsBar.cpp.o
 .PHONY : VideoControlsBar.o
 
@@ -268,6 +292,9 @@ help:
 	@echo "... MainWindow.o"
 	@echo "... MainWindow.i"
 	@echo "... MainWindow.s"
+	@echo "... TimelineBar.o"
+	@echo "... TimelineBar.i"
+	@echo "... TimelineBar.s"
 	@echo "... VideoControlsBar.o"
 	@echo "... VideoControlsBar.i"
 	@echo "... VideoControlsBar.s"

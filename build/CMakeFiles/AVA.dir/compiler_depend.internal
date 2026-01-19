@@ -730,12 +730,15 @@
  /Users/cam/asiatica-va/CMakeLists.txt
  /Users/cam/asiatica-va/MainWindow.cpp
  /Users/cam/asiatica-va/MainWindow.h
+ /Users/cam/asiatica-va/TimelineBar.cpp
+ /Users/cam/asiatica-va/TimelineBar.h
  /Users/cam/asiatica-va/VideoControlsBar.cpp
  /Users/cam/asiatica-va/VideoControlsBar.h
  /Users/cam/asiatica-va/build/AVA_autogen/moc_predefs.h
  /Users/cam/asiatica-va/build/CMakeFiles/4.2.1/CMakeCXXCompiler.cmake
  /Users/cam/asiatica-va/build/CMakeFiles/4.2.1/CMakeSystem.cmake
  /Users/cam/asiatica-va/main.cpp
+ /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/QtGlobal
  /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/q17memory.h
  /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/q20functional.h
  /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/q20iterator.h
@@ -2029,9 +2032,12 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o
  /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stddef.h
  /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdint.h
  /Users/cam/asiatica-va/MainWindow.h
+ /Users/cam/asiatica-va/TimelineBar.h
  /Users/cam/asiatica-va/VideoControlsBar.h
  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/moc_MainWindow.cpp
+ /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/moc_TimelineBar.cpp
  /Users/cam/asiatica-va/build/AVA_autogen/EWIEGA46WW/moc_VideoControlsBar.cpp
+ /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal
  /opt/homebrew/lib/QtCore.framework/Headers/q17memory.h
  /opt/homebrew/lib/QtCore.framework/Headers/q20algorithm.h
  /opt/homebrew/lib/QtCore.framework/Headers/q20functional.h
@@ -3039,6 +3045,7 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o
  /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stddef.h
  /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdint.h
  /Users/cam/asiatica-va/MainWindow.h
+ /Users/cam/asiatica-va/TimelineBar.h
  /Users/cam/asiatica-va/VideoControlsBar.h
  /opt/homebrew/lib/QtCore.framework/Headers/QDebug
  /opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer
@@ -3048,6 +3055,7 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o
  /opt/homebrew/lib/QtCore.framework/Headers/QSize
  /opt/homebrew/lib/QtCore.framework/Headers/QSizeF
  /opt/homebrew/lib/QtCore.framework/Headers/QUrl
+ /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal
  /opt/homebrew/lib/QtCore.framework/Headers/q17memory.h
  /opt/homebrew/lib/QtCore.framework/Headers/q20functional.h
  /opt/homebrew/lib/QtCore.framework/Headers/q20iterator.h

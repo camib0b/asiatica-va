@@ -10,6 +10,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o.d"
   "CMakeFiles/AVA.dir/MainWindow.cpp.o"
   "CMakeFiles/AVA.dir/MainWindow.cpp.o.d"
+  "CMakeFiles/AVA.dir/TimelineBar.cpp.o"
+  "CMakeFiles/AVA.dir/TimelineBar.cpp.o.d"
   "CMakeFiles/AVA.dir/VideoControlsBar.cpp.o"
   "CMakeFiles/AVA.dir/VideoControlsBar.cpp.o.d"
   "CMakeFiles/AVA.dir/main.cpp.o"

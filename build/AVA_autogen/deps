@@ -727,12 +727,15 @@ AVA_autogen/timestamp: \
 	/Users/cam/asiatica-va/CMakeLists.txt \
 	/Users/cam/asiatica-va/MainWindow.cpp \
 	/Users/cam/asiatica-va/MainWindow.h \
+	/Users/cam/asiatica-va/TimelineBar.cpp \
+	/Users/cam/asiatica-va/TimelineBar.h \
 	/Users/cam/asiatica-va/VideoControlsBar.cpp \
 	/Users/cam/asiatica-va/VideoControlsBar.h \
 	/Users/cam/asiatica-va/build/AVA_autogen/moc_predefs.h \
 	/Users/cam/asiatica-va/build/CMakeFiles/4.2.1/CMakeCXXCompiler.cmake \
 	/Users/cam/asiatica-va/build/CMakeFiles/4.2.1/CMakeSystem.cmake \
 	/Users/cam/asiatica-va/main.cpp \
+	/opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/QtGlobal \
 	/opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/q17memory.h \
 	/opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/q20functional.h \
 	/opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/q20iterator.h \
