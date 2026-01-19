@@ -1058,4 +1058,34 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qinputmethod.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication_platform.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QDebug
+  /opt/homebrew/lib/QtCore.framework/Headers/QDebug \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QSlider \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qslider.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractslider.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/QMouseEvent \
+  /opt/homebrew/lib/QtGui.framework/Headers/qevent.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qeventpoint.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qvector2d.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qvectornd.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qpointingdevice.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qinputdevice.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qscreen.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QList \
+  /opt/homebrew/lib/QtCore.framework/Headers/QObject \
+  /opt/homebrew/lib/QtCore.framework/Headers/QRect \
+  /opt/homebrew/lib/QtCore.framework/Headers/QSize \
+  /opt/homebrew/lib/QtCore.framework/Headers/QSizeF \
+  /opt/homebrew/lib/QtGui.framework/Headers/QTransform \
+  /opt/homebrew/lib/QtGui.framework/Headers/qscreen_platform.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer \
+  /opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QStyleOptionSlider \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qstyleoption.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractspinbox.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qvalidator.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qregularexpression.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qtabbar.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qrubberband.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qabstractitemmodel.h

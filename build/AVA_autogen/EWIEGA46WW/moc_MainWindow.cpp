@@ -49,7 +49,12 @@ template <> constexpr inline auto MainWindow::qt_create_metaobjectdata<qt_meta_t
         "onSlowerClicked",
         "onResetSpeedClicked",
         "onMuteToggled",
-        "muted"
+        "muted",
+        "onTogglePlayPause",
+        "onSeekSmallBackward",
+        "onSeekSmallForward",
+        "onSeekBigBackward",
+        "onSeekBigForward"
     };
 
     QtMocHelpers::UintData qt_methods {
@@ -73,6 +78,16 @@ template <> constexpr inline auto MainWindow::qt_create_metaobjectdata<qt_meta_t
         QtMocHelpers::SlotData<void(bool)>(10, 2, QMC::AccessPrivate, QMetaType::Void, {{
             { QMetaType::Bool, 11 },
         }}),
+        // Slot 'onTogglePlayPause'
+        QtMocHelpers::SlotData<void()>(12, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onSeekSmallBackward'
+        QtMocHelpers::SlotData<void()>(13, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onSeekSmallForward'
+        QtMocHelpers::SlotData<void()>(14, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onSeekBigBackward'
+        QtMocHelpers::SlotData<void()>(15, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onSeekBigForward'
+        QtMocHelpers::SlotData<void()>(16, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -105,6 +120,11 @@ void MainWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 6: _t->onSlowerClicked(); break;
         case 7: _t->onResetSpeedClicked(); break;
         case 8: _t->onMuteToggled((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1]))); break;
+        case 9: _t->onTogglePlayPause(); break;
+        case 10: _t->onSeekSmallBackward(); break;
+        case 11: _t->onSeekSmallForward(); break;
+        case 12: _t->onSeekBigBackward(); break;
+        case 13: _t->onSeekBigForward(); break;
         default: ;
         }
     }
@@ -129,14 +149,14 @@ int MainWindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 9)
+        if (_id < 14)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 9;
+        _id -= 14;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 9)
+        if (_id < 14)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 9;
+        _id -= 14;
     }
     return _id;
 }

@@ -3031,6 +3031,12 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: /Users/cam/asiatica-va/MainWindow.cpp \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdint.h \
   /Users/cam/asiatica-va/MainWindow.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QDebug \
+  /opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer \
+  /opt/homebrew/lib/QtCore.framework/Headers/QList \
+  /opt/homebrew/lib/QtCore.framework/Headers/QObject \
+  /opt/homebrew/lib/QtCore.framework/Headers/QRect \
+  /opt/homebrew/lib/QtCore.framework/Headers/QSize \
+  /opt/homebrew/lib/QtCore.framework/Headers/QSizeF \
   /opt/homebrew/lib/QtCore.framework/Headers/QUrl \
   /opt/homebrew/lib/QtCore.framework/Headers/q17memory.h \
   /opt/homebrew/lib/QtCore.framework/Headers/q20functional.h \
@@ -3080,6 +3086,7 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: /Users/cam/asiatica-va/MainWindow.cpp \
   /opt/homebrew/lib/QtCore.framework/Headers/qdebug.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qdir.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qdirlisting.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qendian.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qeventloop.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qexceptionhandling.h \
@@ -3180,11 +3187,15 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: /Users/cam/asiatica-va/MainWindow.cpp \
   /opt/homebrew/lib/QtCore.framework/Headers/qyieldcpu.h \
   /opt/homebrew/lib/QtGui.framework/Headers/QAction \
   /opt/homebrew/lib/QtGui.framework/Headers/QKeySequence \
+  /opt/homebrew/lib/QtGui.framework/Headers/QMouseEvent \
+  /opt/homebrew/lib/QtGui.framework/Headers/QTransform \
   /opt/homebrew/lib/QtGui.framework/Headers/qaction.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbrush.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qcolor.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qevent.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qeventpoint.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qfont.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qfontinfo.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qfontmetrics.h \
@@ -3193,6 +3204,7 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: /Users/cam/asiatica-va/MainWindow.cpp \
   /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication_platform.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qicon.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qimage.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qinputdevice.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qinputmethod.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qkeysequence.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qpaintdevice.h \
@@ -3200,15 +3212,20 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: /Users/cam/asiatica-va/MainWindow.cpp \
   /opt/homebrew/lib/QtGui.framework/Headers/qpicture.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qpixelformat.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qpixmap.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qpointingdevice.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qpolygon.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qregion.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qrgb.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qrgba64.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qscreen.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qscreen_platform.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qtextdocument.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qtgui-config.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qtguiexports.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qtguiglobal.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qtransform.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qvector2d.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qvectornd.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qwindowdefs.h \
   /opt/homebrew/lib/QtMultimedia.framework/Headers/QAudioOutput \
   /opt/homebrew/lib/QtMultimedia.framework/Headers/QMediaPlayer \
@@ -3229,9 +3246,12 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: /Users/cam/asiatica-va/MainWindow.cpp \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QMainWindow \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QPushButton \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QSlider \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractbutton.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractslider.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
@@ -3244,6 +3264,8 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: /Users/cam/asiatica-va/MainWindow.cpp \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qmainwindow.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qsizepolicy.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qslider.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgets-config.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsexports.h \
@@ -4246,6 +4268,10 @@ CMakeFiles/AVA.dir/main.cpp.o: /Users/cam/asiatica-va/main.cpp \
 
 /opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout:
 
+/opt/homebrew/lib/QtWidgets.framework/Headers/QStyle:
+
+/opt/homebrew/lib/QtWidgets.framework/Headers/QSlider:
+
 /opt/homebrew/lib/QtWidgets.framework/Headers/QLabel:
 
 /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qvideowidget.h:
@@ -4266,11 +4292,23 @@ CMakeFiles/AVA.dir/main.cpp.o: /Users/cam/asiatica-va/main.cpp \
 
 /opt/homebrew/lib/QtMultimedia.framework/Headers/QAudioOutput:
 
+/opt/homebrew/lib/QtGui.framework/Headers/qvectornd.h:
+
+/opt/homebrew/lib/QtGui.framework/Headers/qvector2d.h:
+
 /opt/homebrew/lib/QtGui.framework/Headers/qtextdocument.h:
+
+/opt/homebrew/lib/QtGui.framework/Headers/qscreen_platform.h:
+
+/opt/homebrew/lib/QtGui.framework/Headers/qpointingdevice.h:
+
+/opt/homebrew/lib/QtGui.framework/Headers/qinputdevice.h:
 
 /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication_platform.h:
 
 /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication.h:
+
+/opt/homebrew/lib/QtGui.framework/Headers/QMouseEvent:
 
 /opt/homebrew/lib/QtGui.framework/Headers/QKeySequence:
 
@@ -4286,6 +4324,8 @@ CMakeFiles/AVA.dir/main.cpp.o: /Users/cam/asiatica-va/main.cpp \
 
 /opt/homebrew/lib/QtCore.framework/Headers/qfile.h:
 
+/opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h:
+
 /opt/homebrew/lib/QtCore.framework/Headers/qdirlisting.h:
 
 /opt/homebrew/lib/QtCore.framework/Headers/qdir.h:
@@ -4299,6 +4339,10 @@ CMakeFiles/AVA.dir/main.cpp.o: /Users/cam/asiatica-va/main.cpp \
 /opt/homebrew/lib/QtCore.framework/Headers/qabstracteventdispatcher.h:
 
 /opt/homebrew/lib/QtCore.framework/Headers/QUrl:
+
+/opt/homebrew/lib/QtCore.framework/Headers/QSize:
+
+/opt/homebrew/lib/QtCore.framework/Headers/QObject:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/unistd.h:
 
@@ -4587,6 +4631,8 @@ AVA_autogen/EWIEGA46WW/moc_MainWindow.cpp:
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_rsize_t.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_pid_t.h:
+
+/opt/homebrew/lib/QtGui.framework/Headers/QTransform:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_off_t.h:
 
@@ -5406,6 +5452,8 @@ AVA_autogen/EWIEGA46WW/moc_MainWindow.cpp:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/three_way_comp_ref_type.h:
 
+/opt/homebrew/lib/QtCore.framework/Headers/QList:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__atomic/contention_t.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__math/special_functions.h:
@@ -6056,6 +6104,8 @@ AVA_autogen/mocs_compilation.cpp:
 
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QJp2PluginTargets-release.cmake:
 
+/opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h:
+
 /opt/homebrew/lib/QtCore.framework/Headers/qtaggedpointer.h:
 
 /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/qobjectdefs.h:
@@ -6546,6 +6596,8 @@ AVA_autogen/mocs_compilation.cpp:
 
 /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/qobjectdefs_impl.h:
 
+/opt/homebrew/lib/QtWidgets.framework/Headers/qslider.h:
+
 /opt/homebrew/lib/QtMultimedia.framework/Headers/QMediaPlayer:
 
 /opt/homebrew/lib/cmake/Qt6Network/Qt6QTlsBackendCertOnlyPluginTargets-release.cmake:
@@ -6703,6 +6755,8 @@ AVA_autogen/mocs_compilation.cpp:
 /opt/homebrew/lib/cmake/Qt6/QtPublicWalkLibsHelpers.cmake:
 
 /opt/homebrew/lib/cmake/Qt6/QtPublicAppleHelpers.cmake:
+
+/opt/homebrew/lib/QtCore.framework/Headers/QSizeF:
 
 /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/qalloc.h:
 
@@ -7048,6 +7102,8 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_nlink_t.h:
 
+/opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/stdint.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__cstddef/nullptr_t.h:
@@ -7304,6 +7360,8 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/unique.h:
 
+/opt/homebrew/lib/QtGui.framework/Headers/qevent.h:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/invoke.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_object.h:
@@ -7500,6 +7558,8 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/optional:
 
+/opt/homebrew/lib/QtWidgets.framework/Headers/qabstractslider.h:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/array:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__tuple/tuple_types.h:
@@ -7563,6 +7623,8 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__atomic/support/c11.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/ratio:
+
+/opt/homebrew/lib/QtGui.framework/Headers/qscreen.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/xlocale/_time.h:
 
@@ -7673,6 +7735,8 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/iterator_operations.h:
 
 /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/qtypeinfo.h:
+
+/opt/homebrew/lib/QtGui.framework/Headers/qeventpoint.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_time_t.h:
 
@@ -8305,6 +8369,8 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QTgaPluginConfig.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__concepts/copyable.h:
+
+/opt/homebrew/lib/QtCore.framework/Headers/QRect:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__concepts/semiregular.h:
 

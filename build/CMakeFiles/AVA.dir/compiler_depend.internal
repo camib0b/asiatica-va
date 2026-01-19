@@ -3034,6 +3034,12 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o
  /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdint.h
  /Users/cam/asiatica-va/MainWindow.h
  /opt/homebrew/lib/QtCore.framework/Headers/QDebug
+ /opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer
+ /opt/homebrew/lib/QtCore.framework/Headers/QList
+ /opt/homebrew/lib/QtCore.framework/Headers/QObject
+ /opt/homebrew/lib/QtCore.framework/Headers/QRect
+ /opt/homebrew/lib/QtCore.framework/Headers/QSize
+ /opt/homebrew/lib/QtCore.framework/Headers/QSizeF
  /opt/homebrew/lib/QtCore.framework/Headers/QUrl
  /opt/homebrew/lib/QtCore.framework/Headers/q17memory.h
  /opt/homebrew/lib/QtCore.framework/Headers/q20functional.h
@@ -3083,6 +3089,7 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o
  /opt/homebrew/lib/QtCore.framework/Headers/qdebug.h
  /opt/homebrew/lib/QtCore.framework/Headers/qdir.h
  /opt/homebrew/lib/QtCore.framework/Headers/qdirlisting.h
+ /opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h
  /opt/homebrew/lib/QtCore.framework/Headers/qendian.h
  /opt/homebrew/lib/QtCore.framework/Headers/qeventloop.h
  /opt/homebrew/lib/QtCore.framework/Headers/qexceptionhandling.h
@@ -3183,11 +3190,15 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o
  /opt/homebrew/lib/QtCore.framework/Headers/qyieldcpu.h
  /opt/homebrew/lib/QtGui.framework/Headers/QAction
  /opt/homebrew/lib/QtGui.framework/Headers/QKeySequence
+ /opt/homebrew/lib/QtGui.framework/Headers/QMouseEvent
+ /opt/homebrew/lib/QtGui.framework/Headers/QTransform
  /opt/homebrew/lib/QtGui.framework/Headers/qaction.h
  /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h
  /opt/homebrew/lib/QtGui.framework/Headers/qbrush.h
  /opt/homebrew/lib/QtGui.framework/Headers/qcolor.h
  /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h
+ /opt/homebrew/lib/QtGui.framework/Headers/qevent.h
+ /opt/homebrew/lib/QtGui.framework/Headers/qeventpoint.h
  /opt/homebrew/lib/QtGui.framework/Headers/qfont.h
  /opt/homebrew/lib/QtGui.framework/Headers/qfontinfo.h
  /opt/homebrew/lib/QtGui.framework/Headers/qfontmetrics.h
@@ -3196,6 +3207,7 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o
  /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication_platform.h
  /opt/homebrew/lib/QtGui.framework/Headers/qicon.h
  /opt/homebrew/lib/QtGui.framework/Headers/qimage.h
+ /opt/homebrew/lib/QtGui.framework/Headers/qinputdevice.h
  /opt/homebrew/lib/QtGui.framework/Headers/qinputmethod.h
  /opt/homebrew/lib/QtGui.framework/Headers/qkeysequence.h
  /opt/homebrew/lib/QtGui.framework/Headers/qpaintdevice.h
@@ -3203,15 +3215,20 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o
  /opt/homebrew/lib/QtGui.framework/Headers/qpicture.h
  /opt/homebrew/lib/QtGui.framework/Headers/qpixelformat.h
  /opt/homebrew/lib/QtGui.framework/Headers/qpixmap.h
+ /opt/homebrew/lib/QtGui.framework/Headers/qpointingdevice.h
  /opt/homebrew/lib/QtGui.framework/Headers/qpolygon.h
  /opt/homebrew/lib/QtGui.framework/Headers/qregion.h
  /opt/homebrew/lib/QtGui.framework/Headers/qrgb.h
  /opt/homebrew/lib/QtGui.framework/Headers/qrgba64.h
+ /opt/homebrew/lib/QtGui.framework/Headers/qscreen.h
+ /opt/homebrew/lib/QtGui.framework/Headers/qscreen_platform.h
  /opt/homebrew/lib/QtGui.framework/Headers/qtextdocument.h
  /opt/homebrew/lib/QtGui.framework/Headers/qtgui-config.h
  /opt/homebrew/lib/QtGui.framework/Headers/qtguiexports.h
  /opt/homebrew/lib/QtGui.framework/Headers/qtguiglobal.h
  /opt/homebrew/lib/QtGui.framework/Headers/qtransform.h
+ /opt/homebrew/lib/QtGui.framework/Headers/qvector2d.h
+ /opt/homebrew/lib/QtGui.framework/Headers/qvectornd.h
  /opt/homebrew/lib/QtGui.framework/Headers/qwindowdefs.h
  /opt/homebrew/lib/QtMultimedia.framework/Headers/QAudioOutput
  /opt/homebrew/lib/QtMultimedia.framework/Headers/QMediaPlayer
@@ -3232,9 +3249,12 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o
  /opt/homebrew/lib/QtWidgets.framework/Headers/QLabel
  /opt/homebrew/lib/QtWidgets.framework/Headers/QMainWindow
  /opt/homebrew/lib/QtWidgets.framework/Headers/QPushButton
+ /opt/homebrew/lib/QtWidgets.framework/Headers/QSlider
+ /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle
  /opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout
  /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget
  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractbutton.h
+ /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractslider.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h
@@ -3247,6 +3267,8 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o
  /opt/homebrew/lib/QtWidgets.framework/Headers/qmainwindow.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/qsizepolicy.h
+ /opt/homebrew/lib/QtWidgets.framework/Headers/qslider.h
+ /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgets-config.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsexports.h
