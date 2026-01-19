@@ -1088,4 +1088,8 @@ CMakeFiles/AVA.dir/MainWindow.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/qregularexpression.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtabbar.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qrubberband.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qabstractitemmodel.h
+  /opt/homebrew/lib/QtCore.framework/Headers/qabstractitemmodel.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QToolButton \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qtoolbutton.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QMenu \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qmenu.h

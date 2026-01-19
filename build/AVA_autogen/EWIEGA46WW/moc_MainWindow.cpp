@@ -54,7 +54,9 @@ template <> constexpr inline auto MainWindow::qt_create_metaobjectdata<qt_meta_t
         "onSeekSmallBackward",
         "onSeekSmallForward",
         "onSeekBigBackward",
-        "onSeekBigForward"
+        "onSeekBigForward",
+        "onReplaceVideo",
+        "onDiscardVideo"
     };
 
     QtMocHelpers::UintData qt_methods {
@@ -88,6 +90,10 @@ template <> constexpr inline auto MainWindow::qt_create_metaobjectdata<qt_meta_t
         QtMocHelpers::SlotData<void()>(15, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'onSeekBigForward'
         QtMocHelpers::SlotData<void()>(16, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onReplaceVideo'
+        QtMocHelpers::SlotData<void()>(17, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onDiscardVideo'
+        QtMocHelpers::SlotData<void()>(18, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -125,6 +131,8 @@ void MainWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 11: _t->onSeekSmallForward(); break;
         case 12: _t->onSeekBigBackward(); break;
         case 13: _t->onSeekBigForward(); break;
+        case 14: _t->onReplaceVideo(); break;
+        case 15: _t->onDiscardVideo(); break;
         default: ;
         }
     }
@@ -149,14 +157,14 @@ int MainWindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 14)
+        if (_id < 16)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 14;
+        _id -= 16;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 14)
+        if (_id < 16)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 14;
+        _id -= 16;
     }
     return _id;
 }
