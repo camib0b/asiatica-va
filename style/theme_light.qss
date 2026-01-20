@@ -1,0 +1,247 @@
+/* =========================
+   Base (light)
+========================= */
+
+/* Base */
+QWidget#AppRoot {
+  background: #FFFFFF;
+  color: #0B0D12;
+  font-size: 13px;
+}
+
+/* Cards (pair with QGraphicsDropShadowEffect in code) */
+QFrame#Card {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 16px;
+}
+
+
+
+/* Typography */
+QLabel[role="muted"] { color: #5B616E; }
+QLabel[role="faint"] { color: #8B919D; }
+QLabel[role="accent"] { color: #B08A2E; }
+
+
+/* =========================
+   Separator
+========================= */
+
+QFrame[role="separator"] {
+  background: rgba(15, 23, 42, 0.10);
+  min-height: 1px;
+  max-height: 1px;
+}
+
+/* =========================
+   Buttons (variants + sizes)
+========================= */
+
+QPushButton {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+QPushButton:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.20);
+}
+
+QPushButton:pressed {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+QPushButton:disabled {
+  color: rgba(11, 13, 18, 0.35);
+  background: #FAFAFB;
+  border-color: rgba(0, 0, 0, 0.10);
+}
+
+
+/* “Black button” variant */
+QPushButton[variant="black"] {
+  background: #0B0D12;
+  color: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+QPushButton[variant="black"]:hover { background: #111420; }
+QPushButton[variant="black"]:pressed { background: #07080B; }
+
+/* Rare gold accent button (use sparingly) */
+QPushButton[variant="gold"] {
+  background: rgba(176, 138, 46, 0.18);
+  border: 1px solid rgba(176, 138, 46, 0.45);
+  color: #5C4511;
+  font-weight: 650;
+}
+QPushButton[variant="gold"]:hover { background: rgba(176, 138, 46, 0.24); }
+QPushButton[variant="gold"]:pressed { background: rgba(176, 138, 46, 0.30); }
+
+
+/* Sizes */
+QPushButton[size="sm"] {
+  padding: 6px 10px;
+  border-radius: 10px;
+}
+
+QPushButton[size="md"] {
+  padding: 8px 12px;
+}
+
+QPushButton[size="lg"] {
+  padding: 14px 16px;
+  border-radius: 14px;
+  font-size: 16px;
+  min-height: 42px;
+}
+
+/* Variants */
+QPushButton[variant="primary"] {
+  background: #FFFFFF;
+  border: 1px solid black;
+  color: #111827;
+  font-weight: 650;
+}
+QPushButton[variant="primary"]:hover { background: "lightgray"; }
+QPushButton[variant="primary"]:pressed { background: "gray"; }
+
+QPushButton[variant="secondary"] {
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+QPushButton[variant="outline"] {
+  background: transparent;
+  border: 1px solid rgba(15, 23, 42, 0.20);
+}
+
+QPushButton[variant="ghost"] {
+  background: transparent;
+  border: 1px solid transparent;
+}
+QPushButton[variant="ghost"]:hover {
+  background: rgba(15, 23, 42, 0.05);
+}
+
+QPushButton[variant="destructive"] {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.30);
+  color: #991B1B;
+  font-weight: 650;
+}
+
+/* Focus ring substitute (only matters when widgets can take focus) */
+QPushButton:focus {
+  border: 2px solid rgba(37, 99, 235, 0.65);
+  padding: 7px 11px; /* compensate for border width */
+}
+
+/* Flash state: never change border width (avoid layout jump) */
+QPushButton[flash="true"] {
+  border-color: rgba(37, 99, 235, 0.85);
+}
+
+/* =========================
+   Inputs
+========================= */
+
+QLineEdit, QTextEdit {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 12px;
+  padding: 9px 10px;
+  selection-background-color: rgba(0, 0, 0, 0.10);
+}
+
+QLineEdit:focus, QTextEdit:focus {
+  border: 1px solid rgba(0, 0, 0, 0.24);
+}
+
+
+/* =========================
+   ToolButton + Menu (WorkWindow)
+========================= */
+
+QToolButton {
+  border-radius: 12px;
+  padding: 6px 10px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+  min-height: 30px;
+}
+
+QToolButton:hover {
+  background: rgba(255, 255, 255, 1.00);
+  border-color: rgba(15, 23, 42, 0.18);
+}
+
+QToolButton:pressed {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+QToolButton[size="sm"] {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 10px;
+}
+
+QToolButton[variant="ghost"] {
+  background: transparent;
+  border: 1px solid transparent;
+}
+QToolButton[variant="ghost"]:hover {
+  background: rgba(15, 23, 42, 0.05);
+}
+
+/* Menu */
+QMenu {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  padding: 6px;
+}
+QMenu::item {
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+QMenu::item:selected {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* =========================
+   Timeline slider (scoped)
+========================= */
+
+QSlider#TimelineSlider::groove:horizontal {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(15, 23, 42, 0.10);
+}
+
+QSlider#TimelineSlider::sub-page:horizontal {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(37, 99, 235, 0.85);
+}
+
+QSlider#TimelineSlider::add-page:horizontal {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(15, 23, 42, 0.10);
+}
+
+QSlider#TimelineSlider::handle:horizontal {
+  width: 14px;
+  margin: -6px 0;
+  border-radius: 7px;
+  background: #FFFFFF;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+}
+
+QSlider#TimelineSlider::handle:horizontal:hover {
+  border: 1px solid rgba(37, 99, 235, 0.55);
+}
+

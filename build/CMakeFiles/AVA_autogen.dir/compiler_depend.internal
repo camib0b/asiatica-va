@@ -736,6 +736,8 @@
  /Users/cam/asiatica-va/components/VideoControlsBar.cpp
  /Users/cam/asiatica-va/components/VideoControlsBar.h
  /Users/cam/asiatica-va/main.cpp
+ /Users/cam/asiatica-va/style/theme.cpp
+ /Users/cam/asiatica-va/style/theme.h
  /Users/cam/asiatica-va/ui/MainWindow.cpp
  /Users/cam/asiatica-va/ui/MainWindow.h
  /Users/cam/asiatica-va/ui/WelcomeWindow.cpp
@@ -962,6 +964,7 @@
  /opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigExtras.cmake
  /opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigVersion.cmake
  /opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigVersionImpl.cmake
+ /opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigureFileTemplate.in
  /opt/homebrew/lib/cmake/Qt6Core/Qt6CoreDependencies.cmake
  /opt/homebrew/lib/cmake/Qt6Core/Qt6CoreMacros.cmake
  /opt/homebrew/lib/cmake/Qt6Core/Qt6CorePlugins.cmake

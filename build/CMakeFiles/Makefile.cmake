@@ -65,6 +65,7 @@ set(CMAKE_MAKEFILE_DEPENDS
   "/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigExtras.cmake"
   "/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigVersion.cmake"
   "/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigVersionImpl.cmake"
+  "/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigureFileTemplate.in"
   "/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreDependencies.cmake"
   "/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreMacros.cmake"
   "/opt/homebrew/lib/cmake/Qt6Core/Qt6CorePlugins.cmake"
@@ -341,6 +342,7 @@ set(CMAKE_MAKEFILE_OUTPUTS
 
 # Byproducts of CMake generate step:
 set(CMAKE_MAKEFILE_PRODUCTS
+  ".qt/rcc/ava_resources.qrc"
   "CMakeFiles/AVA_autogen.dir/AutogenInfo.json"
   ".qt/QtDeploySupport.cmake"
   ".qt/QtDeployTargets.cmake"

@@ -179,6 +179,30 @@ AVA_autogen/mocs_compilation.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.s
 .PHONY : AVA_autogen/mocs_compilation.cpp.s
 
+build/.qt/rcc/qrc_ava_resources.o: build/.qt/rcc/qrc_ava_resources.cpp.o
+.PHONY : build/.qt/rcc/qrc_ava_resources.o
+
+# target to build an object file
+build/.qt/rcc/qrc_ava_resources.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o
+.PHONY : build/.qt/rcc/qrc_ava_resources.cpp.o
+
+build/.qt/rcc/qrc_ava_resources.i: build/.qt/rcc/qrc_ava_resources.cpp.i
+.PHONY : build/.qt/rcc/qrc_ava_resources.i
+
+# target to preprocess a source file
+build/.qt/rcc/qrc_ava_resources.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.i
+.PHONY : build/.qt/rcc/qrc_ava_resources.cpp.i
+
+build/.qt/rcc/qrc_ava_resources.s: build/.qt/rcc/qrc_ava_resources.cpp.s
+.PHONY : build/.qt/rcc/qrc_ava_resources.s
+
+# target to generate assembly for a file
+build/.qt/rcc/qrc_ava_resources.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.s
+.PHONY : build/.qt/rcc/qrc_ava_resources.cpp.s
+
 components/TimelineBar.o: components/TimelineBar.cpp.o
 .PHONY : components/TimelineBar.o
 
@@ -361,6 +385,9 @@ help:
 	@echo "... AVA_autogen/mocs_compilation.o"
 	@echo "... AVA_autogen/mocs_compilation.i"
 	@echo "... AVA_autogen/mocs_compilation.s"
+	@echo "... build/.qt/rcc/qrc_ava_resources.o"
+	@echo "... build/.qt/rcc/qrc_ava_resources.i"
+	@echo "... build/.qt/rcc/qrc_ava_resources.s"
 	@echo "... components/TimelineBar.o"
 	@echo "... components/TimelineBar.i"
 	@echo "... components/TimelineBar.s"

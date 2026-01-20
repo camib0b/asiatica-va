@@ -960,6 +960,7 @@ AVA_autogen/timestamp: \
 	/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigExtras.cmake \
 	/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigVersion.cmake \
 	/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigVersionImpl.cmake \
+	/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigureFileTemplate.in \
 	/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreDependencies.cmake \
 	/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreMacros.cmake \
 	/opt/homebrew/lib/cmake/Qt6Core/Qt6CorePlugins.cmake \

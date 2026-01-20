@@ -1,4 +1,5 @@
 file(REMOVE_RECURSE
+  ".qt/rcc/qrc_ava_resources.cpp"
   "AVA_autogen"
   "CMakeFiles/AVA_autogen.dir/AutogenUsed.txt"
   "CMakeFiles/AVA_autogen.dir/ParseCache.txt"
@@ -8,6 +9,8 @@ file(REMOVE_RECURSE
   "AVA_autogen/timestamp"
   "CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o"
   "CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o.d"
+  "CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o"
+  "CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o.d"
   "CMakeFiles/AVA.dir/components/TimelineBar.cpp.o"
   "CMakeFiles/AVA.dir/components/TimelineBar.cpp.o.d"
   "CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o"

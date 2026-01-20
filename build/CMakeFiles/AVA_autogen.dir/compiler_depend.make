@@ -735,6 +735,8 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
   /Users/cam/asiatica-va/components/VideoControlsBar.cpp \
   /Users/cam/asiatica-va/components/VideoControlsBar.h \
   /Users/cam/asiatica-va/main.cpp \
+  /Users/cam/asiatica-va/style/theme.cpp \
+  /Users/cam/asiatica-va/style/theme.h \
   /Users/cam/asiatica-va/ui/MainWindow.cpp \
   /Users/cam/asiatica-va/ui/MainWindow.h \
   /Users/cam/asiatica-va/ui/WelcomeWindow.cpp \
@@ -961,6 +963,7 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
   /opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigExtras.cmake \
   /opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigVersion.cmake \
   /opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigVersionImpl.cmake \
+  /opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigureFileTemplate.in \
   /opt/homebrew/lib/cmake/Qt6Core/Qt6CoreDependencies.cmake \
   /opt/homebrew/lib/cmake/Qt6Core/Qt6CoreMacros.cmake \
   /opt/homebrew/lib/cmake/Qt6Core/Qt6CorePlugins.cmake \
@@ -1859,6 +1862,18 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
 
 /Users/cam/asiatica-va/ui/MainWindow.cpp:
 
+/opt/homebrew/Cellar/qtbase/6.10.1/lib/QtGui.framework/Versions/A/Headers/qrgba64.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/unwrap_range.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__utility/private_constructor_tag.h:
+
+/Users/cam/asiatica-va/style/theme.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_polymorphic.h:
+
+/Users/cam/asiatica-va/style/theme.cpp:
+
 /Users/cam/asiatica-va/components/VideoControlsBar.h:
 
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QMngPluginTargets.cmake:
@@ -1922,10 +1937,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_u_int16_t.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_u_int.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__memory/auto_ptr.h:
-
-/opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/qiterator.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_trivially_assignable.h:
 
@@ -2197,6 +2208,8 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__undef_macros:
 
+/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigureFileTemplate.in:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__memory/shared_count.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__memory_resource/polymorphic_allocator.h:
@@ -2371,12 +2384,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_callable.h:
 
-/opt/homebrew/Cellar/qtbase/6.10.1/lib/QtGui.framework/Versions/A/Headers/qrgba64.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/unwrap_range.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__utility/private_constructor_tag.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__ios/fpos.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_abstract.h:
@@ -2539,8 +2546,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__ranges/view_interface.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_polymorphic.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__numeric/transform_reduce.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__ranges/subrange.h:
@@ -2694,6 +2699,10 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__thread/poll_with_backoff.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/arm/endian.h:
+
+/opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/qiterator.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__memory/auto_ptr.h:
 
 /opt/homebrew/lib/cmake/Qt6MultimediaWidgets/Qt6MultimediaWidgetsVersionlessAliasTargets.cmake:
 
@@ -3429,10 +3438,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/adjacent_find.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__concepts/derived_from.h:
-
-/opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/qlatin1stringview.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__iterator/iter_move.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/ranges_copy.h:
@@ -3528,6 +3533,10 @@ AVA_autogen/moc_predefs.h:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/find_segment_if.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__variant/monostate.h:
+
+/opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/qlatin1stringview.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__concepts/derived_from.h:
 
 /opt/homebrew/share/cmake/Modules/MacroAddFileDependencies.cmake:
 

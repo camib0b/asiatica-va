@@ -1,0 +1,20 @@
+CompileFlags:
+  Add:
+    - -std=c++17
+    - -I/opt/homebrew/lib/QtCore.framework/Headers
+    - -I/opt/homebrew/lib/QtWidgets.framework/Headers
+    - -I/opt/homebrew/lib/QtGui.framework/Headers
+    - -I/opt/homebrew/lib/QtMultimedia.framework/Headers
+    - -I/opt/homebrew/lib/QtMultimediaWidgets.framework/Headers
+    - -I/opt/homebrew/lib/QtNetwork.framework/Headers
+    - -iframework
+    - /opt/homebrew/lib
+  CompilationDatabase: .
+
+Diagnostics:
+  Suppress:
+    - unused-includes
+  UnusedIncludes: None
+
+Index:
+  Background: Build

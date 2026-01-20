@@ -430,7 +430,8 @@
 		"/opt/homebrew/lib/cmake/Qt6MultimediaWidgets/Qt6MultimediaWidgetsTargets-release.cmake",
 		"/opt/homebrew/lib/cmake/Qt6MultimediaWidgets/Qt6MultimediaWidgetsAdditionalTargetInfo.cmake",
 		"/opt/homebrew/lib/cmake/Qt6MultimediaWidgets/Qt6MultimediaWidgetsVersionlessAliasTargets.cmake",
-		"/opt/homebrew/share/cmake/Modules/GNUInstallDirs.cmake"
+		"/opt/homebrew/share/cmake/Modules/GNUInstallDirs.cmake",
+		"/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigureFileTemplate.in"
 	],
 	"CMAKE_SOURCE_DIR" : "/Users/cam/asiatica-va",
 	"CROSS_CONFIG" : false,
@@ -499,6 +500,7 @@
 	[
 		"/Users/cam/asiatica-va/ui",
 		"/Users/cam/asiatica-va/components",
+		"/Users/cam/asiatica-va/style",
 		"/opt/homebrew/lib/QtCore.framework/Headers",
 		"/opt/homebrew/lib/QtCore.framework",
 		"/opt/homebrew/share/qt/mkspecs/macx-clang",
@@ -540,7 +542,7 @@
 	],
 	"MOC_PREDEFS_FILE" : "/Users/cam/asiatica-va/build/AVA_autogen/moc_predefs.h",
 	"MOC_RELAXED_MODE" : false,
-	"MOC_SKIP" : [],
+	"MOC_SKIP" : [ "/Users/cam/asiatica-va/build/.qt/rcc/qrc_ava_resources.cpp" ],
 	"MULTI_CONFIG" : false,
 	"PARALLEL" : 10,
 	"PARSE_CACHE_FILE" : "/Users/cam/asiatica-va/build/CMakeFiles/AVA_autogen.dir/ParseCache.txt",
@@ -561,7 +563,7 @@
 	],
 	"UIC_OPTIONS" : [],
 	"UIC_SEARCH_PATHS" : [],
-	"UIC_SKIP" : [],
+	"UIC_SKIP" : [ "/Users/cam/asiatica-va/build/.qt/rcc/qrc_ava_resources.cpp" ],
 	"UIC_UI_FILES" : [],
 	"USE_BETTER_GRAPH" : true,
 	"VERBOSITY" : 0
