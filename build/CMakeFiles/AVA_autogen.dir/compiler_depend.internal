@@ -731,21 +731,33 @@
  /Users/cam/asiatica-va/build/AVA_autogen/moc_predefs.h
  /Users/cam/asiatica-va/build/CMakeFiles/4.2.1/CMakeCXXCompiler.cmake
  /Users/cam/asiatica-va/build/CMakeFiles/4.2.1/CMakeSystem.cmake
+ /Users/cam/asiatica-va/components/GameControls.cpp
+ /Users/cam/asiatica-va/components/GameControls.h
  /Users/cam/asiatica-va/components/TimelineBar.cpp
  /Users/cam/asiatica-va/components/TimelineBar.h
  /Users/cam/asiatica-va/components/VideoControlsBar.cpp
  /Users/cam/asiatica-va/components/VideoControlsBar.h
+ /Users/cam/asiatica-va/components/VideoPlayer.cpp
+ /Users/cam/asiatica-va/components/VideoPlayer.h
  /Users/cam/asiatica-va/main.cpp
+ /Users/cam/asiatica-va/state/TagSession.cpp
+ /Users/cam/asiatica-va/state/TagSession.h
  /Users/cam/asiatica-va/style/theme.cpp
  /Users/cam/asiatica-va/style/theme.h
  /Users/cam/asiatica-va/ui/MainWindow.cpp
  /Users/cam/asiatica-va/ui/MainWindow.h
+ /Users/cam/asiatica-va/ui/StatsWindow.cpp
+ /Users/cam/asiatica-va/ui/StatsWindow.h
  /Users/cam/asiatica-va/ui/WelcomeWindow.cpp
  /Users/cam/asiatica-va/ui/WelcomeWindow.h
  /Users/cam/asiatica-va/ui/WorkWindow.cpp
  /Users/cam/asiatica-va/ui/WorkWindow.h
  /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/QHash
+ /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/QList
+ /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/QObject
  /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/QString
+ /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/QStringList
+ /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/QVector
  /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/QtGlobal
  /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/q17memory.h
  /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/q20functional.h
@@ -871,6 +883,7 @@
  /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/qutf8stringview.h
  /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/qvariant.h
  /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/qvarlengtharray.h
+ /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/qvector.h
  /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/qversiontagging.h
  /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/qxptype_traits.h
  /opt/homebrew/Cellar/qtbase/6.10.1/lib/QtCore.framework/Versions/A/Headers/qyieldcpu.h

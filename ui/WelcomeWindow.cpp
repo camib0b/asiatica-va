@@ -6,6 +6,8 @@
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QDebug>
+
 
 WelcomeWindow::WelcomeWindow(QWidget* parent) : QWidget(parent) {
     setObjectName("AppRoot");
@@ -28,7 +30,6 @@ void WelcomeWindow::buildUi() {
     headerLabel_->setWordWrap(true);
     Style::setRole(headerLabel_, "hero");
     
-
     // subtitle:
     subtitleLabel_ = new QLabel("Import a video file to get started", this);
     subtitleLabel_->setWordWrap(true);
@@ -40,7 +41,6 @@ void WelcomeWindow::buildUi() {
     Style::setVariant(importButton_, "primary");
     Style::setSize(importButton_, "lg");
     importButton_->setMaximumWidth(335);
-
 
     // Add widgets vertically, aligned to top-left
     layout->addWidget(headerLabel_);

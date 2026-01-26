@@ -16,8 +16,12 @@ qt_add_executable(AVA
   ui/MainWindow.cpp
   ui/WelcomeWindow.cpp
   ui/WorkWindow.cpp
+  ui/StatsWindow.cpp
+  state/TagSession.cpp
   components/VideoControlsBar.cpp
   components/TimelineBar.cpp
+  components/GameControls.cpp
+  components/VideoPlayer.cpp
 )
 
 qt_add_resources(AVA ava_resources
@@ -31,6 +35,7 @@ target_include_directories(AVA PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/ui
   ${CMAKE_CURRENT_SOURCE_DIR}/components
   ${CMAKE_CURRENT_SOURCE_DIR}/style
+  ${CMAKE_CURRENT_SOURCE_DIR}/state
 )
 
 target_link_libraries(AVA PRIVATE

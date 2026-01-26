@@ -440,6 +440,12 @@
 	"HEADERS" : 
 	[
 		[
+			"/Users/cam/asiatica-va/components/GameControls.h",
+			"MU",
+			"XDQFSXMG3O/moc_GameControls.cpp",
+			null
+		],
+		[
 			"/Users/cam/asiatica-va/components/TimelineBar.h",
 			"MU",
 			"XDQFSXMG3O/moc_TimelineBar.cpp",
@@ -452,6 +458,18 @@
 			null
 		],
 		[
+			"/Users/cam/asiatica-va/components/VideoPlayer.h",
+			"MU",
+			"XDQFSXMG3O/moc_VideoPlayer.cpp",
+			null
+		],
+		[
+			"/Users/cam/asiatica-va/state/TagSession.h",
+			"MU",
+			"EO7GX2X5BD/moc_TagSession.cpp",
+			null
+		],
+		[
 			"/Users/cam/asiatica-va/style/theme.h",
 			"MU",
 			"HI6LWCXMXM/moc_theme.cpp",
@@ -461,6 +479,12 @@
 			"/Users/cam/asiatica-va/ui/MainWindow.h",
 			"MU",
 			"UYX5XTB5RZ/moc_MainWindow.cpp",
+			null
+		],
+		[
+			"/Users/cam/asiatica-va/ui/StatsWindow.h",
+			"MU",
+			"UYX5XTB5RZ/moc_StatsWindow.cpp",
 			null
 		],
 		[
@@ -501,6 +525,7 @@
 		"/Users/cam/asiatica-va/ui",
 		"/Users/cam/asiatica-va/components",
 		"/Users/cam/asiatica-va/style",
+		"/Users/cam/asiatica-va/state",
 		"/opt/homebrew/lib/QtCore.framework/Headers",
 		"/opt/homebrew/lib/QtCore.framework",
 		"/opt/homebrew/share/qt/mkspecs/macx-clang",
@@ -553,11 +578,15 @@
 	"SETTINGS_FILE" : "/Users/cam/asiatica-va/build/CMakeFiles/AVA_autogen.dir/AutogenUsed.txt",
 	"SOURCES" : 
 	[
+		[ "/Users/cam/asiatica-va/components/GameControls.cpp", "MU", null ],
 		[ "/Users/cam/asiatica-va/components/TimelineBar.cpp", "MU", null ],
 		[ "/Users/cam/asiatica-va/components/VideoControlsBar.cpp", "MU", null ],
+		[ "/Users/cam/asiatica-va/components/VideoPlayer.cpp", "MU", null ],
 		[ "/Users/cam/asiatica-va/main.cpp", "MU", null ],
+		[ "/Users/cam/asiatica-va/state/TagSession.cpp", "MU", null ],
 		[ "/Users/cam/asiatica-va/style/theme.cpp", "MU", null ],
 		[ "/Users/cam/asiatica-va/ui/MainWindow.cpp", "MU", null ],
+		[ "/Users/cam/asiatica-va/ui/StatsWindow.cpp", "MU", null ],
 		[ "/Users/cam/asiatica-va/ui/WelcomeWindow.cpp", "MU", null ],
 		[ "/Users/cam/asiatica-va/ui/WorkWindow.cpp", "MU", null ]
 	],

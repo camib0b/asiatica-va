@@ -7,8 +7,10 @@
 
 #include "WelcomeWindow.h"
 #include "WorkWindow.h"
+#include "StatsWindow.h"
+#include "../state/TagSession.h"
 
-MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
+MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) { // ctor-init
     setWindowTitle("AVA");
     resize(1300, 800);
     
@@ -21,6 +23,12 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     // Create windows
     welcomeWindow_ = new WelcomeWindow(this);
     workWindow_ = new WorkWindow(this);
+    tagSession_ = new TagSession(this);
+    statsWindow_ = new StatsWindow(this);
+    statsWindow_->hide();
+
+    if (workWindow_) workWindow_->setTagSession(tagSession_);
+    if (statsWindow_) statsWindow_->setTagSession(tagSession_);
     
     stack->addWidget(welcomeWindow_);
     stack->addWidget(workWindow_);
@@ -31,6 +39,11 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     
     // Show welcome window initially
     stack->setCurrentWidget(welcomeWindow_);
+
+    // State reset on app exit (start of state management)
+    connect(qApp, &QCoreApplication::aboutToQuit, this, [this]() {
+        if (tagSession_) tagSession_->clear();
+    });
 }
 
 void MainWindow::showWelcomeWindow() {
@@ -44,6 +57,20 @@ void MainWindow::showWorkWindow(const QString& filePath) {
     if (auto* stack = qobject_cast<QStackedWidget*>(centralWidget())) {
         stack->setCurrentWidget(workWindow_);
     }
+
+    if (statsWindow_) {
+        // Show stats window without stealing focus
+        statsWindow_->show();
+
+        // Place next to main window for now
+        const QRect g = this->geometry();
+        statsWindow_->resize(420, g.height());
+        statsWindow_->move(g.topRight() + QPoint(16, 0));
+
+        statsWindow_->lower();
+        this->raise();
+        this->activateWindow();
+    }
 }
 
 
@@ -55,6 +82,8 @@ void MainWindow::onVideoImportRequested() {
 }
 
 void MainWindow::onVideoClosed() {
+    if (statsWindow_) statsWindow_->hide();
+    if (tagSession_) tagSession_->clear();
     showWelcomeWindow();
 }
 

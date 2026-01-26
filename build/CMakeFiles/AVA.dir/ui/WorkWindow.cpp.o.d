@@ -965,14 +965,23 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qsizepolicy.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
+  /opt/homebrew/lib/QtCore.framework/Headers/QString \
   /Users/cam/asiatica-va/ui/../style/StyleProps.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QVariant \
-  /Users/cam/asiatica-va/components/VideoControlsBar.h \
+  /Users/cam/asiatica-va/ui/../components/VideoPlayer.h \
+  /Users/cam/asiatica-va/ui/../components/GameControls.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QStringList \
+  /opt/homebrew/lib/QtCore.framework/Headers/QList \
   /opt/homebrew/lib/QtCore.framework/Headers/QHash \
+  /Users/cam/asiatica-va/ui/../state/TagSession.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QObject \
+  /opt/homebrew/lib/QtCore.framework/Headers/QVector \
+  /opt/homebrew/lib/QtCore.framework/Headers/qvector.h \
+  /Users/cam/asiatica-va/components/VideoControlsBar.h \
   /Users/cam/asiatica-va/components/TimelineBar.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qframe.h \
@@ -986,13 +995,6 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qlayoutitem.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/QAudioOutput \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qaudiooutput.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimediaglobal.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimedia-config.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimediaexports.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtaudio.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qaudio.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QFileDialog \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qfiledialog.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qdir.h \
@@ -1038,30 +1040,29 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/qfileinfo.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qtimezone.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/QMediaPlayer \
-  /opt/homebrew/lib/QtMultimedia.framework/Headers/qmediaplayer.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QUrl \
-  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/QVideoWidget \
-  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qvideowidget.h \
-  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qtmultimediawidgetsglobal.h \
-  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qtmultimediawidgetsexports.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/QAction \
-  /opt/homebrew/lib/QtGui.framework/Headers/QKeySequence \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QApplication \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qcoreapplication.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qcoreevent.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qbasictimer.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qabstracteventdispatcher.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qeventloop.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qdeadlinetimer.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qnativeinterface.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qcoreapplication_platform.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/qinputmethod.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication_platform.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QToolButton \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtoolbutton.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractbutton.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QMenu \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qmenu.h
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qmenu.h \
+  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/QVideoWidget \
+  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qvideowidget.h \
+  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qtmultimediawidgetsglobal.h \
+  /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/qtmultimediawidgetsexports.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QListWidget \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qlistwidget.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qlistview.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractitemview.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractscrollarea.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qabstractitemmodel.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qitemselectionmodel.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractitemdelegate.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qstyleoption.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractspinbox.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/qvalidator.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qregularexpression.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qslider.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractslider.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qtabbar.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qrubberband.h

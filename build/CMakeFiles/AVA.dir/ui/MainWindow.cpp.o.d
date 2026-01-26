@@ -1033,4 +1033,11 @@ CMakeFiles/AVA.dir/ui/MainWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qframe.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
   /Users/cam/asiatica-va/ui/WelcomeWindow.h \
-  /Users/cam/asiatica-va/ui/WorkWindow.h
+  /Users/cam/asiatica-va/ui/WorkWindow.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
+  /Users/cam/asiatica-va/ui/StatsWindow.h \
+  /Users/cam/asiatica-va/ui/../state/TagSession.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QObject \
+  /opt/homebrew/lib/QtCore.framework/Headers/QHash \
+  /opt/homebrew/lib/QtCore.framework/Headers/QVector \
+  /opt/homebrew/lib/QtCore.framework/Headers/qvector.h

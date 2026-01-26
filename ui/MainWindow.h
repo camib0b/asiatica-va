@@ -5,6 +5,8 @@
 
 class WelcomeWindow;
 class WorkWindow;
+class StatsWindow;
+class TagSession;
 
 class MainWindow final : public QMainWindow {
   Q_OBJECT
@@ -24,4 +26,6 @@ private:
 
   WelcomeWindow* welcomeWindow_ = nullptr;
   WorkWindow* workWindow_ = nullptr;
+  StatsWindow* statsWindow_ = nullptr;
+  TagSession* tagSession_ = nullptr;
 };

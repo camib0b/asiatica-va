@@ -112,10 +112,18 @@ QPushButton[variant="secondary"] {
   background: rgba(15, 23, 42, 0.04);
   border: 1px solid rgba(15, 23, 42, 0.12);
 }
+QPushButton[variant="secondary"]:hover {
+  background: rgba(15, 23, 42, 0.08);
+  border-color: rgba(15, 23, 42, 0.18);
+}
 
 QPushButton[variant="outline"] {
   background: transparent;
   border: 1px solid rgba(15, 23, 42, 0.20);
+}
+QPushButton[variant="outline"]:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(15, 23, 42, 0.28);
 }
 
 QPushButton[variant="ghost"] {

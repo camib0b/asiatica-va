@@ -9,6 +9,9 @@
 #include <QPalette>
 #include <QColor>
 
+#include <array>
+
+
 namespace {
 constexpr qint64 kSeekStepMs = 2000;
 }
@@ -37,15 +40,22 @@ void VideoControlsBar
   fasterButton_     = new QPushButton("Faster", this);
   muteButton_       = new QPushButton("Mute", this);
 
-  Style::setSize(playButton_, "md");
-  Style::setSize(pauseButton_, "md");
-  Style::setSize(backButton_, "md");
-  Style::setSize(forwardButton_, "md");
-  Style::setSize(slowerButton_, "md");
-  Style::setSize(resetSpeedButton_, "md");
-  Style::setSize(fasterButton_, "md");
-  Style::setSize(muteButton_, "md");
-  
+  std::array<QPushButton*, 8> videoControlButtons = {
+    playButton_,
+    pauseButton_,
+    backButton_, 
+    forwardButton_,
+    slowerButton_,
+    resetSpeedButton_,
+    fasterButton_,
+    muteButton_
+  };
+
+  for (auto* button : videoControlButtons) {
+    Style::setSize(button, "md");
+    button->setFocusPolicy(Qt::NoFocus);
+  }
+
   Style::setVariant(playButton_, "primary");
   Style::setVariant(pauseButton_, "secondary");
   Style::setVariant(backButton_, "outline");
@@ -54,22 +64,8 @@ void VideoControlsBar
   Style::setVariant(resetSpeedButton_, "ghost");
   Style::setVariant(fasterButton_, "ghost");
   Style::setVariant(muteButton_, "outline");
-  
 
-  
-  // Prevent space/enter focus weirdness in analysis workflows
-  /*
-  If later you want the shadcn-like “focus ring”, you’ll have to allow focus
-  and prevent “Enter triggers default button” via setAutoDefault(false).
-  */
-  playButton_       ->setFocusPolicy(Qt::NoFocus);
-  pauseButton_      ->setFocusPolicy(Qt::NoFocus);
-  backButton_       ->setFocusPolicy(Qt::NoFocus);
-  forwardButton_    ->setFocusPolicy(Qt::NoFocus);
-  slowerButton_     ->setFocusPolicy(Qt::NoFocus);
-  resetSpeedButton_ ->setFocusPolicy(Qt::NoFocus);
-  fasterButton_     ->setFocusPolicy(Qt::NoFocus);
-  muteButton_       ->setFocusPolicy(Qt::NoFocus);
+
   
   muteButton_->setCheckable(true);
   
@@ -189,11 +185,6 @@ void VideoControlsBar::flashButtonBorder(QPushButton* button) {
 
   timer->start(150);
 }
-
-
-
-
-
 
 void VideoControlsBar::flashPlayButton()       { flashButtonBorder(playButton_); }
 void VideoControlsBar::flashPauseButton()      { flashButtonBorder(pauseButton_); }

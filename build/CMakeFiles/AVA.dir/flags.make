@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIAWIDGETS_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB
 
-CXX_INCLUDES = -I/Users/cam/asiatica-va/build/AVA_autogen/include -I/Users/cam/asiatica-va/ui -I/Users/cam/asiatica-va/components -I/Users/cam/asiatica-va/style -isystem /opt/homebrew/lib/QtCore.framework/Headers -iframework /opt/homebrew/lib -isystem /opt/homebrew/share/qt/mkspecs/macx-clang -isystem /opt/homebrew/include -isystem /opt/homebrew/lib/QtWidgets.framework/Headers -isystem /opt/homebrew/lib/QtGui.framework/Headers -isystem /opt/homebrew/lib/QtMultimedia.framework/Headers -isystem /opt/homebrew/lib/QtNetwork.framework/Headers -isystem /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers
+CXX_INCLUDES = -I/Users/cam/asiatica-va/build/AVA_autogen/include -I/Users/cam/asiatica-va/ui -I/Users/cam/asiatica-va/components -I/Users/cam/asiatica-va/style -I/Users/cam/asiatica-va/state -isystem /opt/homebrew/lib/QtCore.framework/Headers -iframework /opt/homebrew/lib -isystem /opt/homebrew/share/qt/mkspecs/macx-clang -isystem /opt/homebrew/include -isystem /opt/homebrew/lib/QtWidgets.framework/Headers -isystem /opt/homebrew/lib/QtGui.framework/Headers -isystem /opt/homebrew/lib/QtMultimedia.framework/Headers -isystem /opt/homebrew/lib/QtNetwork.framework/Headers -isystem /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers
 
 CXX_FLAGSarm64 = -std=gnu++17 -arch arm64
 

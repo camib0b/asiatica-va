@@ -984,4 +984,5 @@ CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qlayout.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qlayoutitem.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout \
+  /opt/homebrew/lib/QtCore.framework/Headers/QDebug

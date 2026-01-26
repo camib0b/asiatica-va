@@ -203,6 +203,30 @@ build/.qt/rcc/qrc_ava_resources.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.s
 .PHONY : build/.qt/rcc/qrc_ava_resources.cpp.s
 
+components/GameControls.o: components/GameControls.cpp.o
+.PHONY : components/GameControls.o
+
+# target to build an object file
+components/GameControls.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/GameControls.cpp.o
+.PHONY : components/GameControls.cpp.o
+
+components/GameControls.i: components/GameControls.cpp.i
+.PHONY : components/GameControls.i
+
+# target to preprocess a source file
+components/GameControls.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/GameControls.cpp.i
+.PHONY : components/GameControls.cpp.i
+
+components/GameControls.s: components/GameControls.cpp.s
+.PHONY : components/GameControls.s
+
+# target to generate assembly for a file
+components/GameControls.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/GameControls.cpp.s
+.PHONY : components/GameControls.cpp.s
+
 components/TimelineBar.o: components/TimelineBar.cpp.o
 .PHONY : components/TimelineBar.o
 
@@ -251,6 +275,30 @@ components/VideoControlsBar.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.s
 .PHONY : components/VideoControlsBar.cpp.s
 
+components/VideoPlayer.o: components/VideoPlayer.cpp.o
+.PHONY : components/VideoPlayer.o
+
+# target to build an object file
+components/VideoPlayer.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/VideoPlayer.cpp.o
+.PHONY : components/VideoPlayer.cpp.o
+
+components/VideoPlayer.i: components/VideoPlayer.cpp.i
+.PHONY : components/VideoPlayer.i
+
+# target to preprocess a source file
+components/VideoPlayer.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/VideoPlayer.cpp.i
+.PHONY : components/VideoPlayer.cpp.i
+
+components/VideoPlayer.s: components/VideoPlayer.cpp.s
+.PHONY : components/VideoPlayer.s
+
+# target to generate assembly for a file
+components/VideoPlayer.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/VideoPlayer.cpp.s
+.PHONY : components/VideoPlayer.cpp.s
+
 main.o: main.cpp.o
 .PHONY : main.o
 
@@ -274,6 +322,30 @@ main.s: main.cpp.s
 main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/main.cpp.s
 .PHONY : main.cpp.s
+
+state/TagSession.o: state/TagSession.cpp.o
+.PHONY : state/TagSession.o
+
+# target to build an object file
+state/TagSession.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/state/TagSession.cpp.o
+.PHONY : state/TagSession.cpp.o
+
+state/TagSession.i: state/TagSession.cpp.i
+.PHONY : state/TagSession.i
+
+# target to preprocess a source file
+state/TagSession.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/state/TagSession.cpp.i
+.PHONY : state/TagSession.cpp.i
+
+state/TagSession.s: state/TagSession.cpp.s
+.PHONY : state/TagSession.s
+
+# target to generate assembly for a file
+state/TagSession.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/state/TagSession.cpp.s
+.PHONY : state/TagSession.cpp.s
 
 style/theme.o: style/theme.cpp.o
 .PHONY : style/theme.o
@@ -322,6 +394,30 @@ ui/MainWindow.s: ui/MainWindow.cpp.s
 ui/MainWindow.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/MainWindow.cpp.s
 .PHONY : ui/MainWindow.cpp.s
+
+ui/StatsWindow.o: ui/StatsWindow.cpp.o
+.PHONY : ui/StatsWindow.o
+
+# target to build an object file
+ui/StatsWindow.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/StatsWindow.cpp.o
+.PHONY : ui/StatsWindow.cpp.o
+
+ui/StatsWindow.i: ui/StatsWindow.cpp.i
+.PHONY : ui/StatsWindow.i
+
+# target to preprocess a source file
+ui/StatsWindow.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/StatsWindow.cpp.i
+.PHONY : ui/StatsWindow.cpp.i
+
+ui/StatsWindow.s: ui/StatsWindow.cpp.s
+.PHONY : ui/StatsWindow.s
+
+# target to generate assembly for a file
+ui/StatsWindow.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/StatsWindow.cpp.s
+.PHONY : ui/StatsWindow.cpp.s
 
 ui/WelcomeWindow.o: ui/WelcomeWindow.cpp.o
 .PHONY : ui/WelcomeWindow.o
@@ -388,21 +484,33 @@ help:
 	@echo "... build/.qt/rcc/qrc_ava_resources.o"
 	@echo "... build/.qt/rcc/qrc_ava_resources.i"
 	@echo "... build/.qt/rcc/qrc_ava_resources.s"
+	@echo "... components/GameControls.o"
+	@echo "... components/GameControls.i"
+	@echo "... components/GameControls.s"
 	@echo "... components/TimelineBar.o"
 	@echo "... components/TimelineBar.i"
 	@echo "... components/TimelineBar.s"
 	@echo "... components/VideoControlsBar.o"
 	@echo "... components/VideoControlsBar.i"
 	@echo "... components/VideoControlsBar.s"
+	@echo "... components/VideoPlayer.o"
+	@echo "... components/VideoPlayer.i"
+	@echo "... components/VideoPlayer.s"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
+	@echo "... state/TagSession.o"
+	@echo "... state/TagSession.i"
+	@echo "... state/TagSession.s"
 	@echo "... style/theme.o"
 	@echo "... style/theme.i"
 	@echo "... style/theme.s"
 	@echo "... ui/MainWindow.o"
 	@echo "... ui/MainWindow.i"
 	@echo "... ui/MainWindow.s"
+	@echo "... ui/StatsWindow.o"
+	@echo "... ui/StatsWindow.i"
+	@echo "... ui/StatsWindow.s"
 	@echo "... ui/WelcomeWindow.o"
 	@echo "... ui/WelcomeWindow.i"
 	@echo "... ui/WelcomeWindow.s"
