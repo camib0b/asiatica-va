@@ -5,6 +5,7 @@
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QTreeWidget>
+#include <QTreeWidgetItem>
 #include <QHeaderView>
 #include <algorithm>
 
@@ -68,6 +69,16 @@ void StatsWindow::buildUi() {
 }
 
 void StatsWindow::wireSignals() {
+    connect(tree_, &QTreeWidget::itemDoubleClicked, this, &StatsWindow::onTreeItemDoubleClicked);
+}
+
+void StatsWindow::onTreeItemDoubleClicked(QTreeWidgetItem* item, int /*column*/) {
+    if (!item) return;
+    const QString mainEvent = item->data(0, Qt::UserRole).toString();
+    const QString followUpEvent = item->data(0, Qt::UserRole + 1).toString();
+    if (!mainEvent.isEmpty()) {
+        emit filterByPathRequested(mainEvent, followUpEvent);
+    }
 }
 
 void StatsWindow::clearTree() {
@@ -91,6 +102,8 @@ void StatsWindow::rebuildTree() {
         auto* mainItem = new QTreeWidgetItem(tree_);
         mainItem->setText(0, mainEvent);
         mainItem->setText(1, QString::number(mainCount));
+        mainItem->setData(0, Qt::UserRole, mainEvent);
+        mainItem->setData(0, Qt::UserRole + 1, QString());
 
         const auto followUpsIt = tagSession_->followUpCountsByMainEvent().find(mainEvent);
         if (followUpsIt == tagSession_->followUpCountsByMainEvent().end()) continue;
@@ -105,6 +118,8 @@ void StatsWindow::rebuildTree() {
             auto* child = new QTreeWidgetItem(mainItem);
             child->setText(0, "  " + followUp);
             child->setText(1, formatCountAndPercent(followUpCount, mainCount));
+            child->setData(0, Qt::UserRole, mainEvent);
+            child->setData(0, Qt::UserRole + 1, followUp);
         }
 
         mainItem->setExpanded(true);

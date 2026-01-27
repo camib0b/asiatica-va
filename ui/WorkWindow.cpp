@@ -154,6 +154,13 @@ void WorkWindow::buildUi() {
     tagsFilterButton_->setPopupMode(QToolButton::InstantPopup);
     tagsFilterButton_->setCursor(Qt::PointingHandCursor);
 
+    tagsRemoveFiltersButton_ = new QToolButton(tagsHeaderRow);
+    tagsRemoveFiltersButton_->setText("Remove filters");
+    Style::setVariant(tagsRemoveFiltersButton_, "ghost");
+    Style::setSize(tagsRemoveFiltersButton_, "sm");
+    tagsRemoveFiltersButton_->setCursor(Qt::PointingHandCursor);
+    tagsRemoveFiltersButton_->hide();
+
     tagsFilterMenu_ = new QMenu(tagsFilterButton_);
     tagsFilterButton_->setMenu(tagsFilterMenu_);
 
@@ -164,6 +171,7 @@ void WorkWindow::buildUi() {
 
     tagsHeaderLayout->addWidget(tagsHeaderLabel_, /*stretch=*/0);
     tagsHeaderLayout->addWidget(tagsFilterIndicator_, /*stretch=*/1);
+    tagsHeaderLayout->addWidget(tagsRemoveFiltersButton_, /*stretch=*/0, Qt::AlignRight);
     tagsHeaderLayout->addWidget(tagsFilterButton_, /*stretch=*/0, Qt::AlignRight);
 
     tagsList_ = new QListWidget(videoAndTagsCol);
@@ -195,6 +203,7 @@ void WorkWindow::buildUi() {
     if (statsWindow_) statsWindow_->hide();
     if (tagsHeaderLabel_) tagsHeaderLabel_->hide();
     if (tagsFilterButton_) tagsFilterButton_->hide();
+    if (tagsRemoveFiltersButton_) tagsRemoveFiltersButton_->hide();
     if (tagsList_) tagsList_->hide();
 }
 
@@ -232,6 +241,9 @@ void WorkWindow::wireSignals() {
     });
 
     connect(tagsList_, &QListWidget::itemActivated, this, &WorkWindow::onTagItemActivated);
+
+    connect(statsWindow_, &StatsWindow::filterByPathRequested, this, &WorkWindow::onFilterByPathRequested);
+    connect(tagsRemoveFiltersButton_, &QToolButton::clicked, this, &WorkWindow::onRemoveFilters);
 
     // Highlight tags when playhead is within ±2s
     connect(videoPlayer_, &VideoPlayer::positionChangedMs, this, &WorkWindow::onPlayheadPositionChanged);
@@ -274,6 +286,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
 
     if (tagsHeaderLabel_) tagsHeaderLabel_->show();
     if (tagsFilterButton_) tagsFilterButton_->show();
+    updateFilterButtonsVisibility();
     if (tagsList_) tagsList_->show();
     updateFilterIndicator();
     if (statsWindow_) {
@@ -306,6 +319,7 @@ void WorkWindow::onDiscardVideo() {
     if (tagsList_) tagsList_->clear();
     if (tagsHeaderLabel_) tagsHeaderLabel_->hide();
     if (tagsFilterButton_) tagsFilterButton_->hide();
+    if (tagsRemoveFiltersButton_) tagsRemoveFiltersButton_->hide();
     if (tagsList_) tagsList_->hide();
     if (statsWindow_) statsWindow_->hide();
 
@@ -365,6 +379,7 @@ void WorkWindow::onSelectAllFilters() {
     }
     rebuildTagsList();
     updateFilterIndicator();
+    updateFilterButtonsVisibility();
 }
 
 void WorkWindow::onSelectNoFilters() {
@@ -377,12 +392,55 @@ void WorkWindow::onSelectNoFilters() {
 void WorkWindow::onFilterActionToggled(bool /*checked*/) {
     rebuildTagsList();
     updateFilterIndicator();
+    updateFilterButtonsVisibility();
+}
+
+void WorkWindow::onFilterByPathRequested(const QString& mainEvent, const QString& followUpEvent) {
+    activeFilterPathMainEvent_ = mainEvent;
+    activeFilterPathFollowUp_ = followUpEvent;
+    rebuildTagsList();
+    updateFilterIndicator();
+    updateFilterButtonsVisibility();
+}
+
+void WorkWindow::onRemoveFilters() {
+    activeFilterPathMainEvent_.clear();
+    activeFilterPathFollowUp_.clear();
+    onSelectAllFilters();
+    updateFilterButtonsVisibility();
 }
 
 bool WorkWindow::isMainEventAllowed(const QString& mainEvent) const {
     auto it = filterActionByMainEvent_.find(mainEvent);
     if (it == filterActionByMainEvent_.end()) return true; // no filter entry yet -> allow
     return it.value()->isChecked();
+}
+
+bool WorkWindow::isTagAllowed(const QString& mainEvent, const QString& followUpEvent) const {
+    if (!activeFilterPathMainEvent_.isEmpty()) {
+        if (mainEvent != activeFilterPathMainEvent_) return false;
+        if (activeFilterPathFollowUp_.isEmpty()) return true;
+        return followUpEvent == activeFilterPathFollowUp_
+            || followUpEvent.startsWith(activeFilterPathFollowUp_ + " → ");
+    }
+    return isMainEventAllowed(mainEvent);
+}
+
+bool WorkWindow::hasAnyFilterActive() const {
+    if (!activeFilterPathMainEvent_.isEmpty()) return true;
+    for (auto it = filterActionByMainEvent_.cbegin(); it != filterActionByMainEvent_.cend(); ++it) {
+        if (!it.value()->isChecked()) return true;
+    }
+    return false;
+}
+
+void WorkWindow::updateFilterButtonsVisibility() {
+    if (!tagsRemoveFiltersButton_) return;
+    if (hasAnyFilterActive()) {
+        tagsRemoveFiltersButton_->show();
+    } else {
+        tagsRemoveFiltersButton_->hide();
+    }
 }
 
 void WorkWindow::rebuildFilterMenu() {
@@ -419,6 +477,14 @@ void WorkWindow::rebuildFilterMenu() {
 void WorkWindow::updateFilterIndicator() {
     if (!tagsFilterIndicator_) return;
 
+    if (!activeFilterPathMainEvent_.isEmpty()) {
+        QString pathText = activeFilterPathMainEvent_;
+        if (!activeFilterPathFollowUp_.isEmpty()) pathText += " → " + activeFilterPathFollowUp_;
+        tagsFilterIndicator_->setText("Filtered by: " + pathText);
+        tagsFilterIndicator_->show();
+        return;
+    }
+
     QStringList activeFilters;
     for (auto it = filterActionByMainEvent_.cbegin(); it != filterActionByMainEvent_.cend(); ++it) {
         if (it.value()->isChecked()) {
@@ -450,7 +516,7 @@ void WorkWindow::rebuildTagsList() {
     QVector<TagEntry> entries;
     int tagSessionIndex = 0;
     for (const auto& tag : tagSession_->tags()) {
-        if (isMainEventAllowed(tag.mainEvent)) {
+        if (isTagAllowed(tag.mainEvent, tag.followUpEvent)) {
             entries.append({tag, tagSessionIndex});
         }
         tagSessionIndex++;
@@ -477,6 +543,7 @@ void WorkWindow::rebuildTagsList() {
 
     tagsList_->scrollToBottom();
     updateFilterIndicator();
+    updateFilterButtonsVisibility();
     if (videoPlayer_) {
         updateTagPlayheadHighlight(videoPlayer_->currentPositionMs());
     }

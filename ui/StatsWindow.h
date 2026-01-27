@@ -15,6 +15,12 @@ public:
 
   void setTagSession(TagSession* session);
 
+signals:
+  void filterByPathRequested(const QString& mainEvent, const QString& followUpEvent);
+
+private slots:
+  void onTreeItemDoubleClicked(class QTreeWidgetItem* item, int column);
+
 private:
   void buildUi();
   void wireSignals();

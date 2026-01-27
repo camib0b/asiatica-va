@@ -41,6 +41,8 @@ private slots:
   void onSelectNoFilters();
   void onFilterActionToggled(bool checked);
   void onPlayheadPositionChanged(qint64 positionMs);
+  void onFilterByPathRequested(const QString& mainEvent, const QString& followUpEvent);
+  void onRemoveFilters();
 
 private:
   void buildUi();
@@ -48,8 +50,11 @@ private:
   void rebuildTagsList();
   void rebuildFilterMenu();
   void updateFilterIndicator();
+  void updateFilterButtonsVisibility();
   void updateTagPlayheadHighlight(qint64 positionMs);
   bool isMainEventAllowed(const QString& mainEvent) const;
+  bool isTagAllowed(const QString& mainEvent, const QString& followUpEvent) const;
+  bool hasAnyFilterActive() const;
 
   QString promptForVideoFile();
 
@@ -67,6 +72,7 @@ private:
 
   QLabel* tagsHeaderLabel_ = nullptr;
   QToolButton* tagsFilterButton_ = nullptr;
+  QToolButton* tagsRemoveFiltersButton_ = nullptr;
   QMenu* tagsFilterMenu_ = nullptr;
   QLabel* tagsFilterIndicator_ = nullptr;
   QListWidget* tagsList_ = nullptr;
@@ -74,6 +80,8 @@ private:
   TagSession* tagSession_ = nullptr;
   QHash<QString, QAction*> filterActionByMainEvent_;
   QSet<QString> allowedMainEvents_;
+  QString activeFilterPathMainEvent_;
+  QString activeFilterPathFollowUp_;
 
   QString pendingMainEvent_;
   qint64 pendingTimestampMs_ = 0;

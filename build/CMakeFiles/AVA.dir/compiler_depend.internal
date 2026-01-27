@@ -11234,6 +11234,7 @@ CMakeFiles/AVA.dir/ui/StatsWindow.cpp.o
  /opt/homebrew/lib/QtWidgets.framework/Headers/QLabel
  /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle
  /opt/homebrew/lib/QtWidgets.framework/Headers/QTreeWidget
+ /opt/homebrew/lib/QtWidgets.framework/Headers/QTreeWidgetItem
  /opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout
  /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget
  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractitemdelegate.h

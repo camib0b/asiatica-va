@@ -11222,6 +11222,7 @@ CMakeFiles/AVA.dir/ui/StatsWindow.cpp.o: /Users/cam/asiatica-va/ui/StatsWindow.c
   /opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QTreeWidget \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QTreeWidgetItem \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractitemdelegate.h \
@@ -15160,6 +15161,8 @@ AVA_autogen/mocs_compilation.cpp:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/cwctype:
 
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QSvgIconPluginTargets-release.cmake:
+
+/opt/homebrew/lib/QtWidgets.framework/Headers/QTreeWidgetItem:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__compare/synth_three_way.h:
 
