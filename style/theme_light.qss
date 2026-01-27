@@ -106,19 +106,33 @@ QPushButton[size="lg"] {
 /* Variants */
 QPushButton[variant="primary"] {
   background: #FFFFFF;
+  border: 1px solid black;
+  color: #111827;
+  font-weight: 650;
+}
+QPushButton[variant="primary"]:hover { background: "lightgray"; }
+QPushButton[variant="primary"]:pressed { background: "gray"; }
+QPushButton[variant="primary"]:focus {
+  border: 2px solid rgba(37, 99, 235, 0.65);
+  padding: 7px 11px; /* compensate for border width */
+}
+
+/* WelcomeWindow import button - specific styling */
+QPushButton[variant="welcomeImport"] {
+  background: #FFFFFF;
   border: 1px solid #0B0D12;
   color: #111827;
   font-weight: 650;
 }
-QPushButton[variant="primary"]:hover {
+QPushButton[variant="welcomeImport"]:hover {
   background: rgba(0, 0, 0, 0.04);
   border-color: #0B0D12;
 }
-QPushButton[variant="primary"]:pressed {
+QPushButton[variant="welcomeImport"]:pressed {
   background: rgba(0, 0, 0, 0.07);
   border-color: #0B0D12;
 }
-QPushButton[variant="primary"]:focus {
+QPushButton[variant="welcomeImport"]:focus {
   border: 1px solid #0B0D12;
   background: rgba(37, 99, 235, 0.03);
 }
@@ -157,8 +171,7 @@ QPushButton[variant="destructive"] {
 }
 
 /* Focus ring substitute (only matters when widgets can take focus) */
-/* Note: primary variant has its own focus styling above */
-QPushButton:focus:not([variant="primary"]) {
+QPushButton:focus {
   border: 2px solid rgba(37, 99, 235, 0.65);
   padding: 7px 11px; /* compensate for border width */
 }

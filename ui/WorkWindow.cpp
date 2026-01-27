@@ -425,8 +425,13 @@ void WorkWindow::rebuildTagsList() {
     tagsList_->clear();
     if (!tagSession_) return;
 
+    // Store the actual TagSession index in each item so we can delete the correct tag
+    int tagSessionIndex = 0;
     for (const auto& tag : tagSession_->tags()) {
-        if (!isMainEventAllowed(tag.mainEvent)) continue;
+        if (!isMainEventAllowed(tag.mainEvent)) {
+            tagSessionIndex++;
+            continue;
+        }
 
         QString eventText = tag.mainEvent;
         if (!tag.followUpEvent.isEmpty()) eventText += " → " + tag.followUpEvent;
@@ -436,6 +441,9 @@ void WorkWindow::rebuildTagsList() {
         item->setData(Qt::UserRole, tag.positionMs);
         item->setData(Qt::UserRole + 1, tag.mainEvent);
         item->setData(Qt::UserRole + 2, tag.followUpEvent);
+        item->setData(Qt::UserRole + 3, tagSessionIndex); // Store the actual TagSession index
+
+        tagSessionIndex++;
     }
 
     tagsList_->scrollToBottom();

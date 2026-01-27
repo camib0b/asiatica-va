@@ -51,7 +51,7 @@ void WelcomeWindow::buildUi() {
     // import button:
     importButton_ = new QPushButton("&Select video file", contentContainer);
     importButton_->setCursor(Qt::PointingHandCursor);
-    Style::setVariant(importButton_, "primary");
+    Style::setVariant(importButton_, "welcomeImport");
     Style::setSize(importButton_, "lg");
     importButton_->setMaximumWidth(400);
     importButton_->setFocusPolicy(Qt::TabFocus); // Allow keyboard focus but don't auto-focus on window open
