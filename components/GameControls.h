@@ -49,24 +49,26 @@ private:
   QHBoxLayout* followUpLayout_ = nullptr;
   QWidget* followUpContainer_ = nullptr;
   
-  QPushButton* enterDButton_ = nullptr;
-  QPushButton* shotButton_ = nullptr;
-  QPushButton* pcButton_ = nullptr;
-  QPushButton* goalButton_ = nullptr;
   QPushButton* hit16ydButton_ = nullptr;
   QPushButton* hit50ydButton_ = nullptr;
-  QPushButton* recoveryButton_ = nullptr;
-  QPushButton* lossButton_ = nullptr;
+  QPushButton* hit75ydButton_ = nullptr;
+  QPushButton* enterDButton_ = nullptr;
+  QPushButton* shotButton_ = nullptr;
+  QPushButton* goalButton_ = nullptr;
+  QPushButton* pcButton_ = nullptr;
+  QPushButton* psButton_ = nullptr;
+  QPushButton* cardButton_ = nullptr;
 
   // keyboard shortcuts:
-  QAction* enterDAction_ = nullptr;
-  QAction* shotAction_ = nullptr;
-  QAction* pcAction_ = nullptr;
-  QAction* goalAction_ = nullptr;
   QAction* hit16ydAction_ = nullptr;
   QAction* hit50ydAction_ = nullptr;
-  QAction* recoveryAction_ = nullptr;
-  QAction* lossAction_ = nullptr;
+  QAction* hit75ydAction_ = nullptr;
+  QAction* enterDAction_ = nullptr;
+  QAction* shotAction_ = nullptr;
+  QAction* goalAction_ = nullptr;
+  QAction* pcAction_ = nullptr;
+  QAction* psAction_ = nullptr;
+  QAction* cardAction_ = nullptr;
   QList<QAction*> followUpNumberActions_;
   QAction* escapeAction_ = nullptr;
 

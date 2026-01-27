@@ -37,26 +37,28 @@ void GameControls::buildUi() {
   mainLayout->setContentsMargins(0, 0, 0, 0);
   mainLayout->setSpacing(12);
 
-  // Main grid of 8 buttons (2 rows x 4 columns)
+  // Main grid of 9 buttons (3 rows x 3 columns)
   auto* mainGridWidget = new QWidget(this);
   mainGridLayout_ = new QGridLayout(mainGridWidget);
   mainGridLayout_->setContentsMargins(0, 0, 0, 0);
   mainGridLayout_->setSpacing(4);
 
   // Create main buttons
+  hit16ydButton_ = new QPushButton("16-yd play", mainGridWidget);
+  hit50ydButton_ = new QPushButton("50-yd play", mainGridWidget);
+  hit75ydButton_ = new QPushButton("75-yd play", mainGridWidget);
   enterDButton_ = new QPushButton("Circle Entry", mainGridWidget);
   shotButton_ = new QPushButton("Shot", mainGridWidget);
-  pcButton_ = new QPushButton("PC", mainGridWidget);
   goalButton_ = new QPushButton("Goal", mainGridWidget);
-  hit16ydButton_ = new QPushButton("16-yd hit", mainGridWidget);
-  hit50ydButton_ = new QPushButton("50-yd hit", mainGridWidget);
-  recoveryButton_ = new QPushButton("Recovery", mainGridWidget);
-  lossButton_ = new QPushButton("Loss", mainGridWidget);
+  pcButton_ = new QPushButton("PC", mainGridWidget);
+  psButton_ = new QPushButton("PS", mainGridWidget);
+  cardButton_ = new QPushButton("Card", mainGridWidget);
 
   // Style all main buttons
   QList<QPushButton*> mainButtons = {
-    enterDButton_, shotButton_, pcButton_, goalButton_,
-    hit16ydButton_, hit50ydButton_, recoveryButton_, lossButton_
+    hit16ydButton_, hit50ydButton_, hit75ydButton_,
+    enterDButton_, shotButton_, goalButton_,
+    pcButton_, psButton_, cardButton_
   };
 
   for (auto* button : mainButtons) {
@@ -66,15 +68,19 @@ void GameControls::buildUi() {
     button->setMinimumHeight(40);
   }
 
-  // Arrange buttons in grid (2 rows x 4 columns)
-  mainGridLayout_->addWidget(enterDButton_, 0, 0);
-  mainGridLayout_->addWidget(shotButton_, 0, 1);
-  mainGridLayout_->addWidget(pcButton_, 0, 2);
-  mainGridLayout_->addWidget(goalButton_, 0, 3);
-  mainGridLayout_->addWidget(hit16ydButton_, 1, 0);
-  mainGridLayout_->addWidget(hit50ydButton_, 1, 1);
-  mainGridLayout_->addWidget(recoveryButton_, 1, 2);
-  mainGridLayout_->addWidget(lossButton_, 1, 3);
+  // Arrange buttons in grid (3 rows x 3 columns)
+  // Row 0: 16-yd play, 50-yd play, 75-yd play
+  mainGridLayout_->addWidget(hit16ydButton_, 0, 0);
+  mainGridLayout_->addWidget(hit50ydButton_, 0, 1);
+  mainGridLayout_->addWidget(hit75ydButton_, 0, 2);
+  // Row 1: Circle Entry, Shot, Goal
+  mainGridLayout_->addWidget(enterDButton_, 1, 0);
+  mainGridLayout_->addWidget(shotButton_, 1, 1);
+  mainGridLayout_->addWidget(goalButton_, 1, 2);
+  // Row 2: PC, PS, Card
+  mainGridLayout_->addWidget(pcButton_, 2, 0);
+  mainGridLayout_->addWidget(psButton_, 2, 1);
+  mainGridLayout_->addWidget(cardButton_, 2, 2);
 
   // Follow-up buttons container (initially hidden)
   followUpContainer_ = new QWidget(this);
@@ -88,30 +94,19 @@ void GameControls::buildUi() {
 }
 
 void GameControls::wireSignals() {
-  // Main buttons: flash on click, then handle the click
-  connect(enterDButton_, &QPushButton::clicked, this, [this]() { flashButtonBorder(enterDButton_); });
-  connect(enterDButton_, &QPushButton::clicked, this, &GameControls::onMainButtonClicked);
-  
-  connect(shotButton_, &QPushButton::clicked, this, [this]() { flashButtonBorder(shotButton_); });
-  connect(shotButton_, &QPushButton::clicked, this, &GameControls::onMainButtonClicked);
-  
-  connect(pcButton_, &QPushButton::clicked, this, [this]() { flashButtonBorder(pcButton_); });
-  connect(pcButton_, &QPushButton::clicked, this, &GameControls::onMainButtonClicked);
-  
-  connect(goalButton_, &QPushButton::clicked, this, [this]() { flashButtonBorder(goalButton_); });
-  connect(goalButton_, &QPushButton::clicked, this, &GameControls::onMainButtonClicked);
-  
-  connect(hit16ydButton_, &QPushButton::clicked, this, [this]() { flashButtonBorder(hit16ydButton_); });
-  connect(hit16ydButton_, &QPushButton::clicked, this, &GameControls::onMainButtonClicked);
-  
-  connect(hit50ydButton_, &QPushButton::clicked, this, [this]() { flashButtonBorder(hit50ydButton_); });
-  connect(hit50ydButton_, &QPushButton::clicked, this, &GameControls::onMainButtonClicked);
-  
-  connect(recoveryButton_, &QPushButton::clicked, this, [this]() { flashButtonBorder(recoveryButton_); });
-  connect(recoveryButton_, &QPushButton::clicked, this, &GameControls::onMainButtonClicked);
-  
-  connect(lossButton_, &QPushButton::clicked, this, [this]() { flashButtonBorder(lossButton_); });
-  connect(lossButton_, &QPushButton::clicked, this, &GameControls::onMainButtonClicked);
+  auto connectMain = [this](QPushButton* btn) {
+    connect(btn, &QPushButton::clicked, this, [this, btn]() { flashButtonBorder(btn); });
+    connect(btn, &QPushButton::clicked, this, &GameControls::onMainButtonClicked);
+  };
+  connectMain(hit16ydButton_);
+  connectMain(hit50ydButton_);
+  connectMain(hit75ydButton_);
+  connectMain(enterDButton_);
+  connectMain(shotButton_);
+  connectMain(goalButton_);
+  connectMain(pcButton_);
+  connectMain(psButton_);
+  connectMain(cardButton_);
 }
 
 void GameControls::buildKeyboardShortcuts() {
@@ -126,31 +121,33 @@ void GameControls::buildKeyboardShortcuts() {
     return act;
   };
 
-  // Main grid: Q W E R / A S D F
-  enterDAction_ = makeAction(Qt::Key_Q, [this]() {
-    if (enterDButton_ && enterDButton_->isVisible() && enterDButton_->isEnabled()) enterDButton_->click();
-  });
-  shotAction_ = makeAction(Qt::Key_W, [this]() {
-    if (shotButton_ && shotButton_->isVisible() && shotButton_->isEnabled()) shotButton_->click();
-  });
-  pcAction_ = makeAction(Qt::Key_E, [this]() {
-    if (pcButton_ && pcButton_->isVisible() && pcButton_->isEnabled()) pcButton_->click();
-  });
-  goalAction_ = makeAction(Qt::Key_R, [this]() {
-    if (goalButton_ && goalButton_->isVisible() && goalButton_->isEnabled()) goalButton_->click();
-  });
-
-  hit16ydAction_ = makeAction(Qt::Key_A, [this]() {
+  // Main grid 3x3 left-hand QWERTY: Q W E | A S D | Z X C
+  hit16ydAction_ = makeAction(Qt::Key_Q, [this]() {
     if (hit16ydButton_ && hit16ydButton_->isVisible() && hit16ydButton_->isEnabled()) hit16ydButton_->click();
   });
-  hit50ydAction_ = makeAction(Qt::Key_S, [this]() {
+  hit50ydAction_ = makeAction(Qt::Key_W, [this]() {
     if (hit50ydButton_ && hit50ydButton_->isVisible() && hit50ydButton_->isEnabled()) hit50ydButton_->click();
   });
-  recoveryAction_ = makeAction(Qt::Key_D, [this]() {
-    if (recoveryButton_ && recoveryButton_->isVisible() && recoveryButton_->isEnabled()) recoveryButton_->click();
+  hit75ydAction_ = makeAction(Qt::Key_E, [this]() {
+    if (hit75ydButton_ && hit75ydButton_->isVisible() && hit75ydButton_->isEnabled()) hit75ydButton_->click();
   });
-  lossAction_ = makeAction(Qt::Key_F, [this]() {
-    if (lossButton_ && lossButton_->isVisible() && lossButton_->isEnabled()) lossButton_->click();
+  enterDAction_ = makeAction(Qt::Key_A, [this]() {
+    if (enterDButton_ && enterDButton_->isVisible() && enterDButton_->isEnabled()) enterDButton_->click();
+  });
+  shotAction_ = makeAction(Qt::Key_S, [this]() {
+    if (shotButton_ && shotButton_->isVisible() && shotButton_->isEnabled()) shotButton_->click();
+  });
+  goalAction_ = makeAction(Qt::Key_D, [this]() {
+    if (goalButton_ && goalButton_->isVisible() && goalButton_->isEnabled()) goalButton_->click();
+  });
+  pcAction_ = makeAction(Qt::Key_Z, [this]() {
+    if (pcButton_ && pcButton_->isVisible() && pcButton_->isEnabled()) pcButton_->click();
+  });
+  psAction_ = makeAction(Qt::Key_X, [this]() {
+    if (psButton_ && psButton_->isVisible() && psButton_->isEnabled()) psButton_->click();
+  });
+  cardAction_ = makeAction(Qt::Key_C, [this]() {
+    if (cardButton_ && cardButton_->isVisible() && cardButton_->isEnabled()) cardButton_->click();
   });
 
   // Follow-ups: map visible follow-up buttons to 1..9
@@ -255,13 +252,16 @@ QStringList GameControls::getFirstLevelFollowUps(const QString& mainEvent) const
     return {"On target", "Off target"};
   }
   if (mainEvent == "Circle Entry") {
-    return {"Left", "Middle", "Right"};
+    return {"Dribling", "Pass", "Deflection"};
   }
   if (mainEvent == "PC") {
     return {"Direct shot", "Variant", "Ruined"};
   }
-  if (mainEvent == "Recovery") {
-    return {"Interception", "Reception advance", "Tackle", "Block", "Unforced error"};
+  if (mainEvent == "75-yd play") {
+    return {"Forward", "Sideways", "Back"};
+  }
+  if (mainEvent == "Card") {
+    return {"Green", "Yellow", "Red"};
   }
   return {};
 }
@@ -279,8 +279,8 @@ QStringList GameControls::getSecondLevelFollowUps(const QString& mainEvent, cons
   }
 
   if (mainEvent == "Circle Entry") {
-    // Second-level follow-ups apply to all first-level options (Left/Middle/Right)
-    return {"Dribling", "Pass", "Deflection"};
+    // Second-level follow-ups apply to all first-level options (Dribling/Pass/Deflection)
+    return {"Left", "Middle", "Right"};
   }
 
   return {};
