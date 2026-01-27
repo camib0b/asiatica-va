@@ -8,11 +8,15 @@
 #include <QTreeWidgetItem>
 #include <QHeaderView>
 #include <algorithm>
+#include <cmath>
 
 namespace {
 QString formatCountAndPercent(int count, int mainCount) {
     const double pct = (mainCount > 0) ? (100.0 * double(count) / double(mainCount)) : 0.0;
-    return QString("%1 (%2%)").arg(count).arg(pct, 0, 'f', 1);
+    const QString pctStr = (std::abs(pct - std::round(pct)) < 1e-9)
+        ? QString::number(static_cast<int>(std::round(pct)))
+        : QString::number(pct, 'f', 1);
+    return QString("%1 (%2%)").arg(count).arg(pctStr);
 }
 } // namespace
 
