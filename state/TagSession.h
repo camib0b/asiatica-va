@@ -21,6 +21,7 @@ public:
 
   void clear();
   void addTag(const GameTag& tag);
+  void removeTag(int index);
 
   const QVector<GameTag>& tags() const { return tags_; }
   const QHash<QString, int>& mainEventCounts() const { return mainEventCounts_; }

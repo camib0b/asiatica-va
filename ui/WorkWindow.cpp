@@ -18,6 +18,7 @@
 #include <QVideoWidget>
 #include <QListWidget>
 #include <QAction>
+#include <QKeySequence>
 
 namespace {
 QString formatTimestampMs(qint64 ms) {
@@ -228,6 +229,13 @@ void WorkWindow::wireSignals() {
     });
 
     connect(tagsList_, &QListWidget::itemActivated, this, &WorkWindow::onTagItemActivated);
+    
+    // Backspace to delete selected tag
+    auto* deleteTagAction = new QAction(this);
+    deleteTagAction->setShortcut(QKeySequence(Qt::Key_Backspace));
+    deleteTagAction->setShortcutContext(Qt::WidgetShortcut);
+    connect(deleteTagAction, &QAction::triggered, this, &WorkWindow::onDeleteSelectedTag);
+    tagsList_->addAction(deleteTagAction);
 }
 
 
@@ -302,6 +310,36 @@ void WorkWindow::onTagItemActivated(QListWidgetItem* item) {
     if (!item || !videoPlayer_) return;
     const qint64 posMs = item->data(Qt::UserRole).toLongLong();
     videoPlayer_->seekToMs(posMs);
+}
+
+void WorkWindow::onDeleteSelectedTag() {
+    if (!tagsList_ || !tagSession_) return;
+    
+    auto* item = tagsList_->currentItem();
+    if (!item) return;
+    
+    const int row = tagsList_->row(item);
+    if (row < 0) return;
+    
+    // Find the tag in TagSession by matching position and event data
+    const qint64 posMs = item->data(Qt::UserRole).toLongLong();
+    const QString mainEvent = item->data(Qt::UserRole + 1).toString();
+    const QString followUpEvent = item->data(Qt::UserRole + 2).toString();
+    
+    // Find matching tag index
+    int tagIndex = -1;
+    for (int i = 0; i < tagSession_->tags().size(); ++i) {
+        const auto& tag = tagSession_->tags().at(i);
+        if (tag.positionMs == posMs && tag.mainEvent == mainEvent && tag.followUpEvent == followUpEvent) {
+            tagIndex = i;
+            break;
+        }
+    }
+    
+    if (tagIndex >= 0) {
+        tagSession_->removeTag(tagIndex);
+        rebuildTagsList();
+    }
 }
 
 void WorkWindow::onSelectAllFilters() {

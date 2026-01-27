@@ -176,6 +176,19 @@ void GameControls::buildKeyboardShortcuts() {
     });
     followUpNumberActions_.append(act);
   }
+
+  // Escape: discard follow-ups and save with empty follow-up
+  escapeAction_ = makeAction(Qt::Key_Escape, [this]() {
+    if (followUpStage_ == FollowUpStage::None || currentMainEvent_.isEmpty()) return;
+    
+    // Emit with empty follow-up
+    emit gameEventMarked(currentMainEvent_, QString());
+    clearActiveMainButton();
+    hideFollowUpButtons();
+    currentMainEvent_.clear();
+    currentFirstFollowUp_.clear();
+    followUpStage_ = FollowUpStage::None;
+  });
 }
 
 void GameControls::onMainButtonClicked() {

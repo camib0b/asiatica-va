@@ -36,6 +36,7 @@ private slots:
   void onReplaceVideo();
   void onDiscardVideo();
   void onTagItemActivated(QListWidgetItem* item);
+  void onDeleteSelectedTag();
   void onSelectAllFilters();
   void onSelectNoFilters();
   void onFilterActionToggled(bool checked);

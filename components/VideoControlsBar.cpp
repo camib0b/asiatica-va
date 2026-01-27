@@ -147,6 +147,14 @@ void VideoControlsBar::setPlaying(bool playing) {
 void VideoControlsBar::setPlaybackRate(double rate) {
   playbackRate_ = rate;
   updateSpeedLabel();
+  
+  // Highlight Slower button when rate < 1.0, Faster button when rate > 1.0
+  if (slowerButton_) {
+    Style::setState(slowerButton_, "speedActive", (rate < 1.0));
+  }
+  if (fasterButton_) {
+    Style::setState(fasterButton_, "speedActive", (rate > 1.0));
+  }
 }
 
 void VideoControlsBar::setMuted(bool muted) {

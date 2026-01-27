@@ -46,6 +46,9 @@ private slots:
   void onSeekBigForward();
   void onAudioOutputsChanged();
 
+protected:
+  bool eventFilter(QObject* obj, QEvent* event) override;
+
 private:
   void buildUi();
   void wireSignals();

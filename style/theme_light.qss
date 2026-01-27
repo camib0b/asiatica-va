@@ -160,6 +160,12 @@ QPushButton[activeMain="true"] {
   font-weight: 650;
 }
 
+/* Active speed button (Slower when < 1.0x, Faster when > 1.0x) */
+QPushButton[speedActive="true"] {
+  border-color: rgba(37, 99, 235, 0.65);
+  background: rgba(37, 99, 235, 0.10);
+}
+
 /* =========================
    Inputs
 ========================= */

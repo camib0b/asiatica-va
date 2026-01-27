@@ -12,6 +12,7 @@
 #include <QKeySequence>
 #include <QApplication>
 #include <QMediaDevices>
+#include <QMouseEvent>
 #include <algorithm>
 
 namespace {
@@ -49,6 +50,7 @@ void VideoPlayer::buildUi() {
     videoWidget_ = new QVideoWidget(this);
     videoWidget_->setMinimumHeight(360);
     videoWidget_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    videoWidget_->setAttribute(Qt::WA_Hover, true);
     
     videoControlsBar_ = new VideoControlsBar(this);
     videoTimelineBar_ = new TimelineBar(this);
@@ -109,6 +111,9 @@ void VideoPlayer::wireSignals() {
         if (wasPlayingBeforeScrub_) player_->play();
         wasPlayingBeforeScrub_ = false;
     });
+
+    // Mouse click on video widget toggles play/pause
+    videoWidget_->installEventFilter(this);
 }
 
 void VideoPlayer::buildKeyboardShortcuts() {
@@ -284,4 +289,15 @@ void VideoPlayer::loadVideoFromFile(const QString& filePath) {
 void VideoPlayer::onAudioOutputsChanged() {
     // Handle audio output device changes (e.g., headphones plugged/unplugged)
     // This slot can be connected to QMediaDevices::audioOutputsChanged signal
+}
+
+bool VideoPlayer::eventFilter(QObject* obj, QEvent* event) {
+    if (obj == videoWidget_ && event->type() == QEvent::MouseButtonPress) {
+        auto* mouseEvent = static_cast<QMouseEvent*>(event);
+        if (mouseEvent->button() == Qt::LeftButton) {
+            onTogglePlayPause();
+            return true;
+        }
+    }
+    return QWidget::eventFilter(obj, event);
 }

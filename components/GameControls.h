@@ -68,6 +68,7 @@ private:
   QAction* recoveryAction_ = nullptr;
   QAction* lossAction_ = nullptr;
   QList<QAction*> followUpNumberActions_;
+  QAction* escapeAction_ = nullptr;
 
   QString currentMainEvent_;
   QString currentFirstFollowUp_;
