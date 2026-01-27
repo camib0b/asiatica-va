@@ -318,28 +318,15 @@ void WorkWindow::onDeleteSelectedTag() {
     auto* item = tagsList_->currentItem();
     if (!item) return;
     
-    const int row = tagsList_->row(item);
-    if (row < 0) return;
+    // Get the stored TagSession index directly from the item
+    const QVariant tagIndexVar = item->data(Qt::UserRole + 3);
+    if (!tagIndexVar.isValid()) return;
     
-    // Find the tag in TagSession by matching position and event data
-    const qint64 posMs = item->data(Qt::UserRole).toLongLong();
-    const QString mainEvent = item->data(Qt::UserRole + 1).toString();
-    const QString followUpEvent = item->data(Qt::UserRole + 2).toString();
+    const int tagIndex = tagIndexVar.toInt();
+    if (tagIndex < 0 || tagIndex >= tagSession_->tags().size()) return;
     
-    // Find matching tag index
-    int tagIndex = -1;
-    for (int i = 0; i < tagSession_->tags().size(); ++i) {
-        const auto& tag = tagSession_->tags().at(i);
-        if (tag.positionMs == posMs && tag.mainEvent == mainEvent && tag.followUpEvent == followUpEvent) {
-            tagIndex = i;
-            break;
-        }
-    }
-    
-    if (tagIndex >= 0) {
-        tagSession_->removeTag(tagIndex);
-        rebuildTagsList();
-    }
+    tagSession_->removeTag(tagIndex);
+    rebuildTagsList();
 }
 
 void WorkWindow::onSelectAllFilters() {
