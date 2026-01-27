@@ -7,11 +7,15 @@
 #include <QPushButton>
 #include <QWidget>
 #include <QTimer>
+#include <QAction>
+#include <QKeySequence>
+#include <QApplication>
 
 GameControls::GameControls(QWidget* parent) : QWidget(parent) {
   setMinimumWidth(300);
   buildUi();
   wireSignals();
+  buildKeyboardShortcuts();
   hideFollowUpButtons();
 }
 
@@ -95,6 +99,70 @@ void GameControls::wireSignals() {
   
   connect(lossButton_, &QPushButton::clicked, this, [this]() { flashButtonBorder(lossButton_); });
   connect(lossButton_, &QPushButton::clicked, this, &GameControls::onMainButtonClicked);
+}
+
+void GameControls::buildKeyboardShortcuts() {
+  Q_ASSERT(QApplication::instance() != nullptr);
+
+  auto makeAction = [this](int key, auto handler) -> QAction* {
+    auto* act = new QAction(this);
+    act->setShortcut(QKeySequence(key));
+    act->setShortcutContext(Qt::ApplicationShortcut);
+    connect(act, &QAction::triggered, this, handler);
+    this->addAction(act);
+    return act;
+  };
+
+  // Main grid: Q W E R / A S D F
+  enterDAction_ = makeAction(Qt::Key_Q, [this]() {
+    if (enterDButton_ && enterDButton_->isVisible() && enterDButton_->isEnabled()) enterDButton_->click();
+  });
+  shotAction_ = makeAction(Qt::Key_W, [this]() {
+    if (shotButton_ && shotButton_->isVisible() && shotButton_->isEnabled()) shotButton_->click();
+  });
+  pcAction_ = makeAction(Qt::Key_E, [this]() {
+    if (pcButton_ && pcButton_->isVisible() && pcButton_->isEnabled()) pcButton_->click();
+  });
+  goalAction_ = makeAction(Qt::Key_R, [this]() {
+    if (goalButton_ && goalButton_->isVisible() && goalButton_->isEnabled()) goalButton_->click();
+  });
+
+  hit16ydAction_ = makeAction(Qt::Key_A, [this]() {
+    if (hit16ydButton_ && hit16ydButton_->isVisible() && hit16ydButton_->isEnabled()) hit16ydButton_->click();
+  });
+  hit50ydAction_ = makeAction(Qt::Key_S, [this]() {
+    if (hit50ydButton_ && hit50ydButton_->isVisible() && hit50ydButton_->isEnabled()) hit50ydButton_->click();
+  });
+  recoveryAction_ = makeAction(Qt::Key_D, [this]() {
+    if (recoveryButton_ && recoveryButton_->isVisible() && recoveryButton_->isEnabled()) recoveryButton_->click();
+  });
+  lossAction_ = makeAction(Qt::Key_F, [this]() {
+    if (lossButton_ && lossButton_->isVisible() && lossButton_->isEnabled()) lossButton_->click();
+  });
+
+  // Follow-ups: map visible follow-up buttons to 1..9
+  followUpNumberActions_.clear();
+  for (int i = 1; i <= 9; ++i) {
+    const int key = (i == 1) ? Qt::Key_1
+                  : (i == 2) ? Qt::Key_2
+                  : (i == 3) ? Qt::Key_3
+                  : (i == 4) ? Qt::Key_4
+                  : (i == 5) ? Qt::Key_5
+                  : (i == 6) ? Qt::Key_6
+                  : (i == 7) ? Qt::Key_7
+                  : (i == 8) ? Qt::Key_8
+                             : Qt::Key_9;
+
+    auto* act = makeAction(key, [this, i]() {
+      if (!followUpContainer_ || !followUpContainer_->isVisible()) return;
+      const int idx = i - 1;
+      if (idx < 0 || idx >= followUpButtons_.size()) return;
+      auto* btn = followUpButtons_.at(idx);
+      if (!btn || !btn->isVisible() || !btn->isEnabled()) return;
+      btn->click();
+    });
+    followUpNumberActions_.append(act);
+  }
 }
 
 void GameControls::onMainButtonClicked() {

@@ -10,6 +10,7 @@ class QGridLayout;
 class QHBoxLayout;
 class QWidget;
 class QTimer;
+class QAction;
 
 class GameControls final : public QWidget {
   Q_OBJECT
@@ -28,6 +29,7 @@ private slots:
 private:
   void buildUi();
   void wireSignals();
+  void buildKeyboardShortcuts();
   void showFirstLevelFollowUps(const QString& mainEvent);
   void showSecondLevelFollowUps(const QString& mainEvent, const QString& firstFollowUp);
   void hideFollowUpButtons();
@@ -53,6 +55,17 @@ private:
   QPushButton* hit50ydButton_ = nullptr;
   QPushButton* recoveryButton_ = nullptr;
   QPushButton* lossButton_ = nullptr;
+
+  // keyboard shortcuts:
+  QAction* enterDAction_ = nullptr;
+  QAction* shotAction_ = nullptr;
+  QAction* pcAction_ = nullptr;
+  QAction* goalAction_ = nullptr;
+  QAction* hit16ydAction_ = nullptr;
+  QAction* hit50ydAction_ = nullptr;
+  QAction* recoveryAction_ = nullptr;
+  QAction* lossAction_ = nullptr;
+  QList<QAction*> followUpNumberActions_;
 
   QString currentMainEvent_;
   QString currentFirstFollowUp_;
