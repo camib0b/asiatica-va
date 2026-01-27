@@ -92,6 +92,13 @@ QPushButton[size="sm"] {
   border-radius: 10px;
 }
 
+QPushButton[size="xs"] {
+  padding: 4px 6px;
+  font-size: 11px;
+  min-height: 26px;
+  border-radius: 8px;
+}
+
 QPushButton[size="md"] {
   padding: 8px 12px;
 }
@@ -360,5 +367,25 @@ QSlider#TimelineSlider::handle:horizontal {
 
 QSlider#TimelineSlider::handle:horizontal:hover {
   border: 1px solid rgba(37, 99, 235, 0.55);
+}
+
+/* Slim video controls bar (Tagging mode) */
+QWidget#VideoControlsBarSlim QPushButton {
+  padding: 4px 6px;
+  font-size: 11px;
+  min-height: 24px;
+  border-radius: 8px;
+}
+QWidget#VideoControlsBarSlim QLabel {
+  font-size: 11px;
+}
+
+/* Compact game controls in tagging right column */
+QWidget#TaggingRightCol QPushButton[variant="gameControl"],
+QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"] {
+  padding: 4px 6px;
+  font-size: 11px;
+  min-height: 28px;
+  border-radius: 6px;
 }
 

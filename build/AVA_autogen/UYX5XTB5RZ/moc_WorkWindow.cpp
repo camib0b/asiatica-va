@@ -46,6 +46,8 @@ template <> constexpr inline auto WorkWindow::qt_create_metaobjectdata<qt_meta_t
         "onTagItemActivated",
         "QListWidgetItem*",
         "item",
+        "onTagSelectionChanged",
+        "onNoteTextChanged",
         "onDeleteSelectedTag",
         "onSelectAllFilters",
         "onSelectNoFilters",
@@ -56,7 +58,13 @@ template <> constexpr inline auto WorkWindow::qt_create_metaobjectdata<qt_meta_t
         "onFilterByPathRequested",
         "mainEvent",
         "followUpEvent",
-        "onRemoveFilters"
+        "onRemoveFilters",
+        "onQuickFilterPeriodClicked",
+        "onQuickFilterTeamClicked",
+        "onQuickFilterSituationClicked",
+        "onModeToggled",
+        "showStatsOverlay",
+        "saveNoteDebounceFired"
     };
 
     QtMocHelpers::UintData qt_methods {
@@ -70,26 +78,42 @@ template <> constexpr inline auto WorkWindow::qt_create_metaobjectdata<qt_meta_t
         QtMocHelpers::SlotData<void(QListWidgetItem *)>(5, 2, QMC::AccessPrivate, QMetaType::Void, {{
             { 0x80000000 | 6, 7 },
         }}),
-        // Slot 'onDeleteSelectedTag'
+        // Slot 'onTagSelectionChanged'
         QtMocHelpers::SlotData<void()>(8, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onSelectAllFilters'
+        // Slot 'onNoteTextChanged'
         QtMocHelpers::SlotData<void()>(9, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onSelectNoFilters'
+        // Slot 'onDeleteSelectedTag'
         QtMocHelpers::SlotData<void()>(10, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onSelectAllFilters'
+        QtMocHelpers::SlotData<void()>(11, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onSelectNoFilters'
+        QtMocHelpers::SlotData<void()>(12, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'onFilterActionToggled'
-        QtMocHelpers::SlotData<void(bool)>(11, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::Bool, 12 },
+        QtMocHelpers::SlotData<void(bool)>(13, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Bool, 14 },
         }}),
         // Slot 'onPlayheadPositionChanged'
-        QtMocHelpers::SlotData<void(qint64)>(13, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::LongLong, 14 },
+        QtMocHelpers::SlotData<void(qint64)>(15, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::LongLong, 16 },
         }}),
         // Slot 'onFilterByPathRequested'
-        QtMocHelpers::SlotData<void(const QString &, const QString &)>(15, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::QString, 16 }, { QMetaType::QString, 17 },
+        QtMocHelpers::SlotData<void(const QString &, const QString &)>(17, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::QString, 18 }, { QMetaType::QString, 19 },
         }}),
         // Slot 'onRemoveFilters'
-        QtMocHelpers::SlotData<void()>(18, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(20, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onQuickFilterPeriodClicked'
+        QtMocHelpers::SlotData<void()>(21, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onQuickFilterTeamClicked'
+        QtMocHelpers::SlotData<void()>(22, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onQuickFilterSituationClicked'
+        QtMocHelpers::SlotData<void()>(23, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onModeToggled'
+        QtMocHelpers::SlotData<void()>(24, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'showStatsOverlay'
+        QtMocHelpers::SlotData<void()>(25, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'saveNoteDebounceFired'
+        QtMocHelpers::SlotData<void()>(26, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -117,13 +141,21 @@ void WorkWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 1: _t->onReplaceVideo(); break;
         case 2: _t->onDiscardVideo(); break;
         case 3: _t->onTagItemActivated((*reinterpret_cast<std::add_pointer_t<QListWidgetItem*>>(_a[1]))); break;
-        case 4: _t->onDeleteSelectedTag(); break;
-        case 5: _t->onSelectAllFilters(); break;
-        case 6: _t->onSelectNoFilters(); break;
-        case 7: _t->onFilterActionToggled((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1]))); break;
-        case 8: _t->onPlayheadPositionChanged((*reinterpret_cast<std::add_pointer_t<qint64>>(_a[1]))); break;
-        case 9: _t->onFilterByPathRequested((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[2]))); break;
-        case 10: _t->onRemoveFilters(); break;
+        case 4: _t->onTagSelectionChanged(); break;
+        case 5: _t->onNoteTextChanged(); break;
+        case 6: _t->onDeleteSelectedTag(); break;
+        case 7: _t->onSelectAllFilters(); break;
+        case 8: _t->onSelectNoFilters(); break;
+        case 9: _t->onFilterActionToggled((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1]))); break;
+        case 10: _t->onPlayheadPositionChanged((*reinterpret_cast<std::add_pointer_t<qint64>>(_a[1]))); break;
+        case 11: _t->onFilterByPathRequested((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[2]))); break;
+        case 12: _t->onRemoveFilters(); break;
+        case 13: _t->onQuickFilterPeriodClicked(); break;
+        case 14: _t->onQuickFilterTeamClicked(); break;
+        case 15: _t->onQuickFilterSituationClicked(); break;
+        case 16: _t->onModeToggled(); break;
+        case 17: _t->showStatsOverlay(); break;
+        case 18: _t->saveNoteDebounceFired(); break;
         default: ;
         }
     }
@@ -152,14 +184,14 @@ int WorkWindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 11)
+        if (_id < 19)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 11;
+        _id -= 19;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 11)
+        if (_id < 19)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 11;
+        _id -= 19;
     }
     return _id;
 }

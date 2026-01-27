@@ -59,3 +59,16 @@ void TagSession::removeTag(int index) {
   emit statsChanged();
 }
 
+void TagSession::setTagNote(int index, const QString& note) {
+  if (index < 0 || index >= tags_.size()) return;
+  if (tags_[index].note == note) return;
+  tags_[index].note = note;
+  emit tagNoteChanged(index);
+}
+
+QString TagSession::tagNote(int index) const {
+  if (index < 0 || index >= tags_.size()) return QString();
+  return tags_[index].note;
+}
+
+  

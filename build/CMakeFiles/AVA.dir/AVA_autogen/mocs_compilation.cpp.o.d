@@ -995,4 +995,5 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /Users/cam/asiatica-va/build/AVA_autogen/UYX5XTB5RZ/../../../ui/WelcomeWindow.h \
   /Users/cam/asiatica-va/build/AVA_autogen/UYX5XTB5RZ/moc_WorkWindow.cpp \
   /Users/cam/asiatica-va/build/AVA_autogen/UYX5XTB5RZ/../../../ui/WorkWindow.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QSet
+  /opt/homebrew/lib/QtCore.framework/Headers/QSet \
+  /Users/cam/asiatica-va/build/AVA_autogen/UYX5XTB5RZ/../../../ui/../state/TagSession.h
