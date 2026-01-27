@@ -44,7 +44,7 @@ void GameControls::buildUi() {
   mainGridLayout_->setSpacing(4);
 
   // Create main buttons
-  enterDButton_ = new QPushButton("Enter D", mainGridWidget);
+  enterDButton_ = new QPushButton("Circle Entry", mainGridWidget);
   shotButton_ = new QPushButton("Shot", mainGridWidget);
   pcButton_ = new QPushButton("PC", mainGridWidget);
   goalButton_ = new QPushButton("Goal", mainGridWidget);
@@ -241,7 +241,7 @@ QStringList GameControls::getFirstLevelFollowUps(const QString& mainEvent) const
   if (mainEvent == "Shot") {
     return {"On target", "Off target"};
   }
-  if (mainEvent == "Enter D") {
+  if (mainEvent == "Circle Entry") {
     return {"Left", "Middle", "Right"};
   }
   if (mainEvent == "PC") {
@@ -265,7 +265,11 @@ QStringList GameControls::getSecondLevelFollowUps(const QString& mainEvent, cons
     return {};
   }
 
-  // Enter D: only first-level for now (no second-level provided yet)
+  if (mainEvent == "Circle Entry") {
+    // Second-level follow-ups apply to all first-level options (Left/Middle/Right)
+    return {"Dribling", "Pass", "Deflection"};
+  }
+
   return {};
 }
 

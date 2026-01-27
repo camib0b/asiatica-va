@@ -1258,7 +1258,6 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__wctype.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__xlocale.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_abort.h
- /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_assert.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_bounds.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctermid.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctype.h
@@ -2261,7 +2260,6 @@ CMakeFiles/AVA.dir/components/GameControls.cpp.o
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__wctype.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__xlocale.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_abort.h
- /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_assert.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_bounds.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctermid.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctype.h
@@ -3264,7 +3262,6 @@ CMakeFiles/AVA.dir/components/TimelineBar.cpp.o
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__wctype.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__xlocale.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_abort.h
- /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_assert.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_bounds.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctermid.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctype.h
@@ -4290,7 +4287,6 @@ CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__wctype.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__xlocale.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_abort.h
- /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_assert.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_bounds.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctermid.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctype.h
@@ -5286,7 +5282,6 @@ CMakeFiles/AVA.dir/components/VideoPlayer.cpp.o
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__wctype.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__xlocale.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_abort.h
- /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_assert.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_bounds.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctermid.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctype.h
@@ -6296,7 +6291,6 @@ CMakeFiles/AVA.dir/main.cpp.o
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__wctype.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__xlocale.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_abort.h
- /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_assert.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_bounds.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctermid.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctype.h
@@ -7231,6 +7225,7 @@ CMakeFiles/AVA.dir/main.cpp.o
  /opt/homebrew/lib/QtCore.framework/Headers/qversiontagging.h
  /opt/homebrew/lib/QtCore.framework/Headers/qxptype_traits.h
  /opt/homebrew/lib/QtCore.framework/Headers/qyieldcpu.h
+ /opt/homebrew/lib/QtGui.framework/Headers/QIcon
  /opt/homebrew/lib/QtGui.framework/Headers/qaction.h
  /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h
  /opt/homebrew/lib/QtGui.framework/Headers/qbrush.h
@@ -7282,7 +7277,6 @@ CMakeFiles/AVA.dir/state/TagSession.cpp.o
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__wctype.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__xlocale.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_abort.h
- /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_assert.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_bounds.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctermid.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctype.h
@@ -8199,7 +8193,6 @@ CMakeFiles/AVA.dir/style/theme.cpp.o
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__wctype.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__xlocale.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_abort.h
- /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_assert.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_bounds.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctermid.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctype.h
@@ -9212,7 +9205,6 @@ CMakeFiles/AVA.dir/ui/MainWindow.cpp.o
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__wctype.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__xlocale.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_abort.h
- /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_assert.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_bounds.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctermid.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctype.h
@@ -10256,7 +10248,6 @@ CMakeFiles/AVA.dir/ui/StatsWindow.cpp.o
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__wctype.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__xlocale.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_abort.h
- /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_assert.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_bounds.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctermid.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctype.h
@@ -11268,7 +11259,6 @@ CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.o
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__wctype.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__xlocale.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_abort.h
- /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_assert.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_bounds.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctermid.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctype.h
@@ -12257,7 +12247,6 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__wctype.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/__xlocale.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_abort.h
- /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_assert.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_bounds.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctermid.h
  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_ctype.h

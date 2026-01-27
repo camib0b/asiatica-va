@@ -10,7 +10,7 @@
 #include "../state/TagSession.h"
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) { // ctor-init
-    setWindowTitle("AVA");
+    setWindowTitle("AVA | Camila Escudero");
     resize(1300, 800);
     
     // Create a stacked widget to hold both windows

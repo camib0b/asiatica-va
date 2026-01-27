@@ -45,6 +45,7 @@ private:
   void wireSignals();
   void rebuildTagsList();
   void rebuildFilterMenu();
+  void updateFilterIndicator();
   bool isMainEventAllowed(const QString& mainEvent) const;
 
   QString promptForVideoFile();
@@ -64,6 +65,7 @@ private:
   QLabel* tagsHeaderLabel_ = nullptr;
   QToolButton* tagsFilterButton_ = nullptr;
   QMenu* tagsFilterMenu_ = nullptr;
+  QLabel* tagsFilterIndicator_ = nullptr;
   QListWidget* tagsList_ = nullptr;
 
   TagSession* tagSession_ = nullptr;

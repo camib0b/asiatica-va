@@ -6,5 +6,7 @@ CXX_DEFINES = -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIAWIDGETS_LIB -DQT_MULTIME
 
 CXX_INCLUDES = -I/Users/cam/asiatica-va/build/AVA_autogen/include -I/Users/cam/asiatica-va/ui -I/Users/cam/asiatica-va/components -I/Users/cam/asiatica-va/style -I/Users/cam/asiatica-va/state -isystem /opt/homebrew/lib/QtCore.framework/Headers -iframework /opt/homebrew/lib -isystem /opt/homebrew/share/qt/mkspecs/macx-clang -isystem /opt/homebrew/include -isystem /opt/homebrew/lib/QtWidgets.framework/Headers -isystem /opt/homebrew/lib/QtGui.framework/Headers -isystem /opt/homebrew/lib/QtMultimedia.framework/Headers -isystem /opt/homebrew/lib/QtNetwork.framework/Headers -isystem /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers
 
-CXX_FLAGS = -O3 -DNDEBUG -std=gnu++17
+CXX_FLAGSarm64 = -O3 -DNDEBUG -std=gnu++17 -arch arm64
+
+CXX_FLAGS = -O3 -DNDEBUG -std=gnu++17 -arch arm64
 

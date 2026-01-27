@@ -58,9 +58,10 @@ void StatsWindow::buildUi() {
     tree_->setRootIsDecorated(true);
     tree_->setAlternatingRowColors(true);
     tree_->setUniformRowHeights(true);
-    tree_->header()->setStretchLastSection(true);
+    tree_->header()->setStretchLastSection(false);
     tree_->header()->setSectionResizeMode(0, QHeaderView::Stretch);
-    tree_->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    tree_->header()->setSectionResizeMode(1, QHeaderView::Fixed);
+    tree_->header()->resizeSection(1, 90); // Fixed width for Count column (fits "999 (100.0%)")
 
     layout->addWidget(headerLabel_);
     layout->addWidget(tree_, /*stretch=*/1);

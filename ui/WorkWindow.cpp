@@ -85,9 +85,9 @@ void WorkWindow::buildUi() {
     layout->setSpacing(12);
 
     // header:
-    headerLabel_ = new QLabel("this is ava", this);
-    headerLabel_->setWordWrap(true);
-    Style::setRole(headerLabel_, "h1");
+    // headerLabel_ = new QLabel("this is ava", this);
+    // headerLabel_->setWordWrap(true);
+    // Style::setRole(headerLabel_, "h1");
 
     // video-file-management button
     videoMenuButton_ = new QToolButton(this);
@@ -110,25 +110,17 @@ void WorkWindow::buildUi() {
     statsWindow_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     statsWindow_->setMinimumHeight(180);
     
-    // Header row: left (header), right (Video menu)
-    auto* headerRow = new QWidget(this);
-    auto* headerRowLayout = new QHBoxLayout(headerRow);
-    headerRowLayout->setContentsMargins(0, 0, 0, 0);
-    headerRowLayout->setSpacing(12);
-    
-    auto* headerTextCol = new QWidget(headerRow);
-    auto* headerTextLayout = new QVBoxLayout(headerTextCol);
-    headerTextLayout->setContentsMargins(0, 0, 0, 0);
-    headerTextLayout->setSpacing(6);
-    
-    headerTextLayout->addWidget(headerLabel_);
-    
-    headerRowLayout->addWidget(headerTextCol, /*stretch=*/1);
-    headerRowLayout->addWidget(videoMenuButton_, /*stretch=*/0, Qt::AlignTop | Qt::AlignRight);
-    
     // Video controls and timeline (from VideoPlayer)
-    auto* videoControlsRow = videoPlayer_->controlsBar();
+    auto* videoControlsBar = videoPlayer_->controlsBar();
     auto* videoTimelineRow = videoPlayer_->timelineBar();
+    
+    // Wrap video controls bar with Video Manager button on the right
+    auto* videoControlsRow = new QWidget(this);
+    auto* videoControlsLayout = new QHBoxLayout(videoControlsRow);
+    videoControlsLayout->setContentsMargins(0, 0, 0, 0);
+    videoControlsLayout->setSpacing(12);
+    videoControlsLayout->addWidget(videoControlsBar, /*stretch=*/1);
+    videoControlsLayout->addWidget(videoMenuButton_, /*stretch=*/0, Qt::AlignRight | Qt::AlignVCenter);
     
     // Video widget (+ tags) and GameControls (+ stats) side by side
     auto* videoGameRow = new QWidget(this);
@@ -161,7 +153,13 @@ void WorkWindow::buildUi() {
     tagsFilterMenu_ = new QMenu(tagsFilterButton_);
     tagsFilterButton_->setMenu(tagsFilterMenu_);
 
-    tagsHeaderLayout->addWidget(tagsHeaderLabel_, /*stretch=*/1);
+    tagsFilterIndicator_ = new QLabel(tagsHeaderRow);
+    tagsFilterIndicator_->setWordWrap(false);
+    Style::setRole(tagsFilterIndicator_, "muted");
+    tagsFilterIndicator_->hide();
+
+    tagsHeaderLayout->addWidget(tagsHeaderLabel_, /*stretch=*/0);
+    tagsHeaderLayout->addWidget(tagsFilterIndicator_, /*stretch=*/1);
     tagsHeaderLayout->addWidget(tagsFilterButton_, /*stretch=*/0, Qt::AlignRight);
 
     tagsList_ = new QListWidget(videoAndTagsCol);
@@ -183,7 +181,6 @@ void WorkWindow::buildUi() {
     videoGameLayout->addWidget(rightCol, /*stretch=*/1);
     
     // the rest of the layout, stacked vertically:
-    layout->addWidget(headerRow);
     layout->addWidget(videoControlsRow);
     layout->addWidget(videoTimelineRow);
     layout->addWidget(videoGameRow, /*stretch=*/1);
@@ -264,6 +261,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     if (tagsHeaderLabel_) tagsHeaderLabel_->show();
     if (tagsFilterButton_) tagsFilterButton_->show();
     if (tagsList_) tagsList_->show();
+    updateFilterIndicator();
     if (statsWindow_) {
         statsWindow_->setTagSession(tagSession_);
         statsWindow_->show();
@@ -311,6 +309,7 @@ void WorkWindow::onSelectAllFilters() {
         it.value()->setChecked(true);
     }
     rebuildTagsList();
+    updateFilterIndicator();
 }
 
 void WorkWindow::onSelectNoFilters() {
@@ -322,6 +321,7 @@ void WorkWindow::onSelectNoFilters() {
 
 void WorkWindow::onFilterActionToggled(bool /*checked*/) {
     rebuildTagsList();
+    updateFilterIndicator();
 }
 
 bool WorkWindow::isMainEventAllowed(const QString& mainEvent) const {
@@ -361,6 +361,27 @@ void WorkWindow::rebuildFilterMenu() {
     }
 }
 
+void WorkWindow::updateFilterIndicator() {
+    if (!tagsFilterIndicator_) return;
+
+    QStringList activeFilters;
+    for (auto it = filterActionByMainEvent_.cbegin(); it != filterActionByMainEvent_.cend(); ++it) {
+        if (it.value()->isChecked()) {
+            activeFilters.append(it.key());
+        }
+    }
+
+    if (activeFilters.isEmpty() || activeFilters.size() == filterActionByMainEvent_.size()) {
+        tagsFilterIndicator_->hide();
+        return;
+    }
+
+    activeFilters.sort(Qt::CaseInsensitive);
+    const QString text = "Filtered by: " + activeFilters.join(", ");
+    tagsFilterIndicator_->setText(text);
+    tagsFilterIndicator_->show();
+}
+
 void WorkWindow::rebuildTagsList() {
     if (!tagsList_) return;
     tagsList_->clear();
@@ -380,4 +401,5 @@ void WorkWindow::rebuildTagsList() {
     }
 
     tagsList_->scrollToBottom();
+    updateFilterIndicator();
 }
