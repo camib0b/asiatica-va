@@ -18,6 +18,7 @@ signals:
 private:
   void buildUi();
   void wireSignals();
+  void buildKeyboardShortcuts();
 
   QLabel* headerLabel_ = nullptr;
   QLabel* subtitleLabel_ = nullptr;

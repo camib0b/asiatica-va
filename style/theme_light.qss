@@ -22,6 +22,11 @@ QFrame#Card {
 QLabel[role="muted"] { color: #5B616E; }
 QLabel[role="faint"] { color: #8B919D; }
 QLabel[role="accent"] { color: #B08A2E; }
+QLabel[role="h1"] {
+  font-size: 32px;
+  font-weight: 700;
+  color: #0B0D12;
+}
 
 
 /* =========================
@@ -101,12 +106,22 @@ QPushButton[size="lg"] {
 /* Variants */
 QPushButton[variant="primary"] {
   background: #FFFFFF;
-  border: 1px solid black;
+  border: 1px solid #0B0D12;
   color: #111827;
   font-weight: 650;
 }
-QPushButton[variant="primary"]:hover { background: "lightgray"; }
-QPushButton[variant="primary"]:pressed { background: "gray"; }
+QPushButton[variant="primary"]:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: #0B0D12;
+}
+QPushButton[variant="primary"]:pressed {
+  background: rgba(0, 0, 0, 0.07);
+  border-color: #0B0D12;
+}
+QPushButton[variant="primary"]:focus {
+  border: 2px solid rgba(37, 99, 235, 0.65);
+  padding: 13px 15px; /* compensate for border width */
+}
 
 QPushButton[variant="secondary"] {
   background: rgba(15, 23, 42, 0.04);
