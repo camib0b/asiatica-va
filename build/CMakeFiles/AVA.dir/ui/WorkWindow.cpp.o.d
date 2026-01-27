@@ -1067,4 +1067,5 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtabbar.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qrubberband.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/QAction
+  /opt/homebrew/lib/QtGui.framework/Headers/QAction \
+  /opt/homebrew/lib/QtGui.framework/Headers/QKeySequence
