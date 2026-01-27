@@ -4,6 +4,8 @@
 #include <QtGlobal>
 #include <QString>
 // (state is passed in from MainWindow)
+#include <QHash>
+#include <QSet>
 
 class QLabel;
 class QAction;
@@ -15,6 +17,7 @@ class QListWidgetItem;
 class VideoPlayer;
 class GameControls;
 class TagSession;
+class StatsWindow;
 
 class WorkWindow final : public QWidget {
   Q_OBJECT
@@ -33,10 +36,16 @@ private slots:
   void onReplaceVideo();
   void onDiscardVideo();
   void onTagItemActivated(QListWidgetItem* item);
+  void onSelectAllFilters();
+  void onSelectNoFilters();
+  void onFilterActionToggled(bool checked);
 
 private:
   void buildUi();
   void wireSignals();
+  void rebuildTagsList();
+  void rebuildFilterMenu();
+  bool isMainEventAllowed(const QString& mainEvent) const;
 
   QString promptForVideoFile();
 
@@ -50,11 +59,16 @@ private:
   QLabel* headerLabel_ = nullptr;
   VideoPlayer* videoPlayer_ = nullptr;
   GameControls* gameControls_ = nullptr;
+  StatsWindow* statsWindow_ = nullptr;
 
   QLabel* tagsHeaderLabel_ = nullptr;
+  QToolButton* tagsFilterButton_ = nullptr;
+  QMenu* tagsFilterMenu_ = nullptr;
   QListWidget* tagsList_ = nullptr;
 
   TagSession* tagSession_ = nullptr;
+  QHash<QString, QAction*> filterActionByMainEvent_;
+  QSet<QString> allowedMainEvents_;
 
   QString pendingMainEvent_;
   qint64 pendingTimestampMs_ = 0;

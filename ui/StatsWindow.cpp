@@ -17,9 +17,6 @@ QString formatCountAndPercent(int count, int mainCount) {
 
 StatsWindow::StatsWindow(QWidget* parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground, true);
-    setWindowTitle("Stats");
-    setAttribute(Qt::WA_ShowWithoutActivating, true);
-    setWindowFlag(Qt::Window, true);
     buildUi();
     wireSignals();
 }
@@ -45,15 +42,15 @@ void StatsWindow::setTagSession(TagSession* session) {
 }
 
 void StatsWindow::buildUi() {
-    setObjectName("AppRoot");
+    setObjectName("StatsPanel");
     auto* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(24, 24, 24, 24);
-    layout->setSpacing(12);
+    layout->setContentsMargins(12, 12, 12, 12);
+    layout->setSpacing(8);
 
     // header:
-    headerLabel_ = new QLabel("Event stats", this);
+    headerLabel_ = new QLabel("Stats", this);
     headerLabel_->setWordWrap(true);
-    Style::setRole(headerLabel_, "h1");
+    Style::setRole(headerLabel_, "h3");
 
     tree_ = new QTreeWidget(this);
     tree_->setColumnCount(2);

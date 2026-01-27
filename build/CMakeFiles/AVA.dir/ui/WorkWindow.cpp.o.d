@@ -967,6 +967,8 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
   /opt/homebrew/lib/QtCore.framework/Headers/QString \
+  /opt/homebrew/lib/QtCore.framework/Headers/QHash \
+  /opt/homebrew/lib/QtCore.framework/Headers/QSet \
   /Users/cam/asiatica-va/ui/../style/StyleProps.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
@@ -975,11 +977,11 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /Users/cam/asiatica-va/ui/../components/GameControls.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QStringList \
   /opt/homebrew/lib/QtCore.framework/Headers/QList \
-  /opt/homebrew/lib/QtCore.framework/Headers/QHash \
   /Users/cam/asiatica-va/ui/../state/TagSession.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QObject \
   /opt/homebrew/lib/QtCore.framework/Headers/QVector \
   /opt/homebrew/lib/QtCore.framework/Headers/qvector.h \
+  /Users/cam/asiatica-va/ui/StatsWindow.h \
   /Users/cam/asiatica-va/components/VideoControlsBar.h \
   /Users/cam/asiatica-va/components/TimelineBar.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
@@ -1065,4 +1067,5 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractslider.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtabbar.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qrubberband.h
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qrubberband.h \
+  /opt/homebrew/lib/QtGui.framework/Headers/QAction

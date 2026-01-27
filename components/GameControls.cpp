@@ -103,8 +103,10 @@ void GameControls::onMainButtonClicked() {
 
   QString eventName = button->text();
   currentMainEvent_ = eventName;
+  currentFirstFollowUp_.clear();
+  followUpStage_ = FollowUpStage::None;
   emit mainEventPressed(eventName);
-  showFollowUpButtons(eventName);
+  showFirstLevelFollowUps(eventName);
 }
 
 void GameControls::onFollowUpButtonClicked() {
@@ -112,48 +114,88 @@ void GameControls::onFollowUpButtonClicked() {
   if (!button) return;
 
   QString followUpName = button->text();
+  if (followUpStage_ == FollowUpStage::FirstLevel) {
+    currentFirstFollowUp_ = followUpName;
+
+    const QStringList second = getSecondLevelFollowUps(currentMainEvent_, currentFirstFollowUp_);
+    if (second.isEmpty()) {
+      emit gameEventMarked(currentMainEvent_, currentFirstFollowUp_);
+      hideFollowUpButtons();
+      currentMainEvent_.clear();
+      currentFirstFollowUp_.clear();
+      followUpStage_ = FollowUpStage::None;
+      return;
+    }
+
+    showSecondLevelFollowUps(currentMainEvent_, currentFirstFollowUp_);
+    return;
+  }
+
+  if (followUpStage_ == FollowUpStage::SecondLevel) {
+    const QString combined = currentFirstFollowUp_.isEmpty()
+      ? followUpName
+      : (currentFirstFollowUp_ + " → " + followUpName);
+
+    emit gameEventMarked(currentMainEvent_, combined);
+    hideFollowUpButtons();
+    currentMainEvent_.clear();
+    currentFirstFollowUp_.clear();
+    followUpStage_ = FollowUpStage::None;
+    return;
+  }
+
+  // Fallback: treat as first-level
   emit gameEventMarked(currentMainEvent_, followUpName);
   hideFollowUpButtons();
   currentMainEvent_.clear();
+  currentFirstFollowUp_.clear();
+  followUpStage_ = FollowUpStage::None;
 }
 
-QStringList GameControls::getFollowUpActions(const QString& mainEvent) const {
+QStringList GameControls::getFirstLevelFollowUps(const QString& mainEvent) const {
   if (mainEvent == "Shot") {
-    return {"On target", "Off target", "to the Board", "to the Net", "Hit", "Flick"};
-  } else if (mainEvent == "Recovery") {
+    return {"On target", "Off target"};
+  }
+  if (mainEvent == "Enter D") {
+    return {"Left", "Middle", "Right"};
+  }
+  if (mainEvent == "PC") {
+    return {"Direct shot", "Variant", "Ruined"};
+  }
+  if (mainEvent == "Recovery") {
     return {"Interception", "Reception advance", "Tackle", "Block", "Unforced error"};
-  } else if (mainEvent == "Enter D") {
-    // Placeholder for Enter D follow-up actions
-    return {}; // TODO: Add follow-up actions for Enter D
-  } else if (mainEvent == "PC") {
-    // Placeholder for PC follow-up actions
-    return {}; // TODO: Add follow-up actions for PC
-  } else if (mainEvent == "Goal") {
-    // Placeholder for Goal follow-up actions
-    return {}; // TODO: Add follow-up actions for Goal
-  } else if (mainEvent == "16-yd hit") {
-    // Placeholder for 16-yd hit follow-up actions
-    return {}; // TODO: Add follow-up actions for 16-yd hit
-  } else if (mainEvent == "50-yd hit") {
-    // Placeholder for 50-yd hit follow-up actions
-    return {}; // TODO: Add follow-up actions for 50-yd hit
-  } else if (mainEvent == "Loss") {
-    // Placeholder for Loss follow-up actions
-    return {}; // TODO: Add follow-up actions for Loss
   }
   return {};
 }
 
-void GameControls::showFollowUpButtons(const QString& mainEvent) {
+QStringList GameControls::getSecondLevelFollowUps(const QString& mainEvent, const QString& firstFollowUp) const {
+  if (mainEvent == "Shot") {
+    if (firstFollowUp == "On target") return {"Goal", "Saved", "Post"};
+    if (firstFollowUp == "Off target") return {"Closeby", "Not close"};
+    return {};
+  }
+
+  if (mainEvent == "PC") {
+    if (firstFollowUp == "Direct shot") return {"Hit", "Swept", "Dragflick"};
+    return {};
+  }
+
+  // Enter D: only first-level for now (no second-level provided yet)
+  return {};
+}
+
+void GameControls::showFirstLevelFollowUps(const QString& mainEvent) {
   // Clear existing follow-up buttons
   hideFollowUpButtons();
 
-  QStringList actions = getFollowUpActions(mainEvent);
+  QStringList actions = getFirstLevelFollowUps(mainEvent);
   
   // If no follow-up actions, emit the main event directly and return
   if (actions.isEmpty()) {
     emit gameEventMarked(mainEvent);
     currentMainEvent_.clear();
+    currentFirstFollowUp_.clear();
+    followUpStage_ = FollowUpStage::None;
     return;
   }
 
@@ -173,6 +215,42 @@ void GameControls::showFollowUpButtons(const QString& mainEvent) {
     followUpButtons_.append(button);
   }
 
+  followUpStage_ = FollowUpStage::FirstLevel;
+  followUpContainer_->setVisible(true);
+  followUpContainer_->update();
+}
+
+void GameControls::showSecondLevelFollowUps(const QString& mainEvent, const QString& firstFollowUp) {
+  Q_UNUSED(mainEvent);
+
+  // Clear existing follow-up buttons and rebuild
+  hideFollowUpButtons();
+
+  QStringList actions = getSecondLevelFollowUps(currentMainEvent_, firstFollowUp);
+  if (actions.isEmpty()) {
+    // No second-level actions; finalize with the first follow-up
+    emit gameEventMarked(currentMainEvent_, firstFollowUp);
+    currentMainEvent_.clear();
+    currentFirstFollowUp_.clear();
+    followUpStage_ = FollowUpStage::None;
+    return;
+  }
+
+  for (const QString& action : actions) {
+    auto* button = new QPushButton(action, followUpContainer_);
+    Style::setSize(button, "md");
+    Style::setVariant(button, "secondary");
+    button->setFocusPolicy(Qt::NoFocus);
+    button->setMinimumHeight(40);
+
+    connect(button, &QPushButton::clicked, this, [this, button]() { flashButtonBorder(button); });
+    connect(button, &QPushButton::clicked, this, &GameControls::onFollowUpButtonClicked);
+
+    followUpLayout_->addWidget(button);
+    followUpButtons_.append(button);
+  }
+
+  followUpStage_ = FollowUpStage::SecondLevel;
   followUpContainer_->setVisible(true);
   followUpContainer_->update();
 }

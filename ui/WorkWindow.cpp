@@ -3,6 +3,7 @@
 #include "../components/VideoPlayer.h"
 #include "../components/GameControls.h"
 #include "../state/TagSession.h"
+#include "StatsWindow.h"
 
 #include "VideoControlsBar.h"
 #include "TimelineBar.h"
@@ -16,6 +17,7 @@
 #include <QMenu>
 #include <QVideoWidget>
 #include <QListWidget>
+#include <QAction>
 
 namespace {
 QString formatTimestampMs(qint64 ms) {
@@ -48,7 +50,32 @@ WorkWindow::WorkWindow(QWidget* parent) : QWidget(parent) {
 }
 
 void WorkWindow::setTagSession(TagSession* session) {
+    if (tagSession_ == session) return;
+    if (tagSession_) disconnect(tagSession_, nullptr, this, nullptr);
+
     tagSession_ = session;
+    if (statsWindow_) statsWindow_->setTagSession(tagSession_);
+
+    rebuildFilterMenu();
+    rebuildTagsList();
+
+    if (!tagSession_) return;
+
+    connect(tagSession_, &TagSession::cleared, this, [this]() {
+        allowedMainEvents_.clear();
+        rebuildFilterMenu();
+        rebuildTagsList();
+    });
+
+    connect(tagSession_, &TagSession::statsChanged, this, [this]() {
+        rebuildFilterMenu();
+        rebuildTagsList();
+    });
+
+    connect(tagSession_, &TagSession::tagAdded, this, [this](const TagSession::GameTag&) {
+        rebuildFilterMenu();
+        rebuildTagsList();
+    });
 }
 
 void WorkWindow::buildUi() {
@@ -79,6 +106,9 @@ void WorkWindow::buildUi() {
     // Video player component (manages video widget and player logic)
     videoPlayer_ = new VideoPlayer(this);
     gameControls_ = new GameControls(this);
+    statsWindow_ = new StatsWindow(this);
+    statsWindow_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    statsWindow_->setMinimumHeight(180);
     
     // Header row: left (header), right (Video menu)
     auto* headerRow = new QWidget(this);
@@ -100,7 +130,7 @@ void WorkWindow::buildUi() {
     auto* videoControlsRow = videoPlayer_->controlsBar();
     auto* videoTimelineRow = videoPlayer_->timelineBar();
     
-    // Video widget (+ tags) and GameControls side by side
+    // Video widget (+ tags) and GameControls (+ stats) side by side
     auto* videoGameRow = new QWidget(this);
     auto* videoGameLayout = new QHBoxLayout(videoGameRow);
     videoGameLayout->setContentsMargins(0, 0, 0, 0);
@@ -113,18 +143,44 @@ void WorkWindow::buildUi() {
 
     videoAndTagsLayout->addWidget(videoPlayer_->videoWidget(), /*stretch=*/1);
 
-    tagsHeaderLabel_ = new QLabel("Tags", videoAndTagsCol);
+    auto* tagsHeaderRow = new QWidget(videoAndTagsCol);
+    auto* tagsHeaderLayout = new QHBoxLayout(tagsHeaderRow);
+    tagsHeaderLayout->setContentsMargins(0, 0, 0, 0);
+    tagsHeaderLayout->setSpacing(8);
+
+    tagsHeaderLabel_ = new QLabel("Tags", tagsHeaderRow);
     Style::setRole(tagsHeaderLabel_, "h3");
+
+    tagsFilterButton_ = new QToolButton(tagsHeaderRow);
+    tagsFilterButton_->setText("Filter");
+    Style::setVariant(tagsFilterButton_, "ghost");
+    Style::setSize(tagsFilterButton_, "sm");
+    tagsFilterButton_->setPopupMode(QToolButton::InstantPopup);
+    tagsFilterButton_->setCursor(Qt::PointingHandCursor);
+
+    tagsFilterMenu_ = new QMenu(tagsFilterButton_);
+    tagsFilterButton_->setMenu(tagsFilterMenu_);
+
+    tagsHeaderLayout->addWidget(tagsHeaderLabel_, /*stretch=*/1);
+    tagsHeaderLayout->addWidget(tagsFilterButton_, /*stretch=*/0, Qt::AlignRight);
 
     tagsList_ = new QListWidget(videoAndTagsCol);
     tagsList_->setMinimumHeight(160);
     tagsList_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-    videoAndTagsLayout->addWidget(tagsHeaderLabel_);
+    videoAndTagsLayout->addWidget(tagsHeaderRow);
     videoAndTagsLayout->addWidget(tagsList_);
 
     videoGameLayout->addWidget(videoAndTagsCol, /*stretch=*/2);
-    videoGameLayout->addWidget(gameControls_, /*stretch=*/1);
+
+    auto* rightCol = new QWidget(videoGameRow);
+    auto* rightLayout = new QVBoxLayout(rightCol);
+    rightLayout->setContentsMargins(0, 0, 0, 0);
+    rightLayout->setSpacing(12);
+    rightLayout->addWidget(gameControls_, /*stretch=*/0);
+    rightLayout->addWidget(statsWindow_, /*stretch=*/1);
+
+    videoGameLayout->addWidget(rightCol, /*stretch=*/1);
     
     // the rest of the layout, stacked vertically:
     layout->addWidget(headerRow);
@@ -135,7 +191,9 @@ void WorkWindow::buildUi() {
     // initial visibility: hidden until video is loaded
     if (videoPlayer_) videoPlayer_->setControlsVisible(false);
     if (gameControls_) gameControls_->hide();
+    if (statsWindow_) statsWindow_->hide();
     if (tagsHeaderLabel_) tagsHeaderLabel_->hide();
+    if (tagsFilterButton_) tagsFilterButton_->hide();
     if (tagsList_) tagsList_->hide();
 }
 
@@ -156,7 +214,7 @@ void WorkWindow::wireSignals() {
     });
 
     connect(gameControls_, &GameControls::gameEventMarked, this, [this](const QString& mainEvent, const QString& followUpEvent) {
-        if (!videoPlayer_ || !tagsList_) return;
+        if (!videoPlayer_) return;
 
         qint64 timestampMs = videoPlayer_->currentPositionMs();
         if (hasPendingTag_ && pendingMainEvent_ == mainEvent) {
@@ -170,15 +228,6 @@ void WorkWindow::wireSignals() {
         if (tagSession_) {
             tagSession_->addTag(TagSession::GameTag{mainEvent, followUpEvent, timestampMs});
         }
-
-        QString eventText = mainEvent;
-        if (!followUpEvent.isEmpty()) eventText += " → " + followUpEvent;
-        const QString rowText = QString("%1  %2").arg(formatTimestampMs(timestampMs), eventText);
-
-        auto* item = new QListWidgetItem(rowText, tagsList_);
-        item->setData(Qt::UserRole, timestampMs);
-
-        tagsList_->scrollToBottom();
     });
 
     connect(tagsList_, &QListWidget::itemActivated, this, &WorkWindow::onTagItemActivated);
@@ -213,7 +262,15 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     }
 
     if (tagsHeaderLabel_) tagsHeaderLabel_->show();
+    if (tagsFilterButton_) tagsFilterButton_->show();
     if (tagsList_) tagsList_->show();
+    if (statsWindow_) {
+        statsWindow_->setTagSession(tagSession_);
+        statsWindow_->show();
+    }
+
+    rebuildFilterMenu();
+    rebuildTagsList();
 }
 
 void WorkWindow::onReplaceVideo() {
@@ -236,7 +293,9 @@ void WorkWindow::onDiscardVideo() {
     pendingTimestampMs_ = 0;
     if (tagsList_) tagsList_->clear();
     if (tagsHeaderLabel_) tagsHeaderLabel_->hide();
+    if (tagsFilterButton_) tagsFilterButton_->hide();
     if (tagsList_) tagsList_->hide();
+    if (statsWindow_) statsWindow_->hide();
 
     emit videoClosed();
 }
@@ -245,4 +304,80 @@ void WorkWindow::onTagItemActivated(QListWidgetItem* item) {
     if (!item || !videoPlayer_) return;
     const qint64 posMs = item->data(Qt::UserRole).toLongLong();
     videoPlayer_->seekToMs(posMs);
+}
+
+void WorkWindow::onSelectAllFilters() {
+    for (auto it = filterActionByMainEvent_.begin(); it != filterActionByMainEvent_.end(); ++it) {
+        it.value()->setChecked(true);
+    }
+    rebuildTagsList();
+}
+
+void WorkWindow::onSelectNoFilters() {
+    for (auto it = filterActionByMainEvent_.begin(); it != filterActionByMainEvent_.end(); ++it) {
+        it.value()->setChecked(false);
+    }
+    rebuildTagsList();
+}
+
+void WorkWindow::onFilterActionToggled(bool /*checked*/) {
+    rebuildTagsList();
+}
+
+bool WorkWindow::isMainEventAllowed(const QString& mainEvent) const {
+    auto it = filterActionByMainEvent_.find(mainEvent);
+    if (it == filterActionByMainEvent_.end()) return true; // no filter entry yet -> allow
+    return it.value()->isChecked();
+}
+
+void WorkWindow::rebuildFilterMenu() {
+    if (!tagsFilterMenu_) return;
+
+    // Preserve checked state
+    QHash<QString, bool> prevChecked;
+    for (auto it = filterActionByMainEvent_.cbegin(); it != filterActionByMainEvent_.cend(); ++it) {
+        prevChecked.insert(it.key(), it.value()->isChecked());
+    }
+
+    tagsFilterMenu_->clear();
+    filterActionByMainEvent_.clear();
+
+    auto* selectAll = tagsFilterMenu_->addAction("Select all");
+    auto* selectNone = tagsFilterMenu_->addAction("Select none");
+    connect(selectAll, &QAction::triggered, this, &WorkWindow::onSelectAllFilters);
+    connect(selectNone, &QAction::triggered, this, &WorkWindow::onSelectNoFilters);
+    tagsFilterMenu_->addSeparator();
+
+    if (!tagSession_) return;
+    QStringList mains = tagSession_->mainEventCounts().keys();
+    mains.sort(Qt::CaseInsensitive);
+
+    for (const QString& mainEvent : mains) {
+        auto* act = tagsFilterMenu_->addAction(mainEvent);
+        act->setCheckable(true);
+        act->setChecked(prevChecked.contains(mainEvent) ? prevChecked.value(mainEvent) : true);
+        connect(act, &QAction::toggled, this, &WorkWindow::onFilterActionToggled);
+        filterActionByMainEvent_.insert(mainEvent, act);
+    }
+}
+
+void WorkWindow::rebuildTagsList() {
+    if (!tagsList_) return;
+    tagsList_->clear();
+    if (!tagSession_) return;
+
+    for (const auto& tag : tagSession_->tags()) {
+        if (!isMainEventAllowed(tag.mainEvent)) continue;
+
+        QString eventText = tag.mainEvent;
+        if (!tag.followUpEvent.isEmpty()) eventText += " → " + tag.followUpEvent;
+        const QString rowText = QString("%1  %2").arg(formatTimestampMs(tag.positionMs), eventText);
+
+        auto* item = new QListWidgetItem(rowText, tagsList_);
+        item->setData(Qt::UserRole, tag.positionMs);
+        item->setData(Qt::UserRole + 1, tag.mainEvent);
+        item->setData(Qt::UserRole + 2, tag.followUpEvent);
+    }
+
+    tagsList_->scrollToBottom();
 }

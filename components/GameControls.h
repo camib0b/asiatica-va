@@ -28,10 +28,18 @@ private slots:
 private:
   void buildUi();
   void wireSignals();
-  void showFollowUpButtons(const QString& mainEvent);
+  void showFirstLevelFollowUps(const QString& mainEvent);
+  void showSecondLevelFollowUps(const QString& mainEvent, const QString& firstFollowUp);
   void hideFollowUpButtons();
-  QStringList getFollowUpActions(const QString& mainEvent) const;
+  QStringList getFirstLevelFollowUps(const QString& mainEvent) const;
+  QStringList getSecondLevelFollowUps(const QString& mainEvent, const QString& firstFollowUp) const;
   void flashButtonBorder(QPushButton* button);
+
+  enum class FollowUpStage {
+    None,
+    FirstLevel,
+    SecondLevel,
+  };
 
   QGridLayout* mainGridLayout_ = nullptr;
   QHBoxLayout* followUpLayout_ = nullptr;
@@ -47,6 +55,8 @@ private:
   QPushButton* lossButton_ = nullptr;
 
   QString currentMainEvent_;
+  QString currentFirstFollowUp_;
+  FollowUpStage followUpStage_ = FollowUpStage::None;
   QList<QPushButton*> followUpButtons_;
   QHash<QPushButton*, QTimer*> flashTimers_;
 };
