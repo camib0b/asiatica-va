@@ -119,8 +119,8 @@ QPushButton[variant="primary"]:pressed {
   border-color: #0B0D12;
 }
 QPushButton[variant="primary"]:focus {
-  border: 2px solid rgba(37, 99, 235, 0.65);
-  padding: 13px 15px; /* compensate for border width */
+  border: 1px solid #0B0D12;
+  background: rgba(37, 99, 235, 0.03);
 }
 
 QPushButton[variant="secondary"] {
@@ -157,7 +157,8 @@ QPushButton[variant="destructive"] {
 }
 
 /* Focus ring substitute (only matters when widgets can take focus) */
-QPushButton:focus {
+/* Note: primary variant has its own focus styling above */
+QPushButton:focus:not([variant="primary"]) {
   border: 2px solid rgba(37, 99, 235, 0.65);
   padding: 7px 11px; /* compensate for border width */
 }

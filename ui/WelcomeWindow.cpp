@@ -44,7 +44,7 @@ void WelcomeWindow::buildUi() {
     
     // subtitle:
     subtitleLabel_ = new QLabel("Import a video file to get started", contentContainer);
-    subtitleLabel_->setWordWrap(true);
+    subtitleLabel_->setWordWrap(false);
     subtitleLabel_->setAlignment(Qt::AlignCenter);
     Style::setRole(subtitleLabel_, "subhero");    
 
@@ -53,8 +53,8 @@ void WelcomeWindow::buildUi() {
     importButton_->setCursor(Qt::PointingHandCursor);
     Style::setVariant(importButton_, "primary");
     Style::setSize(importButton_, "lg");
-    importButton_->setMaximumWidth(335);
-    importButton_->setFocusPolicy(Qt::StrongFocus);
+    importButton_->setMaximumWidth(400);
+    importButton_->setFocusPolicy(Qt::TabFocus); // Allow keyboard focus but don't auto-focus on window open
 
     // Add widgets vertically, centered
     layout->addWidget(headerLabel_, 0, Qt::AlignHCenter);
@@ -86,7 +86,7 @@ void WelcomeWindow::buildKeyboardShortcuts() {
         return act;
     };
 
-    // Keyboard shortcuts: 's', spacebar, enter
+    // Keyboard shortcuts for import button: 's', spacebar, enter
     makeAction(QKeySequence(Qt::Key_S));
     makeAction(QKeySequence(Qt::Key_Space));
     makeAction(QKeySequence(Qt::Key_Return));
