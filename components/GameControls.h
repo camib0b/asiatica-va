@@ -36,6 +36,8 @@ private:
   QStringList getFirstLevelFollowUps(const QString& mainEvent) const;
   QStringList getSecondLevelFollowUps(const QString& mainEvent, const QString& firstFollowUp) const;
   void flashButtonBorder(QPushButton* button);
+  void setActiveMainButton(QPushButton* button);
+  void clearActiveMainButton();
 
   enum class FollowUpStage {
     None,
@@ -70,6 +72,7 @@ private:
   QString currentMainEvent_;
   QString currentFirstFollowUp_;
   FollowUpStage followUpStage_ = FollowUpStage::None;
+  QPushButton* activeMainButton_ = nullptr;
   QList<QPushButton*> followUpButtons_;
   QHash<QPushButton*, QTimer*> flashTimers_;
 };

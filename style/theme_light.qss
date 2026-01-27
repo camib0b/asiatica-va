@@ -150,6 +150,14 @@ QPushButton:focus {
 /* Flash state: never change border width (avoid layout jump) */
 QPushButton[flash="true"] {
   border-color: rgba(37, 99, 235, 0.85);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+/* Active main event while follow-ups visible */
+QPushButton[activeMain="true"] {
+  border-color: rgba(37, 99, 235, 0.65);
+  background: rgba(37, 99, 235, 0.10);
+  font-weight: 650;
 }
 
 /* =========================

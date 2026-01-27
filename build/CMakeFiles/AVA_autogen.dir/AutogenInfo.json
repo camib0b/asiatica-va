@@ -569,7 +569,7 @@
 	"MOC_RELAXED_MODE" : false,
 	"MOC_SKIP" : [ "/Users/cam/asiatica-va/build/.qt/rcc/qrc_ava_resources.cpp" ],
 	"MULTI_CONFIG" : false,
-	"PARALLEL" : 10,
+	"PARALLEL" : 1,
 	"PARSE_CACHE_FILE" : "/Users/cam/asiatica-va/build/CMakeFiles/AVA_autogen.dir/ParseCache.txt",
 	"QT_MOC_EXECUTABLE" : "/opt/homebrew/share/qt/libexec/moc",
 	"QT_UIC_EXECUTABLE" : "/opt/homebrew/share/qt/libexec/uic",

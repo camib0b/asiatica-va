@@ -27,6 +27,7 @@ qt_add_executable(AVA
 qt_add_resources(AVA ava_resources
   PREFIX "/"
   FILES
+    ava-icon.png
     style/theme_light.qss
 )
 

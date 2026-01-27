@@ -69,6 +69,7 @@ include CMakeFiles/AVA.dir/progress.make
 # Include the compile flags for this target's objects.
 include CMakeFiles/AVA.dir/flags.make
 
+.qt/rcc/qrc_ava_resources.cpp: /Users/cam/asiatica-va/ava-icon.png
 .qt/rcc/qrc_ava_resources.cpp: /Users/cam/asiatica-va/style/theme_light.qss
 .qt/rcc/qrc_ava_resources.cpp: .qt/rcc/ava_resources.qrc
 .qt/rcc/qrc_ava_resources.cpp: /opt/homebrew/share/qt/libexec/rcc
@@ -79,7 +80,7 @@ AVA_autogen/timestamp: /opt/homebrew/share/qt/libexec/moc
 AVA_autogen/timestamp: /opt/homebrew/share/qt/libexec/uic
 AVA_autogen/timestamp: CMakeFiles/AVA.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/Users/cam/asiatica-va/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Automatic MOC and UIC for target AVA"
-	/opt/homebrew/bin/cmake -E cmake_autogen /Users/cam/asiatica-va/build/CMakeFiles/AVA_autogen.dir/AutogenInfo.json ""
+	/opt/homebrew/bin/cmake -E cmake_autogen /Users/cam/asiatica-va/build/CMakeFiles/AVA_autogen.dir/AutogenInfo.json Release
 	/opt/homebrew/bin/cmake -E touch /Users/cam/asiatica-va/build/AVA_autogen/timestamp
 
 CMakeFiles/AVA.dir/codegen:

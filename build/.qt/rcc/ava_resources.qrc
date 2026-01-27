@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="/">
+    <file alias="ava-icon.png">/Users/cam/asiatica-va/ava-icon.png</file>
     <file alias="style/theme_light.qss">/Users/cam/asiatica-va/style/theme_light.qss</file>
   </qresource>
 </RCC>

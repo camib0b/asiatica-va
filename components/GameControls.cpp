@@ -19,6 +19,19 @@ GameControls::GameControls(QWidget* parent) : QWidget(parent) {
   hideFollowUpButtons();
 }
 
+void GameControls::setActiveMainButton(QPushButton* button) {
+  if (activeMainButton_ == button) return;
+  if (activeMainButton_) Style::setState(activeMainButton_, "activeMain", false);
+  activeMainButton_ = button;
+  if (activeMainButton_) Style::setState(activeMainButton_, "activeMain", true);
+}
+
+void GameControls::clearActiveMainButton() {
+  if (!activeMainButton_) return;
+  Style::setState(activeMainButton_, "activeMain", false);
+  activeMainButton_ = nullptr;
+}
+
 void GameControls::buildUi() {
   auto* mainLayout = new QVBoxLayout(this);
   mainLayout->setContentsMargins(0, 0, 0, 0);
@@ -173,6 +186,7 @@ void GameControls::onMainButtonClicked() {
   currentMainEvent_ = eventName;
   currentFirstFollowUp_.clear();
   followUpStage_ = FollowUpStage::None;
+  setActiveMainButton(button);
   emit mainEventPressed(eventName);
   showFirstLevelFollowUps(eventName);
 }
@@ -188,6 +202,7 @@ void GameControls::onFollowUpButtonClicked() {
     const QStringList second = getSecondLevelFollowUps(currentMainEvent_, currentFirstFollowUp_);
     if (second.isEmpty()) {
       emit gameEventMarked(currentMainEvent_, currentFirstFollowUp_);
+      clearActiveMainButton();
       hideFollowUpButtons();
       currentMainEvent_.clear();
       currentFirstFollowUp_.clear();
@@ -205,6 +220,7 @@ void GameControls::onFollowUpButtonClicked() {
       : (currentFirstFollowUp_ + " → " + followUpName);
 
     emit gameEventMarked(currentMainEvent_, combined);
+    clearActiveMainButton();
     hideFollowUpButtons();
     currentMainEvent_.clear();
     currentFirstFollowUp_.clear();
@@ -214,6 +230,7 @@ void GameControls::onFollowUpButtonClicked() {
 
   // Fallback: treat as first-level
   emit gameEventMarked(currentMainEvent_, followUpName);
+  clearActiveMainButton();
   hideFollowUpButtons();
   currentMainEvent_.clear();
   currentFirstFollowUp_.clear();
@@ -261,6 +278,7 @@ void GameControls::showFirstLevelFollowUps(const QString& mainEvent) {
   // If no follow-up actions, emit the main event directly and return
   if (actions.isEmpty()) {
     emit gameEventMarked(mainEvent);
+    clearActiveMainButton();
     currentMainEvent_.clear();
     currentFirstFollowUp_.clear();
     followUpStage_ = FollowUpStage::None;
@@ -298,6 +316,7 @@ void GameControls::showSecondLevelFollowUps(const QString& mainEvent, const QStr
   if (actions.isEmpty()) {
     // No second-level actions; finalize with the first follow-up
     emit gameEventMarked(currentMainEvent_, firstFollowUp);
+    clearActiveMainButton();
     currentMainEvent_.clear();
     currentFirstFollowUp_.clear();
     followUpStage_ = FollowUpStage::None;
