@@ -155,6 +155,68 @@ QPushButton[variant="outline"]:hover {
   border-color: rgba(15, 23, 42, 0.28);
 }
 
+/* GameControls: less rounded, 2px border, solid colors for clean rendering */
+QPushButton[variant="gameControl"] {
+  background: #FFFFFF;
+  border: 2px solid #D1D5DB;
+  border-radius: 6px;
+}
+QPushButton[variant="gameControl"]:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border: 2px solid #9CA3AF;
+}
+QPushButton[variant="gameControl"]:pressed {
+  background: rgba(0, 0, 0, 0.07);
+  border: 2px solid #9CA3AF;
+}
+QPushButton[variant="gameControl"]:focus {
+  border: 2px solid #D1D5DB;
+  padding: 8px 12px;
+}
+QPushButton[variant="gameControl"][activeMain="true"] {
+  border: 2px solid #2563EB;
+  background: rgba(37, 99, 235, 0.10);
+  font-weight: 650;
+}
+QPushButton[variant="gameControl"][activeMain="true"]:focus {
+  border: 2px solid #2563EB;
+  padding: 8px 12px;
+}
+QPushButton[variant="gameControl"][flash="true"] {
+  border: 2px solid #2563EB;
+  background: rgba(37, 99, 235, 0.08);
+}
+QPushButton[variant="gameControl"][flash="true"]:focus {
+  border: 2px solid #2563EB;
+  padding: 8px 12px;
+}
+
+QPushButton[variant="gameControlFollowUp"] {
+  background: #F9FAFB;
+  border: 2px solid #E5E7EB;
+  border-radius: 6px;
+}
+QPushButton[variant="gameControlFollowUp"]:hover {
+  background: rgba(15, 23, 42, 0.08);
+  border: 2px solid #D1D5DB;
+}
+QPushButton[variant="gameControlFollowUp"]:pressed {
+  background: rgba(15, 23, 42, 0.12);
+  border: 2px solid #D1D5DB;
+}
+QPushButton[variant="gameControlFollowUp"]:focus {
+  border: 2px solid #E5E7EB;
+  padding: 8px 12px;
+}
+QPushButton[variant="gameControlFollowUp"][flash="true"] {
+  border: 2px solid #2563EB;
+  background: rgba(37, 99, 235, 0.08);
+}
+QPushButton[variant="gameControlFollowUp"][flash="true"]:focus {
+  border: 2px solid #2563EB;
+  padding: 8px 12px;
+}
+
 QPushButton[variant="ghost"] {
   background: transparent;
   border: 1px solid transparent;
@@ -171,6 +233,7 @@ QPushButton[variant="destructive"] {
 }
 
 /* Focus ring substitute (only matters when widgets can take focus) */
+/* gameControl / gameControlFollowUp have their own :focus rules above */
 QPushButton:focus {
   border: 2px solid rgba(37, 99, 235, 0.65);
   padding: 7px 11px; /* compensate for border width */
@@ -190,9 +253,12 @@ QPushButton[activeMain="true"] {
 }
 
 /* Active speed button (Slower when < 1.0x, Faster when > 1.0x) */
+/* Uses darker background like hover state, no border change */
 QPushButton[speedActive="true"] {
-  border-color: rgba(37, 99, 235, 0.65);
-  background: rgba(37, 99, 235, 0.10);
+  background: rgba(15, 23, 42, 0.05);
+}
+QPushButton[variant="ghost"][speedActive="true"] {
+  background: rgba(15, 23, 42, 0.05);
 }
 
 /* =========================

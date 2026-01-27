@@ -31,6 +31,7 @@ public:
 
 signals:
   void videoClosed();
+  void positionChangedMs(qint64 positionMs);
 
 private slots:
   void onPlayClicked();

@@ -40,6 +40,7 @@ private slots:
   void onSelectAllFilters();
   void onSelectNoFilters();
   void onFilterActionToggled(bool checked);
+  void onPlayheadPositionChanged(qint64 positionMs);
 
 private:
   void buildUi();
@@ -47,6 +48,7 @@ private:
   void rebuildTagsList();
   void rebuildFilterMenu();
   void updateFilterIndicator();
+  void updateTagPlayheadHighlight(qint64 positionMs);
   bool isMainEventAllowed(const QString& mainEvent) const;
 
   QString promptForVideoFile();

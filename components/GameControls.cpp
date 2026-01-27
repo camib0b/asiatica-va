@@ -61,7 +61,7 @@ void GameControls::buildUi() {
 
   for (auto* button : mainButtons) {
     Style::setSize(button, "md");
-    Style::setVariant(button, "outline");
+    Style::setVariant(button, "gameControl");
     button->setFocusPolicy(Qt::NoFocus);
     button->setMinimumHeight(40);
   }
@@ -306,7 +306,7 @@ void GameControls::showFirstLevelFollowUps(const QString& mainEvent) {
   for (const QString& action : actions) {
     auto* button = new QPushButton(action, followUpContainer_);
     Style::setSize(button, "md");
-    Style::setVariant(button, "secondary");
+    Style::setVariant(button, "gameControlFollowUp");
     button->setFocusPolicy(Qt::NoFocus);
     button->setMinimumHeight(40);
     
@@ -343,7 +343,7 @@ void GameControls::showSecondLevelFollowUps(const QString& mainEvent, const QStr
   for (const QString& action : actions) {
     auto* button = new QPushButton(action, followUpContainer_);
     Style::setSize(button, "md");
-    Style::setVariant(button, "secondary");
+    Style::setVariant(button, "gameControlFollowUp");
     button->setFocusPolicy(Qt::NoFocus);
     button->setMinimumHeight(40);
 

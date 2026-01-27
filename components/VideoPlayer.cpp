@@ -92,6 +92,7 @@ void VideoPlayer::wireSignals() {
 
     connect(player_, &QMediaPlayer::positionChanged, this, [this](qint64 pos) {
         if (videoTimelineBar_) videoTimelineBar_->setPositionMs(pos);
+        emit positionChangedMs(pos);
     });
 
     // Timeline widget -> Player (scrub behavior)

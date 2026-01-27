@@ -17,8 +17,11 @@
 #include <QMenu>
 #include <QVideoWidget>
 #include <QListWidget>
+#include <QListWidgetItem>
 #include <QAction>
 #include <QKeySequence>
+#include <QBrush>
+#include <QColor>
 
 namespace {
 QString formatTimestampMs(qint64 ms) {
@@ -229,6 +232,9 @@ void WorkWindow::wireSignals() {
     });
 
     connect(tagsList_, &QListWidget::itemActivated, this, &WorkWindow::onTagItemActivated);
+
+    // Highlight tags when playhead is within ±2s
+    connect(videoPlayer_, &VideoPlayer::positionChangedMs, this, &WorkWindow::onPlayheadPositionChanged);
     
     // Backspace to delete selected tag
     auto* deleteTagAction = new QAction(this);
@@ -310,6 +316,30 @@ void WorkWindow::onTagItemActivated(QListWidgetItem* item) {
     if (!item || !videoPlayer_) return;
     const qint64 posMs = item->data(Qt::UserRole).toLongLong();
     videoPlayer_->seekToMs(posMs);
+}
+
+namespace {
+constexpr qint64 kPlayheadNearToleranceMs = 2000;
+const QColor kTagNearPlayheadColor(147, 197, 253); // light blue, lighter than selection
+} // namespace
+
+void WorkWindow::onPlayheadPositionChanged(qint64 positionMs) {
+    updateTagPlayheadHighlight(positionMs);
+}
+
+void WorkWindow::updateTagPlayheadHighlight(qint64 positionMs) {
+    if (!tagsList_) return;
+    for (int row = 0; row < tagsList_->count(); ++row) {
+        auto* item = tagsList_->item(row);
+        if (!item) continue;
+        const qint64 tagMs = item->data(Qt::UserRole).toLongLong();
+        const qint64 diff = (tagMs > positionMs) ? (tagMs - positionMs) : (positionMs - tagMs);
+        if (diff <= kPlayheadNearToleranceMs) {
+            item->setBackground(QBrush(kTagNearPlayheadColor));
+        } else {
+            item->setBackground(QBrush());
+        }
+    }
 }
 
 void WorkWindow::onDeleteSelectedTag() {
@@ -412,27 +442,42 @@ void WorkWindow::rebuildTagsList() {
     tagsList_->clear();
     if (!tagSession_) return;
 
-    // Store the actual TagSession index in each item so we can delete the correct tag
+    // Collect (tag, tagSessionIndex) for tags that pass the filter
+    struct TagEntry {
+        TagSession::GameTag tag;
+        int tagSessionIndex;
+    };
+    QVector<TagEntry> entries;
     int tagSessionIndex = 0;
     for (const auto& tag : tagSession_->tags()) {
-        if (!isMainEventAllowed(tag.mainEvent)) {
-            tagSessionIndex++;
-            continue;
+        if (isMainEventAllowed(tag.mainEvent)) {
+            entries.append({tag, tagSessionIndex});
         }
+        tagSessionIndex++;
+    }
 
+    // Sort by timestamp so the list is always chronological
+    std::sort(entries.begin(), entries.end(), [](const TagEntry& a, const TagEntry& b) {
+        return a.tag.positionMs < b.tag.positionMs;
+    });
+
+    for (const auto& e : entries) {
+        const auto& tag = e.tag;
         QString eventText = tag.mainEvent;
         if (!tag.followUpEvent.isEmpty()) eventText += " → " + tag.followUpEvent;
         const QString rowText = QString("%1  %2").arg(formatTimestampMs(tag.positionMs), eventText);
 
-        auto* item = new QListWidgetItem(rowText, tagsList_);
+        auto* item = new QListWidgetItem(rowText);
         item->setData(Qt::UserRole, tag.positionMs);
         item->setData(Qt::UserRole + 1, tag.mainEvent);
         item->setData(Qt::UserRole + 2, tag.followUpEvent);
-        item->setData(Qt::UserRole + 3, tagSessionIndex); // Store the actual TagSession index
-
-        tagSessionIndex++;
+        item->setData(Qt::UserRole + 3, e.tagSessionIndex); // Store the actual TagSession index for delete
+        tagsList_->addItem(item);
     }
 
     tagsList_->scrollToBottom();
     updateFilterIndicator();
+    if (videoPlayer_) {
+        updateTagPlayheadHighlight(videoPlayer_->currentPositionMs());
+    }
 }

@@ -50,7 +50,9 @@ template <> constexpr inline auto WorkWindow::qt_create_metaobjectdata<qt_meta_t
         "onSelectAllFilters",
         "onSelectNoFilters",
         "onFilterActionToggled",
-        "checked"
+        "checked",
+        "onPlayheadPositionChanged",
+        "positionMs"
     };
 
     QtMocHelpers::UintData qt_methods {
@@ -73,6 +75,10 @@ template <> constexpr inline auto WorkWindow::qt_create_metaobjectdata<qt_meta_t
         // Slot 'onFilterActionToggled'
         QtMocHelpers::SlotData<void(bool)>(11, 2, QMC::AccessPrivate, QMetaType::Void, {{
             { QMetaType::Bool, 12 },
+        }}),
+        // Slot 'onPlayheadPositionChanged'
+        QtMocHelpers::SlotData<void(qint64)>(13, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::LongLong, 14 },
         }}),
     };
     QtMocHelpers::UintData qt_properties {
@@ -105,6 +111,7 @@ void WorkWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 5: _t->onSelectAllFilters(); break;
         case 6: _t->onSelectNoFilters(); break;
         case 7: _t->onFilterActionToggled((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1]))); break;
+        case 8: _t->onPlayheadPositionChanged((*reinterpret_cast<std::add_pointer_t<qint64>>(_a[1]))); break;
         default: ;
         }
     }
@@ -133,14 +140,14 @@ int WorkWindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 8)
+        if (_id < 9)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 8;
+        _id -= 9;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 8)
+        if (_id < 9)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 8;
+        _id -= 9;
     }
     return _id;
 }
