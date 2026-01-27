@@ -351,8 +351,7 @@ void WorkWindow::applyTaggingLayout() {
     static_cast<QBoxLayout*>(taggingRightCol_->layout())->addWidget(gameControls_, 0);
 
     while (QLayoutItem* item = contentLayout_->takeAt(0)) {
-        if (item->widget()) item->widget()->setParent(nullptr);
-        delete item;
+        delete item;  // widget stays in tree; do not setParent(nullptr)
     }
     contentLayout_->addWidget(taggingMainRow_, 1);
     if (QWidget* p = tagsSection_->parentWidget())
@@ -364,6 +363,9 @@ void WorkWindow::applyTaggingLayout() {
 
     statsWindow_->hide();
     if (notesEdit_) notesEdit_->hide();
+
+    // Keep tag list in sync with session after layout change
+    rebuildTagsList();
 }
 
 void WorkWindow::applyAnalyzingLayout() {
@@ -372,8 +374,7 @@ void WorkWindow::applyAnalyzingLayout() {
         videoPlayer_->controlsBar()->setObjectName(""); // normal height
 
     while (QLayoutItem* item = contentLayout_->takeAt(0)) {
-        if (item->widget()) item->widget()->setParent(nullptr);
-        delete item;
+        delete item;  // widget stays in tree; do not setParent(nullptr)
     }
 
     QWidget* vw = videoPlayer_->videoWidget();
@@ -404,6 +405,9 @@ void WorkWindow::applyAnalyzingLayout() {
     statsWindow_->show();
     if (notesEdit_) notesEdit_->show();
     tagsList_->setMaximumHeight(QWIDGETSIZE_MAX);
+
+    // Keep tag list in sync with session after layout change
+    rebuildTagsList();
 }
 
 void WorkWindow::wireSignals() {
@@ -883,9 +887,8 @@ void WorkWindow::updateFilterIndicator() {
 }
 
 void WorkWindow::rebuildTagsList() {
-    if (!tagsList_) return;
+    if (!tagsList_ || !tagSession_) return;
     tagsList_->clear();
-    if (!tagSession_) return;
 
     // Collect (tag, tagSessionIndex) for tags that pass the filter
     struct TagEntry {
