@@ -47,6 +47,7 @@ private slots:
   void onTagSelectionChanged();
   void onNoteTextChanged();
   void onDeleteSelectedTag();
+  void onUndoLastTag();
   void onSelectAllFilters();
   void onSelectNoFilters();
   void onFilterActionToggled(bool checked);
@@ -128,6 +129,7 @@ private:
   QToolButton* teamAway_ = nullptr;
   QToolButton* situationAttacking_ = nullptr;
   QToolButton* situationDefending_ = nullptr;
+  QToolButton* undoLastTagButton_ = nullptr;
   QListWidget* tagsList_ = nullptr;
 
   QTimer* newTagFlashTimer_ = nullptr;

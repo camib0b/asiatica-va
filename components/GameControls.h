@@ -11,6 +11,7 @@ class QHBoxLayout;
 class QWidget;
 class QTimer;
 class QAction;
+class QKeyEvent;
 
 class GameControls final : public QWidget {
   Q_OBJECT
@@ -42,6 +43,12 @@ private:
   void flashButtonBorder(QPushButton* button);
   void setActiveMainButton(QPushButton* button);
   void clearActiveMainButton();
+  QList<QPushButton*> focusableButtonsOrder() const;
+  void focusNextInDirection(Qt::Key key);
+
+protected:
+  bool eventFilter(QObject* obj, QEvent* event) override;
+  void keyPressEvent(QKeyEvent* event) override;
 
   enum class FollowUpStage {
     None,

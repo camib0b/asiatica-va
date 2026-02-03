@@ -176,8 +176,10 @@ QPushButton[variant="gameControl"]:pressed {
   background: rgba(0, 0, 0, 0.07);
   border: 2px solid #9CA3AF;
 }
+/* Keyboard focus: visible highlight when navigating with arrow keys */
 QPushButton[variant="gameControl"]:focus {
-  border: 2px solid #D1D5DB;
+  border: 2px solid rgba(37, 99, 235, 0.65);
+  background: rgba(37, 99, 235, 0.06);
   padding: 8px 12px;
 }
 QPushButton[variant="gameControl"][activeMain="true"] {
@@ -211,8 +213,10 @@ QPushButton[variant="gameControlFollowUp"]:pressed {
   background: rgba(15, 23, 42, 0.12);
   border: 2px solid #D1D5DB;
 }
+/* Keyboard focus on follow-up buttons */
 QPushButton[variant="gameControlFollowUp"]:focus {
-  border: 2px solid #E5E7EB;
+  border: 2px solid rgba(37, 99, 235, 0.65);
+  background: rgba(37, 99, 235, 0.06);
   padding: 8px 12px;
 }
 /* Follow-up flash: blue border, same 2px thickness (no thicker), same padding to avoid layout jump */

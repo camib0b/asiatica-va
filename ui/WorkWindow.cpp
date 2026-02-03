@@ -276,6 +276,13 @@ void WorkWindow::buildUi() {
     Style::setRole(tagsFilterIndicator_, "muted");
     tagsFilterIndicator_->hide();
 
+    undoLastTagButton_ = new QToolButton(tagsHeaderRow);
+    undoLastTagButton_->setText("Undo");
+    undoLastTagButton_->setToolTip("Ctrl+Z  Remove most recent tag");
+    Style::setVariant(undoLastTagButton_, "ghost");
+    Style::setSize(undoLastTagButton_, "sm");
+    undoLastTagButton_->setCursor(Qt::PointingHandCursor);
+
     tagsHeaderLayout->addWidget(tagsHeaderLabel_, 0);
     tagsHeaderLayout->addWidget(periodQ1_, 0);
     tagsHeaderLayout->addWidget(periodQ2_, 0);
@@ -289,6 +296,7 @@ void WorkWindow::buildUi() {
     tagsHeaderLayout->addWidget(situationDefending_, 0);
     tagsHeaderLayout->addStretch(1);
     tagsHeaderLayout->addWidget(tagsFilterIndicator_, 0);
+    tagsHeaderLayout->addWidget(undoLastTagButton_, 0);
     tagsHeaderLayout->addWidget(tagsRemoveFiltersButton_, 0);
     tagsHeaderLayout->addWidget(tagsFilterButton_, 0);
 
@@ -332,6 +340,7 @@ void WorkWindow::buildUi() {
     if (tagsHeaderLabel_) tagsHeaderLabel_->hide();
     if (tagsFilterButton_) tagsFilterButton_->hide();
     if (tagsRemoveFiltersButton_) tagsRemoveFiltersButton_->hide();
+    if (undoLastTagButton_) undoLastTagButton_->hide();
     if (tagsList_) tagsList_->hide();
     if (modeTaggingBtn_) modeTaggingBtn_->hide();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->hide();
@@ -480,6 +489,7 @@ void WorkWindow::wireSignals() {
 
     connect(statsWindow_, &StatsWindow::filterByPathRequested, this, &WorkWindow::onFilterByPathRequested);
     connect(tagsRemoveFiltersButton_, &QToolButton::clicked, this, &WorkWindow::onRemoveFilters);
+    connect(undoLastTagButton_, &QToolButton::clicked, this, &WorkWindow::onUndoLastTag);
 
     auto* modeAction = new QAction(this);
     modeAction->setShortcut(QKeySequence(Qt::Key_M));
@@ -506,9 +516,16 @@ void WorkWindow::wireSignals() {
     // Backspace to delete selected tag
     auto* deleteTagAction = new QAction(this);
     deleteTagAction->setShortcut(QKeySequence(Qt::Key_Backspace));
-    deleteTagAction->setShortcutContext(Qt::WidgetShortcut);
+    deleteTagAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     connect(deleteTagAction, &QAction::triggered, this, &WorkWindow::onDeleteSelectedTag);
-    tagsList_->addAction(deleteTagAction);
+    addAction(deleteTagAction);
+
+    // Ctrl+Z to undo last tag (remove most recent)
+    auto* undoTagAction = new QAction(this);
+    undoTagAction->setShortcut(QKeySequence::Undo);
+    undoTagAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+    connect(undoTagAction, &QAction::triggered, this, &WorkWindow::onUndoLastTag);
+    addAction(undoTagAction);
 }
 
 
@@ -547,6 +564,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
 
     if (tagsHeaderLabel_) tagsHeaderLabel_->show();
     if (tagsFilterButton_) tagsFilterButton_->show();
+    if (undoLastTagButton_) undoLastTagButton_->show();
     updateFilterButtonsVisibility();
     if (tagsList_) tagsList_->show();
     updateFilterIndicator();
@@ -579,6 +597,7 @@ void WorkWindow::onDiscardVideo() {
     if (tagsHeaderLabel_) tagsHeaderLabel_->hide();
     if (tagsFilterButton_) tagsFilterButton_->hide();
     if (tagsRemoveFiltersButton_) tagsRemoveFiltersButton_->hide();
+    if (undoLastTagButton_) undoLastTagButton_->hide();
     if (tagsList_) tagsList_->hide();
     if (statsWindow_) statsWindow_->hide();
 
@@ -787,6 +806,14 @@ void WorkWindow::onDeleteSelectedTag() {
     if (tagIndex < 0 || tagIndex >= tagSession_->tags().size()) return;
     
     tagSession_->removeTag(tagIndex);
+    rebuildTagsList();
+}
+
+void WorkWindow::onUndoLastTag() {
+    if (!tagSession_) return;
+    const int n = tagSession_->tags().size();
+    if (n == 0) return;
+    tagSession_->removeTag(n - 1);
     rebuildTagsList();
 }
 

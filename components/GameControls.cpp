@@ -9,6 +9,8 @@
 #include <QTimer>
 #include <QAction>
 #include <QKeySequence>
+#include <QKeyEvent>
+#include <QEvent>
 #include <QApplication>
 
 GameControls::GameControls(QWidget* parent) : QWidget(parent) {
@@ -18,6 +20,11 @@ GameControls::GameControls(QWidget* parent) : QWidget(parent) {
   wireSignals();
   buildKeyboardShortcuts();
   hideFollowUpButtons();
+  installEventFilter(this);
+  turnoverButton_->installEventFilter(this);
+  for (auto* btn : {hit16ydButton_, hit50ydButton_, hit75ydButton_, enterDButton_,
+                    shotButton_, goalButton_, pcButton_, psButton_, cardButton_})
+    if (btn) btn->installEventFilter(this);
 }
 
 void GameControls::setActiveMainButton(QPushButton* button) {
@@ -48,7 +55,7 @@ void GameControls::buildUi() {
   turnoverButton_->setToolTip("Tab  Toggle possession (Home ↔ Away)");
   Style::setSize(turnoverButton_, "md");
   Style::setVariant(turnoverButton_, "gameControl");
-  turnoverButton_->setFocusPolicy(Qt::NoFocus);
+  turnoverButton_->setFocusPolicy(Qt::StrongFocus);
   turnoverButton_->setMinimumHeight(40);
   mainGridLayout_->addWidget(turnoverButton_, 0, 0, 1, 3);
 
@@ -72,9 +79,10 @@ void GameControls::buildUi() {
   for (auto* button : mainButtons) {
     Style::setSize(button, "md");
     Style::setVariant(button, "gameControl");
-    button->setFocusPolicy(Qt::NoFocus);
+    button->setFocusPolicy(Qt::StrongFocus);
     button->setMinimumHeight(40);
   }
+  setFocusPolicy(Qt::StrongFocus);
 
   // Row 1: 16-yd play, 50-yd play, 75-yd play
   mainGridLayout_->addWidget(hit16ydButton_, 1, 0);
@@ -328,13 +336,13 @@ void GameControls::showFirstLevelFollowUps(const QString& mainEvent) {
     auto* button = new QPushButton(action, followUpContainer_);
     Style::setSize(button, "md");
     Style::setVariant(button, "gameControlFollowUp");
-    button->setFocusPolicy(Qt::NoFocus);
+    button->setFocusPolicy(Qt::StrongFocus);
     button->setMinimumHeight(40);
     
     // Connect click: flash first, then handle
     connect(button, &QPushButton::clicked, this, [this, button]() { flashButtonBorder(button); });
     connect(button, &QPushButton::clicked, this, &GameControls::onFollowUpButtonClicked);
-    
+    button->installEventFilter(this);
     followUpLayout_->addWidget(button);
     followUpButtons_.append(button);
   }
@@ -365,12 +373,12 @@ void GameControls::showSecondLevelFollowUps(const QString& mainEvent, const QStr
     auto* button = new QPushButton(action, followUpContainer_);
     Style::setSize(button, "md");
     Style::setVariant(button, "gameControlFollowUp");
-    button->setFocusPolicy(Qt::NoFocus);
+    button->setFocusPolicy(Qt::StrongFocus);
     button->setMinimumHeight(40);
 
     connect(button, &QPushButton::clicked, this, [this, button]() { flashButtonBorder(button); });
     connect(button, &QPushButton::clicked, this, &GameControls::onFollowUpButtonClicked);
-
+    button->installEventFilter(this);
     followUpLayout_->addWidget(button);
     followUpButtons_.append(button);
   }
@@ -422,4 +430,114 @@ void GameControls::flashButtonBorder(QPushButton* button) {
   button->update();
 
   timer->start(150);
+}
+
+QList<QPushButton*> GameControls::focusableButtonsOrder() const {
+  QList<QPushButton*> list;
+  list << turnoverButton_ << hit16ydButton_ << hit50ydButton_ << hit75ydButton_
+       << enterDButton_ << shotButton_ << goalButton_
+       << pcButton_ << psButton_ << cardButton_;
+  for (auto* btn : followUpButtons_) {
+    if (btn && btn->isVisible()) list << btn;
+  }
+  return list;
+}
+
+void GameControls::focusNextInDirection(Qt::Key key) {
+  QList<QPushButton*> list = focusableButtonsOrder();
+  if (list.isEmpty()) return;
+
+  QWidget* focus = focusWidget();
+  int idx = -1;
+  for (int i = 0; i < list.size(); ++i) {
+    if (list.at(i) == focus) { idx = i; break; }
+  }
+  if (idx < 0) {
+    list.first()->setFocus(Qt::OtherFocusReason);
+    return;
+  }
+
+  const int mainCount = 10;  // turnover + 9 main grid
+  int next = idx;
+
+  if (key == Qt::Key_Right) {
+    next = (idx + 1) % list.size();
+  } else if (key == Qt::Key_Left) {
+    next = (idx - 1 + list.size()) % list.size();
+  } else if (key == Qt::Key_Down) {
+    if (idx == 0) {
+      next = 1;
+    } else if (idx >= 1 && idx <= 9) {
+      int row = (idx - 1) / 3, col = (idx - 1) % 3;
+      if (row < 2) {
+        next = (row + 1) * 3 + col + 1;
+      } else {
+        next = (list.size() > mainCount) ? mainCount : 1;
+      }
+    } else {
+      next = (idx + 1) % list.size();
+    }
+  } else if (key == Qt::Key_Up) {
+    if (idx >= 1 && idx <= 9) {
+      int row = (idx - 1) / 3, col = (idx - 1) % 3;
+      next = (row > 0) ? (row - 1) * 3 + col + 1 : 0;
+    } else if (idx > mainCount) {
+      next = 1;
+    } else {
+      next = (idx - 1 + list.size()) % list.size();
+    }
+  }
+
+  if (next < 0) next = 0;
+  if (next >= list.size()) next = list.size() - 1;
+  if (QPushButton* btn = list.value(next))
+    btn->setFocus(Qt::TabFocusReason);
+}
+
+bool GameControls::eventFilter(QObject* obj, QEvent* event) {
+  if (event->type() == QEvent::KeyPress) {
+    QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+    QWidget* w = qobject_cast<QWidget*>(obj);
+    if (w && (w == this || focusableButtonsOrder().contains(qobject_cast<QPushButton*>(w)))) {
+      if (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter || keyEvent->key() == Qt::Key_Space) {
+        QWidget* focus = focusWidget();
+        QPushButton* btn = qobject_cast<QPushButton*>(focus);
+        if (btn && focusableButtonsOrder().contains(btn)) {
+          flashButtonBorder(btn);
+          btn->click();
+          return true;
+        }
+      }
+      if (keyEvent->key() == Qt::Key_Left || keyEvent->key() == Qt::Key_Right ||
+          keyEvent->key() == Qt::Key_Up || keyEvent->key() == Qt::Key_Down) {
+        focusNextInDirection(static_cast<Qt::Key>(keyEvent->key()));
+        return true;
+      }
+    }
+  }
+  return QWidget::eventFilter(obj, event);
+}
+
+void GameControls::keyPressEvent(QKeyEvent* event) {
+  if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter || event->key() == Qt::Key_Space) {
+    QWidget* focus = focusWidget();
+    QPushButton* btn = qobject_cast<QPushButton*>(focus);
+    if (btn && focusableButtonsOrder().contains(btn)) {
+      flashButtonBorder(btn);
+      btn->click();
+      event->accept();
+      return;
+    }
+  }
+  if (event->key() == Qt::Key_Left || event->key() == Qt::Key_Right ||
+      event->key() == Qt::Key_Up || event->key() == Qt::Key_Down) {
+    QList<QPushButton*> list = focusableButtonsOrder();
+    if (!list.isEmpty() && !list.contains(qobject_cast<QPushButton*>(focusWidget())))
+      list.first()->setFocus(Qt::OtherFocusReason);
+    else
+      focusNextInDirection(static_cast<Qt::Key>(event->key()));
+    event->accept();
+    return;
+  }
+  QWidget::keyPressEvent(event);
 }
