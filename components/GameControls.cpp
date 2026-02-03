@@ -13,6 +13,7 @@
 
 GameControls::GameControls(QWidget* parent) : QWidget(parent) {
   setMinimumWidth(300);
+  possessionTeam_ = "Home";
   buildUi();
   wireSignals();
   buildKeyboardShortcuts();
@@ -37,13 +38,21 @@ void GameControls::buildUi() {
   mainLayout->setContentsMargins(0, 0, 0, 0);
   mainLayout->setSpacing(12);
 
-  // Main grid of 9 buttons (3 rows x 3 columns)
+  // Main grid: row 0 = Turnover (full width), rows 1–3 = 3x3 event buttons
   auto* mainGridWidget = new QWidget(this);
   mainGridLayout_ = new QGridLayout(mainGridWidget);
   mainGridLayout_->setContentsMargins(0, 0, 0, 0);
   mainGridLayout_->setSpacing(4);
 
-  // Create main buttons
+  turnoverButton_ = new QPushButton("Turnover — Possession: Home", mainGridWidget);
+  turnoverButton_->setToolTip("Tab  Toggle possession (Home ↔ Away)");
+  Style::setSize(turnoverButton_, "md");
+  Style::setVariant(turnoverButton_, "gameControl");
+  turnoverButton_->setFocusPolicy(Qt::NoFocus);
+  turnoverButton_->setMinimumHeight(40);
+  mainGridLayout_->addWidget(turnoverButton_, 0, 0, 1, 3);
+
+  // Create main event buttons
   hit16ydButton_ = new QPushButton("16-yd play", mainGridWidget);
   hit50ydButton_ = new QPushButton("50-yd play", mainGridWidget);
   hit75ydButton_ = new QPushButton("75-yd play", mainGridWidget);
@@ -54,7 +63,6 @@ void GameControls::buildUi() {
   psButton_ = new QPushButton("PS", mainGridWidget);
   cardButton_ = new QPushButton("Card", mainGridWidget);
 
-  // Style all main buttons
   QList<QPushButton*> mainButtons = {
     hit16ydButton_, hit50ydButton_, hit75ydButton_,
     enterDButton_, shotButton_, goalButton_,
@@ -68,19 +76,18 @@ void GameControls::buildUi() {
     button->setMinimumHeight(40);
   }
 
-  // Arrange buttons in grid (3 rows x 3 columns)
-  // Row 0: 16-yd play, 50-yd play, 75-yd play
-  mainGridLayout_->addWidget(hit16ydButton_, 0, 0);
-  mainGridLayout_->addWidget(hit50ydButton_, 0, 1);
-  mainGridLayout_->addWidget(hit75ydButton_, 0, 2);
-  // Row 1: Circle Entry, Shot, Goal
-  mainGridLayout_->addWidget(enterDButton_, 1, 0);
-  mainGridLayout_->addWidget(shotButton_, 1, 1);
-  mainGridLayout_->addWidget(goalButton_, 1, 2);
-  // Row 2: PC, PS, Card
-  mainGridLayout_->addWidget(pcButton_, 2, 0);
-  mainGridLayout_->addWidget(psButton_, 2, 1);
-  mainGridLayout_->addWidget(cardButton_, 2, 2);
+  // Row 1: 16-yd play, 50-yd play, 75-yd play
+  mainGridLayout_->addWidget(hit16ydButton_, 1, 0);
+  mainGridLayout_->addWidget(hit50ydButton_, 1, 1);
+  mainGridLayout_->addWidget(hit75ydButton_, 1, 2);
+  // Row 2: Circle Entry, Shot, Goal
+  mainGridLayout_->addWidget(enterDButton_, 2, 0);
+  mainGridLayout_->addWidget(shotButton_, 2, 1);
+  mainGridLayout_->addWidget(goalButton_, 2, 2);
+  // Row 3: PC, PS, Card
+  mainGridLayout_->addWidget(pcButton_, 3, 0);
+  mainGridLayout_->addWidget(psButton_, 3, 1);
+  mainGridLayout_->addWidget(cardButton_, 3, 2);
 
   // Follow-up buttons container (initially hidden)
   followUpContainer_ = new QWidget(this);
@@ -94,6 +101,8 @@ void GameControls::buildUi() {
 }
 
 void GameControls::wireSignals() {
+  connect(turnoverButton_, &QPushButton::clicked, this, &GameControls::onTurnoverClicked);
+
   auto connectMain = [this](QPushButton* btn) {
     connect(btn, &QPushButton::clicked, this, [this, btn]() { flashButtonBorder(btn); });
     connect(btn, &QPushButton::clicked, this, &GameControls::onMainButtonClicked);
@@ -109,6 +118,12 @@ void GameControls::wireSignals() {
   connectMain(cardButton_);
 }
 
+void GameControls::onTurnoverClicked() {
+  possessionTeam_ = (possessionTeam_ == "Home") ? "Away" : "Home";
+  turnoverButton_->setText(QString("Turnover — Possession: %1").arg(possessionTeam_));
+  emit possessionChanged(possessionTeam_);
+}
+
 void GameControls::buildKeyboardShortcuts() {
   Q_ASSERT(QApplication::instance() != nullptr);
 
@@ -120,6 +135,12 @@ void GameControls::buildKeyboardShortcuts() {
     this->addAction(act);
     return act;
   };
+
+  // Tab: turnover (toggle possession Home/Away)
+  makeAction(Qt::Key_Tab, [this]() {
+    if (turnoverButton_ && turnoverButton_->isVisible() && turnoverButton_->isEnabled())
+      turnoverButton_->click();
+  });
 
   // Main grid 3x3 left-hand QWERTY: Q W E | A S D | Z X C
   hit16ydAction_ = makeAction(Qt::Key_Q, [this]() {

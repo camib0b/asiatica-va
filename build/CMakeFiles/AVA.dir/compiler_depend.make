@@ -964,6 +964,7 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
   /opt/homebrew/lib/cmake/Qt6/QtPublicToolHelpers.cmake \
   /opt/homebrew/lib/cmake/Qt6/QtPublicWalkLibsHelpers.cmake \
   /opt/homebrew/lib/cmake/Qt6/QtPublicWindowsHelpers.cmake \
+  /opt/homebrew/lib/cmake/Qt6/macos/Info.plist.app.in \
   /opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentAdditionalTargetInfo.cmake \
   /opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentConfig.cmake \
   /opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentConfigVersion.cmake \
@@ -14774,8 +14775,6 @@ AVA_autogen/UYX5XTB5RZ/moc_StatsWindow.cpp:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/in_out_result.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/generate.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/stable_partition.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/find_if_not.h:
@@ -15511,6 +15510,12 @@ AVA_autogen/mocs_compilation.cpp:
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QMinimalIntegrationPluginAdditionalTargetInfo.cmake:
 
 /opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentConfig.cmake:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__algorithm/generate.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_rsize_t.h:
+
+/opt/homebrew/lib/cmake/Qt6/macos/Info.plist.app.in:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__fwd/string_view.h:
 
@@ -16259,8 +16264,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /opt/homebrew/lib/cmake/Qt6Network/Qt6QGlibNetworkInformationPluginTargets.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_ssize_t.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_rsize_t.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_off_t.h:
 

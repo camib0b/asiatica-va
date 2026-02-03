@@ -964,6 +964,7 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
   /opt/homebrew/lib/cmake/Qt6/QtPublicToolHelpers.cmake \
   /opt/homebrew/lib/cmake/Qt6/QtPublicWalkLibsHelpers.cmake \
   /opt/homebrew/lib/cmake/Qt6/QtPublicWindowsHelpers.cmake \
+  /opt/homebrew/lib/cmake/Qt6/macos/Info.plist.app.in \
   /opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentAdditionalTargetInfo.cmake \
   /opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentConfig.cmake \
   /opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentConfigVersion.cmake \
@@ -1563,6 +1564,8 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QMinimalIntegrationPluginAdditionalTargetInfo.cmake:
 
 /opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentConfig.cmake:
+
+/opt/homebrew/lib/cmake/Qt6/macos/Info.plist.app.in:
 
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QSvgPluginConfig.cmake:
 

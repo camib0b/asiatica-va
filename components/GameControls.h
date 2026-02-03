@@ -18,11 +18,15 @@ class GameControls final : public QWidget {
 public:
   explicit GameControls(QWidget* parent = nullptr);
 
+  QString possessionTeam() const { return possessionTeam_; }
+
 signals:
   void mainEventPressed(const QString& mainEvent);
   void gameEventMarked(const QString& mainEvent, const QString& followUpEvent = QString());
+  void possessionChanged(const QString& team);  // "Home" or "Away"
 
 private slots:
+  void onTurnoverClicked();
   void onMainButtonClicked();
   void onFollowUpButtonClicked();
 
@@ -48,6 +52,9 @@ private:
   QGridLayout* mainGridLayout_ = nullptr;
   QHBoxLayout* followUpLayout_ = nullptr;
   QWidget* followUpContainer_ = nullptr;
+
+  QPushButton* turnoverButton_ = nullptr;
+  QString possessionTeam_;  // "Home" or "Away"
   
   QPushButton* hit16ydButton_ = nullptr;
   QPushButton* hit50ydButton_ = nullptr;

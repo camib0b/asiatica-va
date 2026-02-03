@@ -961,6 +961,7 @@ AVA_autogen/timestamp: \
 	/opt/homebrew/lib/cmake/Qt6/QtPublicToolHelpers.cmake \
 	/opt/homebrew/lib/cmake/Qt6/QtPublicWalkLibsHelpers.cmake \
 	/opt/homebrew/lib/cmake/Qt6/QtPublicWindowsHelpers.cmake \
+	/opt/homebrew/lib/cmake/Qt6/macos/Info.plist.app.in \
 	/opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentAdditionalTargetInfo.cmake \
 	/opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentConfig.cmake \
 	/opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentConfigVersion.cmake \

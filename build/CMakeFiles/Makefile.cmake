@@ -8,6 +8,7 @@ set(CMAKE_DEPENDS_GENERATOR "Unix Makefiles")
 set(CMAKE_MAKEFILE_DEPENDS
   "CMakeCache.txt"
   "/Users/cam/asiatica-va/CMakeLists.txt"
+  ".qt/info_plist/AVA/Info.plist"
   "CMakeFiles/4.2.1/CMakeCXXCompiler.cmake"
   "CMakeFiles/4.2.1/CMakeSystem.cmake"
   "/opt/homebrew/lib/cmake/Qt6/FindWrapAtomic.cmake"
@@ -52,6 +53,7 @@ set(CMAKE_MAKEFILE_DEPENDS
   "/opt/homebrew/lib/cmake/Qt6/QtPublicToolHelpers.cmake"
   "/opt/homebrew/lib/cmake/Qt6/QtPublicWalkLibsHelpers.cmake"
   "/opt/homebrew/lib/cmake/Qt6/QtPublicWindowsHelpers.cmake"
+  "/opt/homebrew/lib/cmake/Qt6/macos/Info.plist.app.in"
   "/opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentAdditionalTargetInfo.cmake"
   "/opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentConfig.cmake"
   "/opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentConfigVersion.cmake"
@@ -343,9 +345,13 @@ set(CMAKE_MAKEFILE_OUTPUTS
 # Byproducts of CMake generate step:
 set(CMAKE_MAKEFILE_PRODUCTS
   ".qt/rcc/ava_resources.qrc"
+  ".qt/info_plist/AVA/Info.plist"
   "CMakeFiles/AVA_autogen.dir/AutogenInfo.json"
   ".qt/QtDeploySupport.cmake"
   ".qt/QtDeployTargets.cmake"
+  "AVA.app/Contents/MacOS"
+  "AVA.app/Contents/Info.plist"
+  "AVA.app/Contents/Info.plist"
   "CMakeFiles/CMakeDirectoryInformation.cmake"
   )
 

@@ -72,6 +72,8 @@ private:
   void updateTagPlayheadHighlight(qint64 positionMs);
   void syncNoteToSelectedTag();  // immediate save (used on selection change)
   void loadNoteForSelectedTag();
+  void flashNewTagRow();
+  void clearNewTagFlash();
   bool isMainEventAllowed(const QString& mainEvent) const;
   bool isTagAllowed(const QString& mainEvent, const QString& followUpEvent) const;
   bool isTagAllowedByQuickFilters(const TagSession::GameTag& tag) const;
@@ -127,6 +129,9 @@ private:
   QToolButton* situationAttacking_ = nullptr;
   QToolButton* situationDefending_ = nullptr;
   QListWidget* tagsList_ = nullptr;
+
+  QTimer* newTagFlashTimer_ = nullptr;
+  int newTagFlashRow_ = -1;
 
   TagSession* tagSession_ = nullptr;
   QHash<QString, QAction*> filterActionByMainEvent_;

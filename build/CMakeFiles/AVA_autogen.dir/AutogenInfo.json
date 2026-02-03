@@ -431,7 +431,8 @@
 		"/opt/homebrew/lib/cmake/Qt6MultimediaWidgets/Qt6MultimediaWidgetsAdditionalTargetInfo.cmake",
 		"/opt/homebrew/lib/cmake/Qt6MultimediaWidgets/Qt6MultimediaWidgetsVersionlessAliasTargets.cmake",
 		"/opt/homebrew/share/cmake/Modules/GNUInstallDirs.cmake",
-		"/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigureFileTemplate.in"
+		"/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigureFileTemplate.in",
+		"/opt/homebrew/lib/cmake/Qt6/macos/Info.plist.app.in"
 	],
 	"CMAKE_SOURCE_DIR" : "/Users/cam/asiatica-va",
 	"CROSS_CONFIG" : false,

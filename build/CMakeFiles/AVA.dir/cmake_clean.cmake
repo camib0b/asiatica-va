@@ -3,7 +3,7 @@ file(REMOVE_RECURSE
   "AVA_autogen"
   "CMakeFiles/AVA_autogen.dir/AutogenUsed.txt"
   "CMakeFiles/AVA_autogen.dir/ParseCache.txt"
-  "AVA"
+  "AVA.app/Contents/MacOS/AVA"
   "AVA.pdb"
   "AVA_autogen/mocs_compilation.cpp"
   "AVA_autogen/timestamp"

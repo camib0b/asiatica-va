@@ -24,6 +24,17 @@ qt_add_executable(AVA
   components/VideoPlayer.cpp
 )
 
+# macOS app bundle and Dock icon
+if(APPLE)
+  set_target_properties(AVA PROPERTIES MACOSX_BUNDLE TRUE)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/AppIcon.icns")
+    set_target_properties(AVA PROPERTIES MACOSX_BUNDLE_ICON_FILE AppIcon.icns)
+    set(app_icon_src "${CMAKE_CURRENT_SOURCE_DIR}/AppIcon.icns")
+    set_source_files_properties(${app_icon_src} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    target_sources(AVA PRIVATE ${app_icon_src})
+  endif()
+endif()
+
 qt_add_resources(AVA ava_resources
   PREFIX "/"
   FILES

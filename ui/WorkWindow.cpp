@@ -89,6 +89,7 @@ void WorkWindow::setTagSession(TagSession* session) {
     connect(tagSession_, &TagSession::tagAdded, this, [this](const TagSession::GameTag&) {
         rebuildFilterMenu();
         rebuildTagsList();
+        flashNewTagRow();
     });
     connect(tagSession_, &TagSession::tagNoteChanged, this, [this](int) { loadNoteForSelectedTag(); });
 }
@@ -451,6 +452,14 @@ void WorkWindow::wireSignals() {
         }
     });
 
+    connect(gameControls_, &GameControls::possessionChanged, this, [this](const QString& team) {
+        contextTeam_ = team;
+        quickFilterTeam_ = team;
+        if (teamHome_) teamHome_->setChecked(team == "Home");
+        if (teamAway_) teamAway_->setChecked(team == "Away");
+        rebuildTagsList();
+    });
+
     connect(tagsList_, &QListWidget::itemActivated, this, &WorkWindow::onTagItemActivated);
     connect(tagsList_, &QListWidget::currentItemChanged, this, &WorkWindow::onTagSelectionChanged);
 
@@ -526,7 +535,13 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
         videoPlayer_->setControlsVisible(true);
     }
     
-    if (gameControls_) gameControls_->show();
+    if (gameControls_) {
+        gameControls_->show();
+        contextTeam_ = gameControls_->possessionTeam();
+        quickFilterTeam_ = contextTeam_;
+        if (teamHome_) teamHome_->setChecked(contextTeam_ == "Home");
+        if (teamAway_) teamAway_->setChecked(contextTeam_ == "Away");
+    }
     if (modeTaggingBtn_) modeTaggingBtn_->show();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->show();
 
@@ -711,7 +726,33 @@ void WorkWindow::onTagItemActivated(QListWidgetItem* item) {
 namespace {
 constexpr qint64 kPlayheadNearToleranceMs = 2000;
 const QColor kTagNearPlayheadColor(147, 197, 253); // light blue, lighter than selection
+const QColor kNewTagFlashColor(147, 197, 253);     // same light-blue for new-tag flash
 } // namespace
+
+void WorkWindow::flashNewTagRow() {
+    if (!tagsList_ || tagsList_->count() == 0) return;
+    if (newTagFlashTimer_) {
+        newTagFlashTimer_->stop();
+    } else {
+        newTagFlashTimer_ = new QTimer(this);
+        newTagFlashTimer_->setSingleShot(true);
+        connect(newTagFlashTimer_, &QTimer::timeout, this, &WorkWindow::clearNewTagFlash);
+    }
+    newTagFlashRow_ = tagsList_->count() - 1;
+    if (QListWidgetItem* item = tagsList_->item(newTagFlashRow_))
+        item->setBackground(QBrush(kNewTagFlashColor));
+    newTagFlashTimer_->start(500);
+}
+
+void WorkWindow::clearNewTagFlash() {
+    if (newTagFlashRow_ >= 0 && tagsList_) {
+        if (QListWidgetItem* item = tagsList_->item(newTagFlashRow_))
+            item->setBackground(QBrush());
+    }
+    newTagFlashRow_ = -1;
+    if (videoPlayer_)
+        updateTagPlayheadHighlight(videoPlayer_->currentPositionMs());
+}
 
 void WorkWindow::onPlayheadPositionChanged(qint64 positionMs) {
     updateTagPlayheadHighlight(positionMs);

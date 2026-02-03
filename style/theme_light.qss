@@ -215,9 +215,11 @@ QPushButton[variant="gameControlFollowUp"]:focus {
   border: 2px solid #E5E7EB;
   padding: 8px 12px;
 }
+/* Follow-up flash: blue border, same 2px thickness (no thicker), same padding to avoid layout jump */
 QPushButton[variant="gameControlFollowUp"][flash="true"] {
   border: 2px solid #2563EB;
   background: rgba(37, 99, 235, 0.08);
+  padding: 8px 12px;
 }
 QPushButton[variant="gameControlFollowUp"][flash="true"]:focus {
   border: 2px solid #2563EB;
