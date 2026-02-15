@@ -1,0 +1,99 @@
+/* Modern AVA Styles – 2026 clean flat design */
+* {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+/* Base */
+QWidget[role="main-window"],
+QMainWindow > QWidget {
+    background-color: #f8fafc;
+}
+
+/* Title */
+QLabel[role="label-title"] {
+    font-size: 28px;
+    font-weight: 700;
+    color: #0f172a;
+    padding: 16px 0 8px;
+}
+
+/* Description */
+QLabel[role="label-description"] {
+    font-size: 15px;
+    color: #64748b;
+    padding-bottom: 16px;
+}
+
+/* Primary Button – Import */
+QPushButton[role="import-video"] {
+    background: #0ea5e9;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    min-width: 180px;
+}
+QPushButton[role="import-video"]:hover { background: #0284c8; }
+QPushButton[role="import-video"]:pressed { background: #0369a1; }
+
+/* Selected state */
+QPushButton[role="import-video-selected"] {
+    background: #0f766e;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+/* Metadata inputs */
+QLineEdit[role="metadata-input"], QDateEdit[role="metadata-input"] {
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 14px;
+    min-height: 40px;
+}
+QLineEdit[role="metadata-input"]:focus,
+QDateEdit[role="metadata-input"]:focus {
+    border-color: #0ea5e9;
+    background: #f0f9ff;
+}
+
+/* Confirm button */
+QPushButton[role="confirm"] {
+    background: #10b981;
+    color: white;
+    font-weight: 700;
+    padding: 12px 32px;
+    border-radius: 8px;
+}
+QPushButton[role="confirm"]:hover { background: #059669; }
+QPushButton[role="confirm"]:pressed { background: #047857; }
+QPushButton[role="confirm"]:disabled {
+    background: #94a3b8;
+    color: #e2e8f0;
+}
+
+/* Game Metadata group box */
+QGroupBox {
+    font-size: 15px;
+    font-weight: 600;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-top: 16px;
+    padding: 20px 16px 16px;
+    background: white;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 12px;
+    padding: 4px 12px;
+    background: #f8fafc;
+    border-radius: 6px;
+    color: #334155;
+}
