@@ -1,13 +1,18 @@
+from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PySide6.QtMultimediaWidgets import QVideoWidget
+
 import sys
 from pathlib import Path
 from confetti import ConfettiWidget
 from PySide6.QtWidgets import (
     QApplication, QWidget, QLabel, QVBoxLayout,
     QPushButton, QLineEdit, QHBoxLayout, QDateEdit, QFileDialog, QSizePolicy,
-    QGroupBox, QFormLayout, QMainWindow, QStatusBar, QMessageBox
+    QGroupBox, QFormLayout, QMainWindow, QStatusBar, QMessageBox,
+    QSlider, QSplitter, QListWidget, QComboBox
 )
-from PySide6.QtCore import QDate, Qt
-from PySide6.QtGui import QDragEnterEvent, QDropEvent
+
+from PySide6.QtCore import QDate, Qt, QUrl
+from PySide6.QtGui import QDragEnterEvent, QDropEvent, QKeySequence, QAction
 
 from styles import (
     load_stylesheet,
@@ -75,15 +80,28 @@ class MainWindow(QMainWindow):
         self.setStatusBar(QStatusBar())
         self.statusBar().showMessage("Ready – choose a video to start")
 
-        # Menu bar:
+        # === MENU + SHORTCUTS ===
         menubar = self.menuBar()
+
         file_menu = menubar.addMenu("&File")
-        file_menu.addAction("Import Video").triggered.connect(self.import_video)
+        open_act = QAction("&Open Video", self)
+        open_act.setShortcut(QKeySequence("Ctrl+O"))
+        open_act.triggered.connect(self.import_video)
+        file_menu.addAction(open_act)
+
         file_menu.addSeparator()
-        file_menu.addAction("Exit").triggered.connect(self.close)
+        quit_act = QAction("E&xit", self)
+        quit_act.setShortcut(QKeySequence("Ctrl+Q"))
+        quit_act.triggered.connect(self.close)
+        file_menu.addAction(quit_act)
 
         help_menu = menubar.addMenu("&Help")
-        help_menu.addAction("About AVA").triggered.connect(self.show_about)
+        about_act = QAction("&About AVA", self)
+        about_act.triggered.connect(self.show_about)
+        help_menu.addAction(about_act)
+
+        # Store references for later tab order
+        self.button_confirm_metadata = None   # will be set when created
 
         # Confetti:
         self.confetti = ConfettiWidget(self)
@@ -134,10 +152,6 @@ class MainWindow(QMainWindow):
 
         self._add_metadata_section()
 
-
-
-
-
     def import_video(self):
         if self.metadata_added:
             self.label_description.setText("Analysis already started.")
@@ -152,6 +166,7 @@ class MainWindow(QMainWindow):
     def _add_metadata_section(self):
         if self.metadata_added:
             return
+        self.metadata_added = True
 
         group = QGroupBox("Game Metadata")
         form = QFormLayout(group)
@@ -162,17 +177,20 @@ class MainWindow(QMainWindow):
         self.input_home_team.setProperty("role", ROLE_METADATA_INPUT)
         self.input_home_team.setPlaceholderText("Home Team")
         self.input_home_team.textChanged.connect(self._validate_confirm)
+        self.input_home_team.returnPressed.connect(self._focus_next_field) # ← new
 
         self.input_away_team = QLineEdit()
         self.input_away_team.setProperty("role", ROLE_METADATA_INPUT)
         self.input_away_team.setPlaceholderText("Away Team")
         self.input_away_team.textChanged.connect(self._validate_confirm)
+        self.input_away_team.returnPressed.connect(self._focus_next_field)
 
         self.input_game_date = QDateEdit()
         self.input_game_date.setProperty("role", ROLE_METADATA_INPUT)
         self.input_game_date.setDate(QDate.currentDate())
         self.input_game_date.setCalendarPopup(True)
         self.input_game_date.dateChanged.connect(self.update_game_date)
+        self.input_game_date.returnPressed.connect(self._try_confirm) # ← new
 
         self.button_confirm_metadata = QPushButton("Begin Analysis")
         self.button_confirm_metadata.setProperty("role", "confirm")
@@ -185,7 +203,15 @@ class MainWindow(QMainWindow):
         form.addRow("", self.button_confirm_metadata)
 
         self.layout.addWidget(group)
-        self.metadata_added = True
+
+        # === TAB ORDER (logical flow) ===
+        self.setTabOrder(self.button_import_video, self.input_home_team)
+        self.setTabOrder(self.input_home_team, self.input_away_team)
+        self.setTabOrder(self.input_away_team, self.input_game_date)
+        self.setTabOrder(self.input_game_date, self.button_confirm_metadata)
+
+        # Auto-focus first field after video is loaded
+        self.input_home_team.setFocus()
 
     def _validate_confirm(self):
         home = self.input_home_team.text().strip()
@@ -211,6 +237,18 @@ class MainWindow(QMainWindow):
     def update_game_date(self, date):
         self.game_date = date.toString("dd-MM-yyyy")
 
+    def _focus_next_field(self):
+        """Move focus when user presses Enter in a line edit."""
+        widget = self.focusWidget()
+        if widget == self.input_home_team:
+            self.input_away_team.setFocus()
+        elif widget == self.input_away_team:
+            self.input_game_date.setFocus()
+
+    def _try_confirm(self):
+        """If the confirm button is enabled, trigger it when user presses Enter in date field."""
+        if self.button_confirm_metadata.isEnabled():
+            self.begin_analysis()
 
 app = QApplication(sys.argv)
 app.setStyleSheet(load_stylesheet())
