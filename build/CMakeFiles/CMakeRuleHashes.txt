@@ -1,4 +1,0 @@
-# Hashes of file build rules.
-e39d85626207aab2a2bd69952ba7446a .qt/rcc/qrc_ava_resources.cpp
-f8a31a71ff202f7b458911bd012b42f6 AVA_autogen/timestamp
-9fc368ab6072b409682a32a0d1f42cc5 CMakeFiles/AVA_autogen

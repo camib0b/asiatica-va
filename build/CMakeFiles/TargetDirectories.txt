@@ -1,5 +1,0 @@
-/Users/cam/asiatica-va/build/CMakeFiles/AVA.dir
-/Users/cam/asiatica-va/build/CMakeFiles/edit_cache.dir
-/Users/cam/asiatica-va/build/CMakeFiles/rebuild_cache.dir
-/Users/cam/asiatica-va/build/CMakeFiles/AVA_autogen_timestamp_deps.dir
-/Users/cam/asiatica-va/build/CMakeFiles/AVA_autogen.dir
