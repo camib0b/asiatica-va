@@ -51,3 +51,25 @@ ui_*.h
 *.pro.user*
 *.qmlproject.user*
 .qtc_clangd/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+.Python
+venv/
+.venv/
+env/
+*.egg-info/
+*.egg
+dist/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# --- Python Qt (generated from .qrc) ---
+*_rc.py
+resources_rc.py
