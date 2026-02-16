@@ -34,6 +34,17 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(800, 500)   # prevents ugly squashing
         self.setProperty("role", ROLE_MAIN_WINDOW)
 
+        self.player = None
+        self.audio_output = None
+        self.video_widget = None
+        self.slider = None
+        self.time_label = None
+        self.play_btn = None
+        self.tag_list = None
+        self.tag_combo = None
+        self.tags = [] # list of (milliseconds, event_name)
+        self.metadata_group = None # will hold the QGroupBox
+
         # Central widget:
         central = QWidget()
         self.setCentralWidget(central)
@@ -168,8 +179,8 @@ class MainWindow(QMainWindow):
             return
         self.metadata_added = True
 
-        group = QGroupBox("Game Metadata")
-        form = QFormLayout(group)
+        self.metadata_group = QGroupBox("Game Metadata")
+        form = QFormLayout(self.metadata_group)
         form.setLabelAlignment(Qt.AlignRight)
         form.setSpacing(12)
 
@@ -202,16 +213,29 @@ class MainWindow(QMainWindow):
         form.addRow("Game Date:", self.input_game_date)
         form.addRow("", self.button_confirm_metadata)
 
-        self.layout.addWidget(group)
+        self.layout.addWidget(self.metadata_group)
 
         # === TAB ORDER (logical flow) ===
         self.setTabOrder(self.button_import_video, self.input_home_team)
         self.setTabOrder(self.input_home_team, self.input_away_team)
         self.setTabOrder(self.input_away_team, self.input_game_date)
         self.setTabOrder(self.input_game_date, self.button_confirm_metadata)
+        self.setTabOrder(self.button_confirm_metadata, self.button_import_video)
+        self.button_confirm_metadata.setFocusPolicy(Qt.TabFocus)
 
         # Auto-focus first field after video is loaded
         self.input_home_team.setFocus()
+
+    def _refresh_metadata_label(self):
+        """Update the top description label with the final metadata."""
+        if not hasattr(self, 'input_home_team'):
+            return
+
+        home = self.input_home_team.text().strip() or "Home"
+        away = self.input_away_team.text().strip() or "Away"
+        date_str = self.input_game_date.date().toString("dd-MM-yyyy")
+
+        self.label_description.setText(f"{home} vs {away} • {date_str}")
 
     def _validate_confirm(self):
         home = self.input_home_team.text().strip()
@@ -226,9 +250,86 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Enter both team names")
 
     def begin_analysis(self):
-        self.statusBar().showMessage("Starting analysis…", 3000)
-        self.confetti.setGeometry(0, 0, self.width(), self.height())
-        self.confetti.start()
+        """Called when user clicks 'Begin Analysis'"""
+        self._refresh_metadata_label()          # updates the top description once
+        if hasattr(self, 'metadata_group') and self.metadata_group:
+            self.metadata_group.hide()
+
+        self._setup_analysis_ui()               # ← builds the video + tags UI
+
+        self.statusBar().showMessage(
+            "Video ready • Space = play/pause • T = add tag • ← → = ±5 s"
+        )
+
+    def _setup_analysis_ui(self):
+        """Build the video + tags interface after metadata is confirmed."""
+        # Video player
+        self.video_widget = QVideoWidget()
+        self.player = QMediaPlayer(self)
+        self.audio_output = QAudioOutput(self)
+        self.player.setAudioOutput(self.audio_output)
+        self.player.setVideoOutput(self.video_widget)
+
+        # Controls
+        controls = QHBoxLayout()
+        self.play_btn = QPushButton("Play")
+        self.play_btn.clicked.connect(self.toggle_play)
+        controls.addWidget(self.play_btn)
+
+        self.slider = QSlider(Qt.Orientation.Horizontal)
+        self.slider.sliderMoved.connect(self.seek)
+        controls.addWidget(self.slider)
+
+        self.time_label = QLabel("00:00 / 00:00")
+        controls.addWidget(self.time_label)
+
+        video_layout = QVBoxLayout()
+        video_layout.addWidget(self.video_widget)
+        video_layout.addLayout(controls)
+
+        video_container = QWidget()
+        video_container.setLayout(video_layout)
+
+        # Tags panel
+        tag_panel = QWidget()
+        tag_layout = QVBoxLayout(tag_panel)
+
+        label = QLabel("Event Tags")
+        label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        tag_layout.addWidget(label)
+
+        self.tag_combo = QComboBox()
+        self.tag_combo.addItems([
+            "Goal", "Penalty Corner", "Field Goal", "Save",
+            "Turnover", "Free Hit", "Green Card", "Yellow Card"
+        ])
+        tag_layout.addWidget(self.tag_combo)
+
+        add_btn = QPushButton("Add Tag (T)")
+        add_btn.clicked.connect(self.add_current_tag)
+        tag_layout.addWidget(add_btn)
+
+        self.tag_list = QListWidget()
+        self.tag_list.itemClicked.connect(self.seek_to_tag)
+        tag_layout.addWidget(self.tag_list)
+
+        # Splitter: tags | video
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.addWidget(tag_panel)
+        splitter.addWidget(video_container)
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 4)
+
+        self.layout.addWidget(splitter)
+
+        # Connect player signals
+        self.player.durationChanged.connect(self.update_duration)
+        self.player.positionChanged.connect(self.update_position)
+        self.player.playbackStateChanged.connect(self.update_play_button)
+
+        # Load and start video
+        self.player.setSource(QUrl.fromLocalFile(self.video_path))
+        self.player.play()
 
     def show_about(self):
         QMessageBox.about(self, "About AVA",
@@ -249,6 +350,75 @@ class MainWindow(QMainWindow):
         """If the confirm button is enabled, trigger it when user presses Enter in date field."""
         if self.button_confirm_metadata.isEnabled():
             self.begin_analysis()
+
+    def format_time(self, ms: int) -> str:
+        if ms < 0:
+            return "00:00"
+        seconds = ms // 1000
+        minutes = seconds // 60
+        seconds = seconds % 60
+        return f"{minutes:02d}:{seconds:02d}"
+
+    def toggle_play(self):
+        if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+            self.player.pause()
+        else:
+            self.player.play()
+
+    def update_play_button(self, state):
+        self.play_btn.setText("Pause" if state == QMediaPlayer.PlaybackState.PlayingState else "Play")
+
+    def update_duration(self, duration):
+        self.slider.setRange(0, duration)
+
+    def update_position(self, position):
+        self.slider.blockSignals(True)
+        self.slider.setValue(position)
+        self.slider.blockSignals(False)
+        self.time_label.setText(
+            f"{self.format_time(position)} / {self.format_time(self.player.duration())}"
+        )
+
+    def seek(self, position):
+        if self.player:
+            self.player.setPosition(position)
+
+    def add_current_tag(self):
+        if not self.player or self.player.duration() == 0:
+            return
+        ms = self.player.position()
+        event = self.tag_combo.currentText()
+        self.tags.append((ms, event))
+
+        item_text = f"{self.format_time(ms)} – {event}"
+        self.tag_list.addItem(item_text)
+
+        # Optional: auto-scroll to bottom
+        self.tag_list.scrollToBottom()
+
+    def seek_to_tag(self, item):
+        row = self.tag_list.row(item)
+        ms, _ = self.tags[row]
+        if self.player:
+            self.player.setPosition(ms)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Space:
+            self.toggle_play()
+            event.accept()
+        elif event.key() == Qt.Key_T:
+            self.add_current_tag()
+            event.accept()
+        elif event.key() == Qt.Key_Left:
+            if self.player:
+                self.player.setPosition(max(0, self.player.position() - 5000))
+            event.accept()
+        elif event.key() == Qt.Key_Right:
+            if self.player:
+                self.player.setPosition(min(self.player.duration(), self.player.position() + 5000))
+            event.accept()
+        else:
+            super().keyPressEvent(event)
 
 app = QApplication(sys.argv)
 app.setStyleSheet(load_stylesheet())

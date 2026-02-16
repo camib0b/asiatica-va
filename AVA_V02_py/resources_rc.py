@@ -6,146 +6,147 @@
 from PySide6 import QtCore
 
 qt_resource_data = b"\
-\x00\x00\x08\xa0\
+\x00\x00\x08\xa9\
 /\
 * Modern AVA Sty\
 les \xe2\x80\x93 2026 cle\
 an flat design *\
-/\x0a* {\x0a    font-f\
-amily: \x22Segoe UI\
-\x22, system-ui, -a\
-pple-system, san\
-s-serif;\x0a}\x0a\x0a/* B\
-ase */\x0aQWidget[r\
-ole=\x22main-window\
-\x22],\x0aQMainWindow \
-> QWidget {\x0a    \
-background-color\
-: #f8fafc;\x0a}\x0a\x0a/*\
- Title */\x0aQLabel\
-[role=\x22label-tit\
-le\x22] {\x0a    font-\
-size: 28px;\x0a    \
-font-weight: 700\
-;\x0a    color: #0f\
-172a;\x0a    paddin\
-g: 16px 0 8px;\x0a}\
-\x0a\x0a/* Description\
- */\x0aQLabel[role=\
-\x22label-descripti\
-on\x22] {\x0a    font-\
-size: 15px;\x0a    \
-color: #64748b;\x0a\
-    padding-bott\
-om: 16px;\x0a}\x0a\x0a/* \
-Primary Button \xe2\
-\x80\x93 Import */\x0aQPu\
-shButton[role=\x22i\
-mport-video\x22] {\x0a\
-    background: \
-#0ea5e9;\x0a    col\
-or: white;\x0a    b\
-order: none;\x0a   \
- padding: 12px 2\
-4px;\x0a    border-\
-radius: 8px;\x0a   \
- font-weight: 60\
-0;\x0a    min-width\
-: 180px;\x0a}\x0aQPush\
-Button[role=\x22imp\
-ort-video\x22]:hove\
-r { background: \
-#0284c8; }\x0aQPush\
-Button[role=\x22imp\
-ort-video\x22]:pres\
-sed { background\
-: #0369a1; }\x0a\x0a/*\
- Selected state \
-*/\x0aQPushButton[r\
-ole=\x22import-vide\
-o-selected\x22] {\x0a \
-   background: #\
-0f766e;\x0a    colo\
-r: white;\x0a    bo\
-rder: none;\x0a    \
-padding: 12px 24\
-px;\x0a    border-r\
-adius: 8px;\x0a    \
-font-weight: 600\
-;\x0a}\x0a\x0a/* Metadata\
- inputs */\x0aQLine\
-Edit[role=\x22metad\
-ata-input\x22], QDa\
-teEdit[role=\x22met\
-adata-input\x22] {\x0a\
-    background: \
-white;\x0a    borde\
-r: 1px solid #cb\
-d5e1;\x0a    border\
--radius: 6px;\x0a  \
-  padding: 10px \
-12px;\x0a    font-s\
-ize: 14px;\x0a    m\
-in-height: 40px;\
-\x0a}\x0aQLineEdit[rol\
-e=\x22metadata-inpu\
-t\x22]:focus,\x0aQDate\
-Edit[role=\x22metad\
-ata-input\x22]:focu\
-s {\x0a    border-c\
-olor: #0ea5e9;\x0a \
-   background: #\
-f0f9ff;\x0a}\x0a\x0a/* Co\
-nfirm button */\x0a\
-QPushButton[role\
-=\x22confirm\x22] {\x0a  \
-  background: #1\
-0b981;\x0a    color\
-: white;\x0a    fon\
-t-weight: 700;\x0a \
-   padding: 12px\
- 32px;\x0a    borde\
-r-radius: 8px;\x0a}\
-\x0aQPushButton[rol\
-e=\x22confirm\x22]:hov\
-er { background:\
- #059669; }\x0aQPus\
-hButton[role=\x22co\
-nfirm\x22]:pressed \
-{ background: #0\
-47857; }\x0aQPushBu\
+/\x0a\x0a* {\x0a    font-\
+family: system-u\
+i, -apple-system\
+, \x22Segoe UI\x22, Ro\
+boto, sans-serif\
+;\x0a}\x0a\x0a/* Base */\x0a\
+QWidget[role=\x22ma\
+in-window\x22],\x0aQMa\
+inWindow > QWidg\
+et {\x0a    backgro\
+und-color: #f8fa\
+fc;\x0a}\x0a\x0a/* Title \
+*/\x0aQLabel[role=\x22\
+label-title\x22] {\x0a\
+    font-size: 2\
+8px;\x0a    font-we\
+ight: 700;\x0a    c\
+olor: #0f172a;\x0a \
+   padding: 16px\
+ 0 8px;\x0a}\x0a\x0a/* De\
+scription */\x0aQLa\
+bel[role=\x22label-\
+description\x22] {\x0a\
+    font-size: 1\
+5px;\x0a    color: \
+#64748b;\x0a    pad\
+ding-bottom: 16p\
+x;\x0a}\x0a\x0a/* Primary\
+ Button \xe2\x80\x93 Impo\
+rt */\x0aQPushButto\
+n[role=\x22import-v\
+ideo\x22] {\x0a    bac\
+kground: #0ea5e9\
+;\x0a    color: whi\
+te;\x0a    border: \
+none;\x0a    paddin\
+g: 12px 24px;\x0a  \
+  border-radius:\
+ 8px;\x0a    font-w\
+eight: 600;\x0a    \
+min-width: 180px\
+;\x0a}\x0aQPushButton[\
+role=\x22import-vid\
+eo\x22]:hover { bac\
+kground: #0284c8\
+; }\x0aQPushButton[\
+role=\x22import-vid\
+eo\x22]:pressed { b\
+ackground: #0369\
+a1; }\x0a\x0a/* Select\
+ed state */\x0aQPus\
+hButton[role=\x22im\
+port-video-selec\
+ted\x22] {\x0a    back\
+ground: #0f766e;\
+\x0a    color: whit\
+e;\x0a    border: n\
+one;\x0a    padding\
+: 12px 24px;\x0a   \
+ border-radius: \
+8px;\x0a    font-we\
+ight: 600;\x0a}\x0a\x0a/*\
+ Metadata inputs\
+ */\x0aQLineEdit[ro\
+le=\x22metadata-inp\
+ut\x22], QDateEdit[\
+role=\x22metadata-i\
+nput\x22] {\x0a    bac\
+kground: white;\x0a\
+    border: 1px \
+solid #cbd5e1;\x0a \
+   border-radius\
+: 6px;\x0a    paddi\
+ng: 10px 12px;\x0a \
+   font-size: 14\
+px;\x0a    min-heig\
+ht: 40px;\x0a}\x0aQLin\
+eEdit[role=\x22meta\
+data-input\x22]:foc\
+us,\x0aQDateEdit[ro\
+le=\x22metadata-inp\
+ut\x22]:focus {\x0a   \
+ border-color: #\
+0ea5e9;\x0a    back\
+ground: #f0f9ff;\
+\x0a}\x0a\x0a/* Confirm b\
+utton */\x0aQPushBu\
 tton[role=\x22confi\
-rm\x22]:disabled {\x0a\
-    background: \
-#94a3b8;\x0a    col\
-or: #e2e8f0;\x0a}\x0a\x0a\
-/* Game Metadata\
- group box */\x0aQG\
-roupBox {\x0a    fo\
-nt-size: 15px;\x0a \
-   font-weight: \
-600;\x0a    color: \
-#0f172a;\x0a    bor\
-der: 1px solid #\
-e2e8f0;\x0a    bord\
-er-radius: 8px;\x0a\
-    margin-top: \
-16px;\x0a    paddin\
-g: 20px 16px 16p\
-x;\x0a    backgroun\
-d: white;\x0a}\x0aQGro\
-upBox::title {\x0a \
-   subcontrol-or\
-igin: margin;\x0a  \
-  subcontrol-pos\
-ition: top left;\
-\x0a    left: 12px;\
-\x0a    padding: 4p\
-x 12px;\x0a    back\
-ground: #f8fafc;\
+rm\x22] {\x0a    backg\
+round: #10b981;\x0a\
+    color: white\
+;\x0a    font-weigh\
+t: 700;\x0a    padd\
+ing: 12px 32px;\x0a\
+    border-radiu\
+s: 8px;\x0a}\x0aQPushB\
+utton[role=\x22conf\
+irm\x22]:hover { ba\
+ckground: #05966\
+9; }\x0aQPushButton\
+[role=\x22confirm\x22]\
+:pressed { backg\
+round: #047857; \
+}\x0aQPushButton[ro\
+le=\x22confirm\x22]:di\
+sabled {\x0a    bac\
+kground: #94a3b8\
+;\x0a    color: #e2\
+e8f0;\x0a}\x0a\x0a/* Game\
+ Metadata group \
+box */\x0aQGroupBox\
+ {\x0a    font-size\
+: 15px;\x0a    font\
+-weight: 600;\x0a  \
+  color: #0f172a\
+;\x0a    border: 1p\
+x solid #e2e8f0;\
 \x0a    border-radi\
-us: 6px;\x0a    col\
-or: #334155;\x0a}\x0a\
+us: 8px;\x0a    mar\
+gin-top: 16px;\x0a \
+   padding: 20px\
+ 16px 16px;\x0a    \
+background: whit\
+e;\x0a}\x0aQGroupBox::\
+title {\x0a    subc\
+ontrol-origin: m\
+argin;\x0a    subco\
+ntrol-position: \
+top left;\x0a    le\
+ft: 12px;\x0a    pa\
+dding: 4px 12px;\
+\x0a    background:\
+ #f8fafc;\x0a    bo\
+rder-radius: 6px\
+;\x0a    color: #33\
+4155;\x0a}\x0a\
 "
 
 qt_resource_name = b"\
@@ -159,7 +160,7 @@ qt_resource_struct = b"\
 \x00\x00\x00\x00\x00\x02\x00\x00\x00\x01\x00\x00\x00\x01\
 \x00\x00\x00\x00\x00\x00\x00\x00\
 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\
-\x00\x00\x01\x9cb\xf8\xa0C\
+\x00\x00\x01\x9cc\x1aT\xd2\
 "
 
 def qInitResources():

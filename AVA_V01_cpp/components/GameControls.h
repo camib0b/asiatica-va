@@ -19,16 +19,11 @@ class GameControls final : public QWidget {
 public:
   explicit GameControls(QWidget* parent = nullptr);
 
-  QString possessionTeam() const { return possessionTeam_; }
-  void setTeamDisplayNames(const QString& homeName, const QString& awayName);
-
 signals:
   void mainEventPressed(const QString& mainEvent);
   void gameEventMarked(const QString& mainEvent, const QString& followUpEvent = QString());
-  void possessionChanged(const QString& team);  // "Home" or "Away"
 
 private slots:
-  void onTurnoverClicked();
   void onMainButtonClicked();
   void onFollowUpButtonClicked();
 
@@ -61,12 +56,6 @@ protected:
   QHBoxLayout* followUpLayout_ = nullptr;
   QWidget* followUpContainer_ = nullptr;
 
-  QPushButton* turnoverButton_ = nullptr;
-  QString possessionTeam_;  // "Home" or "Away"
-  QString homeDisplayName_;
-  QString awayDisplayName_;
-  void updateTurnoverButtonText();
-  
   QPushButton* hit16ydButton_ = nullptr;
   QPushButton* hit50ydButton_ = nullptr;
   QPushButton* hit75ydButton_ = nullptr;

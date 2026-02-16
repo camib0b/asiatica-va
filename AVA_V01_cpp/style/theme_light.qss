@@ -28,6 +28,11 @@ QLabel[role="h1"] {
   color: #0B0D12;
 }
 
+QLabel[role="subhero"] {
+  font-size: 15px;
+  color: #5B616E;
+}
+
 
 /* =========================
    Separator
@@ -183,13 +188,20 @@ QPushButton[variant="gameControl"]:focus {
   padding: 8px 12px;
 }
 QPushButton[variant="gameControl"][activeMain="true"] {
-  border: 2px solid #2563EB;
-  background: rgba(37, 99, 235, 0.10);
-  font-weight: 650;
+  border: 3px solid #1D4ED8;
+  background: rgba(37, 99, 235, 0.22);
+  font-weight: 700;
+  color: #1E40AF;
+  padding: 7px 11px;
+}
+QPushButton[variant="gameControl"][activeMain="true"]:hover {
+  background: rgba(37, 99, 235, 0.28);
+  border: 3px solid #1D4ED8;
 }
 QPushButton[variant="gameControl"][activeMain="true"]:focus {
-  border: 2px solid #2563EB;
-  padding: 8px 12px;
+  border: 3px solid #1D4ED8;
+  background: rgba(37, 99, 235, 0.22);
+  padding: 7px 11px;
 }
 QPushButton[variant="gameControl"][flash="true"] {
   border: 2px solid #2563EB;
@@ -201,22 +213,24 @@ QPushButton[variant="gameControl"][flash="true"]:focus {
 }
 
 QPushButton[variant="gameControlFollowUp"] {
-  background: #F9FAFB;
-  border: 2px solid #E5E7EB;
+  background: rgba(37, 99, 235, 0.12);
+  border: 2px solid rgba(37, 99, 235, 0.45);
   border-radius: 6px;
+  font-weight: 600;
+  color: #1E40AF;
 }
 QPushButton[variant="gameControlFollowUp"]:hover {
-  background: rgba(15, 23, 42, 0.08);
-  border: 2px solid #D1D5DB;
+  background: rgba(37, 99, 235, 0.20);
+  border: 2px solid rgba(37, 99, 235, 0.65);
 }
 QPushButton[variant="gameControlFollowUp"]:pressed {
-  background: rgba(15, 23, 42, 0.12);
-  border: 2px solid #D1D5DB;
+  background: rgba(37, 99, 235, 0.28);
+  border: 2px solid #2563EB;
 }
 /* Keyboard focus on follow-up buttons */
 QPushButton[variant="gameControlFollowUp"]:focus {
-  border: 2px solid rgba(37, 99, 235, 0.65);
-  background: rgba(37, 99, 235, 0.06);
+  border: 2px solid #2563EB;
+  background: rgba(37, 99, 235, 0.18);
   padding: 8px 12px;
 }
 /* Follow-up flash: blue border, same 2px thickness (no thicker), same padding to avoid layout jump */

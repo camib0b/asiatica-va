@@ -57,9 +57,6 @@ private slots:
   void onPlayheadPositionChanged(qint64 positionMs);
   void onFilterByPathRequested(const QString& mainEvent, const QString& followUpEvent);
   void onRemoveFilters();
-  void onQuickFilterPeriodClicked();
-  void onQuickFilterTeamClicked();
-  void onQuickFilterSituationClicked();
   void onModeToggled();
   void showStatsOverlay();
   void saveNoteDebounceFired();
@@ -87,7 +84,6 @@ private:
   bool isTagAllowedByQuickFilters(const TagSession::GameTag& tag) const;
   bool hasAnyFilterActive() const;
   TagSession::GameTag currentTagContext() const;
-  void applyTeamButtonColor(QToolButton* button, const QString& hexColor);
 
   QString promptForVideoFile();
 
@@ -132,14 +128,6 @@ private:
   QToolButton* tagsRemoveFiltersButton_ = nullptr;
   QMenu* tagsFilterMenu_ = nullptr;
   QLabel* tagsFilterIndicator_ = nullptr;
-  QToolButton* periodQ1_ = nullptr;
-  QToolButton* periodQ2_ = nullptr;
-  QToolButton* periodQ3_ = nullptr;
-  QToolButton* periodQ4_ = nullptr;
-  QToolButton* teamHome_ = nullptr;
-  QToolButton* teamAway_ = nullptr;
-  QToolButton* situationAttacking_ = nullptr;
-  QToolButton* situationDefending_ = nullptr;
   QToolButton* undoLastTagButton_ = nullptr;
   QListWidget* tagsList_ = nullptr;
 
@@ -156,10 +144,7 @@ private:
   qint64 pendingTimestampMs_ = 0;
   bool hasPendingTag_ = false;
 
-  // Quick-filter and tag-context state
-  QString quickFilterPeriod_;
-  QString quickFilterTeam_;
-  QString quickFilterSituation_;
+  // Tag-context state (period/team/situation for new tags)
   QString contextPeriod_;
   QString contextTeam_;
   QString contextSituation_;

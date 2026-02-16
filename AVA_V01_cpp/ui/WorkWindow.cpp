@@ -235,43 +235,6 @@ void WorkWindow::buildUi() {
     tagsHeaderLabel_ = new QLabel("Tags", tagsHeaderRow);
     Style::setRole(tagsHeaderLabel_, "h3");
 
-    periodQ1_ = new QToolButton(tagsHeaderRow);
-    periodQ2_ = new QToolButton(tagsHeaderRow);
-    periodQ3_ = new QToolButton(tagsHeaderRow);
-    periodQ4_ = new QToolButton(tagsHeaderRow);
-    for (auto* b : {periodQ1_, periodQ2_, periodQ3_, periodQ4_}) {
-        b->setCheckable(true);
-        Style::setVariant(b, "ghost");
-        Style::setSize(b, "sm");
-        b->setCursor(Qt::PointingHandCursor);
-    }
-    periodQ1_->setText("Q1");
-    periodQ2_->setText("Q2");
-    periodQ3_->setText("Q3");
-    periodQ4_->setText("Q4");
-
-    teamHome_ = new QToolButton(tagsHeaderRow);
-    teamAway_ = new QToolButton(tagsHeaderRow);
-    for (auto* b : {teamHome_, teamAway_}) {
-        b->setCheckable(true);
-        Style::setVariant(b, "ghost");
-        Style::setSize(b, "sm");
-        b->setCursor(Qt::PointingHandCursor);
-    }
-    teamHome_->setText("Home");
-    teamAway_->setText("Away");
-
-    situationAttacking_ = new QToolButton(tagsHeaderRow);
-    situationDefending_ = new QToolButton(tagsHeaderRow);
-    for (auto* b : {situationAttacking_, situationDefending_}) {
-        b->setCheckable(true);
-        Style::setVariant(b, "ghost");
-        Style::setSize(b, "sm");
-        b->setCursor(Qt::PointingHandCursor);
-    }
-    situationAttacking_->setText("Attacking");
-    situationDefending_->setText("Defending");
-
     tagsFilterButton_ = new QToolButton(tagsHeaderRow);
     tagsFilterButton_->setText("Filter");
     Style::setVariant(tagsFilterButton_, "ghost");
@@ -299,16 +262,6 @@ void WorkWindow::buildUi() {
     undoLastTagButton_->setCursor(Qt::PointingHandCursor);
 
     tagsHeaderLayout->addWidget(tagsHeaderLabel_, 0);
-    tagsHeaderLayout->addWidget(periodQ1_, 0);
-    tagsHeaderLayout->addWidget(periodQ2_, 0);
-    tagsHeaderLayout->addWidget(periodQ3_, 0);
-    tagsHeaderLayout->addWidget(periodQ4_, 0);
-    tagsHeaderLayout->addSpacing(4);
-    tagsHeaderLayout->addWidget(teamHome_, 0);
-    tagsHeaderLayout->addWidget(teamAway_, 0);
-    tagsHeaderLayout->addSpacing(4);
-    tagsHeaderLayout->addWidget(situationAttacking_, 0);
-    tagsHeaderLayout->addWidget(situationDefending_, 0);
     tagsHeaderLayout->addStretch(1);
     tagsHeaderLayout->addWidget(tagsFilterIndicator_, 0);
     tagsHeaderLayout->addWidget(undoLastTagButton_, 0);
@@ -480,14 +433,6 @@ void WorkWindow::wireSignals() {
         }
     });
 
-    connect(gameControls_, &GameControls::possessionChanged, this, [this](const QString& team) {
-        contextTeam_ = team;
-        quickFilterTeam_ = team;
-        if (teamHome_) teamHome_->setChecked(team == "Home");
-        if (teamAway_) teamAway_->setChecked(team == "Away");
-        rebuildTagsList();
-    });
-
     connect(tagsList_, &QListWidget::itemActivated, this, &WorkWindow::onTagItemActivated);
     connect(tagsList_, &QListWidget::currentItemChanged, this, &WorkWindow::onTagSelectionChanged);
 
@@ -496,15 +441,6 @@ void WorkWindow::wireSignals() {
 
     if (notesEdit_)
         connect(notesEdit_, &QPlainTextEdit::textChanged, this, &WorkWindow::onNoteTextChanged);
-
-    connect(periodQ1_, &QToolButton::clicked, this, &WorkWindow::onQuickFilterPeriodClicked);
-    connect(periodQ2_, &QToolButton::clicked, this, &WorkWindow::onQuickFilterPeriodClicked);
-    connect(periodQ3_, &QToolButton::clicked, this, &WorkWindow::onQuickFilterPeriodClicked);
-    connect(periodQ4_, &QToolButton::clicked, this, &WorkWindow::onQuickFilterPeriodClicked);
-    connect(teamHome_, &QToolButton::clicked, this, &WorkWindow::onQuickFilterTeamClicked);
-    connect(teamAway_, &QToolButton::clicked, this, &WorkWindow::onQuickFilterTeamClicked);
-    connect(situationAttacking_, &QToolButton::clicked, this, &WorkWindow::onQuickFilterSituationClicked);
-    connect(situationDefending_, &QToolButton::clicked, this, &WorkWindow::onQuickFilterSituationClicked);
 
     connect(statsWindow_, &StatsWindow::filterByPathRequested, this, &WorkWindow::onFilterByPathRequested);
     connect(tagsRemoveFiltersButton_, &QToolButton::clicked, this, &WorkWindow::onRemoveFilters);
@@ -577,15 +513,6 @@ void WorkWindow::onTeamSetupCancelled() {
     emit videoClosed();
 }
 
-void WorkWindow::applyTeamButtonColor(QToolButton* button, const QString& hexColor) {
-    if (!button) return;
-    if (hexColor.trimmed().isEmpty() || !QColor(hexColor).isValid()) {
-        button->setStyleSheet(QString());
-        return;
-    }
-    button->setStyleSheet(QString("QToolButton { border-left: 3px solid %1; }").arg(hexColor.trimmed()));
-}
-
 void WorkWindow::loadVideoFromFile(const QString& filePath) {
     if (filePath.isEmpty()) return;
 
@@ -602,25 +529,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     
     if (gameControls_) {
         gameControls_->show();
-        if (tagSession_) {
-            gameControls_->setTeamDisplayNames(tagSession_->homeTeamName(), tagSession_->awayTeamName());
-        }
-        contextTeam_ = gameControls_->possessionTeam();
-        quickFilterTeam_ = contextTeam_;
-        const QString homeLabel = (tagSession_ && !tagSession_->homeTeamName().isEmpty())
-            ? tagSession_->homeTeamName() : QString("Home");
-        const QString awayLabel = (tagSession_ && !tagSession_->awayTeamName().isEmpty())
-            ? tagSession_->awayTeamName() : QString("Away");
-        if (teamHome_) {
-            teamHome_->setText(homeLabel);
-            applyTeamButtonColor(teamHome_, tagSession_ ? tagSession_->homeTeamColor() : QString());
-        }
-        if (teamAway_) {
-            teamAway_->setText(awayLabel);
-            applyTeamButtonColor(teamAway_, tagSession_ ? tagSession_->awayTeamColor() : QString());
-        }
-        if (teamHome_) teamHome_->setChecked(contextTeam_ == "Home");
-        if (teamAway_) teamAway_->setChecked(contextTeam_ == "Away");
+        contextTeam_ = "Home";
     }
     if (modeTaggingBtn_) modeTaggingBtn_->show();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->show();
@@ -677,42 +586,6 @@ void WorkWindow::onModeToggled() {
         modeTaggingBtn_->setChecked(false);
         setMode(Mode::Analyzing);
     }
-}
-
-void WorkWindow::onQuickFilterPeriodClicked() {
-    auto* btn = qobject_cast<QToolButton*>(sender());
-    if (!btn) return;
-    QString which = btn->isChecked() ? btn->text() : QString();
-    if (which == "Q1") { periodQ2_->setChecked(false); periodQ3_->setChecked(false); periodQ4_->setChecked(false); }
-    if (which == "Q2") { periodQ1_->setChecked(false); periodQ3_->setChecked(false); periodQ4_->setChecked(false); }
-    if (which == "Q3") { periodQ1_->setChecked(false); periodQ2_->setChecked(false); periodQ4_->setChecked(false); }
-    if (which == "Q4") { periodQ1_->setChecked(false); periodQ2_->setChecked(false); periodQ3_->setChecked(false); }
-    quickFilterPeriod_ = which;
-    contextPeriod_ = which;
-    rebuildTagsList();
-}
-
-void WorkWindow::onQuickFilterTeamClicked() {
-    auto* btn = qobject_cast<QToolButton*>(sender());
-    if (!btn) return;
-    // Filter by internal team id (Home/Away), not display name
-    const QString which = btn->isChecked() ? (btn == teamHome_ ? QString("Home") : QString("Away")) : QString();
-    if (btn == teamHome_) teamAway_->setChecked(false);
-    else teamHome_->setChecked(false);
-    quickFilterTeam_ = which;
-    contextTeam_ = which;
-    rebuildTagsList();
-}
-
-void WorkWindow::onQuickFilterSituationClicked() {
-    auto* btn = qobject_cast<QToolButton*>(sender());
-    if (!btn) return;
-    QString which = btn->isChecked() ? btn->text() : QString();
-    if (btn == situationAttacking_) situationDefending_->setChecked(false);
-    else situationAttacking_->setChecked(false);
-    quickFilterSituation_ = which;
-    contextSituation_ = which;
-    rebuildTagsList();
 }
 
 void WorkWindow::onTagSelectionChanged() {
@@ -935,9 +808,7 @@ bool WorkWindow::isTagAllowed(const QString& mainEvent, const QString& followUpE
 }
 
 bool WorkWindow::isTagAllowedByQuickFilters(const TagSession::GameTag& tag) const {
-    if (!quickFilterPeriod_.isEmpty() && tag.period != quickFilterPeriod_) return false;
-    if (!quickFilterTeam_.isEmpty() && tag.team != quickFilterTeam_) return false;
-    if (!quickFilterSituation_.isEmpty() && tag.situation != quickFilterSituation_) return false;
+    (void)tag;
     return true;
 }
 

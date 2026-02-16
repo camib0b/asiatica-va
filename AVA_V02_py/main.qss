@@ -1,6 +1,10 @@
 /* Modern AVA Styles – 2026 clean flat design */
+
+
+/* Run pyside6-rcc resources.qrc -o resources_rc.py to recompile*/
+
 * {
-    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 /* Base */

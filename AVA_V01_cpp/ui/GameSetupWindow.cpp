@@ -52,6 +52,8 @@ void GameSetupWindow::buildUi() {
   subtitleLabel_ = new QLabel("Enter team names and colors for this session.", contentContainer);
   subtitleLabel_->setWordWrap(true);
   subtitleLabel_->setAlignment(Qt::AlignCenter);
+  subtitleLabel_->setMinimumWidth(220);
+  subtitleLabel_->setMinimumHeight(36);
   Style::setRole(subtitleLabel_, "subhero");
 
   auto* formLayout = new QVBoxLayout();
