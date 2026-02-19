@@ -1,10 +1,11 @@
-"""Legacy entrypoint shim.
+"""Compatibility launcher for legacy run commands.
 
-This keeps existing run commands working during migration.
+This now starts the modular V02 app. The old monolithic implementation is in
+`legacy/learn.py`.
 """
 
-import runpy
+from main import main
 
 
 if __name__ == "__main__":
-    runpy.run_module("legacy.learn", run_name="__main__")
+    raise SystemExit(main())
