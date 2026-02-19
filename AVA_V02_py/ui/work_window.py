@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from qt_compat import QtCore, QtGui, QtWidgets, Signal
 from components.game_controls import GameControls
 from components.video_player import VideoPlayer
@@ -50,6 +52,8 @@ class WorkWindow(QtWidgets.QWidget):
         self._new_tag_flash_timer: QtCore.QTimer | None = None
         self._stats_overlay_dialog: QtWidgets.QDialog | None = None
         self._stats_overlay: StatsWindow | None = None
+        self._current_video_name = ""
+        self._pending_highlight_position_ms = 0
 
         self._build_ui()
         self._wire_signals()
@@ -61,6 +65,14 @@ class WorkWindow(QtWidgets.QWidget):
     def set_tag_session(self, session: TagSession | None) -> None:
         if self._tag_session is session:
             return
+        if self._tag_session is not None:
+            try:
+                self._tag_session.cleared.disconnect(self._on_session_cleared)
+                self._tag_session.stats_changed.disconnect(self._on_session_stats_changed)
+                self._tag_session.tag_added.disconnect(self._on_session_tag_added)
+                self._tag_session.tag_note_changed.disconnect(self._on_session_tag_note_changed)
+            except (RuntimeError, TypeError):
+                pass
         self._tag_session = session
         self.stats_window.set_tag_session(self._tag_session)
         self._rebuild_filter_menu()
@@ -72,7 +84,7 @@ class WorkWindow(QtWidgets.QWidget):
         self._tag_session.cleared.connect(self._on_session_cleared)
         self._tag_session.stats_changed.connect(self._on_session_stats_changed)
         self._tag_session.tag_added.connect(self._on_session_tag_added)
-        self._tag_session.tag_note_changed.connect(lambda _idx: self._load_note_for_selected_tag())
+        self._tag_session.tag_note_changed.connect(self._on_session_tag_note_changed)
 
     def set_mode(self, mode: str) -> None:
         if self._mode == mode:
@@ -110,16 +122,24 @@ class WorkWindow(QtWidgets.QWidget):
         self.mode_tagging_btn.setChecked(True)
         set_variant(self.mode_tagging_btn, "ghost")
         set_size(self.mode_tagging_btn, "sm")
+        self.mode_tagging_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.mode_tagging_btn.setToolTip("Eyes on video, hands on keyboard (M)")
 
         self.mode_analyzing_btn = QtWidgets.QToolButton(top_row)
         self.mode_analyzing_btn.setText("Analyzing")
         self.mode_analyzing_btn.setCheckable(True)
         set_variant(self.mode_analyzing_btn, "ghost")
         set_size(self.mode_analyzing_btn, "sm")
+        self.mode_analyzing_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.mode_analyzing_btn.setToolTip("Stats and notes (M)")
+
+        self.mode_status_label = QtWidgets.QLabel("No video loaded", top_row)
+        set_role(self.mode_status_label, "chip")
 
         top_layout.addWidget(self.mode_tagging_btn)
         top_layout.addWidget(self.mode_analyzing_btn)
-        top_layout.addSpacing(16)
+        top_layout.addWidget(self.mode_status_label)
+        top_layout.addSpacing(12)
 
         self.video_player = VideoPlayer(self)
         self.video_controls_row = QtWidgets.QWidget(self)
@@ -135,6 +155,7 @@ class WorkWindow(QtWidgets.QWidget):
         set_variant(self.video_menu_button, "ghost")
         set_size(self.video_menu_button, "sm")
         self.video_menu_button.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.video_menu_button.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
 
         self.video_menu = QtWidgets.QMenu(self.video_menu_button)
         self.replace_video_action = self.video_menu.addAction("Replace video with another one")
@@ -201,11 +222,13 @@ class WorkWindow(QtWidgets.QWidget):
         set_variant(self.tags_filter_button, "ghost")
         set_size(self.tags_filter_button, "sm")
         self.tags_filter_button.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.tags_filter_button.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
 
         self.tags_remove_filters_button = QtWidgets.QToolButton(tags_header_row)
         self.tags_remove_filters_button.setText("Remove filters")
         set_variant(self.tags_remove_filters_button, "ghost")
         set_size(self.tags_remove_filters_button, "sm")
+        self.tags_remove_filters_button.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self.tags_remove_filters_button.hide()
 
         self.tags_filter_menu = QtWidgets.QMenu(self.tags_filter_button)
@@ -220,6 +243,7 @@ class WorkWindow(QtWidgets.QWidget):
         self.undo_last_tag_button.setToolTip("Ctrl+Z  Remove most recent tag")
         set_variant(self.undo_last_tag_button, "ghost")
         set_size(self.undo_last_tag_button, "sm")
+        self.undo_last_tag_button.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
 
         tags_header_layout.addWidget(self.tags_header_label)
         tags_header_layout.addStretch(1)
@@ -277,6 +301,8 @@ class WorkWindow(QtWidgets.QWidget):
 
         self.note_debounce_timer = QtCore.QTimer(self)
         self.note_debounce_timer.setSingleShot(True)
+        self._highlight_timer = QtCore.QTimer(self)
+        self._highlight_timer.setSingleShot(True)
 
     def apply_tagging_layout(self) -> None:
         self._mode = self.Mode.TAGGING
@@ -295,6 +321,7 @@ class WorkWindow(QtWidgets.QWidget):
         self.stats_window.hide()
         self.notes_edit.hide()
         self._rebuild_tags_list()
+        self._update_mode_affordance()
 
     def apply_analyzing_layout(self) -> None:
         self._mode = self.Mode.ANALYZING
@@ -314,6 +341,8 @@ class WorkWindow(QtWidgets.QWidget):
         self.notes_edit.show()
         self.tags_list.setMaximumHeight(16777215)
         self._rebuild_tags_list()
+        self._load_note_for_selected_tag()
+        self._update_mode_affordance()
 
     def _wire_signals(self) -> None:
         self.game_setup_widget.team_setup_confirmed.connect(self._on_team_setup_confirmed)
@@ -366,7 +395,8 @@ class WorkWindow(QtWidgets.QWidget):
         self.addAction(undo_action)
 
         self.note_debounce_timer.timeout.connect(self.save_note_debounce_fired)
-        self.video_player.position_changed_ms.connect(self._update_tag_playhead_highlight)
+        self.video_player.position_changed_ms.connect(self._on_playhead_position_changed)
+        self._highlight_timer.timeout.connect(self._flush_playhead_highlight)
 
     def show_team_setup_for_video(self, file_path: str) -> None:
         self.game_setup_widget.set_video_path(file_path)
@@ -404,6 +434,7 @@ class WorkWindow(QtWidgets.QWidget):
 
         self.video_player.load_video_from_file(file_path)
         self.video_player.set_controls_visible(True)
+        self._current_video_name = Path(file_path).name
 
         self.game_controls.show()
         self.context_team = "Home"
@@ -424,6 +455,7 @@ class WorkWindow(QtWidgets.QWidget):
 
         self._rebuild_filter_menu()
         self._rebuild_tags_list()
+        self._update_mode_affordance()
 
     def on_replace_video(self) -> None:
         file_path = self._prompt_for_video_file()
@@ -450,6 +482,8 @@ class WorkWindow(QtWidgets.QWidget):
         self.undo_last_tag_button.hide()
         self.tags_list.hide()
         self.stats_window.hide()
+        self._current_video_name = ""
+        self._update_mode_affordance()
 
         self.video_closed.emit()
 
@@ -589,6 +623,9 @@ class WorkWindow(QtWidgets.QWidget):
         self._rebuild_tags_list()
         self._flash_new_tag_row()
 
+    def _on_session_tag_note_changed(self, _idx: int) -> None:
+        self._load_note_for_selected_tag()
+
     def _load_note_for_selected_tag(self) -> None:
         if self._tag_session is None:
             return
@@ -667,7 +704,8 @@ class WorkWindow(QtWidgets.QWidget):
 
         active_filters = [main for main, action in self._filter_actions.items() if action.isChecked()]
         if not active_filters or len(active_filters) == len(self._filter_actions):
-            self.tags_filter_indicator.hide()
+            self.tags_filter_indicator.setText("All events")
+            self.tags_filter_indicator.show()
             return
 
         active_filters.sort(key=str.lower)
@@ -675,8 +713,11 @@ class WorkWindow(QtWidgets.QWidget):
         self.tags_filter_indicator.show()
 
     def _rebuild_tags_list(self) -> None:
+        self.tags_list.setUpdatesEnabled(False)
         self.tags_list.clear()
         if self._tag_session is None:
+            self.tags_header_label.setText("Tags")
+            self.tags_list.setUpdatesEnabled(True)
             return
 
         entries: list[tuple[GameTag, int]] = []
@@ -698,7 +739,9 @@ class WorkWindow(QtWidgets.QWidget):
             item.setData(QtCore.Qt.ItemDataRole.UserRole + 3, session_index)
             self.tags_list.addItem(item)
 
+        self.tags_header_label.setText(f"Tags ({len(entries)})")
         self.tags_list.scrollToBottom()
+        self.tags_list.setUpdatesEnabled(True)
         self._update_filter_indicator()
         self._update_filter_buttons_visibility()
         self._update_tag_playhead_highlight(self.video_player.current_position_ms())
@@ -726,7 +769,17 @@ class WorkWindow(QtWidgets.QWidget):
         self._new_tag_flash_row = -1
         self._update_tag_playhead_highlight(self.video_player.current_position_ms())
 
+    def _on_playhead_position_changed(self, position_ms: int) -> None:
+        self._pending_highlight_position_ms = position_ms
+        if not self._highlight_timer.isActive():
+            self._highlight_timer.start(45)
+
+    def _flush_playhead_highlight(self) -> None:
+        self._update_tag_playhead_highlight(self._pending_highlight_position_ms)
+
     def _update_tag_playhead_highlight(self, position_ms: int) -> None:
+        if self.tags_list.count() == 0:
+            return
         for row in range(self.tags_list.count()):
             item = self.tags_list.item(row)
             if item is None:
@@ -739,14 +792,18 @@ class WorkWindow(QtWidgets.QWidget):
 
     def _on_select_all_filters(self) -> None:
         for action in self._filter_actions.values():
+            action.blockSignals(True)
             action.setChecked(True)
+            action.blockSignals(False)
         self._rebuild_tags_list()
         self._update_filter_indicator()
         self._update_filter_buttons_visibility()
 
     def _on_select_no_filters(self) -> None:
         for action in self._filter_actions.values():
+            action.blockSignals(True)
             action.setChecked(False)
+            action.blockSignals(False)
         self._rebuild_tags_list()
         self._update_filter_indicator()
         self._update_filter_buttons_visibility()
@@ -764,6 +821,13 @@ class WorkWindow(QtWidgets.QWidget):
             "Video files (*.mp4 *.mov *.m4v *.mkv *.avi);;All files (*.*)",
         )
         return file_path
+
+    def _update_mode_affordance(self) -> None:
+        mode_text = "Tagging mode" if self._mode == self.Mode.TAGGING else "Analyzing mode"
+        if self._current_video_name:
+            self.mode_status_label.setText(f"{mode_text} • {self._current_video_name}")
+        else:
+            self.mode_status_label.setText("No video loaded")
 
     @staticmethod
     def _clear_layout(layout: QtWidgets.QLayout) -> None:

@@ -33,6 +33,20 @@ QLabel[role="subhero"] {
   color: #5B616E;
 }
 
+QLabel[role="h3"] {
+  font-size: 18px;
+  font-weight: 650;
+  color: #0B0D12;
+}
+
+QLabel[role="chip"] {
+  color: #334155;
+  background: rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  padding: 4px 8px;
+}
+
 
 /* =========================
    Separator
@@ -122,8 +136,8 @@ QPushButton[variant="primary"] {
   color: #111827;
   font-weight: 650;
 }
-QPushButton[variant="primary"]:hover { background: "lightgray"; }
-QPushButton[variant="primary"]:pressed { background: "gray"; }
+QPushButton[variant="primary"]:hover { background: lightgray; }
+QPushButton[variant="primary"]:pressed { background: gray; }
 QPushButton[variant="primary"]:focus {
   border: 2px solid rgba(37, 99, 235, 0.65);
   padding: 7px 11px; /* compensate for border width */
@@ -292,7 +306,7 @@ QPushButton[variant="ghost"][speedActive="true"] {
    Inputs
 ========================= */
 
-QLineEdit, QTextEdit {
+QLineEdit, QTextEdit, QPlainTextEdit {
   background: #FFFFFF;
   border: 1px solid rgba(0, 0, 0, 0.16);
   border-radius: 12px;
@@ -300,7 +314,7 @@ QLineEdit, QTextEdit {
   selection-background-color: rgba(0, 0, 0, 0.10);
 }
 
-QLineEdit:focus, QTextEdit:focus {
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {
   border: 1px solid rgba(0, 0, 0, 0.24);
 }
 
@@ -339,6 +353,11 @@ QToolButton[variant="ghost"] {
 QToolButton[variant="ghost"]:hover {
   background: rgba(15, 23, 42, 0.05);
 }
+QToolButton[variant="ghost"]:checked {
+  background: rgba(37, 99, 235, 0.14);
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  color: #1D4ED8;
+}
 
 /* Menu */
 QMenu {
@@ -353,6 +372,25 @@ QMenu::item {
 }
 QMenu::item:selected {
   background: rgba(0, 0, 0, 0.04);
+}
+
+/* Tag list readability and state clarity */
+QListWidget {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  padding: 4px;
+}
+QListWidget::item {
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+QListWidget::item:selected {
+  background: rgba(37, 99, 235, 0.18);
+  color: #0B0D12;
+}
+QListWidget::item:hover {
+  background: rgba(15, 23, 42, 0.06);
 }
 
 /* =========================
@@ -408,4 +446,3 @@ QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"] {
   min-height: 28px;
   border-radius: 6px;
 }
-
