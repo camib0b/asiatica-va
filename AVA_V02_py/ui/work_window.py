@@ -8,6 +8,7 @@ from components.video_player import VideoPlayer
 from state.tag_session import GameTag, TagSession
 from styles import set_role, set_size, set_variant
 from .game_setup_window import GameSetupWindow
+from .stats_window import StatsWindow
 
 
 def _format_timestamp_ms(ms: int) -> str:
@@ -18,20 +19,6 @@ def _format_timestamp_ms(ms: int) -> str:
     if hours > 0:
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}.{millis:03d}"
     return f"{minutes:02d}:{seconds:02d}.{millis:03d}"
-
-
-class _StatsPlaceholder(QtWidgets.QWidget):
-    filter_by_path_requested = Signal(str, str)
-
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
-        super().__init__(parent)
-        layout = QtWidgets.QVBoxLayout(self)
-        self.label = QtWidgets.QLabel("Stats window is in migration...", self)
-        set_role(self.label, "muted")
-        layout.addWidget(self.label)
-
-    def set_tag_session(self, session: TagSession | None) -> None:  # noqa: ARG002
-        return
 
 
 class WorkWindow(QtWidgets.QWidget):
@@ -61,6 +48,8 @@ class WorkWindow(QtWidgets.QWidget):
 
         self._new_tag_flash_row = -1
         self._new_tag_flash_timer: QtCore.QTimer | None = None
+        self._stats_overlay_dialog: QtWidgets.QDialog | None = None
+        self._stats_overlay: StatsWindow | None = None
 
         self._build_ui()
         self._wire_signals()
@@ -249,7 +238,7 @@ class WorkWindow(QtWidgets.QWidget):
         tags_section_layout.addWidget(self.tags_list)
 
         self.game_controls = GameControls(self)
-        self.stats_window = _StatsPlaceholder(self)
+        self.stats_window = StatsWindow(self)
         self.stats_window.setMinimumHeight(180)
 
         self.notes_edit = QtWidgets.QPlainTextEdit(self)
@@ -345,6 +334,7 @@ class WorkWindow(QtWidgets.QWidget):
         self.mode_analyzing_btn.clicked.connect(self.on_mode_toggled)
 
         self.notes_edit.textChanged.connect(self.on_note_text_changed)
+        self.stats_window.filter_by_path_requested.connect(self._on_filter_by_path_requested)
 
         self.tags_remove_filters_button.clicked.connect(self.on_remove_filters)
         self.undo_last_tag_button.clicked.connect(self.on_undo_last_tag)
@@ -356,6 +346,12 @@ class WorkWindow(QtWidgets.QWidget):
             lambda: self.set_mode(self.Mode.ANALYZING if self._mode == self.Mode.TAGGING else self.Mode.TAGGING)
         )
         self.addAction(mode_action)
+
+        stats_overlay_action = QtGui.QAction(self)
+        stats_overlay_action.setShortcut(QtGui.QKeySequence(QtCore.Qt.Key.Key_Comma))
+        stats_overlay_action.setShortcutContext(QtCore.Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        stats_overlay_action.triggered.connect(self.show_stats_overlay)
+        self.addAction(stats_overlay_action)
 
         delete_tag_action = QtGui.QAction(self)
         delete_tag_action.setShortcut(QtGui.QKeySequence(QtCore.Qt.Key.Key_Backspace))
@@ -525,6 +521,33 @@ class WorkWindow(QtWidgets.QWidget):
         self._active_filter_path_follow_up = ""
         self._on_select_all_filters()
         self._update_filter_buttons_visibility()
+
+    def _on_filter_by_path_requested(self, main_event: str, follow_up_event: str) -> None:
+        self._active_filter_path_main_event = main_event
+        self._active_filter_path_follow_up = follow_up_event
+        self._rebuild_tags_list()
+        self._update_filter_indicator()
+        self._update_filter_buttons_visibility()
+
+    def show_stats_overlay(self) -> None:
+        if self._mode != self.Mode.TAGGING:
+            return
+        if self._stats_overlay_dialog is None:
+            self._stats_overlay_dialog = QtWidgets.QDialog(
+                self,
+                QtCore.Qt.WindowType.Window | QtCore.Qt.WindowType.WindowStaysOnTopHint,
+            )
+            self._stats_overlay_dialog.setWindowTitle("Stats — Tag taxonomy")
+            layout = QtWidgets.QVBoxLayout(self._stats_overlay_dialog)
+            layout.setContentsMargins(12, 12, 12, 12)
+            self._stats_overlay = StatsWindow(self._stats_overlay_dialog)
+            layout.addWidget(self._stats_overlay)
+            self._stats_overlay.filter_by_path_requested.connect(self._on_filter_by_path_requested)
+
+        if self._stats_overlay is not None:
+            self._stats_overlay.set_tag_session(self._tag_session)
+        self._stats_overlay_dialog.raise_()
+        self._stats_overlay_dialog.show()
 
     def _on_main_event_pressed(self, main_event: str) -> None:
         self._pending_main_event = main_event
