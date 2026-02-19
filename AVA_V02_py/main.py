@@ -1,6 +1,6 @@
-"""Legacy entrypoint shim.
+"""Main AVA entrypoint.
 
-This keeps existing run commands working during migration.
+During migration this forwards to the legacy implementation.
 """
 
 import runpy
