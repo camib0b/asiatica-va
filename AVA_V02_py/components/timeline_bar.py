@@ -50,11 +50,13 @@ class TimelineBar(QtWidgets.QWidget):
         self.slider.setSingleStep(50)
         self.slider.setPageStep(1000)
         self.slider.setTracking(False)
+        self.slider.setToolTip("Click/drag to seek • Left/Right ±0.25s • Shift+Left/Right ±3s")
 
         self.label = QtWidgets.QLabel("00:00.000 / 00:00.000", self)
         self.label.setMinimumWidth(160)
         self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         set_role(self.label, "muted")
+        self.label.setToolTip("Current time / total duration")
 
         layout.addWidget(self.slider, 1)
         layout.addWidget(self.label)

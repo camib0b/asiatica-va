@@ -135,6 +135,7 @@ class WorkWindow(QtWidgets.QWidget):
 
         self.mode_status_label = QtWidgets.QLabel("No video loaded", top_row)
         set_role(self.mode_status_label, "chip")
+        self.mode_status_label.setToolTip("M  Toggle mode • ,  Stats overlay • Backspace delete • Ctrl/Cmd+Z undo")
 
         top_layout.addWidget(self.mode_tagging_btn)
         top_layout.addWidget(self.mode_analyzing_btn)
@@ -150,7 +151,7 @@ class WorkWindow(QtWidgets.QWidget):
 
         self.video_menu_button = QtWidgets.QToolButton(self)
         self.video_menu_button.setText("⚙")
-        self.video_menu_button.setToolTip("Video Manager")
+        self.video_menu_button.setToolTip("Video Manager • Replace or close current video")
         self.video_menu_button.setMinimumWidth(36)
         set_variant(self.video_menu_button, "ghost")
         set_size(self.video_menu_button, "sm")
@@ -223,12 +224,14 @@ class WorkWindow(QtWidgets.QWidget):
         set_size(self.tags_filter_button, "sm")
         self.tags_filter_button.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
         self.tags_filter_button.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.tags_filter_button.setToolTip("Filter visible events")
 
         self.tags_remove_filters_button = QtWidgets.QToolButton(tags_header_row)
         self.tags_remove_filters_button.setText("Remove filters")
         set_variant(self.tags_remove_filters_button, "ghost")
         set_size(self.tags_remove_filters_button, "sm")
         self.tags_remove_filters_button.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.tags_remove_filters_button.setToolTip("Clear all active filters")
         self.tags_remove_filters_button.hide()
 
         self.tags_filter_menu = QtWidgets.QMenu(self.tags_filter_button)
@@ -236,6 +239,7 @@ class WorkWindow(QtWidgets.QWidget):
 
         self.tags_filter_indicator = QtWidgets.QLabel(tags_header_row)
         set_role(self.tags_filter_indicator, "muted")
+        self.tags_filter_indicator.setToolTip("Current filter state")
         self.tags_filter_indicator.hide()
 
         self.undo_last_tag_button = QtWidgets.QToolButton(tags_header_row)
@@ -257,6 +261,7 @@ class WorkWindow(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Policy.Expanding,
             QtWidgets.QSizePolicy.Policy.Fixed,
         )
+        self.tags_list.setToolTip("Enter/Double-click  Seek to tag • Backspace  Delete selected")
 
         tags_section_layout.addWidget(tags_header_row)
         tags_section_layout.addWidget(self.tags_list)
@@ -269,6 +274,7 @@ class WorkWindow(QtWidgets.QWidget):
         self.notes_edit.setPlaceholderText("Note for selected tag…")
         self.notes_edit.setMaximumHeight(120)
         set_role(self.notes_edit, "muted")
+        self.notes_edit.setToolTip("Notes save automatically after short pause")
 
         self.analyzing_main_row = QtWidgets.QWidget(self)
         analyzing_main_layout = QtWidgets.QHBoxLayout(self.analyzing_main_row)

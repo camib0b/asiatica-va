@@ -43,6 +43,7 @@ class StatsWindow(QtWidgets.QWidget):
 
         self.header_label = QtWidgets.QLabel("Stats", self)
         set_role(self.header_label, "h3")
+        self.header_label.setToolTip("Double-click a row to filter tags by that path")
 
         self.tree = QtWidgets.QTreeWidget(self)
         self.tree.setColumnCount(2)
@@ -50,6 +51,7 @@ class StatsWindow(QtWidgets.QWidget):
         self.tree.setRootIsDecorated(True)
         self.tree.setAlternatingRowColors(True)
         self.tree.setUniformRowHeights(True)
+        self.tree.setToolTip("Double-click event rows to filter tag list")
         self.tree.header().setStretchLastSection(False)
         self.tree.header().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
         self.tree.header().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.Fixed)

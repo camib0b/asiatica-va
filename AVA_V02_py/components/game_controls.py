@@ -69,11 +69,21 @@ class GameControls(QtWidgets.QWidget):
         self.main_grid_layout.addWidget(self.pc_button, 2, 0)
         self.main_grid_layout.addWidget(self.ps_button, 2, 1)
         self.main_grid_layout.addWidget(self.card_button, 2, 2)
+        self.hit16yd_button.setToolTip("Q  16-yd play")
+        self.hit50yd_button.setToolTip("W  50-yd play")
+        self.hit75yd_button.setToolTip("E  75-yd play")
+        self.enter_d_button.setToolTip("A  Circle Entry")
+        self.shot_button.setToolTip("S  Shot")
+        self.goal_button.setToolTip("D  Goal")
+        self.pc_button.setToolTip("Z  PC")
+        self.ps_button.setToolTip("X  PS")
+        self.card_button.setToolTip("C  Card")
 
         self.follow_up_container = QtWidgets.QWidget(self)
         self.follow_up_layout = QtWidgets.QHBoxLayout(self.follow_up_container)
         self.follow_up_layout.setContentsMargins(0, 0, 0, 0)
         self.follow_up_layout.setSpacing(8)
+        self.follow_up_container.setToolTip("1-9  Select follow-up • Esc  Cancel")
 
         root.addWidget(main_grid_widget)
         root.addWidget(self.follow_up_container)
@@ -235,12 +245,16 @@ class GameControls(QtWidgets.QWidget):
             self.follow_up_stage = "none"
             return
 
-        for action in actions:
+        for idx, action in enumerate(actions, start=1):
             button = QtWidgets.QPushButton(action, self.follow_up_container)
             set_size(button, "md")
             set_variant(button, "gameControlFollowUp")
             button.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
             button.setMinimumHeight(40)
+            if idx <= 9:
+                button.setToolTip(f"{idx}  {action}")
+            else:
+                button.setToolTip(action)
             button.clicked.connect(lambda _=False, b=button: self._on_follow_up_button_clicked(b))
             self.follow_up_layout.addWidget(button)
             self.follow_up_buttons.append(button)
@@ -260,12 +274,16 @@ class GameControls(QtWidgets.QWidget):
             self.follow_up_stage = "none"
             return
 
-        for action in actions:
+        for idx, action in enumerate(actions, start=1):
             button = QtWidgets.QPushButton(action, self.follow_up_container)
             set_size(button, "md")
             set_variant(button, "gameControlFollowUp")
             button.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
             button.setMinimumHeight(40)
+            if idx <= 9:
+                button.setToolTip(f"{idx}  {action}")
+            else:
+                button.setToolTip(action)
             button.clicked.connect(lambda _=False, b=button: self._on_follow_up_button_clicked(b))
             self.follow_up_layout.addWidget(button)
             self.follow_up_buttons.append(button)

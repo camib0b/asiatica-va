@@ -85,6 +85,8 @@ class VideoControlsBar(QtWidgets.QWidget):
         self.slower_button.setToolTip("{  Slower")
         self.faster_button.setToolTip("}  Faster")
         self.reset_speed_button.setToolTip("\\  Reset speed")
+        self.mute_button.setToolTip("Mute/Unmute audio")
+        self.speed_label.setToolTip("{ / }  Change speed, \\ reset")
 
     def _wire_signals(self) -> None:
         self.play_button.clicked.connect(self.flash_play_button)
