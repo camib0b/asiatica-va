@@ -12,6 +12,7 @@ class VideoControlsBar(QtWidgets.QWidget):
     faster_requested = Signal()
     reset_speed_requested = Signal()
     mute_toggled = Signal(bool)
+    fullscreen_toggle_requested = Signal()
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
@@ -37,7 +38,9 @@ class VideoControlsBar(QtWidgets.QWidget):
         self.reset_speed_button = QtWidgets.QPushButton("Reset 1.0x", self)
         self.faster_button = QtWidgets.QPushButton("Faster", self)
         self.mute_button = QtWidgets.QPushButton("Mute", self)
+        self.fullscreen_button = QtWidgets.QPushButton("Fullscreen", self)
         self.mute_button.setCheckable(True)
+        self.fullscreen_button.setCheckable(True)
 
         for button in (
             self.play_button,
@@ -48,6 +51,7 @@ class VideoControlsBar(QtWidgets.QWidget):
             self.reset_speed_button,
             self.faster_button,
             self.mute_button,
+            self.fullscreen_button,
         ):
             set_size(button, "md")
             button.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
@@ -60,6 +64,7 @@ class VideoControlsBar(QtWidgets.QWidget):
         set_variant(self.reset_speed_button, "ghost")
         set_variant(self.faster_button, "ghost")
         set_variant(self.mute_button, "outline")
+        set_variant(self.fullscreen_button, "outline")
 
         self.speed_label = QtWidgets.QLabel(self)
         set_role(self.speed_label, "muted")
@@ -77,6 +82,7 @@ class VideoControlsBar(QtWidgets.QWidget):
         layout.addWidget(self.speed_label)
         layout.addSpacing(8)
         layout.addWidget(self.mute_button)
+        layout.addWidget(self.fullscreen_button)
 
         self.play_button.setToolTip("space  Play")
         self.pause_button.setToolTip("space  Pause")
@@ -86,6 +92,7 @@ class VideoControlsBar(QtWidgets.QWidget):
         self.faster_button.setToolTip("}  Faster")
         self.reset_speed_button.setToolTip("\\  Reset speed")
         self.mute_button.setToolTip("Mute/Unmute audio")
+        self.fullscreen_button.setToolTip("F  Fullscreen")
         self.speed_label.setToolTip("{ / }  Change speed, \\ reset")
 
     def _wire_signals(self) -> None:
@@ -113,6 +120,9 @@ class VideoControlsBar(QtWidgets.QWidget):
         self.mute_button.clicked.connect(self.flash_mute_button)
         self.mute_button.toggled.connect(self.mute_toggled)
 
+        self.fullscreen_button.clicked.connect(self.flash_fullscreen_button)
+        self.fullscreen_button.clicked.connect(self.fullscreen_toggle_requested)
+
     def set_enabled_for_media(self, enabled: bool) -> None:
         for button in (
             self.play_button,
@@ -123,6 +133,7 @@ class VideoControlsBar(QtWidgets.QWidget):
             self.faster_button,
             self.reset_speed_button,
             self.mute_button,
+            self.fullscreen_button,
         ):
             button.setEnabled(enabled)
 
@@ -141,6 +152,12 @@ class VideoControlsBar(QtWidgets.QWidget):
         self.mute_button.setChecked(muted)
         self.mute_button.setText("Unmute" if muted else "Mute")
         self.mute_button.blockSignals(False)
+
+    def set_fullscreen(self, fullscreen: bool) -> None:
+        self.fullscreen_button.blockSignals(True)
+        self.fullscreen_button.setChecked(fullscreen)
+        self.fullscreen_button.setText("Exit Fullscreen" if fullscreen else "Fullscreen")
+        self.fullscreen_button.blockSignals(False)
 
     def _flash_button_border(self, button: QtWidgets.QPushButton) -> None:
         if button not in self._flash_timers:
@@ -175,3 +192,6 @@ class VideoControlsBar(QtWidgets.QWidget):
 
     def flash_mute_button(self) -> None:
         self._flash_button_border(self.mute_button)
+
+    def flash_fullscreen_button(self) -> None:
+        self._flash_button_border(self.fullscreen_button)

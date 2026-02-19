@@ -9,6 +9,7 @@ from components.game_controls import GameControls
 from components.video_player import VideoPlayer
 from state.tag_session import GameTag, TagSession
 from styles import set_role, set_size, set_variant
+from .clip_popup_window import ClipPopupWindow
 from .game_setup_window import GameSetupWindow
 from .stats_window import StatsWindow
 
@@ -53,7 +54,9 @@ class WorkWindow(QtWidgets.QWidget):
         self._stats_overlay_dialog: QtWidgets.QDialog | None = None
         self._stats_overlay: StatsWindow | None = None
         self._current_video_name = ""
+        self._current_video_path = ""
         self._pending_highlight_position_ms = 0
+        self._clip_popup_window: ClipPopupWindow | None = None
 
         self._build_ui()
         self._wire_signals()
@@ -135,7 +138,9 @@ class WorkWindow(QtWidgets.QWidget):
 
         self.mode_status_label = QtWidgets.QLabel("No video loaded", top_row)
         set_role(self.mode_status_label, "chip")
-        self.mode_status_label.setToolTip("M  Toggle mode • ,  Stats overlay • Backspace delete • Ctrl/Cmd+Z undo")
+        self.mode_status_label.setToolTip(
+            "M  Toggle mode • F  Fullscreen • ,  Stats overlay • Right-click tag for clip pop-up"
+        )
 
         top_layout.addWidget(self.mode_tagging_btn)
         top_layout.addWidget(self.mode_analyzing_btn)
@@ -262,6 +267,7 @@ class WorkWindow(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Policy.Fixed,
         )
         self.tags_list.setToolTip("Enter/Double-click  Seek to tag • Backspace  Delete selected")
+        self.tags_list.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
 
         tags_section_layout.addWidget(tags_header_row)
         tags_section_layout.addWidget(self.tags_list)
@@ -364,6 +370,7 @@ class WorkWindow(QtWidgets.QWidget):
 
         self.tags_list.itemActivated.connect(self.on_tag_item_activated)
         self.tags_list.currentItemChanged.connect(lambda *_: self.on_tag_selection_changed())
+        self.tags_list.customContextMenuRequested.connect(self._on_tags_context_menu)
 
         self.mode_tagging_btn.clicked.connect(self.on_mode_toggled)
         self.mode_analyzing_btn.clicked.connect(self.on_mode_toggled)
@@ -441,6 +448,7 @@ class WorkWindow(QtWidgets.QWidget):
         self.video_player.load_video_from_file(file_path)
         self.video_player.set_controls_visible(True)
         self._current_video_name = Path(file_path).name
+        self._current_video_path = file_path
 
         self.game_controls.show()
         self.context_team = "Home"
@@ -489,6 +497,7 @@ class WorkWindow(QtWidgets.QWidget):
         self.tags_list.hide()
         self.stats_window.hide()
         self._current_video_name = ""
+        self._current_video_path = ""
         self._update_mode_affordance()
 
         self.video_closed.emit()
@@ -506,6 +515,50 @@ class WorkWindow(QtWidgets.QWidget):
         pos_ms = item.data(QtCore.Qt.ItemDataRole.UserRole)
         if pos_ms is not None:
             self.video_player.seek_to_ms(int(pos_ms))
+
+    def _on_tags_context_menu(self, pos: QtCore.QPoint) -> None:
+        item = self.tags_list.itemAt(pos)
+        if item is None or not self._current_video_path:
+            return
+
+        menu = QtWidgets.QMenu(self.tags_list)
+        open_clip_action = menu.addAction("Open clip in pop-up window")
+        seek_action = menu.addAction("Seek to this tag")
+        chosen = menu.exec(self.tags_list.mapToGlobal(pos))
+
+        if chosen == open_clip_action:
+            self._open_clip_popup_from_item(item)
+        elif chosen == seek_action:
+            self.on_tag_item_activated(item)
+
+    def _open_clip_popup_from_item(self, item: QtWidgets.QListWidgetItem) -> None:
+        if not self._current_video_path:
+            return
+
+        clips: list[dict[str, object]] = []
+        current_index = 0
+        for row in range(self.tags_list.count()):
+            row_item = self.tags_list.item(row)
+            if row_item is None:
+                continue
+            clip_data = {
+                "timestamp_ms": int(row_item.data(QtCore.Qt.ItemDataRole.UserRole) or 0),
+                "display_text": row_item.text(),
+            }
+            clips.append(clip_data)
+            if row_item is item:
+                current_index = len(clips) - 1
+
+        if not clips:
+            return
+
+        if self._clip_popup_window is None:
+            self._clip_popup_window = ClipPopupWindow(self)
+
+        self._clip_popup_window.set_context(self._current_video_path, clips, current_index)
+        self._clip_popup_window.show()
+        self._clip_popup_window.raise_()
+        self._clip_popup_window.activateWindow()
 
     def on_tag_selection_changed(self) -> None:
         self.note_debounce_timer.stop()

@@ -14,6 +14,7 @@ class VideoPlayer(QtWidgets.QWidget):
         self._duration_ms = 0
         self._playback_rate = 1.0
         self._was_playing_before_scrub = False
+        self._is_fullscreen = False
         self._build_ui()
         self._wire_signals()
         self._build_shortcuts()
@@ -47,6 +48,7 @@ class VideoPlayer(QtWidgets.QWidget):
         self._controls_bar.reset_speed_requested.connect(self._on_reset_speed_clicked)
         self._controls_bar.mute_toggled.connect(self._on_mute_toggled)
         self._controls_bar.seek_requested_ms.connect(self._seek_by_ms)
+        self._controls_bar.fullscreen_toggle_requested.connect(self.toggle_fullscreen)
 
         self._player.playbackStateChanged.connect(self._on_state_changed)
         self._player.durationChanged.connect(self._on_duration_changed)
@@ -55,6 +57,7 @@ class VideoPlayer(QtWidgets.QWidget):
         self._timeline_bar.scrub_started.connect(self._on_scrub_started)
         self._timeline_bar.scrub_seek_to.connect(self._player.setPosition)
         self._timeline_bar.scrub_finished.connect(self._on_scrub_finished)
+        self._video_widget.fullScreenChanged.connect(self._on_fullscreen_changed)
 
     def _build_shortcuts(self) -> None:
         def make_action(seq: QtGui.QKeySequence, handler):
@@ -79,6 +82,14 @@ class VideoPlayer(QtWidgets.QWidget):
             QtGui.QKeySequence(QtCore.Qt.KeyboardModifier.ShiftModifier | QtCore.Qt.Key.Key_Right),
             lambda: self._seek_by_ms(3000),
         )
+        self._toggle_fullscreen_action = make_action(
+            QtGui.QKeySequence(QtCore.Qt.Key.Key_F),
+            self._shortcut_toggle_fullscreen,
+        )
+        self._exit_fullscreen_action = make_action(
+            QtGui.QKeySequence(QtCore.Qt.Key.Key_Escape),
+            self._shortcut_exit_fullscreen,
+        )
 
     def set_controls_visible(self, visible: bool) -> None:
         self._video_widget.setVisible(visible)
@@ -100,6 +111,8 @@ class VideoPlayer(QtWidgets.QWidget):
             self._seek_small_forward_action,
             self._seek_big_back_action,
             self._seek_big_forward_action,
+            self._toggle_fullscreen_action,
+            self._exit_fullscreen_action,
         ):
             action.setEnabled(enabled)
 
@@ -173,6 +186,14 @@ class VideoPlayer(QtWidgets.QWidget):
         self._audio_output.setMuted(muted)
         self._controls_bar.set_muted(muted)
 
+    def toggle_fullscreen(self) -> None:
+        self.set_fullscreen(not self._is_fullscreen)
+
+    def set_fullscreen(self, fullscreen: bool) -> None:
+        self._is_fullscreen = fullscreen
+        self._video_widget.setFullScreen(fullscreen)
+        self._controls_bar.set_fullscreen(fullscreen)
+
     def _on_state_changed(self, state: QtMultimedia.QMediaPlayer.PlaybackState) -> None:
         self._controls_bar.set_playing(state == QtMultimedia.QMediaPlayer.PlaybackState.PlayingState)
 
@@ -218,9 +239,26 @@ class VideoPlayer(QtWidgets.QWidget):
             self._controls_bar.flash_play_button()
             self._player.play()
 
+    def _shortcut_toggle_fullscreen(self) -> None:
+        self._controls_bar.flash_fullscreen_button()
+        self.toggle_fullscreen()
+
+    def _shortcut_exit_fullscreen(self) -> None:
+        if self._is_fullscreen:
+            self.set_fullscreen(False)
+
+    def _on_fullscreen_changed(self, fullscreen: bool) -> None:
+        self._is_fullscreen = fullscreen
+        self._controls_bar.set_fullscreen(fullscreen)
+
     def eventFilter(self, obj, event):  # noqa: N802, ANN001
-        if obj == self._video_widget and event.type() == QtCore.QEvent.Type.MouseButtonPress:
-            if event.button() == QtCore.Qt.MouseButton.LeftButton:
-                self._shortcut_toggle()
-                return True
+        if obj == self._video_widget:
+            if event.type() == QtCore.QEvent.Type.MouseButtonDblClick:
+                if event.button() == QtCore.Qt.MouseButton.LeftButton:
+                    self._shortcut_toggle_fullscreen()
+                    return True
+            if event.type() == QtCore.QEvent.Type.MouseButtonPress:
+                if event.button() == QtCore.Qt.MouseButton.LeftButton:
+                    self._shortcut_toggle()
+                    return True
         return super().eventFilter(obj, event)
