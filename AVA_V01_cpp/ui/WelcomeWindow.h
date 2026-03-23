@@ -12,6 +12,9 @@ public:
   explicit WelcomeWindow(QWidget* parent = nullptr);
   ~WelcomeWindow() override = default;
 
+public slots:
+  void applyUiStrings();
+
 signals:
   void videoImportRequested();
 

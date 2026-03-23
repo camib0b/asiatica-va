@@ -18,6 +18,8 @@ public:
   void setPlaybackRate(double rate);
   void setMuted(bool muted);
 
+  void applyUiStrings();
+
   void flashPlayButton();
   void flashPauseButton();
   void flashSeekBackButton();

@@ -3,6 +3,7 @@
 #include <QWidget>
 #include <QtGlobal>
 #include <QString>
+#include <QBrush>
 #include <QHash>
 #include <QSet>
 
@@ -10,11 +11,12 @@ class QLabel;
 class QAction;
 class QToolButton;
 class QMenu;
-class QListWidget;
-class QListWidgetItem;
+class QTableWidget;
+class QTableWidgetItem;
 class QPlainTextEdit;
 class QVBoxLayout;
 class QStackedWidget;
+class QSplitter;
 class QTimer;
 class QDialog;
 
@@ -22,6 +24,7 @@ class VideoPlayer;
 class GameControls;
 class GameSetupWindow;
 class StatsWindow;
+class Scoreboard;
 
 #include "../state/TagSession.h"
 
@@ -46,7 +49,7 @@ signals:
 private slots:
   void onReplaceVideo();
   void onDiscardVideo();
-  void onTagItemActivated(QListWidgetItem* item);
+  void onTagTableSeekToRow(int row);
   void onTagSelectionChanged();
   void onNoteTextChanged();
   void onDeleteSelectedTag();
@@ -64,12 +67,17 @@ private slots:
                             const QString& homeName, const QString& awayName,
                             const QString& homeColor, const QString& awayColor);
   void onTeamSetupCancelled();
+  void onExportClips();
+  void onApplicationLanguageChanged();
 
 private:
   void buildUi();
   void wireSignals();
+  void applyUiStrings();
   void applyTaggingLayout();
   void applyAnalyzingLayout();
+  void applyAnalyzingSplitterGeometry();
+  void applyTaggingSplitterGeometry();
   void rebuildTagsList();
   void rebuildFilterMenu();
   void updateFilterIndicator();
@@ -79,6 +87,9 @@ private:
   void loadNoteForSelectedTag();
   void flashNewTagRow();
   void clearNewTagFlash();
+  QTableWidgetItem* currentTagKeyItem() const;
+  void setTagTableRowBackground(int row, const QBrush& brush);
+  QString displayTeamForTag(const TagSession::GameTag& tag) const;
   bool isMainEventAllowed(const QString& mainEvent) const;
   bool isTagAllowed(const QString& mainEvent, const QString& followUpEvent) const;
   bool isTagAllowedByQuickFilters(const TagSession::GameTag& tag) const;
@@ -97,10 +108,13 @@ private:
   QWidget* taggingMainRow_ = nullptr;
   QWidget* taggingVideoCol_ = nullptr;
   QWidget* taggingRightCol_ = nullptr;
+  QSplitter* taggingVideoTagsSplitter_ = nullptr;
   QWidget* tagsSection_ = nullptr;
-  QWidget* analyzingMainRow_ = nullptr;
-  QWidget* analyzingLeftCol_ = nullptr;
-  QWidget* analyzingRightCol_ = nullptr;
+  QWidget* tagsHeaderRow_ = nullptr;
+  QSplitter* analyzingMainSplitter_ = nullptr;
+  QSplitter* analyzingLeftSplitter_ = nullptr;
+  QSplitter* analyzingRightSplitter_ = nullptr;
+  QSplitter* analyzingTagsControlsSplitter_ = nullptr;
   QWidget* contentArea_ = nullptr;
   QVBoxLayout* contentLayout_ = nullptr;
   QToolButton* modeTaggingBtn_ = nullptr;
@@ -111,10 +125,13 @@ private:
   QMenu* videoMenu_ = nullptr;
   QAction* replaceVideoAction_ = nullptr;
   QAction* discardVideoAction_ = nullptr;
+  QAction* exportClipsAction_ = nullptr;
+  QAction* statsOverlayAction_ = nullptr;
 
   // UI:
   VideoPlayer* videoPlayer_ = nullptr;
   GameControls* gameControls_ = nullptr;
+  Scoreboard* scoreboard_ = nullptr;
   StatsWindow* statsWindow_ = nullptr;
   QPlainTextEdit* notesEdit_ = nullptr;
   QDialog* statsOverlayDialog_ = nullptr;
@@ -129,7 +146,7 @@ private:
   QMenu* tagsFilterMenu_ = nullptr;
   QLabel* tagsFilterIndicator_ = nullptr;
   QToolButton* undoLastTagButton_ = nullptr;
-  QListWidget* tagsList_ = nullptr;
+  QTableWidget* tagsTable_ = nullptr;
 
   QTimer* newTagFlashTimer_ = nullptr;
   int newTagFlashRow_ = -1;
@@ -148,4 +165,6 @@ private:
   QString contextPeriod_;
   QString contextTeam_;
   QString contextSituation_;
+
+  QString sourceVideoPath_;
 };

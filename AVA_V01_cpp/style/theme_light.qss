@@ -187,6 +187,23 @@ QPushButton[variant="gameControl"]:focus {
   background: rgba(37, 99, 235, 0.06);
   padding: 8px 12px;
 }
+QPushButton[variant="gameControl"][teamSelected="true"] {
+  border: 3px solid #1D4ED8;
+  background: rgba(37, 99, 235, 0.18);
+  font-weight: 700;
+  color: #1E40AF;
+  padding: 7px 11px;
+}
+QPushButton[variant="gameControl"][teamSelected="true"]:hover {
+  background: rgba(37, 99, 235, 0.24);
+  border: 3px solid #1D4ED8;
+}
+QPushButton[variant="gameControl"][teamSelected="true"]:focus {
+  border: 3px solid #1D4ED8;
+  background: rgba(37, 99, 235, 0.18);
+  padding: 7px 11px;
+}
+
 QPushButton[variant="gameControl"][activeMain="true"] {
   border: 3px solid #1D4ED8;
   background: rgba(37, 99, 235, 0.22);
@@ -210,6 +227,25 @@ QPushButton[variant="gameControl"][flash="true"] {
 QPushButton[variant="gameControl"][flash="true"]:focus {
   border: 2px solid #2563EB;
   padding: 8px 12px;
+}
+
+/* Two-line main controls: title + shortcut (shortcut uses muted role) */
+QLabel[role="gameControlTitle"] {
+  color: #0F172A;
+  font-weight: 600;
+  font-size: 12px;
+}
+QPushButton[variant="gameControl"] QLabel[role="muted"] {
+  color: #5B616E;
+  font-size: 11px;
+  font-weight: 500;
+}
+QPushButton[variant="gameControl"][activeMain="true"] QLabel[role="gameControlTitle"] {
+  color: #1E40AF;
+  font-weight: 700;
+}
+QPushButton[variant="gameControl"][activeMain="true"] QLabel[role="muted"] {
+  color: #64748B;
 }
 
 QPushButton[variant="gameControlFollowUp"] {
@@ -340,6 +376,29 @@ QToolButton[variant="ghost"]:hover {
   background: rgba(15, 23, 42, 0.05);
 }
 
+/* WorkWindow: tagging vs analyzing mode toggle (segmented control) */
+QWidget#WorkModeToggleGroup {
+  background: rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  border-radius: 11px;
+}
+QToolButton#WorkModeTaggingButton:checked,
+QToolButton#WorkModeAnalyzingButton:checked {
+  background: rgba(37, 99, 235, 0.14);
+  border: 1px solid rgba(37, 99, 235, 0.42);
+  color: #1D4ED8;
+  font-weight: 650;
+}
+QToolButton#WorkModeTaggingButton:checked:hover,
+QToolButton#WorkModeAnalyzingButton:checked:hover {
+  background: rgba(37, 99, 235, 0.20);
+  border-color: rgba(37, 99, 235, 0.55);
+}
+QToolButton#WorkModeTaggingButton:!checked:hover,
+QToolButton#WorkModeAnalyzingButton:!checked:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+
 /* Menu */
 QMenu {
   background: #FFFFFF;
@@ -360,27 +419,27 @@ QMenu::item:selected {
 ========================= */
 
 QSlider#TimelineSlider::groove:horizontal {
-  height: 6px;
-  border-radius: 3px;
+  height: 10px;
+  border-radius: 5px;
   background: rgba(15, 23, 42, 0.10);
 }
 
 QSlider#TimelineSlider::sub-page:horizontal {
-  height: 6px;
-  border-radius: 3px;
+  height: 10px;
+  border-radius: 5px;
   background: rgba(37, 99, 235, 0.85);
 }
 
 QSlider#TimelineSlider::add-page:horizontal {
-  height: 6px;
-  border-radius: 3px;
+  height: 10px;
+  border-radius: 5px;
   background: rgba(15, 23, 42, 0.10);
 }
 
 QSlider#TimelineSlider::handle:horizontal {
-  width: 14px;
+  width: 10px;
   margin: -6px 0;
-  border-radius: 7px;
+  border-radius: 5px;
   background: #FFFFFF;
   border: 1px solid rgba(15, 23, 42, 0.18);
 }
@@ -401,7 +460,44 @@ QWidget#VideoControlsBarSlim QLabel {
 }
 
 /* Compact game controls in tagging right column */
-QWidget#TaggingRightCol QPushButton[variant="gameControl"],
+/* =========================
+   Scoreboard (stadium-style)
+========================= */
+
+QWidget#Scoreboard {
+  background: #0F172A;
+  border-radius: 8px;
+  min-height: 48px;
+  max-height: 64px;
+}
+
+QWidget#Scoreboard QLabel[role="scoreboardTeamName"] {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  font-weight: 600;
+  background: transparent;
+}
+
+QWidget#Scoreboard QLabel[role="scoreboardScore"] {
+  color: #FFFFFF;
+  font-size: 28px;
+  font-weight: 700;
+  background: transparent;
+}
+
+QWidget#Scoreboard QLabel[role="scoreboardSeparator"] {
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 18px;
+  font-weight: 400;
+  background: transparent;
+}
+
+/* Compact game controls in tagging right column */
+QWidget#TaggingRightCol QPushButton[variant="gameControl"] {
+  padding: 4px 6px;
+  min-height: 52px;
+  border-radius: 6px;
+}
 QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"] {
   padding: 4px 6px;
   font-size: 11px;

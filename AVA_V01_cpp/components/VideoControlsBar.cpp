@@ -1,5 +1,6 @@
 #include "VideoControlsBar.h"
 #include "../style/StyleProps.h"
+#include "../i18n/AppLocale.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
@@ -23,6 +24,7 @@ VideoControlsBar::VideoControlsBar(QWidget* parent): QWidget(parent) {
   setPlaying(false);
   setPlaybackRate(1.0);
   setMuted(false);
+  applyUiStrings();
 }
 
 void VideoControlsBar
@@ -31,14 +33,14 @@ void VideoControlsBar
   layout->setContentsMargins(0, 0, 0, 0);
   layout->setSpacing(8);
 
-  playButton_       = new QPushButton("Play", this);
-  pauseButton_      = new QPushButton("Pause", this);
-  backButton_       = new QPushButton("⟵ 2s", this);
-  forwardButton_    = new QPushButton("2s ⟶", this);
-  slowerButton_     = new QPushButton("Slower", this);
-  resetSpeedButton_ = new QPushButton("Reset 1.0x", this);
-  fasterButton_     = new QPushButton("Faster", this);
-  muteButton_       = new QPushButton("Mute", this);
+  playButton_       = new QPushButton(this);
+  pauseButton_      = new QPushButton(this);
+  backButton_       = new QPushButton(this);
+  forwardButton_    = new QPushButton(this);
+  slowerButton_     = new QPushButton(this);
+  resetSpeedButton_ = new QPushButton(this);
+  fasterButton_     = new QPushButton(this);
+  muteButton_       = new QPushButton(this);
 
   std::array<QPushButton*, 8> videoControlButtons = {
     playButton_,
@@ -86,15 +88,26 @@ void VideoControlsBar
   layout->addWidget(speedLabel_);
   layout->addSpacing(8);
   layout->addWidget(muteButton_);
+}
 
-  // control bar button keyboard hotkeys and tooltips:
-  playButton_       ->setToolTip("space  Play");
-  pauseButton_      ->setToolTip("space  Pause");
-  backButton_       ->setToolTip("⟵  Back");
-  forwardButton_    ->setToolTip("⟶  Forward");
-  slowerButton_     ->setToolTip("{  Slower");
-  fasterButton_     ->setToolTip("}  Faster");
-  resetSpeedButton_ ->setToolTip("\\  Reset speed");
+void VideoControlsBar::applyUiStrings() {
+  if (playButton_) playButton_->setText(AppLocale::trUi("vc.play"));
+  if (pauseButton_) pauseButton_->setText(AppLocale::trUi("vc.pause"));
+  if (backButton_) backButton_->setText(AppLocale::trUi("vc.back"));
+  if (forwardButton_) forwardButton_->setText(AppLocale::trUi("vc.forward"));
+  if (slowerButton_) slowerButton_->setText(AppLocale::trUi("vc.slower"));
+  if (resetSpeedButton_) resetSpeedButton_->setText(AppLocale::trUi("vc.reset_speed"));
+  if (fasterButton_) fasterButton_->setText(AppLocale::trUi("vc.faster"));
+  const bool muted = muteButton_ && muteButton_->isChecked();
+  if (muteButton_) muteButton_->setText(muted ? AppLocale::trUi("vc.unmute") : AppLocale::trUi("vc.mute"));
+  if (playButton_) playButton_->setToolTip(AppLocale::trUi("vc.tt.play"));
+  if (pauseButton_) pauseButton_->setToolTip(AppLocale::trUi("vc.tt.pause"));
+  if (backButton_) backButton_->setToolTip(AppLocale::trUi("vc.tt.back"));
+  if (forwardButton_) forwardButton_->setToolTip(AppLocale::trUi("vc.tt.forward"));
+  if (slowerButton_) slowerButton_->setToolTip(AppLocale::trUi("vc.tt.slower"));
+  if (fasterButton_) fasterButton_->setToolTip(AppLocale::trUi("vc.tt.faster"));
+  if (resetSpeedButton_) resetSpeedButton_->setToolTip(AppLocale::trUi("vc.tt.reset"));
+  updateSpeedLabel();
 }
 
 void VideoControlsBar::wireSignals() {
@@ -160,12 +173,13 @@ void VideoControlsBar::setPlaybackRate(double rate) {
 void VideoControlsBar::setMuted(bool muted) {
   muteButton_->blockSignals(true);
   muteButton_->setChecked(muted);
-  muteButton_->setText(muted ? "Unmute" : "Mute");
+  muteButton_->setText(muted ? AppLocale::trUi("vc.unmute") : AppLocale::trUi("vc.mute"));
   muteButton_->blockSignals(false);
 }
 
 void VideoControlsBar::updateSpeedLabel() {
-  speedLabel_->setText(QString("Speed: %1x").arg(playbackRate_, 0, 'f', 2));
+  const QString rateStr = QString::number(playbackRate_, 'f', 2) + QLatin1Char('x');
+  speedLabel_->setText(AppLocale::trUi("vc.speed_label").arg(rateStr));
 }
 
 void VideoControlsBar::flashButtonBorder(QPushButton* button) {

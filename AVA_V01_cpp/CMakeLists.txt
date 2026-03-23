@@ -12,6 +12,8 @@ qt_standard_project_setup()
 
 qt_add_executable(AVA
   main.cpp
+  i18n/AppLocale.cpp
+  i18n/LocaleNotifier.cpp
   style/theme.cpp
   ui/MainWindow.cpp
   ui/WelcomeWindow.cpp
@@ -22,7 +24,11 @@ qt_add_executable(AVA
   components/VideoControlsBar.cpp
   components/TimelineBar.cpp
   components/GameControls.cpp
+  components/Scoreboard.cpp
   components/VideoPlayer.cpp
+  export/ClipExporter.cpp
+  export/ClipTrimBar.cpp
+  export/ExportDialog.cpp
 )
 
 # macOS app bundle and Dock icon
@@ -49,6 +55,8 @@ target_include_directories(AVA PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/components
   ${CMAKE_CURRENT_SOURCE_DIR}/style
   ${CMAKE_CURRENT_SOURCE_DIR}/state
+  ${CMAKE_CURRENT_SOURCE_DIR}/i18n
+  ${CMAKE_CURRENT_SOURCE_DIR}/export
 )
 
 target_link_libraries(AVA PRIVATE

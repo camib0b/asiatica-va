@@ -1,4 +1,5 @@
 #include "ui/MainWindow.h"
+#include "i18n/AppLocale.h"
 #include <QApplication>
 #include <QIcon>
 #include "style/theme.h"
@@ -8,6 +9,7 @@ int main(int argc, char* argv[]) {
     app.setWindowIcon(QIcon(":/ava-icon.png"));
 
     Style::ApplyLightTheme();
+    AppLocale::loadFromSettings();
 
     MainWindow w;
     w.show();

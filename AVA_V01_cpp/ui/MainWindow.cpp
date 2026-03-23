@@ -8,9 +8,11 @@
 #include "WelcomeWindow.h"
 #include "WorkWindow.h"
 #include "../state/TagSession.h"
+#include "../i18n/AppLocale.h"
+#include "../i18n/LocaleNotifier.h"
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) { // ctor-init
-    setWindowTitle("AVA | Camila Escudero");
+    setWindowTitle(AppLocale::trUi("app.title"));
     resize(1300, 800);
     
     // Create a stacked widget to hold both windows
@@ -35,6 +37,12 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) { // ctor-init
     
     // Show welcome window initially
     stack->setCurrentWidget(welcomeWindow_);
+
+    connect(&LocaleNotifier::instance(), &LocaleNotifier::languageChanged, this, [this]() {
+        setWindowTitle(AppLocale::trUi("app.title"));
+    });
+    connect(&LocaleNotifier::instance(), &LocaleNotifier::languageChanged, welcomeWindow_,
+            &WelcomeWindow::applyUiStrings);
 
     // State reset on app exit (start of state management)
     connect(qApp, &QCoreApplication::aboutToQuit, this, [this]() {
@@ -72,8 +80,8 @@ void MainWindow::onVideoClosed() {
 QString MainWindow::promptForVideoFile() {
     return QFileDialog::getOpenFileName(
         this,
-        "Select a video file",
+        AppLocale::trUi("file.select_video"),
         QString(),
-        "Video files (*.mp4 *.mov *.m4v *.mkv *.avi);;All files (*.*)"
+        AppLocale::trUi("file.video_filter")
     );
 }

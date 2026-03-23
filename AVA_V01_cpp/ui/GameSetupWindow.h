@@ -6,6 +6,7 @@
 class QLabel;
 class QLineEdit;
 class QPushButton;
+class QComboBox;
 
 class GameSetupWindow final : public QWidget {
   Q_OBJECT
@@ -20,11 +21,16 @@ public:
                        const QString& homeColor, const QString& awayColor);
   void setInitialFocus();
 
+  void applyUiStrings();
+
 signals:
   void teamSetupConfirmed(const QString& filePath,
                           const QString& homeName, const QString& awayName,
                           const QString& homeColor, const QString& awayColor);
   void cancelled();
+
+private slots:
+  void onLanguageComboChanged(int index);
 
 private:
   void buildUi();
@@ -38,12 +44,18 @@ private:
   QString videoPath_;
   QLabel* titleLabel_ = nullptr;
   QLabel* subtitleLabel_ = nullptr;
+  QLabel* homeTeamLabel_ = nullptr;
+  QLabel* awayTeamLabel_ = nullptr;
+  QLabel* homeColorLabel_ = nullptr;
+  QLabel* awayColorLabel_ = nullptr;
+  QLabel* languageLabel_ = nullptr;
   QLineEdit* homeNameEdit_ = nullptr;
   QLineEdit* awayNameEdit_ = nullptr;
   QLineEdit* homeColorEdit_ = nullptr;
   QLineEdit* awayColorEdit_ = nullptr;
   QPushButton* homeColorButton_ = nullptr;
   QPushButton* awayColorButton_ = nullptr;
+  QComboBox* languageCombo_ = nullptr;
   QPushButton* continueButton_ = nullptr;
   QPushButton* backButton_ = nullptr;
 };

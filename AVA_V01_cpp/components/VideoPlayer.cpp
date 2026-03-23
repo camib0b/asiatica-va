@@ -48,9 +48,11 @@ void VideoPlayer::buildUi() {
     
     // video widget:
     videoWidget_ = new QVideoWidget(this);
+    videoWidget_->setAspectRatioMode(Qt::KeepAspectRatio);
     videoWidget_->setMinimumHeight(360);
     videoWidget_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     videoWidget_->setAttribute(Qt::WA_Hover, true);
+    videoWidget_->setStyleSheet(QStringLiteral("background-color: black;"));
     
     videoControlsBar_ = new VideoControlsBar(this);
     videoTimelineBar_ = new TimelineBar(this);
@@ -111,6 +113,14 @@ void VideoPlayer::wireSignals() {
         player_->setPosition(posMs);
         if (wasPlayingBeforeScrub_) player_->play();
         wasPlayingBeforeScrub_ = false;
+    });
+
+    // Time-entry seek should pause and stay paused after jumping.
+    connect(videoTimelineBar_, &TimelineBar::timeEntryStarted, this, [this]() {
+        wasPlayingBeforeScrub_ = false;
+        if (player_->playbackState() == QMediaPlayer::PlayingState) {
+            player_->pause();
+        }
     });
 
     // Mouse click on video widget toggles play/pause

@@ -2,9 +2,13 @@
 #include "../style/StyleProps.h"
 #include "../components/VideoPlayer.h"
 #include "../components/GameControls.h"
+#include "../components/Scoreboard.h"
 #include "../state/TagSession.h"
 #include "StatsWindow.h"
 #include "GameSetupWindow.h"
+#include "../i18n/AppLocale.h"
+#include "../i18n/LocaleNotifier.h"
+#include "../export/ExportDialog.h"
 
 #include "VideoControlsBar.h"
 #include "TimelineBar.h"
@@ -18,8 +22,10 @@
 #include <QToolButton>
 #include <QMenu>
 #include <QVideoWidget>
-#include <QListWidget>
-#include <QListWidgetItem>
+#include <QAbstractItemView>
+#include <QHeaderView>
+#include <QTableWidget>
+#include <QTableWidgetItem>
 #include <QAction>
 #include <QKeySequence>
 #include <QBrush>
@@ -31,29 +37,98 @@
 #include <QBoxLayout>
 #include <QTimer>
 #include <QDialog>
-#include <QVBoxLayout>
+#include <QFont>
+#include <QModelIndex>
+#include <QSplitter>
+#include <QHBoxLayout>
 
 namespace {
+
+void detachWidgetFromParent(QWidget* widget) {
+    if (!widget) return;
+    if (qobject_cast<QSplitter*>(widget->parentWidget())) {
+        widget->setParent(nullptr);
+        return;
+    }
+    if (QWidget* parent = widget->parentWidget()) {
+        if (QLayout* layout = parent->layout()) {
+            layout->removeWidget(widget);
+        }
+    }
+}
+
 QString formatTimestampMs(qint64 ms) {
-    if (ms < 0) ms = 0;
+    if (ms < 0) {
+        ms = 0;
+    }
     const qint64 totalSeconds = ms / 1000;
-    const qint64 millis = ms % 1000;
     const qint64 hours = totalSeconds / 3600;
     const qint64 minutes = (totalSeconds / 60) % 60;
     const qint64 seconds = totalSeconds % 60;
 
     if (hours > 0) {
-        return QString("%1:%2:%3.%4")
-            .arg(hours, 2, 10, QChar('0'))
+        return QStringLiteral("%1:%2:%3")
+            .arg(hours)
             .arg(minutes, 2, 10, QChar('0'))
-            .arg(seconds, 2, 10, QChar('0'))
-            .arg(millis, 3, 10, QChar('0'));
+            .arg(seconds, 2, 10, QChar('0'));
     }
 
-    return QString("%1:%2.%3")
-        .arg(minutes, 2, 10, QChar('0'))
-        .arg(seconds, 2, 10, QChar('0'))
-        .arg(millis, 3, 10, QChar('0'));
+    const qint64 minutesTotal = totalSeconds / 60;
+    return QStringLiteral("%1:%2")
+        .arg(minutesTotal, 2, 10, QChar('0'))
+        .arg(seconds, 2, 10, QChar('0'));
+}
+
+QColor foregroundForTeamBackground(const QColor& backgroundColor) {
+    const double red = backgroundColor.redF();
+    const double green = backgroundColor.greenF();
+    const double blue = backgroundColor.blueF();
+    const double luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+    return luminance > 0.55 ? QColor(20, 20, 20) : QColor(252, 252, 252);
+}
+
+void paintTeamCellForTag(QTableWidgetItem* teamItem, const TagSession::GameTag& tag, TagSession* session) {
+    if (!teamItem) return;
+    if (!session) {
+        teamItem->setBackground(QBrush());
+        teamItem->setForeground(QBrush());
+        return;
+    }
+    QString hex;
+    if (tag.team == QStringLiteral("Home")) {
+        hex = session->homeTeamColor();
+    } else if (tag.team == QStringLiteral("Away")) {
+        hex = session->awayTeamColor();
+    } else {
+        teamItem->setBackground(QBrush());
+        teamItem->setForeground(QBrush());
+        return;
+    }
+    QString hexClean = hex.trimmed();
+    if (hexClean.isEmpty()) {
+        teamItem->setBackground(QBrush());
+        teamItem->setForeground(QBrush());
+        return;
+    }
+    if (!hexClean.startsWith(QLatin1Char('#'))) {
+        hexClean.prepend(QLatin1Char('#'));
+    }
+    const QColor backgroundColor(hexClean);
+    if (!backgroundColor.isValid()) {
+        teamItem->setBackground(QBrush());
+        teamItem->setForeground(QBrush());
+        return;
+    }
+    teamItem->setBackground(QBrush(backgroundColor));
+    teamItem->setForeground(QBrush(foregroundForTeamBackground(backgroundColor)));
+}
+
+/// Removes segments that duplicate the session team labels (embedded in follow-up strings from GameControls).
+QString followUpForEventColumn(const QString& followUpEvent, const TagSession* session) {
+    if (!session || followUpEvent.isEmpty()) {
+        return followUpEvent;
+    }
+    return AppLocale::followUpPathWithoutTeamSegments(followUpEvent, session->homeTeamName(), session->awayTeamName());
 }
 } // namespace
 
@@ -62,6 +137,48 @@ WorkWindow::WorkWindow(QWidget* parent) : QWidget(parent) {
     buildUi();
     wireSignals();
     applyTaggingLayout();
+    applyUiStrings();
+}
+
+void WorkWindow::applyUiStrings() {
+    if (modeTaggingBtn_) {
+        modeTaggingBtn_->setText(AppLocale::trUi("mode.tagging"));
+        modeTaggingBtn_->setToolTip(AppLocale::trUi("tooltip.mode_tagging"));
+    }
+    if (modeAnalyzingBtn_) {
+        modeAnalyzingBtn_->setText(AppLocale::trUi("mode.analyzing"));
+        modeAnalyzingBtn_->setToolTip(AppLocale::trUi("tooltip.mode_analyzing"));
+    }
+    if (videoMenuButton_) videoMenuButton_->setToolTip(AppLocale::trUi("tooltip.video_menu"));
+    if (replaceVideoAction_) replaceVideoAction_->setText(AppLocale::trUi("menu.replace_video"));
+    if (discardVideoAction_) discardVideoAction_->setText(AppLocale::trUi("menu.close_video"));
+    if (exportClipsAction_) exportClipsAction_->setText(AppLocale::trUi("menu.export_clips"));
+    if (tagsHeaderLabel_) tagsHeaderLabel_->setText(AppLocale::trUi("tags.header"));
+    if (tagsFilterButton_) tagsFilterButton_->setText(AppLocale::trUi("tags.filter"));
+    if (tagsRemoveFiltersButton_) tagsRemoveFiltersButton_->setText(AppLocale::trUi("tags.remove_filters"));
+    if (undoLastTagButton_) {
+        undoLastTagButton_->setText(AppLocale::trUi("tags.undo"));
+        undoLastTagButton_->setToolTip(AppLocale::trUi("tags.undo_tooltip"));
+    }
+    if (notesEdit_) notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
+    if (tagsTable_) {
+        tagsTable_->setHorizontalHeaderLabels({AppLocale::trUi("tags.col_time"), AppLocale::trUi("tags.col_team"),
+                                               AppLocale::trUi("tags.col_event")});
+    }
+    if (statsOverlayAction_) statsOverlayAction_->setToolTip(AppLocale::trUi("stats_overlay.tooltip"));
+    if (statsOverlayDialog_) statsOverlayDialog_->setWindowTitle(AppLocale::trUi("stats.overlay_title"));
+    if (gameSetupWidget_) gameSetupWidget_->applyUiStrings();
+    if (statsWindow_) statsWindow_->applyUiStrings();
+}
+
+void WorkWindow::onApplicationLanguageChanged() {
+    applyUiStrings();
+    if (gameControls_) gameControls_->applyUiLanguage();
+    if (statsOverlay_) statsOverlay_->applyUiStrings();
+    if (videoPlayer_ && videoPlayer_->controlsBar()) videoPlayer_->controlsBar()->applyUiStrings();
+    rebuildFilterMenu();
+    rebuildTagsList();
+    updateFilterIndicator();
 }
 
 void WorkWindow::setTagSession(TagSession* session) {
@@ -71,11 +188,20 @@ void WorkWindow::setTagSession(TagSession* session) {
     tagSession_ = session;
     if (statsWindow_) statsWindow_->setTagSession(tagSession_);
     if (statsOverlay_) statsOverlay_->setTagSession(tagSession_);
+    if (scoreboard_) scoreboard_->setTagSession(tagSession_);
 
     rebuildFilterMenu();
     rebuildTagsList();
 
-    if (!tagSession_) return;
+    if (!tagSession_) {
+        if (gameControls_) gameControls_->setSessionTeamNames(QString(), QString());
+        return;
+    }
+
+    if (gameControls_) {
+        gameControls_->setSessionTeamNames(tagSession_->homeTeamName(), tagSession_->awayTeamName());
+        gameControls_->setInitialTeamSide(true);
+    }
 
     connect(tagSession_, &TagSession::cleared, this, [this]() {
         allowedMainEvents_.clear();
@@ -124,8 +250,9 @@ void WorkWindow::buildUi() {
     contentStack_ = new QStackedWidget(this);
     mainContentContainer_ = new QWidget(this);
     auto* mainContentLayout = new QVBoxLayout(mainContentContainer_);
-    mainContentLayout->setContentsMargins(16, 16, 16, 16);
-    mainContentLayout->setSpacing(8);
+    mainContentLayout->setContentsMargins(12, 12, 12, 12);
+    // Tight spacing between timeline and video/content so vertical space is not wasted above the video.
+    mainContentLayout->setSpacing(4);
 
     // Top row: mode toggle | video controls | settings icon
     auto* topRow = new QWidget(mainContentContainer_);
@@ -134,25 +261,29 @@ void WorkWindow::buildUi() {
     topLayout->setSpacing(12);
 
     modeTaggingBtn_ = new QToolButton(topRow);
-    modeTaggingBtn_->setText("Tagging");
+    modeTaggingBtn_->setObjectName(QStringLiteral("WorkModeTaggingButton"));
     modeTaggingBtn_->setCheckable(true);
     modeTaggingBtn_->setChecked(true);
     Style::setVariant(modeTaggingBtn_, "ghost");
     Style::setSize(modeTaggingBtn_, "sm");
     modeTaggingBtn_->setCursor(Qt::PointingHandCursor);
-    modeTaggingBtn_->setToolTip("Eyes on video, hands on keyboard (M)");
 
     modeAnalyzingBtn_ = new QToolButton(topRow);
-    modeAnalyzingBtn_->setText("Analyzing");
+    modeAnalyzingBtn_->setObjectName(QStringLiteral("WorkModeAnalyzingButton"));
     modeAnalyzingBtn_->setCheckable(true);
     modeAnalyzingBtn_->setChecked(false);
     Style::setVariant(modeAnalyzingBtn_, "ghost");
     Style::setSize(modeAnalyzingBtn_, "sm");
     modeAnalyzingBtn_->setCursor(Qt::PointingHandCursor);
-    modeAnalyzingBtn_->setToolTip("Stats and notes (M)");
 
-    topLayout->addWidget(modeTaggingBtn_);
-    topLayout->addWidget(modeAnalyzingBtn_);
+    auto* modeToggleGroup = new QWidget(topRow);
+    modeToggleGroup->setObjectName(QStringLiteral("WorkModeToggleGroup"));
+    auto* modeToggleLayout = new QHBoxLayout(modeToggleGroup);
+    modeToggleLayout->setContentsMargins(3, 3, 3, 3);
+    modeToggleLayout->setSpacing(4);
+    modeToggleLayout->addWidget(modeTaggingBtn_);
+    modeToggleLayout->addWidget(modeAnalyzingBtn_);
+    topLayout->addWidget(modeToggleGroup);
     topLayout->addSpacing(16);
 
     videoPlayer_ = new VideoPlayer(this);
@@ -170,15 +301,16 @@ void WorkWindow::buildUi() {
     } else {
         videoMenuButton_->setText(QString::fromUtf8("\u2699")); // gear
     }
-    videoMenuButton_->setToolTip("Video Manager");
     videoMenuButton_->setMinimumWidth(36);
     Style::setVariant(videoMenuButton_, "ghost");
     Style::setSize(videoMenuButton_, "sm");
     videoMenuButton_->setPopupMode(QToolButton::InstantPopup);
     videoMenuButton_->setCursor(Qt::PointingHandCursor);
     videoMenu_ = new QMenu(videoMenuButton_);
-    replaceVideoAction_ = videoMenu_->addAction("Replace video with another one");
-    discardVideoAction_ = videoMenu_->addAction("Close current video");
+    replaceVideoAction_ = videoMenu_->addAction(QString());
+    discardVideoAction_ = videoMenu_->addAction(QString());
+    videoMenu_->addSeparator();
+    exportClipsAction_ = videoMenu_->addAction(QString());
     videoMenuButton_->setMenu(videoMenu_);
     videoControlsLayout->addWidget(videoMenuButton_, 0, Qt::AlignRight | Qt::AlignVCenter);
 
@@ -187,15 +319,17 @@ void WorkWindow::buildUi() {
     mainContentLayout->addWidget(topRow);
 
     videoTimelineRow_ = new QWidget(mainContentContainer_);
+    videoTimelineRow_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     auto* timelineLayout = new QHBoxLayout(videoTimelineRow_);
     timelineLayout->setContentsMargins(0, 0, 0, 0);
-    timelineLayout->addWidget(videoPlayer_->timelineBar());
-    mainContentLayout->addWidget(videoTimelineRow_);
+    timelineLayout->addWidget(videoPlayer_->timelineBar(), 1);
+    // Timeline row uses only its natural height; all extra vertical space goes to the video/content area below.
+    mainContentLayout->addWidget(videoTimelineRow_, 0);
 
     contentArea_ = new QWidget(mainContentContainer_);
     contentLayout_ = new QVBoxLayout(contentArea_);
     contentLayout_->setContentsMargins(0, 0, 0, 0);
-    contentLayout_->setSpacing(8);
+    contentLayout_->setSpacing(6);
     mainContentLayout->addWidget(contentArea_, 1);
 
     gameSetupWidget_ = new GameSetupWindow(this);
@@ -211,10 +345,13 @@ void WorkWindow::buildUi() {
     taggingMainLayout->setContentsMargins(0, 0, 0, 0);
     taggingMainLayout->setSpacing(12);
     taggingVideoCol_ = new QWidget(this);
+    taggingVideoCol_->setObjectName(QStringLiteral("TaggingVideoCol"));
     taggingVideoCol_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    taggingVideoCol_->setAttribute(Qt::WA_StyledBackground, true);
+    taggingVideoCol_->setStyleSheet(QStringLiteral("#TaggingVideoCol { background-color: #FFFFFF; }"));
     auto* taggingVideoLayout = new QVBoxLayout(taggingVideoCol_);
     taggingVideoLayout->setContentsMargins(0, 0, 0, 0);
-    taggingMainLayout->addWidget(taggingVideoCol_, 3);
+    taggingMainLayout->addWidget(taggingVideoCol_, 1);
     taggingRightCol_ = new QWidget(this);
     taggingRightCol_->setObjectName("TaggingRightCol");
     auto* taggingRightLayout = new QVBoxLayout(taggingRightCol_);
@@ -227,36 +364,32 @@ void WorkWindow::buildUi() {
     tagsSectionLayout->setContentsMargins(0, 0, 0, 0);
     tagsSectionLayout->setSpacing(6);
 
-    auto* tagsHeaderRow = new QWidget(tagsSection_);
-    auto* tagsHeaderLayout = new QHBoxLayout(tagsHeaderRow);
+    tagsHeaderRow_ = new QWidget(tagsSection_);
+    auto* tagsHeaderLayout = new QHBoxLayout(tagsHeaderRow_);
     tagsHeaderLayout->setContentsMargins(0, 0, 0, 0);
     tagsHeaderLayout->setSpacing(8);
 
-    tagsHeaderLabel_ = new QLabel("Tags", tagsHeaderRow);
+    tagsHeaderLabel_ = new QLabel(tagsHeaderRow_);
     Style::setRole(tagsHeaderLabel_, "h3");
 
-    tagsFilterButton_ = new QToolButton(tagsHeaderRow);
-    tagsFilterButton_->setText("Filter");
+    tagsFilterButton_ = new QToolButton(tagsHeaderRow_);
     Style::setVariant(tagsFilterButton_, "ghost");
     Style::setSize(tagsFilterButton_, "sm");
     tagsFilterButton_->setPopupMode(QToolButton::InstantPopup);
     tagsFilterButton_->setCursor(Qt::PointingHandCursor);
-    tagsRemoveFiltersButton_ = new QToolButton(tagsHeaderRow);
-    tagsRemoveFiltersButton_->setText("Remove filters");
+    tagsRemoveFiltersButton_ = new QToolButton(tagsHeaderRow_);
     Style::setVariant(tagsRemoveFiltersButton_, "ghost");
     Style::setSize(tagsRemoveFiltersButton_, "sm");
     tagsRemoveFiltersButton_->setCursor(Qt::PointingHandCursor);
     tagsRemoveFiltersButton_->hide();
     tagsFilterMenu_ = new QMenu(tagsFilterButton_);
     tagsFilterButton_->setMenu(tagsFilterMenu_);
-    tagsFilterIndicator_ = new QLabel(tagsHeaderRow);
+    tagsFilterIndicator_ = new QLabel(tagsHeaderRow_);
     tagsFilterIndicator_->setWordWrap(false);
     Style::setRole(tagsFilterIndicator_, "muted");
     tagsFilterIndicator_->hide();
 
-    undoLastTagButton_ = new QToolButton(tagsHeaderRow);
-    undoLastTagButton_->setText("Undo");
-    undoLastTagButton_->setToolTip("Ctrl+Z  Remove most recent tag");
+    undoLastTagButton_ = new QToolButton(tagsHeaderRow_);
     Style::setVariant(undoLastTagButton_, "ghost");
     Style::setSize(undoLastTagButton_, "sm");
     undoLastTagButton_->setCursor(Qt::PointingHandCursor);
@@ -268,79 +401,172 @@ void WorkWindow::buildUi() {
     tagsHeaderLayout->addWidget(tagsRemoveFiltersButton_, 0);
     tagsHeaderLayout->addWidget(tagsFilterButton_, 0);
 
-    tagsList_ = new QListWidget(tagsSection_);
-    tagsList_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    const int rowHeight = tagsList_->sizeHintForRow(0) > 0 ? tagsList_->sizeHintForRow(0) : 24;
-    tagsList_->setMaximumHeight(rowHeight * 3 + 8);
-    tagsList_->setMinimumHeight(rowHeight * 2);
+    tagsTable_ = new QTableWidget(tagsSection_);
+    tagsTable_->setObjectName("TagsTable");
+    tagsTable_->setColumnCount(3);
+    tagsTable_->setHorizontalHeaderLabels({AppLocale::trUi("tags.col_time"), AppLocale::trUi("tags.col_team"),
+                                           AppLocale::trUi("tags.col_event")});
+    tagsTable_->verticalHeader()->hide();
+    tagsTable_->setShowGrid(true);
+    tagsTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
+    tagsTable_->setSelectionMode(QAbstractItemView::SingleSelection);
+    tagsTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    tagsTable_->setWordWrap(false);
+    tagsTable_->horizontalHeader()->setStretchLastSection(true);
+    tagsTable_->horizontalHeader()->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    tagsTable_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    tagsTable_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    tagsTable_->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+    tagsTable_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    {
+        QFont tagsFont = tagsTable_->font();
+        if (tagsFont.pointSizeF() > 0) {
+            tagsFont.setPointSizeF(qMax(6.0, tagsFont.pointSizeF() - 1.0));
+        } else if (tagsFont.pixelSize() > 0) {
+            tagsFont.setPixelSize(qMax(10, tagsFont.pixelSize() - 2));
+        }
+        tagsTable_->setFont(tagsFont);
+        tagsTable_->horizontalHeader()->setFont(tagsFont);
+        tagsTable_->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
+        const int compactRow = qMax(20, tagsTable_->fontMetrics().height() + 4);
+        tagsTable_->verticalHeader()->setDefaultSectionSize(compactRow);
+    }
+    const int rowHeight = qMax(20, tagsTable_->fontMetrics().height() + 4);
+    const int headerH = qMax(28, tagsTable_->horizontalHeader()->sizeHint().height());
+    tagsTable_->setMinimumHeight(rowHeight * 2 + headerH);
+    tagsTable_->setMaximumHeight(QWIDGETSIZE_MAX);
 
-    tagsSectionLayout->addWidget(tagsHeaderRow);
-    tagsSectionLayout->addWidget(tagsList_);
+    tagsSectionLayout->addWidget(tagsHeaderRow_);
+    tagsSectionLayout->addWidget(tagsTable_, 1);
+
+    taggingVideoTagsSplitter_ = new QSplitter(Qt::Vertical, this);
+    taggingVideoTagsSplitter_->setObjectName(QStringLiteral("TaggingVideoTagsSplitter"));
+    taggingVideoTagsSplitter_->setChildrenCollapsible(false);
+    taggingVideoTagsSplitter_->setHandleWidth(6);
+    taggingVideoTagsSplitter_->setAttribute(Qt::WA_StyledBackground, true);
+    taggingVideoTagsSplitter_->setStyleSheet(QStringLiteral("background-color: #FFFFFF;"));
 
     gameControls_ = new GameControls(this);
+    scoreboard_ = new Scoreboard(this);
     statsWindow_ = new StatsWindow(this);
     statsWindow_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     statsWindow_->setMinimumHeight(180);
 
     notesEdit_ = new QPlainTextEdit(this);
-    notesEdit_->setPlaceholderText("Note for selected tag…");
     notesEdit_->setMaximumHeight(120);
     Style::setRole(notesEdit_, "muted");
 
-    analyzingMainRow_ = new QWidget(this);
-    auto* analyzingMainLayout = new QHBoxLayout(analyzingMainRow_);
-    analyzingMainLayout->setContentsMargins(0, 0, 0, 0);
-    analyzingMainLayout->setSpacing(12);
-    analyzingLeftCol_ = new QWidget(this);
-    auto* analyzingLeftLayout = new QVBoxLayout(analyzingLeftCol_);
-    analyzingLeftLayout->setContentsMargins(0, 0, 0, 0);
-    analyzingLeftLayout->setSpacing(8);
-    analyzingRightCol_ = new QWidget(this);
-    auto* analyzingRightLayout = new QVBoxLayout(analyzingRightCol_);
-    analyzingRightLayout->setContentsMargins(0, 0, 0, 0);
-    analyzingRightLayout->setSpacing(8);
-    analyzingMainLayout->addWidget(analyzingLeftCol_, 1);
-    analyzingMainLayout->addWidget(analyzingRightCol_, 1);
+    analyzingTagsControlsSplitter_ = new QSplitter(Qt::Horizontal, this);
+    analyzingTagsControlsSplitter_->setObjectName(QStringLiteral("WorkAnalyzingTagsControlsSplitter"));
+    analyzingTagsControlsSplitter_->setChildrenCollapsible(false);
+    analyzingTagsControlsSplitter_->setHandleWidth(6);
+
+    analyzingLeftSplitter_ = new QSplitter(Qt::Vertical, this);
+    analyzingLeftSplitter_->setObjectName(QStringLiteral("WorkAnalyzingLeftSplitter"));
+    analyzingLeftSplitter_->setChildrenCollapsible(false);
+    analyzingLeftSplitter_->setHandleWidth(6);
+
+    analyzingRightSplitter_ = new QSplitter(Qt::Vertical, this);
+    analyzingRightSplitter_->setObjectName(QStringLiteral("WorkAnalyzingRightSplitter"));
+    analyzingRightSplitter_->setChildrenCollapsible(false);
+    analyzingRightSplitter_->setHandleWidth(6);
+
+    analyzingMainSplitter_ = new QSplitter(Qt::Horizontal, this);
+    analyzingMainSplitter_->setObjectName(QStringLiteral("WorkAnalyzingMainSplitter"));
+    analyzingMainSplitter_->setChildrenCollapsible(false);
+    analyzingMainSplitter_->setHandleWidth(8);
+    analyzingMainSplitter_->addWidget(analyzingLeftSplitter_);
+    analyzingMainSplitter_->addWidget(analyzingRightSplitter_);
+
+    for (QSplitter* splitter :
+         {analyzingMainSplitter_, analyzingLeftSplitter_, analyzingRightSplitter_, analyzingTagsControlsSplitter_}) {
+        splitter->setAttribute(Qt::WA_StyledBackground, true);
+        splitter->setStyleSheet(QStringLiteral("background-color: #FFFFFF;"));
+    }
+    analyzingMainSplitter_->hide();
 
     if (videoPlayer_) videoPlayer_->setControlsVisible(false);
     if (gameControls_) gameControls_->hide();
+    if (scoreboard_) scoreboard_->hide();
     if (statsWindow_) statsWindow_->hide();
-    if (tagsHeaderLabel_) tagsHeaderLabel_->hide();
-    if (tagsFilterButton_) tagsFilterButton_->hide();
-    if (tagsRemoveFiltersButton_) tagsRemoveFiltersButton_->hide();
-    if (undoLastTagButton_) undoLastTagButton_->hide();
-    if (tagsList_) tagsList_->hide();
+    if (tagsHeaderRow_) tagsHeaderRow_->hide();
+    if (tagsTable_) tagsTable_->hide();
     if (modeTaggingBtn_) modeTaggingBtn_->hide();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->hide();
 }
 
 void WorkWindow::applyTaggingLayout() {
     mode_ = Mode::Tagging;
+    if (analyzingMainSplitter_) analyzingMainSplitter_->hide();
+
+    QWidget* timeline = videoPlayer_ ? videoPlayer_->timelineBar() : nullptr;
+    detachWidgetFromParent(videoPlayer_ ? videoPlayer_->videoWidget() : nullptr);
+    if (timeline && timeline->parentWidget() != videoTimelineRow_) {
+        detachWidgetFromParent(timeline);
+    }
+    detachWidgetFromParent(tagsSection_);
+    detachWidgetFromParent(gameControls_);
+    detachWidgetFromParent(scoreboard_);
+    detachWidgetFromParent(analyzingTagsControlsSplitter_);
+    detachWidgetFromParent(statsWindow_);
+    if (notesEdit_) detachWidgetFromParent(notesEdit_);
+
+    if (videoTimelineRow_) {
+        videoTimelineRow_->show();
+        if (timeline && timeline->parentWidget() != videoTimelineRow_ && videoTimelineRow_->layout()) {
+            if (auto* rowLayout = qobject_cast<QHBoxLayout*>(videoTimelineRow_->layout())) {
+                rowLayout->addWidget(timeline, 1);
+            } else {
+                videoTimelineRow_->layout()->addWidget(timeline);
+            }
+        }
+    }
+
     if (videoPlayer_ && videoPlayer_->controlsBar())
         videoPlayer_->controlsBar()->setObjectName("VideoControlsBarSlim");
 
     QWidget* vw = videoPlayer_->videoWidget();
-    if (QWidget* p = vw->parentWidget())
-        if (QLayout* L = p->layout()) L->removeWidget(vw);
     static_cast<QBoxLayout*>(taggingVideoCol_->layout())->addWidget(vw, 1);
-
-    if (QWidget* p = gameControls_->parentWidget())
-        if (QLayout* L = p->layout()) L->removeWidget(gameControls_);
-    static_cast<QBoxLayout*>(taggingRightCol_->layout())->addWidget(gameControls_, 0);
+    auto* rightLayout = static_cast<QBoxLayout*>(taggingRightCol_->layout());
+    rightLayout->addWidget(gameControls_, 1);
+    rightLayout->addWidget(scoreboard_, 0);
 
     while (QLayoutItem* item = contentLayout_->takeAt(0)) {
         delete item;  // widget stays in tree; do not setParent(nullptr)
     }
-    contentLayout_->addWidget(taggingMainRow_, 1);
-    if (QWidget* p = tagsSection_->parentWidget())
-        if (QLayout* L = p->layout()) L->removeWidget(tagsSection_);
-    contentLayout_->addWidget(tagsSection_, 0);
 
-    const int rh = tagsList_->sizeHintForRow(0) > 0 ? tagsList_->sizeHintForRow(0) : 24;
-    tagsList_->setMaximumHeight(rh * 3 + 8);
+    if (taggingVideoTagsSplitter_) {
+        while (taggingVideoTagsSplitter_->count() > 0) {
+            taggingVideoTagsSplitter_->widget(0)->setParent(nullptr);
+        }
+        taggingVideoTagsSplitter_->addWidget(taggingMainRow_);
+        taggingVideoTagsSplitter_->addWidget(tagsSection_);
+        taggingVideoTagsSplitter_->setStretchFactor(0, 3);
+        taggingVideoTagsSplitter_->setStretchFactor(1, 2);
+        contentLayout_->addWidget(taggingVideoTagsSplitter_, 1);
+    } else {
+        contentLayout_->addWidget(taggingMainRow_, 1);
+        contentLayout_->addWidget(tagsSection_, 0);
+    }
+
+    if (tagsHeaderRow_) tagsHeaderRow_->hide();
+
+    const int rh = qMax(20, tagsTable_->fontMetrics().height() + 4);
+    const int headerH = tagsTable_->horizontalHeader()->sizeHint().height();
+    tagsTable_->setMinimumHeight(rh * 2 + headerH);
+    tagsTable_->setMaximumHeight(QWIDGETSIZE_MAX);
+    if (tagsSection_) tagsSection_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     statsWindow_->hide();
     if (notesEdit_) notesEdit_->hide();
+
+    if (taggingVideoTagsSplitter_) {
+        taggingVideoTagsSplitter_->show();
+    } else if (taggingMainRow_) {
+        taggingMainRow_->show();
+    }
+
+    QTimer::singleShot(0, this, [this]() { applyTaggingSplitterGeometry(); });
 
     // Keep tag list in sync with session after layout change
     rebuildTagsList();
@@ -348,6 +574,8 @@ void WorkWindow::applyTaggingLayout() {
 
 void WorkWindow::applyAnalyzingLayout() {
     mode_ = Mode::Analyzing;
+    if (taggingMainRow_) taggingMainRow_->hide();
+    if (taggingVideoTagsSplitter_) taggingVideoTagsSplitter_->hide();
     if (videoPlayer_ && videoPlayer_->controlsBar())
         videoPlayer_->controlsBar()->setObjectName(""); // normal height
 
@@ -356,36 +584,123 @@ void WorkWindow::applyAnalyzingLayout() {
     }
 
     QWidget* vw = videoPlayer_->videoWidget();
-    if (QWidget* p = vw->parentWidget())
-        if (QLayout* L = p->layout()) L->removeWidget(vw);
-    static_cast<QBoxLayout*>(analyzingLeftCol_->layout())->addWidget(vw, 1);
-
-    if (QWidget* p = tagsSection_->parentWidget())
-        if (QLayout* L = p->layout()) L->removeWidget(tagsSection_);
-    static_cast<QBoxLayout*>(analyzingLeftCol_->layout())->addWidget(tagsSection_, 1);
-
-    if (QWidget* p = gameControls_->parentWidget())
-        if (QLayout* L = p->layout()) L->removeWidget(gameControls_);
-    static_cast<QBoxLayout*>(analyzingLeftCol_->layout())->addWidget(gameControls_, 0);
-
-    if (QWidget* p = statsWindow_->parentWidget())
-        if (QLayout* L = p->layout()) L->removeWidget(statsWindow_);
-    static_cast<QBoxLayout*>(analyzingRightCol_->layout())->addWidget(statsWindow_, 1);
-
-    if (notesEdit_) {
-        if (QWidget* p = notesEdit_->parentWidget())
-            if (QLayout* L = p->layout()) L->removeWidget(notesEdit_);
-        static_cast<QBoxLayout*>(analyzingRightCol_->layout())->addWidget(notesEdit_, 0);
+    QWidget* timeline = videoPlayer_ ? videoPlayer_->timelineBar() : nullptr;
+    if (!vw || !timeline || !analyzingMainSplitter_ || !analyzingLeftSplitter_ || !analyzingRightSplitter_ ||
+        !analyzingTagsControlsSplitter_) {
+        rebuildTagsList();
+        return;
     }
 
-    contentLayout_->addWidget(analyzingMainRow_, 1);
+    detachWidgetFromParent(vw);
+    detachWidgetFromParent(tagsSection_);
+    detachWidgetFromParent(gameControls_);
+    detachWidgetFromParent(scoreboard_);
+    detachWidgetFromParent(statsWindow_);
+    if (notesEdit_) detachWidgetFromParent(notesEdit_);
+    detachWidgetFromParent(timeline);
+    if (scoreboard_) scoreboard_->hide();
+
+    if (videoTimelineRow_) videoTimelineRow_->hide();
+
+    while (analyzingTagsControlsSplitter_->count() > 0) {
+        analyzingTagsControlsSplitter_->widget(0)->setParent(nullptr);
+    }
+    while (analyzingLeftSplitter_->count() > 0) {
+        analyzingLeftSplitter_->widget(0)->setParent(nullptr);
+    }
+    while (analyzingRightSplitter_->count() > 0) {
+        analyzingRightSplitter_->widget(0)->setParent(nullptr);
+    }
+
+    timeline->setMinimumHeight(44);
+    timeline->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    tagsSection_->setMinimumWidth(160);
+    tagsSection_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    gameControls_->setMinimumWidth(200);
+    gameControls_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+    analyzingTagsControlsSplitter_->addWidget(tagsSection_);
+    analyzingTagsControlsSplitter_->addWidget(gameControls_);
+
+    analyzingLeftSplitter_->addWidget(vw);
+    analyzingLeftSplitter_->addWidget(timeline);
+    analyzingLeftSplitter_->addWidget(analyzingTagsControlsSplitter_);
+
+    analyzingRightSplitter_->addWidget(statsWindow_);
+    if (notesEdit_) analyzingRightSplitter_->addWidget(notesEdit_);
+
+    analyzingMainSplitter_->setStretchFactor(0, 2);
+    analyzingMainSplitter_->setStretchFactor(1, 1);
+    analyzingLeftSplitter_->setStretchFactor(0, 5);
+    analyzingLeftSplitter_->setStretchFactor(1, 0);
+    analyzingLeftSplitter_->setStretchFactor(2, 3);
+    analyzingTagsControlsSplitter_->setStretchFactor(0, 1);
+    analyzingTagsControlsSplitter_->setStretchFactor(1, 1);
+    analyzingRightSplitter_->setStretchFactor(0, 3);
+    analyzingRightSplitter_->setStretchFactor(1, 1);
+
+    contentLayout_->addWidget(analyzingMainSplitter_, 1);
 
     statsWindow_->show();
     if (notesEdit_) notesEdit_->show();
-    tagsList_->setMaximumHeight(QWIDGETSIZE_MAX);
+    tagsTable_->setMaximumHeight(QWIDGETSIZE_MAX);
+
+    if (tagsHeaderRow_) tagsHeaderRow_->show();
+
+    if (analyzingMainSplitter_) analyzingMainSplitter_->show();
+
+    QTimer::singleShot(0, this, [this]() { applyAnalyzingSplitterGeometry(); });
 
     // Keep tag list in sync with session after layout change
     rebuildTagsList();
+}
+
+void WorkWindow::applyAnalyzingSplitterGeometry() {
+    if (mode_ != Mode::Analyzing || !analyzingMainSplitter_) return;
+
+    const int totalW = analyzingMainSplitter_->width();
+    if (totalW >= 120) {
+        const int leftW = qMax(200, totalW * 2 / 3);
+        const int rightW = qMax(160, totalW - leftW);
+        analyzingMainSplitter_->setSizes({leftW, rightW});
+    }
+
+    const int leftH = analyzingLeftSplitter_ ? analyzingLeftSplitter_->height() : 0;
+    if (analyzingLeftSplitter_ && leftH >= 120) {
+        const int handleTotal = analyzingLeftSplitter_->handleWidth() * 2;
+        const int inner = leftH - handleTotal;
+        const int videoH = qMax(140, inner * 45 / 100);
+        const int timelineH = qMax(44, inner * 12 / 100);
+        const int tagsControlsRowH = qMax(120, inner - videoH - timelineH);
+        analyzingLeftSplitter_->setSizes({videoH, timelineH, tagsControlsRowH});
+    }
+
+    const int tagsControlsRowW = analyzingTagsControlsSplitter_ ? analyzingTagsControlsSplitter_->width() : 0;
+    if (analyzingTagsControlsSplitter_ && tagsControlsRowW >= 120) {
+        const int tagsW = qMax(200, tagsControlsRowW * 1 / 2);
+        const int controlsW = qMax(200, tagsControlsRowW - tagsW);
+        analyzingTagsControlsSplitter_->setSizes({tagsW, controlsW});
+    }
+
+    const int rightH = analyzingRightSplitter_ ? analyzingRightSplitter_->height() : 0;
+    if (analyzingRightSplitter_ && rightH >= 100) {
+        const int handle = analyzingRightSplitter_->handleWidth();
+        const int inner = rightH - handle;
+        const int statsH = qMax(180, inner * 72 / 100);
+        const int notesH = qMax(80, inner - statsH);
+        analyzingRightSplitter_->setSizes({statsH, notesH});
+    }
+}
+
+void WorkWindow::applyTaggingSplitterGeometry() {
+    if (mode_ != Mode::Tagging || !taggingVideoTagsSplitter_) return;
+    const int h = taggingVideoTagsSplitter_->height();
+    if (h < 100) return;
+    const int handle = taggingVideoTagsSplitter_->handleWidth();
+    const int inner = h - handle;
+    const int topH = qMax(160, inner * 58 / 100);
+    const int bottomH = qMax(120, inner - topH);
+    taggingVideoTagsSplitter_->setSizes({topH, bottomH});
 }
 
 void WorkWindow::wireSignals() {
@@ -400,12 +715,18 @@ void WorkWindow::wireSignals() {
     // Connect VideoPlayer's videoClosed signal to WorkWindow's signal
     connect(videoPlayer_, &VideoPlayer::videoClosed, this, &WorkWindow::videoClosed);
 
+    connect(exportClipsAction_, &QAction::triggered, this, &WorkWindow::onExportClips);
+
     // GameControls -> capture timestamp and store tags
     connect(gameControls_, &GameControls::mainEventPressed, this, [this](const QString& mainEvent) {
         if (!videoPlayer_) return;
         pendingMainEvent_ = mainEvent;
         pendingTimestampMs_ = videoPlayer_->currentPositionMs();
         hasPendingTag_ = true;
+    });
+
+    connect(gameControls_, &GameControls::teamSideSelected, this, [this](bool isHome) {
+        contextTeam_ = isHome ? QStringLiteral("Home") : QStringLiteral("Away");
     });
 
     connect(gameControls_, &GameControls::gameEventMarked, this, [this](const QString& mainEvent, const QString& followUpEvent) {
@@ -427,14 +748,27 @@ void WorkWindow::wireSignals() {
             tag.positionMs = timestampMs;
             TagSession::GameTag ctx = currentTagContext();
             tag.period = ctx.period;
-            tag.team = ctx.team;
             tag.situation = ctx.situation;
+            if (gameControls_) {
+                const QString sideKey = gameControls_->selectedTeamSideKey();
+                tag.team = sideKey.isEmpty() ? ctx.team : sideKey;
+                if (!sideKey.isEmpty()) {
+                    contextTeam_ = sideKey;
+                }
+            } else {
+                tag.team = ctx.team;
+            }
             tagSession_->addTag(tag);
         }
     });
 
-    connect(tagsList_, &QListWidget::itemActivated, this, &WorkWindow::onTagItemActivated);
-    connect(tagsList_, &QListWidget::currentItemChanged, this, &WorkWindow::onTagSelectionChanged);
+    connect(tagsTable_, &QTableWidget::cellDoubleClicked, this, [this](int row, int) { onTagTableSeekToRow(row); });
+    connect(tagsTable_, &QAbstractItemView::activated, this, [this](const QModelIndex& index) {
+        if (index.isValid()) {
+            onTagTableSeekToRow(index.row());
+        }
+    });
+    connect(tagsTable_, &QTableWidget::itemSelectionChanged, this, &WorkWindow::onTagSelectionChanged);
 
     connect(modeTaggingBtn_, &QToolButton::clicked, this, &WorkWindow::onModeToggled);
     connect(modeAnalyzingBtn_, &QToolButton::clicked, this, &WorkWindow::onModeToggled);
@@ -454,12 +788,14 @@ void WorkWindow::wireSignals() {
     });
     addAction(modeAction);
 
-    auto* statsOverlayAction = new QAction(this);
-    statsOverlayAction->setShortcut(QKeySequence(Qt::Key_Comma));
-    statsOverlayAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-    statsOverlayAction->setToolTip("Stats overlay (,)");
-    connect(statsOverlayAction, &QAction::triggered, this, &WorkWindow::showStatsOverlay);
-    addAction(statsOverlayAction);
+    statsOverlayAction_ = new QAction(this);
+    statsOverlayAction_->setShortcut(QKeySequence(Qt::Key_Comma));
+    statsOverlayAction_->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+    connect(statsOverlayAction_, &QAction::triggered, this, &WorkWindow::showStatsOverlay);
+    addAction(statsOverlayAction_);
+
+    connect(&LocaleNotifier::instance(), &LocaleNotifier::languageChanged, this,
+            &WorkWindow::onApplicationLanguageChanged);
 
     noteDebounceTimer_ = new QTimer(this);
     noteDebounceTimer_->setSingleShot(true);
@@ -487,9 +823,9 @@ void WorkWindow::wireSignals() {
 QString WorkWindow::promptForVideoFile() {
     return QFileDialog::getOpenFileName(
         this,
-        "Select a video file",
+        AppLocale::trUi("file.select_video"),
         QString(),
-        "Video files (*.mp4 *.mov *.m4v *.mkv *.avi);;All files (*.*)"
+        AppLocale::trUi("file.video_filter")
     );
 }
 
@@ -516,12 +852,14 @@ void WorkWindow::onTeamSetupCancelled() {
 void WorkWindow::loadVideoFromFile(const QString& filePath) {
     if (filePath.isEmpty()) return;
 
+    sourceVideoPath_ = filePath;
+
     if (tagSession_) tagSession_->clear();
     hasPendingTag_ = false;
     pendingMainEvent_.clear();
     pendingTimestampMs_ = 0;
-    if (tagsList_) tagsList_->clear();
-    
+    if (tagsTable_) tagsTable_->setRowCount(0);
+
     if (videoPlayer_) {
         videoPlayer_->loadVideoFromFile(filePath);
         videoPlayer_->setControlsVisible(true);
@@ -529,16 +867,29 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     
     if (gameControls_) {
         gameControls_->show();
+        if (tagSession_) {
+            gameControls_->setSessionTeamNames(tagSession_->homeTeamName(), tagSession_->awayTeamName());
+            gameControls_->setInitialTeamSide(true);
+        }
         contextTeam_ = "Home";
+    }
+    if (scoreboard_) {
+        scoreboard_->setTagSession(tagSession_);
+        scoreboard_->show();
     }
     if (modeTaggingBtn_) modeTaggingBtn_->show();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->show();
 
-    if (tagsHeaderLabel_) tagsHeaderLabel_->show();
-    if (tagsFilterButton_) tagsFilterButton_->show();
-    if (undoLastTagButton_) undoLastTagButton_->show();
-    updateFilterButtonsVisibility();
-    if (tagsList_) tagsList_->show();
+    if (mode_ == Mode::Analyzing) {
+        if (tagsHeaderRow_) tagsHeaderRow_->show();
+        if (tagsHeaderLabel_) tagsHeaderLabel_->show();
+        if (tagsFilterButton_) tagsFilterButton_->show();
+        if (undoLastTagButton_) undoLastTagButton_->show();
+        updateFilterButtonsVisibility();
+    } else {
+        if (tagsHeaderRow_) tagsHeaderRow_->hide();
+    }
+    if (tagsTable_) tagsTable_->show();
     updateFilterIndicator();
     if (statsWindow_) {
         statsWindow_->setTagSession(tagSession_);
@@ -558,6 +909,7 @@ void WorkWindow::onReplaceVideo() {
 void WorkWindow::onDiscardVideo() {
     if (videoPlayer_) videoPlayer_->setControlsVisible(false);
     if (gameControls_) gameControls_->hide();
+    if (scoreboard_) scoreboard_->hide();
     if (modeTaggingBtn_) modeTaggingBtn_->hide();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->hide();
 
@@ -565,27 +917,34 @@ void WorkWindow::onDiscardVideo() {
     hasPendingTag_ = false;
     pendingMainEvent_.clear();
     pendingTimestampMs_ = 0;
-    if (tagsList_) tagsList_->clear();
-    if (tagsHeaderLabel_) tagsHeaderLabel_->hide();
-    if (tagsFilterButton_) tagsFilterButton_->hide();
-    if (tagsRemoveFiltersButton_) tagsRemoveFiltersButton_->hide();
-    if (undoLastTagButton_) undoLastTagButton_->hide();
-    if (tagsList_) tagsList_->hide();
+    if (tagsTable_) tagsTable_->setRowCount(0);
+    if (tagsHeaderRow_) tagsHeaderRow_->hide();
+    if (tagsTable_) tagsTable_->hide();
     if (statsWindow_) statsWindow_->hide();
 
     emit videoClosed();
+}
+
+void WorkWindow::onExportClips() {
+    if (!tagSession_ || tagSession_->tags().isEmpty() || sourceVideoPath_.isEmpty()) return;
+
+    const qint64 duration = videoPlayer_ ? videoPlayer_->durationMs() : 0;
+    auto* dialog = new ExportDialog(tagSession_, sourceVideoPath_, duration, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModal(true);
+    dialog->show();
 }
 
 void WorkWindow::onModeToggled() {
     auto* btn = qobject_cast<QToolButton*>(sender());
     if (!btn) return;
     if (btn == modeTaggingBtn_) {
-        modeAnalyzingBtn_->setChecked(false);
         setMode(Mode::Tagging);
     } else if (btn == modeAnalyzingBtn_) {
-        modeTaggingBtn_->setChecked(false);
         setMode(Mode::Analyzing);
     }
+    if (modeTaggingBtn_) modeTaggingBtn_->setChecked(mode_ == Mode::Tagging);
+    if (modeAnalyzingBtn_) modeAnalyzingBtn_->setChecked(mode_ == Mode::Analyzing);
 }
 
 void WorkWindow::onTagSelectionChanged() {
@@ -598,8 +957,8 @@ void WorkWindow::onTagSelectionChanged() {
 }
 
 void WorkWindow::onNoteTextChanged() {
-    if (!notesEdit_ || !tagsList_) return;
-    auto* item = tagsList_->currentItem();
+    if (!notesEdit_ || !tagsTable_) return;
+    auto* item = currentTagKeyItem();
     if (!item) return;
     QVariant idxVar = item->data(Qt::UserRole + 3);
     if (!idxVar.isValid()) return;
@@ -619,7 +978,7 @@ void WorkWindow::saveNoteDebounceFired() {
 
 void WorkWindow::syncNoteToSelectedTag() {
     if (!tagSession_ || !notesEdit_) return;
-    auto* item = tagsList_->currentItem();
+    auto* item = currentTagKeyItem();
     if (!item) return;
     QVariant idxVar = item->data(Qt::UserRole + 3);
     if (!idxVar.isValid()) return;
@@ -632,7 +991,7 @@ void WorkWindow::showStatsOverlay() {
     if (mode_ != Mode::Tagging) return;
     if (!statsOverlayDialog_) {
         statsOverlayDialog_ = new QDialog(this, Qt::Window | Qt::WindowStaysOnTopHint);
-        statsOverlayDialog_->setWindowTitle("Stats — Tag taxonomy");
+        statsOverlayDialog_->setWindowTitle(AppLocale::trUi("stats.overlay_title"));
         statsOverlayDialog_->setAttribute(Qt::WA_DeleteOnClose, false);
         auto* layout = new QVBoxLayout(statsOverlayDialog_);
         layout->setContentsMargins(12, 12, 12, 12);
@@ -648,7 +1007,7 @@ void WorkWindow::showStatsOverlay() {
 
 void WorkWindow::loadNoteForSelectedTag() {
     if (!tagSession_ || !notesEdit_) return;
-    auto* item = tagsList_->currentItem();
+    auto* item = currentTagKeyItem();
     notesEdit_->blockSignals(true);
     if (!item) {
         notesEdit_->clear();
@@ -673,10 +1032,65 @@ void WorkWindow::loadNoteForSelectedTag() {
     notesEdit_->blockSignals(false);
 }
 
-void WorkWindow::onTagItemActivated(QListWidgetItem* item) {
-    if (!item || !videoPlayer_) return;
-    const qint64 posMs = item->data(Qt::UserRole).toLongLong();
-    videoPlayer_->seekToMs(posMs);
+void WorkWindow::onTagTableSeekToRow(int row) {
+    if (row < 0 || !videoPlayer_ || !tagsTable_) return;
+    QTableWidgetItem* keyItem = tagsTable_->item(row, 0);
+    if (!keyItem) return;
+    videoPlayer_->seekToMs(keyItem->data(Qt::UserRole).toLongLong());
+}
+
+QTableWidgetItem* WorkWindow::currentTagKeyItem() const {
+    if (!tagsTable_) return nullptr;
+    const int row = tagsTable_->currentRow();
+    return row >= 0 ? tagsTable_->item(row, 0) : nullptr;
+}
+
+void WorkWindow::setTagTableRowBackground(int row, const QBrush& brush) {
+    if (!tagsTable_ || row < 0) return;
+    const bool clearHighlight = (brush.style() == Qt::NoBrush);
+
+    if (QTableWidgetItem* timeItem = tagsTable_->item(row, 0)) {
+        if (clearHighlight) {
+            timeItem->setBackground(QBrush());
+        } else {
+            timeItem->setBackground(brush);
+        }
+    }
+    if (QTableWidgetItem* eventItem = tagsTable_->item(row, 2)) {
+        if (clearHighlight) {
+            eventItem->setBackground(QBrush());
+        } else {
+            eventItem->setBackground(brush);
+        }
+    }
+    if (QTableWidgetItem* teamItem = tagsTable_->item(row, 1)) {
+        const QVariant tagIndexVar = tagsTable_->item(row, 0) ? tagsTable_->item(row, 0)->data(Qt::UserRole + 3) : QVariant();
+        if (tagSession_ && tagIndexVar.isValid()) {
+            const int tagIndex = tagIndexVar.toInt();
+            if (tagIndex >= 0 && tagIndex < tagSession_->tags().size()) {
+                paintTeamCellForTag(teamItem, tagSession_->tags().at(tagIndex), tagSession_);
+                return;
+            }
+        }
+        paintTeamCellForTag(teamItem, TagSession::GameTag{}, tagSession_);
+    }
+}
+
+QString WorkWindow::displayTeamForTag(const TagSession::GameTag& tag) const {
+    if (!tagSession_) {
+        if (tag.team == QStringLiteral("Home")) return QStringLiteral("Home");
+        if (tag.team == QStringLiteral("Away")) return QStringLiteral("Away");
+        return tag.team.isEmpty() ? QStringLiteral("—") : tag.team;
+    }
+    if (tag.team == QStringLiteral("Home")) {
+        const QString n = tagSession_->homeTeamName();
+        return n.isEmpty() ? QStringLiteral("Home") : n;
+    }
+    if (tag.team == QStringLiteral("Away")) {
+        const QString n = tagSession_->awayTeamName();
+        return n.isEmpty() ? QStringLiteral("Away") : n;
+    }
+    return tag.team.isEmpty() ? QStringLiteral("—") : tag.team;
 }
 
 namespace {
@@ -686,7 +1100,7 @@ const QColor kNewTagFlashColor(147, 197, 253);     // same light-blue for new-ta
 } // namespace
 
 void WorkWindow::flashNewTagRow() {
-    if (!tagsList_ || tagsList_->count() == 0) return;
+    if (!tagsTable_ || tagsTable_->rowCount() == 0) return;
     if (newTagFlashTimer_) {
         newTagFlashTimer_->stop();
     } else {
@@ -694,16 +1108,14 @@ void WorkWindow::flashNewTagRow() {
         newTagFlashTimer_->setSingleShot(true);
         connect(newTagFlashTimer_, &QTimer::timeout, this, &WorkWindow::clearNewTagFlash);
     }
-    newTagFlashRow_ = tagsList_->count() - 1;
-    if (QListWidgetItem* item = tagsList_->item(newTagFlashRow_))
-        item->setBackground(QBrush(kNewTagFlashColor));
+    newTagFlashRow_ = tagsTable_->rowCount() - 1;
+    setTagTableRowBackground(newTagFlashRow_, QBrush(kNewTagFlashColor));
     newTagFlashTimer_->start(500);
 }
 
 void WorkWindow::clearNewTagFlash() {
-    if (newTagFlashRow_ >= 0 && tagsList_) {
-        if (QListWidgetItem* item = tagsList_->item(newTagFlashRow_))
-            item->setBackground(QBrush());
+    if (newTagFlashRow_ >= 0 && tagsTable_) {
+        setTagTableRowBackground(newTagFlashRow_, QBrush());
     }
     newTagFlashRow_ = -1;
     if (videoPlayer_)
@@ -712,27 +1124,28 @@ void WorkWindow::clearNewTagFlash() {
 
 void WorkWindow::onPlayheadPositionChanged(qint64 positionMs) {
     updateTagPlayheadHighlight(positionMs);
+    if (scoreboard_) scoreboard_->setCurrentTimestampMs(positionMs);
 }
 
 void WorkWindow::updateTagPlayheadHighlight(qint64 positionMs) {
-    if (!tagsList_) return;
-    for (int row = 0; row < tagsList_->count(); ++row) {
-        auto* item = tagsList_->item(row);
-        if (!item) continue;
-        const qint64 tagMs = item->data(Qt::UserRole).toLongLong();
+    if (!tagsTable_) return;
+    for (int row = 0; row < tagsTable_->rowCount(); ++row) {
+        QTableWidgetItem* keyItem = tagsTable_->item(row, 0);
+        if (!keyItem) continue;
+        const qint64 tagMs = keyItem->data(Qt::UserRole).toLongLong();
         const qint64 diff = (tagMs > positionMs) ? (tagMs - positionMs) : (positionMs - tagMs);
         if (diff <= kPlayheadNearToleranceMs) {
-            item->setBackground(QBrush(kTagNearPlayheadColor));
+            setTagTableRowBackground(row, QBrush(kTagNearPlayheadColor));
         } else {
-            item->setBackground(QBrush());
+            setTagTableRowBackground(row, QBrush());
         }
     }
 }
 
 void WorkWindow::onDeleteSelectedTag() {
-    if (!tagsList_ || !tagSession_) return;
-    
-    auto* item = tagsList_->currentItem();
+    if (!tagsTable_ || !tagSession_) return;
+
+    auto* item = currentTagKeyItem();
     if (!item) return;
     
     // Get the stored TagSession index directly from the item
@@ -841,8 +1254,8 @@ void WorkWindow::rebuildFilterMenu() {
     tagsFilterMenu_->clear();
     filterActionByMainEvent_.clear();
 
-    auto* selectAll = tagsFilterMenu_->addAction("Select all");
-    auto* selectNone = tagsFilterMenu_->addAction("Select none");
+    auto* selectAll = tagsFilterMenu_->addAction(AppLocale::trUi("filter.select_all"));
+    auto* selectNone = tagsFilterMenu_->addAction(AppLocale::trUi("filter.select_none"));
     connect(selectAll, &QAction::triggered, this, &WorkWindow::onSelectAllFilters);
     connect(selectNone, &QAction::triggered, this, &WorkWindow::onSelectNoFilters);
     tagsFilterMenu_->addSeparator();
@@ -852,7 +1265,7 @@ void WorkWindow::rebuildFilterMenu() {
     mains.sort(Qt::CaseInsensitive);
 
     for (const QString& mainEvent : mains) {
-        auto* act = tagsFilterMenu_->addAction(mainEvent);
+        auto* act = tagsFilterMenu_->addAction(AppLocale::trEvent(mainEvent));
         act->setCheckable(true);
         act->setChecked(prevChecked.contains(mainEvent) ? prevChecked.value(mainEvent) : true);
         connect(act, &QAction::toggled, this, &WorkWindow::onFilterActionToggled);
@@ -864,9 +1277,11 @@ void WorkWindow::updateFilterIndicator() {
     if (!tagsFilterIndicator_) return;
 
     if (!activeFilterPathMainEvent_.isEmpty()) {
-        QString pathText = activeFilterPathMainEvent_;
-        if (!activeFilterPathFollowUp_.isEmpty()) pathText += " → " + activeFilterPathFollowUp_;
-        tagsFilterIndicator_->setText("Filtered by: " + pathText);
+        QString pathText = AppLocale::trEvent(activeFilterPathMainEvent_);
+        if (!activeFilterPathFollowUp_.isEmpty()) {
+            pathText += QStringLiteral(" → ") + AppLocale::translateCompoundPath(activeFilterPathFollowUp_);
+        }
+        tagsFilterIndicator_->setText(AppLocale::trUi("filter.indicator_path") + pathText);
         tagsFilterIndicator_->show();
         return;
     }
@@ -874,7 +1289,7 @@ void WorkWindow::updateFilterIndicator() {
     QStringList activeFilters;
     for (auto it = filterActionByMainEvent_.cbegin(); it != filterActionByMainEvent_.cend(); ++it) {
         if (it.value()->isChecked()) {
-            activeFilters.append(it.key());
+            activeFilters.append(AppLocale::trEvent(it.key()));
         }
     }
 
@@ -884,14 +1299,14 @@ void WorkWindow::updateFilterIndicator() {
     }
 
     activeFilters.sort(Qt::CaseInsensitive);
-    const QString text = "Filtered by: " + activeFilters.join(", ");
+    const QString text = AppLocale::trUi("filter.indicator_list") + activeFilters.join(QStringLiteral(", "));
     tagsFilterIndicator_->setText(text);
     tagsFilterIndicator_->show();
 }
 
 void WorkWindow::rebuildTagsList() {
-    if (!tagsList_ || !tagSession_) return;
-    tagsList_->clear();
+    if (!tagsTable_ || !tagSession_) return;
+    tagsTable_->setRowCount(0);
 
     // Collect (tag, tagSessionIndex) for tags that pass the filter
     struct TagEntry {
@@ -912,21 +1327,38 @@ void WorkWindow::rebuildTagsList() {
         return a.tag.positionMs < b.tag.positionMs;
     });
 
+    tagsTable_->setRowCount(entries.size());
+    int row = 0;
     for (const auto& e : entries) {
         const auto& tag = e.tag;
-        QString eventText = tag.mainEvent;
-        if (!tag.followUpEvent.isEmpty()) eventText += " → " + tag.followUpEvent;
-        const QString rowText = QString("%1  %2").arg(formatTimestampMs(tag.positionMs), eventText);
+        const QString timeText = formatTimestampMs(tag.positionMs);
+        const QString teamText = displayTeamForTag(tag);
+        const QString eventText =
+            AppLocale::trDisplayTagLine(tag.mainEvent, followUpForEventColumn(tag.followUpEvent, tagSession_));
 
-        auto* item = new QListWidgetItem(rowText);
-        item->setData(Qt::UserRole, tag.positionMs);
-        item->setData(Qt::UserRole + 1, tag.mainEvent);
-        item->setData(Qt::UserRole + 2, tag.followUpEvent);
-        item->setData(Qt::UserRole + 3, e.tagSessionIndex); // Store the actual TagSession index for delete
-        tagsList_->addItem(item);
+        auto* timeItem = new QTableWidgetItem(timeText);
+        timeItem->setData(Qt::UserRole, tag.positionMs);
+        timeItem->setData(Qt::UserRole + 1, tag.mainEvent);
+        timeItem->setData(Qt::UserRole + 2, tag.followUpEvent);
+        timeItem->setData(Qt::UserRole + 3, e.tagSessionIndex);
+        timeItem->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+        auto* teamItem = new QTableWidgetItem(teamText);
+        teamItem->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        paintTeamCellForTag(teamItem, tag, tagSession_);
+
+        auto* eventItem = new QTableWidgetItem(eventText);
+        eventItem->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+        tagsTable_->setItem(row, 0, timeItem);
+        tagsTable_->setItem(row, 1, teamItem);
+        tagsTable_->setItem(row, 2, eventItem);
+        ++row;
     }
 
-    tagsList_->scrollToBottom();
+    tagsTable_->resizeColumnToContents(0);
+    tagsTable_->resizeColumnToContents(1);
+    tagsTable_->scrollToBottom();
     updateFilterIndicator();
     updateFilterButtonsVisibility();
     if (videoPlayer_) {

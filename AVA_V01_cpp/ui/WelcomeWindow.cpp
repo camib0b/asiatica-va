@@ -1,5 +1,6 @@
 #include "WelcomeWindow.h"
 #include "../style/StyleProps.h"
+#include "../i18n/AppLocale.h"
 
 #include <QLabel>
 #include <QPushButton>
@@ -18,7 +19,14 @@ WelcomeWindow::WelcomeWindow(QWidget* parent) : QWidget(parent) {
     buildUi();
     wireSignals();
     buildKeyboardShortcuts();
+    applyUiStrings();
     setMinimumSize(250, 250);
+}
+
+void WelcomeWindow::applyUiStrings() {
+    if (headerLabel_) headerLabel_->setText(AppLocale::trUi("welcome.title"));
+    if (subtitleLabel_) subtitleLabel_->setText(AppLocale::trUi("welcome.subtitle"));
+    if (importButton_) importButton_->setText(AppLocale::trUi("welcome.import"));
 }
 
 void WelcomeWindow::buildUi() {
@@ -37,19 +45,19 @@ void WelcomeWindow::buildUi() {
     layout->setSpacing(12);
 
     // header:
-    headerLabel_ = new QLabel("this is ava", contentContainer);
+    headerLabel_ = new QLabel(contentContainer);
     headerLabel_->setWordWrap(true);
     headerLabel_->setAlignment(Qt::AlignCenter);
     Style::setRole(headerLabel_, "h1");
     
     // subtitle:
-    subtitleLabel_ = new QLabel("Import a video file to get started", contentContainer);
+    subtitleLabel_ = new QLabel(contentContainer);
     subtitleLabel_->setWordWrap(false);
     subtitleLabel_->setAlignment(Qt::AlignCenter);
     Style::setRole(subtitleLabel_, "subhero");    
 
     // import button:
-    importButton_ = new QPushButton("&Select video file", contentContainer);
+    importButton_ = new QPushButton(contentContainer);
     importButton_->setCursor(Qt::PointingHandCursor);
     Style::setVariant(importButton_, "welcomeImport");
     Style::setSize(importButton_, "lg");
