@@ -7,6 +7,7 @@
 #include "CV7R3MSKRA/moc_ClipExporter.cpp"
 #include "CV7R3MSKRA/moc_ClipTrimBar.cpp"
 #include "CV7R3MSKRA/moc_ExportDialog.cpp"
+#include "CV7R3MSKRA/moc_VideoConcatenator.cpp"
 #include "O3VI4VFR3H/moc_LocaleNotifier.cpp"
 #include "EO7GX2X5BD/moc_TagSession.cpp"
 #include "UYX5XTB5RZ/moc_GameSetupWindow.cpp"

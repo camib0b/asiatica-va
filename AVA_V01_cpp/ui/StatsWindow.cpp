@@ -39,7 +39,15 @@ void StatsWindow::applyUiStrings() {
 }
 
 void StatsWindow::setTagSession(TagSession* session) {
-    if (tagSession_ == session) return;
+    if (tagSession_ == session) {
+        updateTeamFilterButtonLabels();
+        if (tagSession_) {
+            rebuildTree();
+        } else {
+            clearTree();
+        }
+        return;
+    }
     if (tagSession_) disconnect(tagSession_, nullptr, this, nullptr);
 
     tagSession_ = session;
@@ -71,6 +79,7 @@ void StatsWindow::buildUi() {
     Style::setRole(headerLabel_, "h3");
 
     teamFilterRow_ = new QWidget(this);
+    teamFilterRow_->setObjectName(QStringLiteral("StatsTeamFilterRow"));
     auto* teamFilterLayout = new QHBoxLayout(teamFilterRow_);
     teamFilterLayout->setContentsMargins(0, 0, 0, 0);
     teamFilterLayout->setSpacing(4);
@@ -107,7 +116,7 @@ void StatsWindow::buildUi() {
     tree_->header()->setStretchLastSection(false);
     tree_->header()->setSectionResizeMode(0, QHeaderView::Stretch);
     tree_->header()->setSectionResizeMode(1, QHeaderView::Fixed);
-    tree_->header()->resizeSection(1, 90);
+    tree_->header()->resizeSection(1, 100);
 
     headerLabel_->setText(AppLocale::trUi("stats.header"));
     layout->addWidget(headerLabel_);

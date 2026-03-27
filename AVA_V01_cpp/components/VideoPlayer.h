@@ -1,12 +1,13 @@
 #pragma once
 
+#include <QMediaPlayer>
 #include <QWidget>
 
 class QVideoWidget;
-class QMediaPlayer;
 class QAudioOutput;
 class QMediaDevices;
 class QAction;
+class QTimer;
 class VideoControlsBar;
 class TimelineBar;
 
@@ -15,7 +16,7 @@ class VideoPlayer final : public QWidget {
 
 public:
   explicit VideoPlayer(QWidget* parent = nullptr);
-  ~VideoPlayer() override = default;
+  ~VideoPlayer() override;
 
   void loadVideoFromFile(const QString& filePath);
   QVideoWidget* videoWidget() const { return videoWidget_; }
@@ -57,6 +58,10 @@ private:
   
   void seekByMs(qint64 deltaMs);
   void setPlaybackRateAndPlay(double rate);
+  void setupPlaybackReliabilityHooks();
+  void updateStallMonitorForPlaybackState(QMediaPlayer::PlaybackState state);
+  void nudgePlaybackAfterBackendStall();
+  void reloadCurrentMediaFromDisk();
 
   QMediaPlayer* player_ = nullptr;
   QAudioOutput* audioOutput_ = nullptr;
@@ -80,4 +85,10 @@ private:
   double playbackRate_ = 1.0;
   bool wasPlayingBeforeScrub_ = false;
   qint64 durationMs_ = 0;
+
+  QTimer* playbackStallTimer_ = nullptr;
+  QString loadedSourcePath_;
+  qint64 lastStallCheckPositionMs_ = -1;
+  int consecutivePlaybackStallTicks_ = 0;
+  bool userRequestedPlaying_ = false;
 };

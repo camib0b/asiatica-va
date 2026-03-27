@@ -91,6 +91,7 @@ private:
     QLabel* sortOrderLabel_ = nullptr;
     QComboBox* sortOrderCombo_ = nullptr;
     QComboBox* exportLanguageCombo_ = nullptr;
+    QCheckBox* includeBottomOverlayCheckBox_ = nullptr;
     QLabel* clipCountLabel_ = nullptr;
     QDoubleSpinBox* beforePaddingSpin_ = nullptr;
     QDoubleSpinBox* afterPaddingSpin_ = nullptr;

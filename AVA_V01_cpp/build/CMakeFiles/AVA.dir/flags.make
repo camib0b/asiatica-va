@@ -6,5 +6,9 @@ CXX_DEFINES = -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIAWIDGETS_LIB -DQT_MULTIME
 
 CXX_INCLUDES = -I/Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/include -I/Users/cam/asiatica-va/AVA_V01_cpp/ui -I/Users/cam/asiatica-va/AVA_V01_cpp/components -I/Users/cam/asiatica-va/AVA_V01_cpp/style -I/Users/cam/asiatica-va/AVA_V01_cpp/state -I/Users/cam/asiatica-va/AVA_V01_cpp/i18n -I/Users/cam/asiatica-va/AVA_V01_cpp/export -isystem /opt/homebrew/lib/QtCore.framework/Headers -iframework /opt/homebrew/lib -isystem /opt/homebrew/share/qt/mkspecs/macx-clang -isystem /opt/homebrew/include -isystem /opt/homebrew/lib/QtWidgets.framework/Headers -isystem /opt/homebrew/lib/QtGui.framework/Headers -isystem /opt/homebrew/lib/QtMultimedia.framework/Headers -isystem /opt/homebrew/lib/QtNetwork.framework/Headers -isystem /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers
 
-CXX_FLAGS = -g -std=gnu++17
+CXX_FLAGSarm64 = -g -std=gnu++17 -arch arm64
+
+CXX_FLAGS = -g -std=gnu++17 -arch arm64
+
+# Custom options: CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o_OPTIONS = -fobjc-arc
 

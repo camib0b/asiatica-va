@@ -24,7 +24,6 @@ WelcomeWindow::WelcomeWindow(QWidget* parent) : QWidget(parent) {
 }
 
 void WelcomeWindow::applyUiStrings() {
-    if (headerLabel_) headerLabel_->setText(AppLocale::trUi("welcome.title"));
     if (subtitleLabel_) subtitleLabel_->setText(AppLocale::trUi("welcome.subtitle"));
     if (importButton_) importButton_->setText(AppLocale::trUi("welcome.import"));
 }
@@ -44,12 +43,6 @@ void WelcomeWindow::buildUi() {
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(12);
 
-    // header:
-    headerLabel_ = new QLabel(contentContainer);
-    headerLabel_->setWordWrap(true);
-    headerLabel_->setAlignment(Qt::AlignCenter);
-    Style::setRole(headerLabel_, "h1");
-    
     // subtitle:
     subtitleLabel_ = new QLabel(contentContainer);
     subtitleLabel_->setWordWrap(false);
@@ -65,7 +58,6 @@ void WelcomeWindow::buildUi() {
     importButton_->setFocusPolicy(Qt::TabFocus); // Allow keyboard focus but don't auto-focus on window open
 
     // Add widgets vertically, centered
-    layout->addWidget(headerLabel_, 0, Qt::AlignHCenter);
     layout->addWidget(subtitleLabel_, 0, Qt::AlignHCenter);
     layout->addWidget(importButton_, 0, Qt::AlignHCenter);
 

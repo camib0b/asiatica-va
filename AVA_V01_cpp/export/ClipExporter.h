@@ -9,11 +9,26 @@
 
 class QTemporaryDir;
 
+struct ScoreboardOverlay {
+    QString homeName;
+    QString awayName;
+    int homeGoals = 0;
+    int awayGoals = 0;
+    QString homeColorHex;
+    QString awayColorHex;
+};
+
+struct TimedScoreboard {
+    double activationOffsetSeconds;
+    ScoreboardOverlay scoreboard;
+};
+
 struct ClipSegment {
     qint64 startMs;
     qint64 durationMs;
     QString overlayText;
     QString secondaryOverlayText;
+    QVector<TimedScoreboard> scoreboards;
 };
 
 class ClipExporter final : public QObject {
@@ -48,6 +63,8 @@ private:
     static QString generateOverlayImage(const QString& primaryText,
                                         const QString& secondaryText,
                                         const QString& outputPath);
+    static QString generateScoreboardImage(const ScoreboardOverlay& data,
+                                           const QString& outputPath);
     static QString generateBrandingImage(const QString& outputPath);
 
     QString sourceVideoPath_;

@@ -32,6 +32,7 @@ const QHash<QString, QString>& spanishEventMap() {
       // First-level follow-ups
       {QStringLiteral("On target"), QStringLiteral("Al arco")},
       {QStringLiteral("Off target"), QStringLiteral("Afuera")},
+      {QStringLiteral("Blocked"), QStringLiteral("Bloqueado")},
       {QStringLiteral("For"), QStringLiteral("A favor")},
       {QStringLiteral("Against"), QStringLiteral("En contra")},
       {QStringLiteral("Direct shot"), QStringLiteral("Directo")},
@@ -50,6 +51,7 @@ const QHash<QString, QString>& spanishEventMap() {
       {QStringLiteral("Good"), QStringLiteral("Positivo")},
       {QStringLiteral("Bad"), QStringLiteral("Negativo")},
       {QStringLiteral("Neutral"), QStringLiteral("Neutro")},
+      {QStringLiteral("Referee"), QStringLiteral("Arbitraje")},
       {QStringLiteral("Off"), QStringLiteral("Ofensiva")},
       {QStringLiteral("Def"), QStringLiteral("Defensiva")},
 
@@ -70,6 +72,7 @@ const QHash<QString, QString>& spanishEventMap() {
       {QStringLiteral("Unforced error"), QStringLiteral("Error")},
       {QStringLiteral("Foot"), QStringLiteral("Pie")},
       {QStringLiteral("Stick"), QStringLiteral("Palo")},
+      {QStringLiteral("Danger"), QStringLiteral("Peligro")},
       {QStringLiteral("Other"), QStringLiteral("Otro")},
       {QStringLiteral("Left"), QStringLiteral("Izquierda")},
       {QStringLiteral("Middle"), QStringLiteral("Centro")},
@@ -172,9 +175,8 @@ QString trUi(const char* key) {
   if (g_language != Language::Spanish) {
     static const QHash<QString, QString> en = {
         {QStringLiteral("app.title"), QStringLiteral("AVA | Camila Escudero")},
-        {QStringLiteral("welcome.title"), QStringLiteral("this is ava")},
-        {QStringLiteral("welcome.subtitle"), QStringLiteral("Import a video file to get started")},
-        {QStringLiteral("welcome.import"), QStringLiteral("&Select video file")},
+        {QStringLiteral("welcome.subtitle"), QStringLiteral("Import one or more video files to get started")},
+        {QStringLiteral("welcome.import"), QStringLiteral("&Select video file(s)")},
         {QStringLiteral("setup.title"), QStringLiteral("Set up teams")},
         {QStringLiteral("setup.subtitle"), QStringLiteral("Enter team names and colors for this session.")},
         {QStringLiteral("setup.home_team"), QStringLiteral("Home team:")},
@@ -192,7 +194,8 @@ QString trUi(const char* key) {
         {QStringLiteral("dialog.pick_home_color"), QStringLiteral("Home team color")},
         {QStringLiteral("dialog.pick_away_color"), QStringLiteral("Away team color")},
         {QStringLiteral("file.select_video"), QStringLiteral("Select a video file")},
-        {QStringLiteral("file.video_filter"), QStringLiteral("Video files (*.mp4 *.mov *.m4v *.mkv *.avi);;All files (*.*)")},
+        {QStringLiteral("file.video_filter"),
+         QStringLiteral("Video files (*.mp4 *.mov *.m4v *.mkv *.avi *.mts *.MTS);;All files (*.*)")},
         {QStringLiteral("mode.tagging"), QStringLiteral("Tagging")},
         {QStringLiteral("mode.analyzing"), QStringLiteral("Analyzing")},
         {QStringLiteral("tooltip.mode_tagging"), QStringLiteral("Eyes on video, hands on keyboard (M)")},
@@ -251,6 +254,7 @@ QString trUi(const char* key) {
         {QStringLiteral("export.sort_chronological"), QStringLiteral("Chronological")},
         {QStringLiteral("export.sort_by_team"), QStringLiteral("By team, then chronological")},
         {QStringLiteral("export.overlay_language"), QStringLiteral("Overlay language:")},
+        {QStringLiteral("export.include_bottom_overlay"), QStringLiteral("Include bottom tag overlay")},
         {QStringLiteral("export.before_tag"), QStringLiteral("Before tag:")},
         {QStringLiteral("export.after_tag"), QStringLiteral("After tag:")},
         {QStringLiteral("export.save_to"), QStringLiteral("Save to:")},
@@ -273,15 +277,23 @@ QString trUi(const char* key) {
         {QStringLiteral("export.success"), QStringLiteral("Clips exported successfully!")},
         {QStringLiteral("export.no_output_path"), QStringLiteral("Please choose an output file path.")},
         {QStringLiteral("export.ffmpeg_not_found"), QStringLiteral("FFmpeg was not found on this system.\nPlease install FFmpeg to use clip export.\n\nhttps://ffmpeg.org")},
+        {QStringLiteral("concat.dialog_title"), QStringLiteral("Arrange Video Files")},
+        {QStringLiteral("concat.dialog_subtitle"), QStringLiteral("Arrange the files in playback order.\nThey will be combined into a single continuous video.")},
+        {QStringLiteral("concat.move_left"), QStringLiteral("\u2190 Move Left")},
+        {QStringLiteral("concat.move_right"), QStringLiteral("Move Right \u2192")},
+        {QStringLiteral("concat.continue_btn"), QStringLiteral("&Continue")},
+        {QStringLiteral("concat.cancel"), QStringLiteral("Cancel")},
+        {QStringLiteral("concat.preparing"), QStringLiteral("Combining video files\u2026")},
+        {QStringLiteral("concat.error_ffmpeg"), QStringLiteral("FFmpeg is required to combine multiple video files.\nPlease install FFmpeg to continue.\n\nhttps://ffmpeg.org")},
+        {QStringLiteral("concat.error_failed"), QStringLiteral("Failed to combine video files.")},
     };
     return en.value(QLatin1String(key), QLatin1String(key));
   }
 
   static const QHash<QString, QString> es = {
       {QStringLiteral("app.title"), QStringLiteral("AVA | Camila Escudero")},
-      {QStringLiteral("welcome.title"), QStringLiteral("esto es ava")},
-      {QStringLiteral("welcome.subtitle"), QStringLiteral("Sube un video para empezar")},
-      {QStringLiteral("welcome.import"), QStringLiteral("&Elegir video")},
+      {QStringLiteral("welcome.subtitle"), QStringLiteral("Sube uno o m\u00e1s videos para empezar")},
+      {QStringLiteral("welcome.import"), QStringLiteral("&Elegir video(s)")},
       {QStringLiteral("setup.title"), QStringLiteral("Configurar equipos")},
       {QStringLiteral("setup.subtitle"),
        QStringLiteral("Introduce nombres y colores de equipo para esta sesión.")},
@@ -301,7 +313,7 @@ QString trUi(const char* key) {
       {QStringLiteral("dialog.pick_away_color"), QStringLiteral("Color del equipo visitante")},
       {QStringLiteral("file.select_video"), QStringLiteral("Seleccionar archivo de video")},
       {QStringLiteral("file.video_filter"),
-       QStringLiteral("Vídeo (*.mp4 *.mov *.m4v *.mkv *.avi);;Todos los archivos (*.*)")},
+       QStringLiteral("Vídeo (*.mp4 *.mov *.m4v *.mkv *.avi *.mts *.MTS);;Todos los archivos (*.*)")},
       {QStringLiteral("mode.tagging"), QStringLiteral("Etiquetado")},
       {QStringLiteral("mode.analyzing"), QStringLiteral("Análisis")},
       {QStringLiteral("tooltip.mode_tagging"), QStringLiteral("Ojos en el vídeo, manos en el teclado (M)")},
@@ -360,6 +372,7 @@ QString trUi(const char* key) {
       {QStringLiteral("export.sort_chronological"), QStringLiteral("Cronológico")},
       {QStringLiteral("export.sort_by_team"), QStringLiteral("Por equipo, luego cronológico")},
       {QStringLiteral("export.overlay_language"), QStringLiteral("Idioma del overlay:")},
+      {QStringLiteral("export.include_bottom_overlay"), QStringLiteral("Incluir overlay de etiqueta inferior")},
       {QStringLiteral("export.before_tag"), QStringLiteral("Antes de la marca:")},
       {QStringLiteral("export.after_tag"), QStringLiteral("Después de la marca:")},
       {QStringLiteral("export.save_to"), QStringLiteral("Guardar en:")},
@@ -382,6 +395,15 @@ QString trUi(const char* key) {
       {QStringLiteral("export.success"), QStringLiteral("¡Clips exportados exitosamente!")},
       {QStringLiteral("export.no_output_path"), QStringLiteral("Por favor elija una ruta de archivo de salida.")},
       {QStringLiteral("export.ffmpeg_not_found"), QStringLiteral("FFmpeg no fue encontrado en este sistema.\nPor favor instale FFmpeg para exportar clips.\n\nhttps://ffmpeg.org")},
+      {QStringLiteral("concat.dialog_title"), QStringLiteral("Ordenar archivos de video")},
+      {QStringLiteral("concat.dialog_subtitle"), QStringLiteral("Ordena los archivos en el orden de reproducci\u00f3n.\nSe combinar\u00e1n en un solo video continuo.")},
+      {QStringLiteral("concat.move_left"), QStringLiteral("\u2190 Mover izq.")},
+      {QStringLiteral("concat.move_right"), QStringLiteral("Mover der. \u2192")},
+      {QStringLiteral("concat.continue_btn"), QStringLiteral("&Continuar")},
+      {QStringLiteral("concat.cancel"), QStringLiteral("Cancelar")},
+      {QStringLiteral("concat.preparing"), QStringLiteral("Combinando archivos de video\u2026")},
+      {QStringLiteral("concat.error_ffmpeg"), QStringLiteral("Se necesita FFmpeg para combinar m\u00faltiples archivos de video.\nPor favor instale FFmpeg para continuar.\n\nhttps://ffmpeg.org")},
+      {QStringLiteral("concat.error_failed"), QStringLiteral("Error al combinar archivos de video.")},
   };
   return es.value(QLatin1String(key), QLatin1String(key));
 }

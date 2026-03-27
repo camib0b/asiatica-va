@@ -19,7 +19,9 @@ class QStackedWidget;
 class QSplitter;
 class QTimer;
 class QDialog;
+class QTemporaryDir;
 
+class VideoConcatenator;
 class VideoPlayer;
 class GameControls;
 class GameSetupWindow;
@@ -35,11 +37,13 @@ public:
   enum class Mode { Tagging, Analyzing };
 
   explicit WorkWindow(QWidget* parent = nullptr);
-  ~WorkWindow() override = default;
+  ~WorkWindow() override;
 
   void loadVideoFromFile(const QString& filePath);
   void showTeamSetupForVideo(const QString& filePath);
   void setTagSession(TagSession* session);
+  void setConcatenatedVideoTempDir(QTemporaryDir* dir);
+  void setPendingConcatenation(VideoConcatenator* concatenator);
   Mode mode() const { return mode_; }
   void setMode(Mode m);
 
@@ -96,7 +100,8 @@ private:
   bool hasAnyFilterActive() const;
   TagSession::GameTag currentTagContext() const;
 
-  QString promptForVideoFile();
+  void cleanupConcatenatedVideo();
+  void cleanupPendingConcatenation();
 
   // Mode and layout
   Mode mode_ = Mode::Tagging;
@@ -150,6 +155,8 @@ private:
 
   QTimer* newTagFlashTimer_ = nullptr;
   int newTagFlashRow_ = -1;
+  QTimer* playheadSideEffectsDebounceTimer_ = nullptr;
+  qint64 lastPlayheadPositionForSideEffectsMs_ = 0;
 
   TagSession* tagSession_ = nullptr;
   QHash<QString, QAction*> filterActionByMainEvent_;
@@ -167,4 +174,6 @@ private:
   QString contextSituation_;
 
   QString sourceVideoPath_;
+  QTemporaryDir* concatenatedVideoTempDir_ = nullptr;
+  VideoConcatenator* pendingConcatenator_ = nullptr;
 };

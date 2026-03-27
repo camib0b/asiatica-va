@@ -29,10 +29,14 @@ qt_add_executable(AVA
   export/ClipExporter.cpp
   export/ClipTrimBar.cpp
   export/ExportDialog.cpp
+  export/VideoConcatenator.cpp
 )
 
 # macOS app bundle and Dock icon
 if(APPLE)
+  target_sources(AVA PRIVATE macos/PlaybackActivity.mm)
+  set_source_files_properties(macos/PlaybackActivity.mm PROPERTIES COMPILE_OPTIONS -fobjc-arc)
+  target_link_libraries(AVA PRIVATE "-framework Foundation")
   set_target_properties(AVA PROPERTIES MACOSX_BUNDLE TRUE)
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/AppIcon.icns")
     set_target_properties(AVA PROPERTIES MACOSX_BUNDLE_ICON_FILE AppIcon.icns)

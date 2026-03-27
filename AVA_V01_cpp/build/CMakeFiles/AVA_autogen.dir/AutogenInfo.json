@@ -493,6 +493,12 @@
 			null
 		],
 		[
+			"/Users/cam/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.h",
+			"MU",
+			"CV7R3MSKRA/moc_VideoConcatenator.cpp",
+			null
+		],
+		[
 			"/Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h",
 			"MU",
 			"O3VI4VFR3H/moc_AppLocale.cpp",
@@ -502,6 +508,12 @@
 			"/Users/cam/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.h",
 			"MU",
 			"O3VI4VFR3H/moc_LocaleNotifier.cpp",
+			null
+		],
+		[
+			"/Users/cam/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.h",
+			"MU",
+			"CCJAUQYTHV/moc_PlaybackActivity.cpp",
 			null
 		],
 		[
@@ -620,7 +632,7 @@
 		"/Users/cam/asiatica-va/AVA_V01_cpp/build/.qt/rcc/qrc_ava_resources.cpp"
 	],
 	"MULTI_CONFIG" : false,
-	"PARALLEL" : 1,
+	"PARALLEL" : 10,
 	"PARSE_CACHE_FILE" : "/Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles/AVA_autogen.dir/ParseCache.txt",
 	"QT_MOC_EXECUTABLE" : "/opt/homebrew/share/qt/libexec/moc",
 	"QT_UIC_EXECUTABLE" : "/opt/homebrew/share/qt/libexec/uic",
@@ -669,9 +681,19 @@
 			"MU",
 			null
 		],
+		[
+			"/Users/cam/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp",
+			"MU",
+			null
+		],
 		[ "/Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.cpp", "MU", null ],
 		[
 			"/Users/cam/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/cam/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm",
 			"MU",
 			null
 		],

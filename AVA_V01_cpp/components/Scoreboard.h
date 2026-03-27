@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QVector>
 #include <QWidget>
 #include <QtGlobal>
 
@@ -17,12 +18,15 @@ public:
 
 private:
   void buildUi();
+  void rebuildGoalTimeline();
   void updateScores();
   void updateTeamDisplay();
-  int countGoalsForTeam(const QString& teamKey) const;
+  int countGoalsAtOrBefore(const QVector<qint64>& sortedGoalTimesMs, qint64 positionMs) const;
 
   TagSession* tagSession_ = nullptr;
   qint64 currentTimestampMs_ = 0;
+  QVector<qint64> homeGoalTimesMs_;
+  QVector<qint64> awayGoalTimesMs_;
 
   QWidget* homeColorSwatch_ = nullptr;
   QLabel* homeTeamNameLabel_ = nullptr;

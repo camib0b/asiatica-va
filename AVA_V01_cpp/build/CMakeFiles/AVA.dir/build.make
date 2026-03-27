@@ -352,10 +352,38 @@ CMakeFiles/AVA.dir/export/ExportDialog.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AVA.dir/export/ExportDialog.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/cam/asiatica-va/AVA_V01_cpp/export/ExportDialog.cpp -o CMakeFiles/AVA.dir/export/ExportDialog.cpp.s
 
+CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.o: CMakeFiles/AVA.dir/flags.make
+CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.o: /Users/cam/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp
+CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.o: CMakeFiles/AVA.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_22) "Building CXX object CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.o -MF CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.o.d -o CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.o -c /Users/cam/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp
+
+CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/cam/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp > CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.i
+
+CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/cam/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp -o CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.s
+
+CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o: CMakeFiles/AVA.dir/flags.make
+CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o: /Users/cam/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm
+CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o: CMakeFiles/AVA.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_23) "Building CXX object CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -fobjc-arc -MD -MT CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o -MF CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o.d -o CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o -c /Users/cam/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm
+
+CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -fobjc-arc -E /Users/cam/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm > CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.i
+
+CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -fobjc-arc -S /Users/cam/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm -o CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.s
+
 CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o: CMakeFiles/AVA.dir/flags.make
 CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o: .qt/rcc/qrc_ava_resources.cpp
 CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o: CMakeFiles/AVA.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_22) "Building CXX object CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_24) "Building CXX object CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o -MF CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o.d -o CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o -c /Users/cam/asiatica-va/AVA_V01_cpp/build/.qt/rcc/qrc_ava_resources.cpp
 
 CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.i: cmake_force
@@ -387,6 +415,8 @@ AVA_OBJECTS = \
 "CMakeFiles/AVA.dir/export/ClipExporter.cpp.o" \
 "CMakeFiles/AVA.dir/export/ClipTrimBar.cpp.o" \
 "CMakeFiles/AVA.dir/export/ExportDialog.cpp.o" \
+"CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.o" \
+"CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o" \
 "CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o"
 
 # External object files for target AVA
@@ -411,6 +441,8 @@ AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/components/VideoPlayer.cpp.o
 AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/export/ClipExporter.cpp.o
 AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/export/ClipTrimBar.cpp.o
 AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/export/ExportDialog.cpp.o
+AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.o
+AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o
 AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o
 AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/build.make
 AVA.app/Contents/MacOS/AVA: /opt/homebrew/lib/QtMultimediaWidgets.framework/Versions/A/QtMultimediaWidgets
@@ -420,7 +452,7 @@ AVA.app/Contents/MacOS/AVA: /opt/homebrew/lib/QtNetwork.framework/Versions/A/QtN
 AVA.app/Contents/MacOS/AVA: /opt/homebrew/lib/QtGui.framework/Versions/A/QtGui
 AVA.app/Contents/MacOS/AVA: /opt/homebrew/lib/QtCore.framework/Versions/A/QtCore
 AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_23) "Linking CXX executable AVA.app/Contents/MacOS/AVA"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_25) "Linking CXX executable AVA.app/Contents/MacOS/AVA"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/AVA.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

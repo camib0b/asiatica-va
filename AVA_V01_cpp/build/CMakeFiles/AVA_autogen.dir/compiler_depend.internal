@@ -733,6 +733,8 @@
  /Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles/4.2.1/CMakeSystem.cmake
  /Users/cam/asiatica-va/AVA_V01_cpp/components/GameControls.cpp
  /Users/cam/asiatica-va/AVA_V01_cpp/components/GameControls.h
+ /Users/cam/asiatica-va/AVA_V01_cpp/components/Scoreboard.cpp
+ /Users/cam/asiatica-va/AVA_V01_cpp/components/Scoreboard.h
  /Users/cam/asiatica-va/AVA_V01_cpp/components/TimelineBar.cpp
  /Users/cam/asiatica-va/AVA_V01_cpp/components/TimelineBar.h
  /Users/cam/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.cpp
@@ -745,10 +747,14 @@
  /Users/cam/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.h
  /Users/cam/asiatica-va/AVA_V01_cpp/export/ExportDialog.cpp
  /Users/cam/asiatica-va/AVA_V01_cpp/export/ExportDialog.h
+ /Users/cam/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp
+ /Users/cam/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.h
  /Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.cpp
  /Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h
  /Users/cam/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.cpp
  /Users/cam/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.h
+ /Users/cam/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.h
+ /Users/cam/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm
  /Users/cam/asiatica-va/AVA_V01_cpp/main.cpp
  /Users/cam/asiatica-va/AVA_V01_cpp/state/TagSession.cpp
  /Users/cam/asiatica-va/AVA_V01_cpp/state/TagSession.h
@@ -764,6 +770,7 @@
  /Users/cam/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h
  /Users/cam/asiatica-va/AVA_V01_cpp/ui/WorkWindow.cpp
  /Users/cam/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h
+ /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QElapsedTimer
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QHash
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QList
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QObject
@@ -811,6 +818,7 @@
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdarwinhelpers.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdatastream.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdebug.h
+ /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qelapsedtimer.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qendian.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qexceptionhandling.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qflags.h
@@ -896,6 +904,7 @@
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qtversionchecks.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qtypeinfo.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qtypes.h
+ /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qurl.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qutf8stringview.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qvariant.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qvarlengtharray.h
@@ -940,6 +949,13 @@
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtWidgets.framework/Versions/A/Headers/qtwidgetsexports.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtWidgets.framework/Versions/A/Headers/qtwidgetsglobal.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtWidgets.framework/Versions/A/Headers/qwidget.h
+ /opt/homebrew/Cellar/qtmultimedia/6.10.2/lib/QtMultimedia.framework/Versions/A/Headers/QMediaPlayer
+ /opt/homebrew/Cellar/qtmultimedia/6.10.2/lib/QtMultimedia.framework/Versions/A/Headers/qaudio.h
+ /opt/homebrew/Cellar/qtmultimedia/6.10.2/lib/QtMultimedia.framework/Versions/A/Headers/qmediaplayer.h
+ /opt/homebrew/Cellar/qtmultimedia/6.10.2/lib/QtMultimedia.framework/Versions/A/Headers/qtaudio.h
+ /opt/homebrew/Cellar/qtmultimedia/6.10.2/lib/QtMultimedia.framework/Versions/A/Headers/qtmultimedia-config.h
+ /opt/homebrew/Cellar/qtmultimedia/6.10.2/lib/QtMultimedia.framework/Versions/A/Headers/qtmultimediaexports.h
+ /opt/homebrew/Cellar/qtmultimedia/6.10.2/lib/QtMultimedia.framework/Versions/A/Headers/qtmultimediaglobal.h
  /opt/homebrew/bin/cmake
  /opt/homebrew/lib/cmake/Qt6/FindWrapAtomic.cmake
  /opt/homebrew/lib/cmake/Qt6/FindWrapOpenGL.cmake

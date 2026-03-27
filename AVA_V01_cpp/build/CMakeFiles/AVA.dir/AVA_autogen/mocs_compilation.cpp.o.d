@@ -979,10 +979,20 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
   /Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/moc_TimelineBar.cpp \
   /Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/../../../components/TimelineBar.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer \
+  /opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h \
   /Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/moc_VideoControlsBar.cpp \
   /Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/../../../components/VideoControlsBar.h \
   /Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/moc_VideoPlayer.cpp \
   /Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/../../../components/VideoPlayer.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/QMediaPlayer \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qmediaplayer.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qurl.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimediaglobal.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimedia-config.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimediaexports.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtaudio.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qaudio.h \
   /Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/moc_ClipExporter.cpp \
   /Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/../../../export/ClipExporter.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QObject \
@@ -998,6 +1008,8 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
   /Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
   /Users/cam/asiatica-va/AVA_V01_cpp/state/TagSession.h \
+  /Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/moc_VideoConcatenator.cpp \
+  /Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/../../../export/VideoConcatenator.h \
   /Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/O3VI4VFR3H/moc_LocaleNotifier.cpp \
   /Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/O3VI4VFR3H/../../../i18n/LocaleNotifier.h \
   /Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/EO7GX2X5BD/moc_TagSession.cpp \

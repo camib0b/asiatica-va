@@ -395,6 +395,30 @@ export/ExportDialog.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/ExportDialog.cpp.s
 .PHONY : export/ExportDialog.cpp.s
 
+export/VideoConcatenator.o: export/VideoConcatenator.cpp.o
+.PHONY : export/VideoConcatenator.o
+
+# target to build an object file
+export/VideoConcatenator.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.o
+.PHONY : export/VideoConcatenator.cpp.o
+
+export/VideoConcatenator.i: export/VideoConcatenator.cpp.i
+.PHONY : export/VideoConcatenator.i
+
+# target to preprocess a source file
+export/VideoConcatenator.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.i
+.PHONY : export/VideoConcatenator.cpp.i
+
+export/VideoConcatenator.s: export/VideoConcatenator.cpp.s
+.PHONY : export/VideoConcatenator.s
+
+# target to generate assembly for a file
+export/VideoConcatenator.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.s
+.PHONY : export/VideoConcatenator.cpp.s
+
 i18n/AppLocale.o: i18n/AppLocale.cpp.o
 .PHONY : i18n/AppLocale.o
 
@@ -442,6 +466,30 @@ i18n/LocaleNotifier.s: i18n/LocaleNotifier.cpp.s
 i18n/LocaleNotifier.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/i18n/LocaleNotifier.cpp.s
 .PHONY : i18n/LocaleNotifier.cpp.s
+
+macos/PlaybackActivity.o: macos/PlaybackActivity.mm.o
+.PHONY : macos/PlaybackActivity.o
+
+# target to build an object file
+macos/PlaybackActivity.mm.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o
+.PHONY : macos/PlaybackActivity.mm.o
+
+macos/PlaybackActivity.i: macos/PlaybackActivity.mm.i
+.PHONY : macos/PlaybackActivity.i
+
+# target to preprocess a source file
+macos/PlaybackActivity.mm.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.i
+.PHONY : macos/PlaybackActivity.mm.i
+
+macos/PlaybackActivity.s: macos/PlaybackActivity.mm.s
+.PHONY : macos/PlaybackActivity.s
+
+# target to generate assembly for a file
+macos/PlaybackActivity.mm.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.s
+.PHONY : macos/PlaybackActivity.mm.s
 
 main.o: main.cpp.o
 .PHONY : main.o
@@ -676,12 +724,18 @@ help:
 	@echo "... export/ExportDialog.o"
 	@echo "... export/ExportDialog.i"
 	@echo "... export/ExportDialog.s"
+	@echo "... export/VideoConcatenator.o"
+	@echo "... export/VideoConcatenator.i"
+	@echo "... export/VideoConcatenator.s"
 	@echo "... i18n/AppLocale.o"
 	@echo "... i18n/AppLocale.i"
 	@echo "... i18n/AppLocale.s"
 	@echo "... i18n/LocaleNotifier.o"
 	@echo "... i18n/LocaleNotifier.i"
 	@echo "... i18n/LocaleNotifier.s"
+	@echo "... macos/PlaybackActivity.o"
+	@echo "... macos/PlaybackActivity.i"
+	@echo "... macos/PlaybackActivity.s"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"

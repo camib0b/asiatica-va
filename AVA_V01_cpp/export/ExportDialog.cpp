@@ -129,6 +129,12 @@ void ExportDialog::buildSettingsPage() {
         AppLocale::currentLanguage() == AppLocale::Language::Spanish ? 1 : 0);
     formLayout->addRow(AppLocale::trUi("export.overlay_language"), exportLanguageCombo_);
 
+    includeBottomOverlayCheckBox_ =
+        new QCheckBox(AppLocale::trUi("export.include_bottom_overlay"), settingsPage_);
+    includeBottomOverlayCheckBox_->setCursor(Qt::PointingHandCursor);
+    includeBottomOverlayCheckBox_->setChecked(true);
+    formLayout->addRow(QString(), includeBottomOverlayCheckBox_);
+
     clipCountLabel_ = new QLabel(settingsPage_);
     Style::setRole(clipCountLabel_, "muted");
     formLayout->addRow(QString(), clipCountLabel_);
@@ -157,6 +163,7 @@ void ExportDialog::buildSettingsPage() {
 
     browseButton_ = new QPushButton(AppLocale::trUi("export.browse"), settingsPage_);
     browseButton_->setCursor(Qt::PointingHandCursor);
+    Style::setVariant(browseButton_, "secondary");
     connect(browseButton_, &QPushButton::clicked, this, &ExportDialog::onBrowseOutputPath);
     pathRow->addWidget(browseButton_, 0);
 
@@ -171,12 +178,14 @@ void ExportDialog::buildSettingsPage() {
 
     settingsCloseButton_ = new QPushButton(AppLocale::trUi("export.close"), settingsPage_);
     settingsCloseButton_->setCursor(Qt::PointingHandCursor);
+    Style::setVariant(settingsCloseButton_, "outline");
     connect(settingsCloseButton_, &QPushButton::clicked, this, &QDialog::reject);
     buttonRow->addWidget(settingsCloseButton_);
 
     reviewButton_ = new QPushButton(AppLocale::trUi("export.review_clips"), settingsPage_);
     reviewButton_->setCursor(Qt::PointingHandCursor);
     reviewButton_->setDefault(true);
+    Style::setVariant(reviewButton_, "primary");
     connect(reviewButton_, &QPushButton::clicked, this, &ExportDialog::onReviewClipsClicked);
     buttonRow->addWidget(reviewButton_);
 
@@ -202,12 +211,14 @@ void ExportDialog::buildTrimPage() {
     prevClipButton_ = new QPushButton(QStringLiteral("\u25C0"), trimPage_);
     prevClipButton_->setFixedWidth(36);
     prevClipButton_->setCursor(Qt::PointingHandCursor);
+    Style::setVariant(prevClipButton_, "outline");
     connect(prevClipButton_, &QPushButton::clicked, this, &ExportDialog::onPrevClipClicked);
     navRow->addWidget(prevClipButton_);
 
     playPauseButton_ = new QPushButton(QStringLiteral("\u25B6"), trimPage_);
     playPauseButton_->setFixedWidth(36);
     playPauseButton_->setCursor(Qt::PointingHandCursor);
+    Style::setVariant(playPauseButton_, "outline");
     connect(playPauseButton_, &QPushButton::clicked,
             this, &ExportDialog::onTogglePreviewPlayPause);
     navRow->addWidget(playPauseButton_);
@@ -220,6 +231,7 @@ void ExportDialog::buildTrimPage() {
     discardClipButton_->setFixedWidth(36);
     discardClipButton_->setCursor(Qt::PointingHandCursor);
     discardClipButton_->setToolTip(AppLocale::trUi("export.discard_clip"));
+    Style::setVariant(discardClipButton_, "ghost");
     connect(discardClipButton_, &QPushButton::clicked,
             this, &ExportDialog::onDiscardClipClicked);
     navRow->addWidget(discardClipButton_);
@@ -227,6 +239,7 @@ void ExportDialog::buildTrimPage() {
     nextClipButton_ = new QPushButton(QStringLiteral("\u25B6"), trimPage_);
     nextClipButton_->setFixedWidth(36);
     nextClipButton_->setCursor(Qt::PointingHandCursor);
+    Style::setVariant(nextClipButton_, "outline");
     connect(nextClipButton_, &QPushButton::clicked, this, &ExportDialog::onNextClipClicked);
     navRow->addWidget(nextClipButton_);
 
@@ -291,12 +304,14 @@ void ExportDialog::buildTrimPage() {
 
     backButton_ = new QPushButton(AppLocale::trUi("export.back"), trimPage_);
     backButton_->setCursor(Qt::PointingHandCursor);
+    Style::setVariant(backButton_, "outline");
     connect(backButton_, &QPushButton::clicked, this, &ExportDialog::onBackToSettingsClicked);
     buttonRow->addWidget(backButton_);
 
     cancelExportButton_ = new QPushButton(AppLocale::trUi("export.cancel"), trimPage_);
     cancelExportButton_->setCursor(Qt::PointingHandCursor);
     cancelExportButton_->hide();
+    Style::setVariant(cancelExportButton_, "destructive");
     connect(cancelExportButton_, &QPushButton::clicked,
             this, &ExportDialog::onCancelExportClicked);
     buttonRow->addWidget(cancelExportButton_);
@@ -304,6 +319,7 @@ void ExportDialog::buildTrimPage() {
     exportButton_ = new QPushButton(AppLocale::trUi("export.export"), trimPage_);
     exportButton_->setCursor(Qt::PointingHandCursor);
     exportButton_->setDefault(true);
+    Style::setVariant(exportButton_, "primary");
     connect(exportButton_, &QPushButton::clicked, this, &ExportDialog::onExportClicked);
     buttonRow->addWidget(exportButton_);
 
@@ -702,13 +718,72 @@ void ExportDialog::onExportClicked() {
 
     if (trimData_.isEmpty()) return;
 
+    const QString homeName = teamDisplayName(QStringLiteral("Home"));
+    const QString awayName = teamDisplayName(QStringLiteral("Away"));
+    const QString homeColorHex = tagSession_ ? tagSession_->homeTeamColor() : QString();
+    const QString awayColorHex = tagSession_ ? tagSession_->awayTeamColor() : QString();
+
+    const QVector<TagSession::GameTag> emptyTags;
+    const auto& allTags = tagSession_ ? tagSession_->tags() : emptyTags;
+
     QVector<ClipSegment> clips;
     clips.reserve(trimData_.size());
+    const bool includeBottomOverlay =
+        !includeBottomOverlayCheckBox_ || includeBottomOverlayCheckBox_->isChecked();
     for (const auto& td : trimData_) {
         const QString secondary =
             (td.includeSecondaryOverlay && !td.secondaryOverlayText.isEmpty())
                 ? td.secondaryOverlayText : QString();
-        clips.append({td.startMs, td.endMs - td.startMs, td.overlayText, secondary});
+        const QString primary = includeBottomOverlay ? td.overlayText : QString();
+        const QString secondaryText = includeBottomOverlay ? secondary : QString();
+
+        int initialHomeGoals = 0;
+        int initialAwayGoals = 0;
+        struct InClipGoal {
+            qint64 positionMs;
+            QString team;
+        };
+        QVector<InClipGoal> inClipGoals;
+
+        for (const auto& tag : allTags) {
+            if (tag.mainEvent != QStringLiteral("Goal")) continue;
+            if (tag.positionMs <= td.startMs) {
+                if (tag.team == QStringLiteral("Home")) ++initialHomeGoals;
+                else if (tag.team == QStringLiteral("Away")) ++initialAwayGoals;
+            } else if (tag.positionMs <= td.endMs) {
+                inClipGoals.append({tag.positionMs, tag.team});
+            }
+        }
+
+        std::sort(inClipGoals.begin(), inClipGoals.end(),
+                  [](const InClipGoal& a, const InClipGoal& b) {
+            return a.positionMs < b.positionMs;
+        });
+
+        QVector<TimedScoreboard> scoreboardPhases;
+        scoreboardPhases.append({0.0, {homeName, awayName,
+                                       initialHomeGoals, initialAwayGoals,
+                                       homeColorHex, awayColorHex}});
+
+        int runningHome = initialHomeGoals;
+        int runningAway = initialAwayGoals;
+        for (const auto& goal : inClipGoals) {
+            if (goal.team == QStringLiteral("Home")) ++runningHome;
+            else if (goal.team == QStringLiteral("Away")) ++runningAway;
+
+            const double offsetSeconds = (goal.positionMs - td.startMs) / 1000.0;
+            if (scoreboardPhases.last().activationOffsetSeconds == offsetSeconds) {
+                scoreboardPhases.last().scoreboard.homeGoals = runningHome;
+                scoreboardPhases.last().scoreboard.awayGoals = runningAway;
+            } else {
+                scoreboardPhases.append({offsetSeconds, {homeName, awayName,
+                                                         runningHome, runningAway,
+                                                         homeColorHex, awayColorHex}});
+            }
+        }
+
+        clips.append({td.startMs, td.endMs - td.startMs, primary,
+                      secondaryText, scoreboardPhases});
     }
 
     if (exporter_) {

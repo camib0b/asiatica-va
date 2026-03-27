@@ -2,6 +2,8 @@
 #include "../state/TagSession.h"
 #include "../style/StyleProps.h"
 
+#include <algorithm>
+
 #include <QLabel>
 #include <QHBoxLayout>
 #include <QFont>
@@ -67,15 +69,14 @@ void Scoreboard::setTagSession(TagSession* session) {
         if (tagSession_) disconnect(tagSession_, nullptr, this, nullptr);
         tagSession_ = session;
         if (tagSession_) {
-            connect(tagSession_, &TagSession::tagAdded, this,
-                    [this](const TagSession::GameTag&) { updateScores(); });
-            connect(tagSession_, &TagSession::statsChanged, this,
-                    [this]() { updateScores(); });
-            connect(tagSession_, &TagSession::cleared, this,
-                    [this]() { updateScores(); });
+            connect(tagSession_, &TagSession::statsChanged, this, [this]() {
+                rebuildGoalTimeline();
+                updateScores();
+            });
         }
     }
     updateTeamDisplay();
+    rebuildGoalTimeline();
     updateScores();
 }
 
@@ -85,22 +86,32 @@ void Scoreboard::setCurrentTimestampMs(qint64 positionMs) {
     updateScores();
 }
 
-int Scoreboard::countGoalsForTeam(const QString& teamKey) const {
-    if (!tagSession_) return 0;
-    int count = 0;
+void Scoreboard::rebuildGoalTimeline() {
+    homeGoalTimesMs_.clear();
+    awayGoalTimesMs_.clear();
+    if (!tagSession_) return;
     for (const auto& tag : tagSession_->tags()) {
-        if (tag.mainEvent == QStringLiteral("Goal") &&
-            tag.team == teamKey &&
-            tag.positionMs <= currentTimestampMs_) {
-            ++count;
+        if (tag.mainEvent != QStringLiteral("Goal")) continue;
+        if (tag.team == QStringLiteral("Home")) {
+            homeGoalTimesMs_.append(tag.positionMs);
+        } else if (tag.team == QStringLiteral("Away")) {
+            awayGoalTimesMs_.append(tag.positionMs);
         }
     }
-    return count;
+    std::sort(homeGoalTimesMs_.begin(), homeGoalTimesMs_.end());
+    std::sort(awayGoalTimesMs_.begin(), awayGoalTimesMs_.end());
+}
+
+int Scoreboard::countGoalsAtOrBefore(const QVector<qint64>& sortedGoalTimesMs,
+                                     qint64 positionMs) const {
+    if (sortedGoalTimesMs.isEmpty()) return 0;
+    const auto it = std::upper_bound(sortedGoalTimesMs.begin(), sortedGoalTimesMs.end(), positionMs);
+    return static_cast<int>(it - sortedGoalTimesMs.begin());
 }
 
 void Scoreboard::updateScores() {
-    const int homeGoals = countGoalsForTeam(QStringLiteral("Home"));
-    const int awayGoals = countGoalsForTeam(QStringLiteral("Away"));
+    const int homeGoals = countGoalsAtOrBefore(homeGoalTimesMs_, currentTimestampMs_);
+    const int awayGoals = countGoalsAtOrBefore(awayGoalTimesMs_, currentTimestampMs_);
     if (homeScoreLabel_) homeScoreLabel_->setText(QString::number(homeGoals));
     if (awayScoreLabel_) awayScoreLabel_->setText(QString::number(awayGoals));
 }

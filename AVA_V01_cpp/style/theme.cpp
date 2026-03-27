@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QStyleFactory>
 #include <QFont>
+#include <QFontInfo>
 #include <QDebug>
 
 namespace Style {
@@ -17,8 +18,12 @@ static QString loadTextFile(const QString& path) {
 void ApplyLightTheme() {
   QApplication::setStyle(QStyleFactory::create("Fusion"));
 
-  QFont font = QApplication::font();
+  QFont font(QStringLiteral("Inter"));
+  if (!QFontInfo(font).exactMatch()) {
+    font = QFont(QStringLiteral(".AppleSystemUIFont"));
+  }
   font.setPointSize(13);
+  font.setHintingPreference(QFont::PreferNoHinting);
   QApplication::setFont(font);
 
   const QString qssPath = ":/style/theme_light.qss";

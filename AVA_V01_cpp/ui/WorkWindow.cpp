@@ -9,16 +9,18 @@
 #include "../i18n/AppLocale.h"
 #include "../i18n/LocaleNotifier.h"
 #include "../export/ExportDialog.h"
+#include "../export/VideoConcatenator.h"
 
 #include "VideoControlsBar.h"
 #include "TimelineBar.h"
 
 #include <QLabel>
+#include <QMessageBox>
 #include <QStackedWidget>
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QFileDialog>
+#include <QTemporaryDir>
 #include <QToolButton>
 #include <QMenu>
 #include <QVideoWidget>
@@ -138,6 +140,33 @@ WorkWindow::WorkWindow(QWidget* parent) : QWidget(parent) {
     wireSignals();
     applyTaggingLayout();
     applyUiStrings();
+}
+
+WorkWindow::~WorkWindow() {
+    cleanupPendingConcatenation();
+    cleanupConcatenatedVideo();
+}
+
+void WorkWindow::setConcatenatedVideoTempDir(QTemporaryDir* dir) {
+    cleanupConcatenatedVideo();
+    concatenatedVideoTempDir_ = dir;
+}
+
+void WorkWindow::setPendingConcatenation(VideoConcatenator* concatenator) {
+    cleanupPendingConcatenation();
+    pendingConcatenator_ = concatenator;
+}
+
+void WorkWindow::cleanupConcatenatedVideo() {
+    if (concatenatedVideoTempDir_) {
+        delete concatenatedVideoTempDir_;
+        concatenatedVideoTempDir_ = nullptr;
+    }
+}
+
+void WorkWindow::cleanupPendingConcatenation() {
+    delete pendingConcatenator_;
+    pendingConcatenator_ = nullptr;
 }
 
 void WorkWindow::applyUiStrings() {
@@ -407,7 +436,7 @@ void WorkWindow::buildUi() {
     tagsTable_->setHorizontalHeaderLabels({AppLocale::trUi("tags.col_time"), AppLocale::trUi("tags.col_team"),
                                            AppLocale::trUi("tags.col_event")});
     tagsTable_->verticalHeader()->hide();
-    tagsTable_->setShowGrid(true);
+    tagsTable_->setShowGrid(false);
     tagsTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
     tagsTable_->setSelectionMode(QAbstractItemView::SingleSelection);
     tagsTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -428,11 +457,11 @@ void WorkWindow::buildUi() {
         tagsTable_->setFont(tagsFont);
         tagsTable_->horizontalHeader()->setFont(tagsFont);
         tagsTable_->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
-        const int compactRow = qMax(20, tagsTable_->fontMetrics().height() + 4);
+        const int compactRow = qMax(28, tagsTable_->fontMetrics().height() + 10);
         tagsTable_->verticalHeader()->setDefaultSectionSize(compactRow);
     }
-    const int rowHeight = qMax(20, tagsTable_->fontMetrics().height() + 4);
-    const int headerH = qMax(28, tagsTable_->horizontalHeader()->sizeHint().height());
+    const int rowHeight = qMax(28, tagsTable_->fontMetrics().height() + 10);
+    const int headerH = qMax(32, tagsTable_->horizontalHeader()->sizeHint().height());
     tagsTable_->setMinimumHeight(rowHeight * 2 + headerH);
     tagsTable_->setMaximumHeight(QWIDGETSIZE_MAX);
 
@@ -444,7 +473,8 @@ void WorkWindow::buildUi() {
     taggingVideoTagsSplitter_->setChildrenCollapsible(false);
     taggingVideoTagsSplitter_->setHandleWidth(6);
     taggingVideoTagsSplitter_->setAttribute(Qt::WA_StyledBackground, true);
-    taggingVideoTagsSplitter_->setStyleSheet(QStringLiteral("background-color: #FFFFFF;"));
+    taggingVideoTagsSplitter_->setStyleSheet(
+        QStringLiteral("#TaggingVideoTagsSplitter { background-color: #FFFFFF; }"));
 
     gameControls_ = new GameControls(this);
     scoreboard_ = new Scoreboard(this);
@@ -562,7 +592,9 @@ void WorkWindow::applyTaggingLayout() {
 
     if (taggingVideoTagsSplitter_) {
         taggingVideoTagsSplitter_->show();
-    } else if (taggingMainRow_) {
+    }
+    // applyAnalyzingLayout() hides this row; a parent splitter show() does not un-hide explicit child hides.
+    if (taggingMainRow_) {
         taggingMainRow_->show();
     }
 
@@ -801,8 +833,17 @@ void WorkWindow::wireSignals() {
     noteDebounceTimer_->setSingleShot(true);
     connect(noteDebounceTimer_, &QTimer::timeout, this, &WorkWindow::saveNoteDebounceFired);
 
-    // Highlight tags when playhead is within ±2s
-    connect(videoPlayer_, &VideoPlayer::positionChangedMs, this, &WorkWindow::onPlayheadPositionChanged);
+    // Debounce playhead-driven table scans: scoreboard is O(log n), but row highlighting is O(rows).
+    playheadSideEffectsDebounceTimer_ = new QTimer(this);
+    playheadSideEffectsDebounceTimer_->setSingleShot(true);
+    playheadSideEffectsDebounceTimer_->setInterval(200);
+    connect(playheadSideEffectsDebounceTimer_, &QTimer::timeout, this, [this]() {
+        onPlayheadPositionChanged(lastPlayheadPositionForSideEffectsMs_);
+    });
+    connect(videoPlayer_, &VideoPlayer::positionChangedMs, this, [this](qint64 positionMs) {
+        lastPlayheadPositionForSideEffectsMs_ = positionMs;
+        playheadSideEffectsDebounceTimer_->start();
+    });
     
     // Backspace to delete selected tag
     auto* deleteTagAction = new QAction(this);
@@ -820,15 +861,6 @@ void WorkWindow::wireSignals() {
 }
 
 
-QString WorkWindow::promptForVideoFile() {
-    return QFileDialog::getOpenFileName(
-        this,
-        AppLocale::trUi("file.select_video"),
-        QString(),
-        AppLocale::trUi("file.video_filter")
-    );
-}
-
 void WorkWindow::showTeamSetupForVideo(const QString& filePath) {
     if (!gameSetupWidget_ || !contentStack_) return;
     gameSetupWidget_->setVideoPath(filePath);
@@ -840,12 +872,30 @@ void WorkWindow::showTeamSetupForVideo(const QString& filePath) {
 void WorkWindow::onTeamSetupConfirmed(const QString& filePath,
                                        const QString& homeName, const QString& awayName,
                                        const QString& homeColor, const QString& awayColor) {
+    if (pendingConcatenator_) {
+        const bool concatOk = pendingConcatenator_->waitWithProgress(this);
+        if (!concatOk) {
+            const QString errorMsg = pendingConcatenator_->errorMessage();
+            cleanupPendingConcatenation();
+            cleanupConcatenatedVideo();
+            if (!errorMsg.isEmpty()) {
+                QMessageBox::warning(this, AppLocale::trUi("app.title"), errorMsg);
+            }
+            emit videoClosed();
+            return;
+        }
+        delete pendingConcatenator_;
+        pendingConcatenator_ = nullptr;
+    }
+
     if (tagSession_) tagSession_->setGameTeams(homeName, awayName, homeColor, awayColor);
     if (contentStack_) contentStack_->setCurrentIndex(1);
     loadVideoFromFile(filePath);
 }
 
 void WorkWindow::onTeamSetupCancelled() {
+    cleanupPendingConcatenation();
+    cleanupConcatenatedVideo();
     emit videoClosed();
 }
 
@@ -901,9 +951,48 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
 }
 
 void WorkWindow::onReplaceVideo() {
-    const QString filePath = promptForVideoFile();
-    if (filePath.isEmpty()) return;
-    loadVideoFromFile(filePath);
+    QStringList filePaths = VideoConcatenator::selectVideoFiles(this);
+    if (filePaths.isEmpty()) return;
+
+    if (filePaths.size() == 1) {
+        cleanupPendingConcatenation();
+        cleanupConcatenatedVideo();
+        loadVideoFromFile(filePaths.first());
+        return;
+    }
+
+    filePaths.sort(Qt::CaseInsensitive);
+    if (!VideoConcatenator::showFileOrderDialog(filePaths, this)) return;
+
+    auto* tempDir = new QTemporaryDir();
+    if (!tempDir->isValid()) {
+        delete tempDir;
+        QMessageBox::warning(this,
+                             AppLocale::trUi("app.title"),
+                             AppLocale::trUi("concat.error_failed"));
+        return;
+    }
+
+    auto* concatenator = new VideoConcatenator(this);
+    concatenator->startConcatenation(filePaths, tempDir->path());
+
+    if (!concatenator->waitWithProgress(this)) {
+        const QString errorMsg = concatenator->errorMessage();
+        delete concatenator;
+        delete tempDir;
+        if (!errorMsg.isEmpty()) {
+            QMessageBox::warning(this, AppLocale::trUi("app.title"), errorMsg);
+        }
+        return;
+    }
+
+    const QString outputPath = concatenator->outputPath();
+    delete concatenator;
+
+    cleanupPendingConcatenation();
+    cleanupConcatenatedVideo();
+    concatenatedVideoTempDir_ = tempDir;
+    loadVideoFromFile(outputPath);
 }
 
 void WorkWindow::onDiscardVideo() {
@@ -922,6 +1011,7 @@ void WorkWindow::onDiscardVideo() {
     if (tagsTable_) tagsTable_->hide();
     if (statsWindow_) statsWindow_->hide();
 
+    cleanupConcatenatedVideo();
     emit videoClosed();
 }
 

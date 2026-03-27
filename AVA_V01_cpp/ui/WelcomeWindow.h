@@ -23,7 +23,6 @@ private:
   void wireSignals();
   void buildKeyboardShortcuts();
 
-  QLabel* headerLabel_ = nullptr;
   QLabel* subtitleLabel_ = nullptr;
   QPushButton* importButton_ = nullptr;
   QLabel* speedLabel_ = nullptr;

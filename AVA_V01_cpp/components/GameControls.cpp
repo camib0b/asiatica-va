@@ -586,7 +586,7 @@ void GameControls::onFollowUpButtonClicked() {
 
 QStringList GameControls::getFirstLevelFollowUps(const QString& mainEvent) const {
   if (mainEvent == "Shot") {
-    return {"On target", "Off target"};
+    return {QStringLiteral("On target"), QStringLiteral("Off target"), QStringLiteral("Blocked")};
   }
   if (mainEvent == "Circle Entry") {
     return {"Dribling", "Pass", "Deflection"};
@@ -610,7 +610,7 @@ QStringList GameControls::getFirstLevelFollowUps(const QString& mainEvent) const
     return {"Flick", "Push", "Sweep", "Hit"};
   }
   if (mainEvent == "Special") {
-    return {"Good", "Bad", "Neutral"};
+    return {"Good", "Bad", "Neutral", "Referee"};
   }
   if (mainEvent == "Turnover") {
     return {"Interception", "Tackle", "Pressure", "Unforced error"};
@@ -641,8 +641,9 @@ QStringList GameControls::getSecondLevelFollowUps(const QString& mainEvent, cons
     return {};
   }
   if (mainEvent == "Shot") {
-    if (firstFollowUp == "On target") return {"Goal", "Saved", "Post"};
-    if (firstFollowUp == "Off target") return {"Closeby", "Not close"};
+    if (firstFollowUp == QStringLiteral("On target")) return {QStringLiteral("Goal"), QStringLiteral("Saved"), QStringLiteral("Post")};
+    if (firstFollowUp == QStringLiteral("Off target")) return {QStringLiteral("Closeby"), QStringLiteral("Not close")};
+    if (firstFollowUp == QStringLiteral("Blocked")) return {};
     return {};
   }
 

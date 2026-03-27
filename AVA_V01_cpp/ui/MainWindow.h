@@ -21,7 +21,6 @@ private slots:
 private:
   void showWelcomeWindow();
   void showWorkWindowWithSetup(const QString& filePath);
-  QString promptForVideoFile();
 
   WelcomeWindow* welcomeWindow_ = nullptr;
   WorkWindow* workWindow_ = nullptr;

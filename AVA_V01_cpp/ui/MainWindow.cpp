@@ -1,8 +1,9 @@
 #include "MainWindow.h"
 
-#include <QFileDialog>
 #include <QApplication>
+#include <QMessageBox>
 #include <QStackedWidget>
+#include <QTemporaryDir>
 #include <QWidget>
 
 #include "WelcomeWindow.h"
@@ -10,6 +11,8 @@
 #include "../state/TagSession.h"
 #include "../i18n/AppLocale.h"
 #include "../i18n/LocaleNotifier.h"
+#include "../export/ClipExporter.h"
+#include "../export/VideoConcatenator.h"
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) { // ctor-init
     setWindowTitle(AppLocale::trUi("app.title"));
@@ -65,10 +68,42 @@ void MainWindow::showWorkWindowWithSetup(const QString& filePath) {
 }
 
 void MainWindow::onVideoImportRequested() {
-    const QString filePath = promptForVideoFile();
-    if (!filePath.isEmpty()) {
-        showWorkWindowWithSetup(filePath);
+    QStringList filePaths = VideoConcatenator::selectVideoFiles(this);
+    if (filePaths.isEmpty()) return;
+
+    if (filePaths.size() == 1) {
+        workWindow_->setConcatenatedVideoTempDir(nullptr);
+        workWindow_->setPendingConcatenation(nullptr);
+        showWorkWindowWithSetup(filePaths.first());
+        return;
     }
+
+    filePaths.sort(Qt::CaseInsensitive);
+    if (!VideoConcatenator::showFileOrderDialog(filePaths, this)) return;
+
+    const QString ffmpegPath = ClipExporter::findFfmpeg();
+    if (ffmpegPath.isEmpty()) {
+        QMessageBox::warning(this,
+                             AppLocale::trUi("app.title"),
+                             AppLocale::trUi("concat.error_ffmpeg"));
+        return;
+    }
+
+    auto* tempDir = new QTemporaryDir();
+    if (!tempDir->isValid()) {
+        delete tempDir;
+        QMessageBox::warning(this,
+                             AppLocale::trUi("app.title"),
+                             AppLocale::trUi("concat.error_failed"));
+        return;
+    }
+
+    auto* concatenator = new VideoConcatenator(workWindow_);
+    concatenator->startConcatenation(filePaths, tempDir->path());
+
+    workWindow_->setConcatenatedVideoTempDir(tempDir);
+    workWindow_->setPendingConcatenation(concatenator);
+    showWorkWindowWithSetup(tempDir->filePath(QStringLiteral("concatenated.mp4")));
 }
 
 void MainWindow::onVideoClosed() {
@@ -77,11 +112,3 @@ void MainWindow::onVideoClosed() {
     showWelcomeWindow();
 }
 
-QString MainWindow::promptForVideoFile() {
-    return QFileDialog::getOpenFileName(
-        this,
-        AppLocale::trUi("file.select_video"),
-        QString(),
-        AppLocale::trUi("file.video_filter")
-    );
-}

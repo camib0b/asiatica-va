@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QElapsedTimer>
 #include <QWidget>
 #include <QtGlobal>
 
@@ -46,4 +47,5 @@ private:
   bool enableLiveScrubSeek_ = true;   // you can tweak this later
   qint64 pendingSeekMs_ = -1;
   bool waitingForSeekCommit_ = false;
+  QElapsedTimer scrubThrottleTimer_;
 };

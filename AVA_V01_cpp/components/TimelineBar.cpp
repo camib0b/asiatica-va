@@ -92,13 +92,13 @@ void TimelineBar::buildUi() {
 }
 
 void TimelineBar::wireSignals() {
-  static QElapsedTimer t;
-  t.invalidate();
+  scrubThrottleTimer_.invalidate();
 
   connect(slider_, &QSlider::sliderPressed, this, [this]() {
     isScrubbing_ = true;
     waitingForSeekCommit_ = false;
     pendingSeekMs_ = -1;
+    scrubThrottleTimer_.invalidate();
     emit scrubStarted();
   });
 
@@ -107,10 +107,10 @@ void TimelineBar::wireSignals() {
 
     if (!enableLiveScrubSeek_) return;
 
-    if (!t.isValid()) t.start();
-    if (t.elapsed() >= kScrubThrottleMs) {
+    if (!scrubThrottleTimer_.isValid()) scrubThrottleTimer_.start();
+    if (scrubThrottleTimer_.elapsed() >= kScrubThrottleMs) {
       emit scrubSeekTo(static_cast<qint64>(value));
-      t.restart();
+      scrubThrottleTimer_.restart();
     }
   });
 

@@ -131,7 +131,7 @@ void GameSetupWindow::buildUi() {
   homeColorEdit_ = new QLineEdit(contentContainer);
   homeColorEdit_->setMaximumWidth(120);
   homeColorButton_ = new QPushButton(contentContainer);
-  homeColorButton_->setFixedWidth(56);
+  homeColorButton_->setMinimumWidth(88);
   homeColorRowLayout->addWidget(homeColorEdit_, 0);
   homeColorRowLayout->addWidget(homeColorButton_, 0);
   homeColorRow->setMaximumWidth(280);
@@ -156,7 +156,7 @@ void GameSetupWindow::buildUi() {
   awayColorEdit_ = new QLineEdit(contentContainer);
   awayColorEdit_->setMaximumWidth(120);
   awayColorButton_ = new QPushButton(contentContainer);
-  awayColorButton_->setFixedWidth(56);
+  awayColorButton_->setMinimumWidth(88);
   awayColorRowLayout->addWidget(awayColorEdit_, 0);
   awayColorRowLayout->addWidget(awayColorButton_, 0);
   awayColorRow->setMaximumWidth(280);
@@ -183,7 +183,6 @@ void GameSetupWindow::buildUi() {
   continueButton_->setDefault(false);
   Style::setVariant(continueButton_, "welcomeImport");
   Style::setSize(continueButton_, "lg");
-  continueButton_->setMaximumWidth(220);
   buttonRow->addStretch(1);
   buttonRow->addWidget(backButton_, 0);
   buttonRow->addWidget(continueButton_, 0);

@@ -979,6 +979,14 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QVariant \
   /Users/cam/asiatica-va/AVA_V01_cpp/ui/../components/VideoPlayer.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/QMediaPlayer \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qmediaplayer.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qurl.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimediaglobal.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimedia-config.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimediaexports.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qtaudio.h \
+  /opt/homebrew/lib/QtMultimedia.framework/Headers/qaudio.h \
   /Users/cam/asiatica-va/AVA_V01_cpp/ui/../components/GameControls.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QStringList \
   /opt/homebrew/lib/QtCore.framework/Headers/QList \
@@ -992,15 +1000,22 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
   /Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
   /Users/cam/asiatica-va/AVA_V01_cpp/state/TagSession.h \
+  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../export/VideoConcatenator.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QProcess \
+  /opt/homebrew/lib/QtCore.framework/Headers/qprocess.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qiodevice.h \
   /Users/cam/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h \
   /Users/cam/asiatica-va/AVA_V01_cpp/components/TimelineBar.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer \
+  /opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qframe.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qpicture.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qiodevice.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qtextdocument.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qurl.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QMessageBox \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qmessagebox.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qdialogbuttonbox.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStackedWidget \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstackedwidget.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
@@ -1009,8 +1024,8 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qlayoutitem.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QFileDialog \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qfiledialog.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QTemporaryDir \
+  /opt/homebrew/lib/QtCore.framework/Headers/qtemporarydir.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qdir.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qdirlisting.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qfiledevice.h \

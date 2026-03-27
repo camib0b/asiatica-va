@@ -9,6 +9,7 @@
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTextStream>
+#include <QtGlobal>
 
 #include <algorithm>
 
@@ -102,23 +103,106 @@ void ClipExporter::processNextClip() {
     const QString tempPath = tempDir_->filePath(
         QStringLiteral("clip_%1.mp4").arg(currentClipIndex_, 4, 10, QChar('0')));
 
-    const QString overlayImagePath = tempDir_->filePath(
-        QStringLiteral("overlay_%1.png").arg(currentClipIndex_, 4, 10, QChar('0')));
-    generateOverlayImage(clip.overlayText, clip.secondaryOverlayText, overlayImagePath);
+    const bool includeBottomOverlay =
+        !clip.overlayText.trimmed().isEmpty() || !clip.secondaryOverlayText.trimmed().isEmpty();
+    QString overlayImagePath;
+    if (includeBottomOverlay) {
+        overlayImagePath = tempDir_->filePath(
+            QStringLiteral("overlay_%1.png").arg(currentClipIndex_, 4, 10, QChar('0')));
+        generateOverlayImage(clip.overlayText, clip.secondaryOverlayText, overlayImagePath);
+    }
 
-    const QString filterComplex = QStringLiteral(
-        "[0:v][1:v]overlay=24:main_h-overlay_h-24[tmp];"
-        "[tmp][2:v]overlay=main_w-overlay_w-16:16[v]");
+    const int scoreboardCount = clip.scoreboards.size();
+    QStringList scoreboardImagePaths;
+    scoreboardImagePaths.reserve(scoreboardCount);
+    for (int s = 0; s < scoreboardCount; ++s) {
+        const QString path = tempDir_->filePath(
+            QStringLiteral("scoreboard_%1_%2.png")
+                .arg(currentClipIndex_, 4, 10, QChar('0'))
+                .arg(s));
+        generateScoreboardImage(clip.scoreboards[s].scoreboard, path);
+        scoreboardImagePaths.append(path);
+    }
 
     QStringList arguments;
     arguments << QStringLiteral("-y")
               << QStringLiteral("-ss") << QString::number(startSeconds, 'f', 3)
-              << QStringLiteral("-i") << sourceVideoPath_
-              << QStringLiteral("-loop") << QStringLiteral("1")
-              << QStringLiteral("-i") << overlayImagePath
-              << QStringLiteral("-loop") << QStringLiteral("1")
-              << QStringLiteral("-i") << brandingImagePath_
-              << QStringLiteral("-filter_complex") << filterComplex
+              << QStringLiteral("-i") << sourceVideoPath_;
+
+    if (includeBottomOverlay) {
+        arguments << QStringLiteral("-loop") << QStringLiteral("1")
+                  << QStringLiteral("-i") << overlayImagePath;
+    }
+
+    arguments << QStringLiteral("-loop") << QStringLiteral("1")
+              << QStringLiteral("-i") << brandingImagePath_;
+
+    for (const QString& path : scoreboardImagePaths) {
+        arguments << QStringLiteral("-loop") << QStringLiteral("1")
+                  << QStringLiteral("-i") << path;
+    }
+
+    const int brandingInput = includeBottomOverlay ? 2 : 1;
+    const int firstScoreboardInput = brandingInput + 1;
+
+    QString filterComplex;
+    if (includeBottomOverlay) {
+        filterComplex += QStringLiteral(
+            "[0:v][1:v]overlay=24:main_h-overlay_h-72[ov];"
+            "[ov][%1:v]overlay=main_w-overlay_w-16:16").arg(brandingInput);
+    } else {
+        filterComplex += QStringLiteral(
+            "[0:v][%1:v]overlay=main_w-overlay_w-16:16").arg(brandingInput);
+    }
+
+    if (scoreboardCount == 0) {
+        filterComplex += QStringLiteral("[v]");
+    } else if (scoreboardCount == 1) {
+        filterComplex += QStringLiteral("[br];[br][%1:v]overlay=16:16[v]")
+            .arg(firstScoreboardInput);
+    } else {
+        filterComplex += QStringLiteral("[br]");
+
+        for (int s = 0; s < scoreboardCount; ++s) {
+            const int inputIndex = firstScoreboardInput + s;
+            const QString inputLabel = (s == 0)
+                ? QStringLiteral("br")
+                : QStringLiteral("sb%1").arg(s - 1);
+            const QString outputLabel = (s == scoreboardCount - 1)
+                ? QStringLiteral("v")
+                : QStringLiteral("sb%1").arg(s);
+
+            QString enableExpr;
+            if (s == 0) {
+                const double nextOffset =
+                    clip.scoreboards[1].activationOffsetSeconds;
+                enableExpr = QStringLiteral("lt(t,%1)")
+                    .arg(QString::number(nextOffset, 'f', 3));
+            } else if (s == scoreboardCount - 1) {
+                const double thisOffset =
+                    clip.scoreboards[s].activationOffsetSeconds;
+                enableExpr = QStringLiteral("gte(t,%1)")
+                    .arg(QString::number(thisOffset, 'f', 3));
+            } else {
+                const double thisOffset =
+                    clip.scoreboards[s].activationOffsetSeconds;
+                const double nextOffset =
+                    clip.scoreboards[s + 1].activationOffsetSeconds;
+                enableExpr = QStringLiteral("gte(t,%1)*lt(t,%2)")
+                    .arg(QString::number(thisOffset, 'f', 3))
+                    .arg(QString::number(nextOffset, 'f', 3));
+            }
+
+            filterComplex += QStringLiteral(
+                ";[%1][%2:v]overlay=16:16:enable='%3'[%4]")
+                .arg(inputLabel)
+                .arg(inputIndex)
+                .arg(enableExpr)
+                .arg(outputLabel);
+        }
+    }
+
+    arguments << QStringLiteral("-filter_complex") << filterComplex
               << QStringLiteral("-map") << QStringLiteral("[v]")
               << QStringLiteral("-map") << QStringLiteral("0:a?")
               << QStringLiteral("-t") << QString::number(durationSeconds, 'f', 3)
@@ -251,13 +335,134 @@ void ClipExporter::cleanup() {
     brandingImagePath_.clear();
 }
 
-QString ClipExporter::generateBrandingImage(const QString& outputPath) {
-    constexpr int kPadding = 8;
-    constexpr int kFontSize = 12;
-    constexpr int kCornerRadius = 4;
-    const QString brandingText = QStringLiteral("Exported from AVA");
+QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
+                                               const QString& outputPath) {
+    constexpr qreal kScoreboardScale = 1.15;
+    const int kPaddingH = qRound(16 * kScoreboardScale);
+    const int kPaddingV = qRound(10 * kScoreboardScale);
+    const int kSwatchWidth = qRound(5 * kScoreboardScale);
+    const int kSwatchHeight = qRound(22 * kScoreboardScale);
+    const int kSwatchRadius = qRound(2 * kScoreboardScale);
+    const int kElementSpacing = qRound(10 * kScoreboardScale);
+    const int kScoreSpacing = qRound(12 * kScoreboardScale);
+    const int kCornerRadius = qRound(6 * kScoreboardScale);
 
-    QFont font(QStringLiteral("Helvetica"), kFontSize);
+    QFont nameFont(QStringLiteral("Helvetica"), qRound(13 * kScoreboardScale));
+    nameFont.setWeight(QFont::DemiBold);
+    const QFontMetrics nameMetrics(nameFont);
+
+    QFont scoreFont(QStringLiteral("Helvetica"), qRound(22 * kScoreboardScale));
+    scoreFont.setWeight(QFont::Bold);
+    const QFontMetrics scoreMetrics(scoreFont);
+
+    QFont sepFont(QStringLiteral("Helvetica"), qRound(16 * kScoreboardScale));
+    const QFontMetrics sepMetrics(sepFont);
+
+    const QString homeScoreStr = QString::number(data.homeGoals);
+    const QString awayScoreStr = QString::number(data.awayGoals);
+    const QString separator = QStringLiteral("\u2014");
+
+    int contentWidth = 0;
+    contentWidth += kSwatchWidth + kElementSpacing;
+    contentWidth += nameMetrics.horizontalAdvance(data.homeName) + kElementSpacing;
+    contentWidth += scoreMetrics.horizontalAdvance(homeScoreStr) + kScoreSpacing;
+    contentWidth += sepMetrics.horizontalAdvance(separator) + kScoreSpacing;
+    contentWidth += scoreMetrics.horizontalAdvance(awayScoreStr) + kElementSpacing;
+    contentWidth += nameMetrics.horizontalAdvance(data.awayName) + kElementSpacing;
+    contentWidth += kSwatchWidth;
+
+    const int rowHeight = qMax(nameMetrics.height(), scoreMetrics.height());
+    const int imageWidth = contentWidth + 2 * kPaddingH;
+    const int imageHeight = rowHeight + 2 * kPaddingV;
+
+    QImage image(imageWidth, imageHeight, QImage::Format_ARGB32_Premultiplied);
+    image.fill(Qt::transparent);
+
+    QPainter painter(&image);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setRenderHint(QPainter::TextAntialiasing);
+
+    painter.setPen(Qt::NoPen);
+    constexpr int kScoreboardBackgroundAlpha = 198;
+    painter.setBrush(QColor(15, 23, 42, kScoreboardBackgroundAlpha));
+    painter.drawRoundedRect(image.rect(), kCornerRadius, kCornerRadius);
+
+    auto parseColor = [](const QString& hex, const QColor& fallback) -> QColor {
+        QString h = hex.trimmed();
+        if (!h.isEmpty() && !h.startsWith(QLatin1Char('#'))) h.prepend(QLatin1Char('#'));
+        QColor c(h);
+        return c.isValid() ? c : fallback;
+    };
+
+    int x = kPaddingH;
+    const int centerY = imageHeight / 2;
+
+    const QColor homeColor = parseColor(data.homeColorHex, QColor(96, 165, 250));
+    painter.setBrush(homeColor);
+    painter.drawRoundedRect(x, centerY - kSwatchHeight / 2,
+                            kSwatchWidth, kSwatchHeight,
+                            kSwatchRadius, kSwatchRadius);
+    x += kSwatchWidth + kElementSpacing;
+
+    painter.setFont(nameFont);
+    painter.setPen(QColor(255, 255, 255, 170));
+    const int nameH = nameMetrics.height();
+    painter.drawText(x, centerY - nameH / 2,
+                     nameMetrics.horizontalAdvance(data.homeName), nameH,
+                     Qt::AlignLeft | Qt::AlignVCenter, data.homeName);
+    x += nameMetrics.horizontalAdvance(data.homeName) + kElementSpacing;
+
+    painter.setFont(scoreFont);
+    painter.setPen(QColor(255, 255, 255));
+    const int scoreH = scoreMetrics.height();
+    painter.drawText(x, centerY - scoreH / 2,
+                     scoreMetrics.horizontalAdvance(homeScoreStr), scoreH,
+                     Qt::AlignCenter, homeScoreStr);
+    x += scoreMetrics.horizontalAdvance(homeScoreStr) + kScoreSpacing;
+
+    painter.setFont(sepFont);
+    painter.setPen(QColor(255, 255, 255, 90));
+    const int sepH = sepMetrics.height();
+    painter.drawText(x, centerY - sepH / 2,
+                     sepMetrics.horizontalAdvance(separator), sepH,
+                     Qt::AlignCenter, separator);
+    x += sepMetrics.horizontalAdvance(separator) + kScoreSpacing;
+
+    painter.setFont(scoreFont);
+    painter.setPen(QColor(255, 255, 255));
+    painter.drawText(x, centerY - scoreH / 2,
+                     scoreMetrics.horizontalAdvance(awayScoreStr), scoreH,
+                     Qt::AlignCenter, awayScoreStr);
+    x += scoreMetrics.horizontalAdvance(awayScoreStr) + kElementSpacing;
+
+    painter.setFont(nameFont);
+    painter.setPen(QColor(255, 255, 255, 170));
+    painter.drawText(x, centerY - nameH / 2,
+                     nameMetrics.horizontalAdvance(data.awayName), nameH,
+                     Qt::AlignLeft | Qt::AlignVCenter, data.awayName);
+    x += nameMetrics.horizontalAdvance(data.awayName) + kElementSpacing;
+
+    const QColor awayColor = parseColor(data.awayColorHex, QColor(248, 113, 113));
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(awayColor);
+    painter.drawRoundedRect(x, centerY - kSwatchHeight / 2,
+                            kSwatchWidth, kSwatchHeight,
+                            kSwatchRadius, kSwatchRadius);
+
+    painter.end();
+    image.save(outputPath, "PNG");
+    return outputPath;
+}
+
+QString ClipExporter::generateBrandingImage(const QString& outputPath) {
+    constexpr double kBrandingScale = 1.3225;
+    const int kPadding = qRound(8 * kBrandingScale);
+    const qreal kFontPointSize = 12.0 * kBrandingScale;
+    const int kCornerRadius = qRound(4 * kBrandingScale);
+    const QString brandingText = QStringLiteral("Made with AVA");
+
+    QFont font(QStringLiteral("Helvetica"));
+    font.setPointSizeF(kFontPointSize);
     font.setWeight(QFont::Normal);
 
     const QFontMetrics metrics(font);
@@ -274,7 +479,7 @@ QString ClipExporter::generateBrandingImage(const QString& outputPath) {
     painter.setRenderHint(QPainter::TextAntialiasing);
 
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(0, 0, 0, 90));
+    painter.setBrush(QColor(0, 0, 0, 72));
     painter.drawRoundedRect(image.rect(), kCornerRadius, kCornerRadius);
 
     painter.setFont(font);
@@ -326,7 +531,8 @@ QString ClipExporter::generateOverlayImage(const QString& primaryText,
     painter.setRenderHint(QPainter::TextAntialiasing);
 
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(0, 0, 0, 115));
+    constexpr int kPlateBackgroundAlpha = qRound(115 * 0.9);
+    painter.setBrush(QColor(0, 0, 0, kPlateBackgroundAlpha));
     painter.drawRoundedRect(image.rect(), kCornerRadius, kCornerRadius);
 
     const QRect primaryRect(0, kPadding, imageWidth, primaryMetrics.height());
