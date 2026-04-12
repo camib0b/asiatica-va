@@ -60,7 +60,10 @@ template <> constexpr inline auto ExportDialog::qt_create_metaobjectdata<qt_meta
         "totalClips",
         "onExportFinished",
         "success",
-        "message"
+        "message",
+        "onPreviewSlowerClicked",
+        "onPreviewFasterClicked",
+        "onPreviewResetSpeedClicked"
     };
 
     QtMocHelpers::UintData qt_methods {
@@ -106,6 +109,12 @@ template <> constexpr inline auto ExportDialog::qt_create_metaobjectdata<qt_meta
         QtMocHelpers::SlotData<void(bool, const QString &)>(20, 2, QMC::AccessPrivate, QMetaType::Void, {{
             { QMetaType::Bool, 21 }, { QMetaType::QString, 22 },
         }}),
+        // Slot 'onPreviewSlowerClicked'
+        QtMocHelpers::SlotData<void()>(23, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onPreviewFasterClicked'
+        QtMocHelpers::SlotData<void()>(24, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onPreviewResetSpeedClicked'
+        QtMocHelpers::SlotData<void()>(25, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -144,6 +153,9 @@ void ExportDialog::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id
         case 12: _t->onCancelExportClicked(); break;
         case 13: _t->onExportProgress((*reinterpret_cast<std::add_pointer_t<int>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2]))); break;
         case 14: _t->onExportFinished((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[2]))); break;
+        case 15: _t->onPreviewSlowerClicked(); break;
+        case 16: _t->onPreviewFasterClicked(); break;
+        case 17: _t->onPreviewResetSpeedClicked(); break;
         default: ;
         }
     }
@@ -168,14 +180,14 @@ int ExportDialog::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 15)
+        if (_id < 18)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 15;
+        _id -= 18;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 15)
+        if (_id < 18)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 15;
+        _id -= 18;
     }
     return _id;
 }
