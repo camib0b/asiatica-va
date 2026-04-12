@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/i18n/AppLocale.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QString \
   /opt/homebrew/lib/QtCore.framework/Headers/qstring.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qchar.h \
@@ -862,7 +862,7 @@ CMakeFiles/AVA.dir/i18n/AppLocale.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/qstringbuilder.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qstringconverter.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qstringconverter_base.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QObject \
   /opt/homebrew/lib/QtCore.framework/Headers/qobject.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qobjectdefs.h \

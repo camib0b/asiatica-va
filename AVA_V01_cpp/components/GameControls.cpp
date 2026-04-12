@@ -33,7 +33,7 @@ GameControls::GameControls(QWidget* parent) : QWidget(parent) {
   installEventFilter(this);
   for (auto* btn : {homeTeamButton_, awayTeamButton_, hit16ydButton_, hit50ydButton_, hit75ydButton_,
                     pcButton_, enterDButton_, pcFoulButton_, shotButton_, goalButton_, passButton_,
-                    specialButton_, turnoverButton_, cardButton_, psButton_})
+                    specialButton_, turnoverButton_, cardButton_, shootoutButton_, psButton_})
     if (btn) btn->installEventFilter(this);
 }
 
@@ -174,7 +174,7 @@ void GameControls::buildUi() {
   teamRowLayout->addWidget(awayTeamButton_, 1);
   setTabOrder(homeTeamButton_, awayTeamButton_);
 
-  // Main grid: rows 0–2 are 4 columns; row 3 is PS only (column 0)
+  // Main grid: rows 0–2 are 4 columns; row 3 is PS + S.O.
   auto* mainGridWidget = new QWidget(this);
   mainGridLayout_ = new QGridLayout(mainGridWidget);
   mainGridLayout_->setContentsMargins(0, 0, 0, 0);
@@ -208,6 +208,9 @@ void GameControls::buildUi() {
   cardButton_ = new QPushButton(mainGridWidget);
   configureMainGameControlButton(cardButton_, QStringLiteral("Card"), QStringLiteral("V"));
 
+  shootoutButton_ = new QPushButton(mainGridWidget);
+  configureMainGameControlButton(shootoutButton_, QStringLiteral("S.O."), QStringLiteral("N"));
+
   psButton_ = new QPushButton(mainGridWidget);
   configureMainGameControlButton(psButton_, QStringLiteral("PS"), QStringLiteral("B"));
 
@@ -215,7 +218,7 @@ void GameControls::buildUi() {
     hit16ydButton_, hit50ydButton_, hit75ydButton_, pcButton_,
     enterDButton_, pcFoulButton_, shotButton_, goalButton_,
     passButton_, specialButton_, turnoverButton_, cardButton_,
-    psButton_
+    shootoutButton_, psButton_
   };
 
   for (auto* button : mainButtons) {
@@ -242,8 +245,9 @@ void GameControls::buildUi() {
   mainGridLayout_->addWidget(specialButton_, 2, 1);
   mainGridLayout_->addWidget(turnoverButton_, 2, 2);
   mainGridLayout_->addWidget(cardButton_, 2, 3);
-  // Row 3: PS
+  // Row 3: PS, S.O.
   mainGridLayout_->addWidget(psButton_, 3, 0);
+  mainGridLayout_->addWidget(shootoutButton_, 3, 1);
 
   // Follow-up buttons container (initially hidden)
   followUpContainer_ = new QWidget(this);
@@ -281,6 +285,7 @@ void GameControls::wireSignals() {
   connectMain(specialButton_);
   connectMain(turnoverButton_);
   connectMain(cardButton_);
+  connectMain(shootoutButton_);
   connectMain(psButton_);
 }
 
@@ -296,7 +301,7 @@ void GameControls::buildKeyboardShortcuts() {
     return act;
   };
 
-  // Main grid matches QWERTY geometry: Q W E R | A S D F | Z X C V | B (PS)
+  // Main grid matches QWERTY geometry: Q W E R | A S D F | Z X C V N | B (PS)
   hit16ydAction_ = makeAction(Qt::Key_Q, [this]() {
     if (hit16ydButton_ && hit16ydButton_->isVisible() && hit16ydButton_->isEnabled()) hit16ydButton_->click();
   });
@@ -332,6 +337,9 @@ void GameControls::buildKeyboardShortcuts() {
   });
   cardAction_ = makeAction(Qt::Key_V, [this]() {
     if (cardButton_ && cardButton_->isVisible() && cardButton_->isEnabled()) cardButton_->click();
+  });
+  shootoutAction_ = makeAction(Qt::Key_N, [this]() {
+    if (shootoutButton_ && shootoutButton_->isVisible() && shootoutButton_->isEnabled()) shootoutButton_->click();
   });
   psAction_ = makeAction(Qt::Key_B, [this]() {
     if (psButton_ && psButton_->isVisible() && psButton_->isEnabled()) psButton_->click();
@@ -462,6 +470,21 @@ void GameControls::onFollowUpButtonClicked() {
     if (currentMainEvent_ == QStringLiteral("Circle Entry")) {
       const QString combined = selectedTeamLabel() + QStringLiteral(" → ") + currentFirstFollowUp_ +
                                QStringLiteral(" → ") + followUpName;
+      emit gameEventMarked(currentMainEvent_, combined);
+      clearActiveMainButton();
+      hideFollowUpButtons();
+      currentMainEvent_.clear();
+      currentFirstFollowUp_.clear();
+      currentSecondFollowUp_.clear();
+      followUpStage_ = FollowUpStage::None;
+      return;
+    }
+
+    if (currentMainEvent_ == QStringLiteral("S.O.")) {
+      const QString shootoutTeamLabel = currentFirstFollowUp_ == QStringLiteral("Home")
+                                            ? homeTeamFollowUpLabel_
+                                            : awayTeamFollowUpLabel_;
+      const QString combined = shootoutTeamLabel + QStringLiteral(" → ") + followUpName;
       emit gameEventMarked(currentMainEvent_, combined);
       clearActiveMainButton();
       hideFollowUpButtons();
@@ -621,6 +644,9 @@ QStringList GameControls::getFirstLevelFollowUps(const QString& mainEvent) const
   if (mainEvent == "PS") {
     return {QStringLiteral("Goal"), QStringLiteral("No Goal")};
   }
+  if (mainEvent == QStringLiteral("S.O.")) {
+    return {QStringLiteral("Home"), QStringLiteral("Away")};
+  }
   return {};
 }
 
@@ -652,7 +678,7 @@ QStringList GameControls::getSecondLevelFollowUps(const QString& mainEvent, cons
       return {QStringLiteral("Hit"), QStringLiteral("Swept"), QStringLiteral("Dragflick")};
     }
     if (firstFollowUp == QStringLiteral("Variant") || firstFollowUp == QStringLiteral("Ruined")) {
-      return {QStringLiteral("Goal"), QStringLiteral("No Goal")};
+      return {QStringLiteral("Goal"), QStringLiteral("No Goal"), QStringLiteral("New PC")};
     }
     return {};
   }
@@ -677,6 +703,13 @@ QStringList GameControls::getSecondLevelFollowUps(const QString& mainEvent, cons
   }
 
   if (mainEvent == "PC Foul") {
+    return {};
+  }
+
+  if (mainEvent == QStringLiteral("S.O.")) {
+    if (firstFollowUp == QStringLiteral("Home") || firstFollowUp == QStringLiteral("Away")) {
+      return {QStringLiteral("Converted"), QStringLiteral("Missed"), QStringLiteral("Replay")};
+    }
     return {};
   }
 
@@ -719,7 +752,13 @@ void GameControls::showFirstLevelFollowUps(const QString& mainEvent) {
   // Create new follow-up buttons
   for (const QString& action : actions) {
     auto* button = new QPushButton(followUpContainer_);
-    setupFollowUpButton(button, action);
+    if (mainEvent == QStringLiteral("S.O.") &&
+        (action == QStringLiteral("Home") || action == QStringLiteral("Away"))) {
+      button->setProperty("gameEventKey", action);
+      button->setText(action == QStringLiteral("Home") ? homeTeamFollowUpLabel_ : awayTeamFollowUpLabel_);
+    } else {
+      setupFollowUpButton(button, action);
+    }
     Style::setSize(button, "md");
     Style::setVariant(button, "gameControlFollowUp");
     button->setFocusPolicy(Qt::ClickFocus);
@@ -872,7 +911,7 @@ QList<QPushButton*> GameControls::focusableButtonsOrder() const {
        << hit16ydButton_ << hit50ydButton_ << hit75ydButton_ << pcButton_
        << enterDButton_ << pcFoulButton_ << shotButton_ << goalButton_
        << passButton_ << specialButton_ << turnoverButton_ << cardButton_
-       << psButton_;
+       << psButton_ << shootoutButton_;
   for (auto* btn : followUpButtons_) {
     if (btn && btn->isVisible()) list << btn;
   }
@@ -893,12 +932,13 @@ void GameControls::focusNextInDirection(Qt::Key key) {
     return;
   }
 
-  // Indices 0–1: team row; 2–14: main grid (13 buttons, PS at 14); follow-ups after that
+  // Indices 0–1: team row; 2–13: rows 0–2 (4 cols each); 14–15: row 3 (PS, S.O.); follow-ups after
   const int kTeamCount = 2;
   const int kMainStart = 2;
   const int kMainGridCols = 4;
-  const int kNumMainButtons = 13;
-  const int kPsButtonIndex = kMainStart + 12;
+  const int kNumMainButtons = 14;
+  const int kRow3Start = kMainStart + 12;   // idx 14 = PS (col 0)
+  const int kShootoutIndex = kRow3Start + 1; // idx 15 = S.O. (col 1)
   const int kFirstFollowUpIndex = kTeamCount + kNumMainButtons;
   int next = idx;
 
@@ -911,15 +951,16 @@ void GameControls::focusNextInDirection(Qt::Key key) {
       next = kMainStart;
     } else if (idx == 1) {
       next = kMainStart + 1;
-    } else if (idx >= kMainStart && idx < kMainStart + 12) {
+    } else if (idx >= kMainStart && idx < kRow3Start) {
       const int mainIdx = idx - kMainStart;
       const int row = mainIdx / kMainGridCols;
       if (row < 2) {
         next = idx + kMainGridCols;
       } else {
-        next = kPsButtonIndex;
+        const int col = mainIdx % kMainGridCols;
+        next = (col <= 0) ? kRow3Start : kShootoutIndex;
       }
-    } else if (idx == kPsButtonIndex) {
+    } else if (idx == kRow3Start || idx == kShootoutIndex) {
       next = (list.size() > kFirstFollowUpIndex) ? kFirstFollowUpIndex : kMainStart;
     } else {
       next = (idx + 1) % list.size();
@@ -932,12 +973,14 @@ void GameControls::focusNextInDirection(Qt::Key key) {
         next = 1;
       else if (idx == kMainStart + 2 || idx == kMainStart + 3)
         next = 1;
-    } else if (idx >= kMainStart + 4 && idx < kPsButtonIndex) {
+    } else if (idx >= kMainStart + 4 && idx < kRow3Start) {
       next = idx - kMainGridCols;
-    } else if (idx == kPsButtonIndex) {
+    } else if (idx == kRow3Start) {
       next = kMainStart + 8;
+    } else if (idx == kShootoutIndex) {
+      next = kMainStart + 9;
     } else if (idx == kFirstFollowUpIndex) {
-      next = kPsButtonIndex;
+      next = kRow3Start;
     } else if (idx > kFirstFollowUpIndex) {
       next = 0;
     } else {

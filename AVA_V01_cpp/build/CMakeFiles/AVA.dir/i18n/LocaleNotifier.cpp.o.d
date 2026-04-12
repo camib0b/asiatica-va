@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/i18n/LocaleNotifier.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QObject \
   /opt/homebrew/lib/QtCore.framework/Headers/qobject.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qobjectdefs.h \

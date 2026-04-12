@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/export/ClipExporter.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/export/ClipExporter.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/export/ClipExporter.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipExporter.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipExporter.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QObject \
   /opt/homebrew/lib/QtCore.framework/Headers/qobject.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qobjectdefs.h \

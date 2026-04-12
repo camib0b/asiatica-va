@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/ui/StatsWindow.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/StatsWindow.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/StatsWindow.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/StatsWindow.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/StatsWindow.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qwidget.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsglobal.h \
@@ -965,18 +965,18 @@ CMakeFiles/AVA.dir/ui/StatsWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qsizepolicy.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../state/TagSession.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../state/TagSession.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QObject \
   /opt/homebrew/lib/QtCore.framework/Headers/QHash \
   /opt/homebrew/lib/QtCore.framework/Headers/QString \
   /opt/homebrew/lib/QtCore.framework/Headers/QVector \
   /opt/homebrew/lib/QtCore.framework/Headers/qvector.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../style/StyleProps.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../style/StyleProps.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QVariant \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../i18n/AppLocale.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../i18n/AppLocale.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qlayout.h \

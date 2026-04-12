@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/components/VideoPlayer.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/VideoPlayer.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/VideoPlayer.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoPlayer.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoPlayer.h \
   /opt/homebrew/lib/QtMultimedia.framework/Headers/QMediaPlayer \
   /opt/homebrew/lib/QtMultimedia.framework/Headers/qmediaplayer.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qobject.h \
@@ -973,13 +973,13 @@ CMakeFiles/AVA.dir/components/VideoPlayer.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qsizepolicy.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QHash \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/TimelineBar.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer \
   /opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/../macos/PlaybackActivity.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/../macos/PlaybackActivity.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qlayout.h \

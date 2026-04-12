@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/style/theme.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/style/theme.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/style/theme.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/style/theme.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/style/theme.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QString \
   /opt/homebrew/lib/QtCore.framework/Headers/qstring.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qchar.h \

@@ -53,10 +53,10 @@ RM = /opt/homebrew/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /Users/cam/asiatica-va/AVA_V01_cpp
+CMAKE_SOURCE_DIR = /Users/cam/dev/asiatica-va/AVA_V01_cpp
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /Users/cam/asiatica-va/AVA_V01_cpp/build
+CMAKE_BINARY_DIR = /Users/cam/dev/asiatica-va/AVA_V01_cpp/build
 
 # Utility rule file for AVA_autogen.
 
@@ -71,9 +71,9 @@ CMakeFiles/AVA_autogen: AVA_autogen/timestamp
 AVA_autogen/timestamp: /opt/homebrew/share/qt/libexec/moc
 AVA_autogen/timestamp: /opt/homebrew/share/qt/libexec/uic
 AVA_autogen/timestamp: CMakeFiles/AVA_autogen.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Automatic MOC and UIC for target AVA"
-	/opt/homebrew/bin/cmake -E cmake_autogen /Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles/AVA_autogen.dir/AutogenInfo.json Debug
-	/opt/homebrew/bin/cmake -E touch /Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/timestamp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Automatic MOC and UIC for target AVA"
+	/opt/homebrew/bin/cmake -E cmake_autogen /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles/AVA_autogen.dir/AutogenInfo.json ""
+	/opt/homebrew/bin/cmake -E touch /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/timestamp
 
 CMakeFiles/AVA_autogen.dir/codegen:
 .PHONY : CMakeFiles/AVA_autogen.dir/codegen
@@ -92,6 +92,6 @@ CMakeFiles/AVA_autogen.dir/clean:
 .PHONY : CMakeFiles/AVA_autogen.dir/clean
 
 CMakeFiles/AVA_autogen.dir/depend:
-	cd /Users/cam/asiatica-va/AVA_V01_cpp/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /Users/cam/asiatica-va/AVA_V01_cpp /Users/cam/asiatica-va/AVA_V01_cpp /Users/cam/asiatica-va/AVA_V01_cpp/build /Users/cam/asiatica-va/AVA_V01_cpp/build /Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles/AVA_autogen.dir/DependInfo.cmake "--color=$(COLOR)" AVA_autogen
+	cd /Users/cam/dev/asiatica-va/AVA_V01_cpp/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /Users/cam/dev/asiatica-va/AVA_V01_cpp /Users/cam/dev/asiatica-va/AVA_V01_cpp /Users/cam/dev/asiatica-va/AVA_V01_cpp/build /Users/cam/dev/asiatica-va/AVA_V01_cpp/build /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles/AVA_autogen.dir/DependInfo.cmake "--color=$(COLOR)" AVA_autogen
 .PHONY : CMakeFiles/AVA_autogen.dir/depend
 

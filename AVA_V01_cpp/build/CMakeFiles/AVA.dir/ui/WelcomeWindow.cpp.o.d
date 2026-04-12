@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qwidget.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsglobal.h \
@@ -965,11 +965,11 @@ CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qsizepolicy.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../style/StyleProps.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../style/StyleProps.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QVariant \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../i18n/AppLocale.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../i18n/AppLocale.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QString \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h \

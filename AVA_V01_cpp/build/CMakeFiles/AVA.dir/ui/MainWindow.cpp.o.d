@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/ui/MainWindow.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/MainWindow.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/MainWindow.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/MainWindow.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/MainWindow.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QMainWindow \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qmainwindow.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsglobal.h \
@@ -1034,20 +1034,21 @@ CMakeFiles/AVA.dir/ui/MainWindow.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/qfileinfo.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qtimezone.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
   /opt/homebrew/lib/QtGui.framework/Headers/QBrush \
   /opt/homebrew/lib/QtCore.framework/Headers/QHash \
+  /opt/homebrew/lib/QtCore.framework/Headers/QList \
   /opt/homebrew/lib/QtCore.framework/Headers/QSet \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../state/TagSession.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../state/TagSession.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QObject \
   /opt/homebrew/lib/QtCore.framework/Headers/QVector \
   /opt/homebrew/lib/QtCore.framework/Headers/qvector.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../i18n/AppLocale.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../i18n/LocaleNotifier.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../export/ClipExporter.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../i18n/AppLocale.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../i18n/LocaleNotifier.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../export/ClipExporter.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QProcess \
   /opt/homebrew/lib/QtCore.framework/Headers/qprocess.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QStringList \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../export/VideoConcatenator.h
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../export/VideoConcatenator.h

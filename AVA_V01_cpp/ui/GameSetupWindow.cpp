@@ -39,7 +39,6 @@ void GameSetupWindow::setInitialFocus() {
 
 void GameSetupWindow::applyUiStrings() {
   if (titleLabel_) titleLabel_->setText(AppLocale::trUi("setup.title"));
-  if (subtitleLabel_) subtitleLabel_->setText(AppLocale::trUi("setup.subtitle"));
   if (homeTeamLabel_) homeTeamLabel_->setText(AppLocale::trUi("setup.home_team"));
   if (awayTeamLabel_) awayTeamLabel_->setText(AppLocale::trUi("setup.away_team"));
   if (homeColorLabel_) homeColorLabel_->setText(AppLocale::trUi("setup.home_color"));
@@ -80,13 +79,6 @@ void GameSetupWindow::buildUi() {
   titleLabel_->setWordWrap(true);
   titleLabel_->setAlignment(Qt::AlignCenter);
   Style::setRole(titleLabel_, "h1");
-
-  subtitleLabel_ = new QLabel(contentContainer);
-  subtitleLabel_->setWordWrap(true);
-  subtitleLabel_->setAlignment(Qt::AlignCenter);
-  subtitleLabel_->setMinimumWidth(220);
-  subtitleLabel_->setMinimumHeight(36);
-  Style::setRole(subtitleLabel_, "subhero");
 
   auto* formLayout = new QVBoxLayout();
   formLayout->setSpacing(12);
@@ -166,7 +158,6 @@ void GameSetupWindow::buildUi() {
   formLayout->addLayout(awayColorOuter);
 
   layout->addWidget(titleLabel_, 0, Qt::AlignHCenter);
-  layout->addWidget(subtitleLabel_, 0, Qt::AlignHCenter);
   layout->addLayout(formLayout);
 
   auto* buttonRow = new QHBoxLayout();

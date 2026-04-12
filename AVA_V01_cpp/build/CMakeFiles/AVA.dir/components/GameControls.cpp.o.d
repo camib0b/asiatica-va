@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/components/GameControls.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/GameControls.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/GameControls.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/GameControls.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/GameControls.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qwidget.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsglobal.h \
@@ -970,11 +970,11 @@ CMakeFiles/AVA.dir/components/GameControls.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/QHash \
   /opt/homebrew/lib/QtCore.framework/Headers/QVector \
   /opt/homebrew/lib/QtCore.framework/Headers/qvector.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/../style/StyleProps.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/../style/StyleProps.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QVariant \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/../i18n/AppLocale.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/../i18n/AppLocale.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QString \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QGridLayout \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \

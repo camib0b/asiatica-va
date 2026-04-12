@@ -1,16 +1,16 @@
 {
-	"BUILD_DIR" : "/Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen",
-	"CMAKE_BINARY_DIR" : "/Users/cam/asiatica-va/AVA_V01_cpp/build",
-	"CMAKE_CURRENT_BINARY_DIR" : "/Users/cam/asiatica-va/AVA_V01_cpp/build",
-	"CMAKE_CURRENT_SOURCE_DIR" : "/Users/cam/asiatica-va/AVA_V01_cpp",
+	"BUILD_DIR" : "/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen",
+	"CMAKE_BINARY_DIR" : "/Users/cam/dev/asiatica-va/AVA_V01_cpp/build",
+	"CMAKE_CURRENT_BINARY_DIR" : "/Users/cam/dev/asiatica-va/AVA_V01_cpp/build",
+	"CMAKE_CURRENT_SOURCE_DIR" : "/Users/cam/dev/asiatica-va/AVA_V01_cpp",
 	"CMAKE_EXECUTABLE" : "/opt/homebrew/bin/cmake",
 	"CMAKE_LIST_FILES" : 
 	[
-		"/Users/cam/asiatica-va/AVA_V01_cpp/CMakeLists.txt",
-		"/Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles/4.2.1/CMakeSystem.cmake",
+		"/Users/cam/dev/asiatica-va/AVA_V01_cpp/CMakeLists.txt",
+		"/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles/4.2.1/CMakeSystem.cmake",
 		"/opt/homebrew/share/cmake/Modules/CMakeSystemSpecificInitialize.cmake",
 		"/opt/homebrew/share/cmake/Modules/Platform/Darwin-Initialize.cmake",
-		"/Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles/4.2.1/CMakeCXXCompiler.cmake",
+		"/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles/4.2.1/CMakeCXXCompiler.cmake",
 		"/opt/homebrew/share/cmake/Modules/CMakeSystemSpecificInformation.cmake",
 		"/opt/homebrew/share/cmake/Modules/CMakeGenericSystem.cmake",
 		"/opt/homebrew/share/cmake/Modules/CMakeInitializeConfigs.cmake",
@@ -438,130 +438,130 @@
 		"/opt/homebrew/lib/cmake/Qt6Core/Qt6CoreConfigureFileTemplate.in",
 		"/opt/homebrew/lib/cmake/Qt6/macos/Info.plist.app.in"
 	],
-	"CMAKE_SOURCE_DIR" : "/Users/cam/asiatica-va/AVA_V01_cpp",
+	"CMAKE_SOURCE_DIR" : "/Users/cam/dev/asiatica-va/AVA_V01_cpp",
 	"CROSS_CONFIG" : false,
-	"DEP_FILE" : "/Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/deps",
+	"DEP_FILE" : "/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/deps",
 	"DEP_FILE_RULE_NAME" : "AVA_autogen/timestamp",
 	"HEADERS" : 
 	[
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/components/GameControls.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/GameControls.h",
 			"MU",
 			"XDQFSXMG3O/moc_GameControls.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/components/Scoreboard.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.h",
 			"MU",
 			"XDQFSXMG3O/moc_Scoreboard.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/components/TimelineBar.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.h",
 			"MU",
 			"XDQFSXMG3O/moc_TimelineBar.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h",
 			"MU",
 			"XDQFSXMG3O/moc_VideoControlsBar.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/components/VideoPlayer.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoPlayer.h",
 			"MU",
 			"XDQFSXMG3O/moc_VideoPlayer.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/export/ClipExporter.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipExporter.h",
 			"MU",
 			"CV7R3MSKRA/moc_ClipExporter.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.h",
 			"MU",
 			"CV7R3MSKRA/moc_ClipTrimBar.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/export/ExportDialog.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ExportDialog.h",
 			"MU",
 			"CV7R3MSKRA/moc_ExportDialog.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.h",
 			"MU",
 			"CV7R3MSKRA/moc_VideoConcatenator.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h",
 			"MU",
 			"O3VI4VFR3H/moc_AppLocale.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.h",
 			"MU",
 			"O3VI4VFR3H/moc_LocaleNotifier.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.h",
 			"MU",
 			"CCJAUQYTHV/moc_PlaybackActivity.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/state/TagSession.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h",
 			"MU",
 			"EO7GX2X5BD/moc_TagSession.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/style/theme.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/style/theme.h",
 			"MU",
 			"HI6LWCXMXM/moc_theme.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.h",
 			"MU",
 			"UYX5XTB5RZ/moc_GameSetupWindow.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/ui/MainWindow.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/MainWindow.h",
 			"MU",
 			"UYX5XTB5RZ/moc_MainWindow.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/ui/StatsWindow.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/StatsWindow.h",
 			"MU",
 			"UYX5XTB5RZ/moc_StatsWindow.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h",
 			"MU",
 			"UYX5XTB5RZ/moc_WelcomeWindow.cpp",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h",
 			"MU",
 			"UYX5XTB5RZ/moc_WorkWindow.cpp",
 			null
 		]
 	],
 	"HEADER_EXTENSIONS" : [ "h", "hh", "h++", "hm", "hpp", "hxx", "in", "txx" ],
-	"INCLUDE_DIR" : "/Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/include",
-	"MOC_COMPILATION_FILE" : "/Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/mocs_compilation.cpp",
+	"INCLUDE_DIR" : "/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/include",
+	"MOC_COMPILATION_FILE" : "/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/mocs_compilation.cpp",
 	"MOC_DEFINITIONS" : 
 	[
 		"QT_CORE_LIB",
@@ -569,6 +569,7 @@
 		"QT_MULTIMEDIAWIDGETS_LIB",
 		"QT_MULTIMEDIA_LIB",
 		"QT_NETWORK_LIB",
+		"QT_NO_DEBUG",
 		"QT_WIDGETS_LIB"
 	],
 	"MOC_DEPEND_FILTERS" : 
@@ -580,12 +581,12 @@
 	],
 	"MOC_INCLUDES" : 
 	[
-		"/Users/cam/asiatica-va/AVA_V01_cpp/ui",
-		"/Users/cam/asiatica-va/AVA_V01_cpp/components",
-		"/Users/cam/asiatica-va/AVA_V01_cpp/style",
-		"/Users/cam/asiatica-va/AVA_V01_cpp/state",
-		"/Users/cam/asiatica-va/AVA_V01_cpp/i18n",
-		"/Users/cam/asiatica-va/AVA_V01_cpp/export",
+		"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui",
+		"/Users/cam/dev/asiatica-va/AVA_V01_cpp/components",
+		"/Users/cam/dev/asiatica-va/AVA_V01_cpp/style",
+		"/Users/cam/dev/asiatica-va/AVA_V01_cpp/state",
+		"/Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n",
+		"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export",
 		"/opt/homebrew/lib/QtCore.framework/Headers",
 		"/opt/homebrew/lib/QtCore.framework",
 		"/opt/homebrew/share/qt/mkspecs/macx-clang",
@@ -625,96 +626,120 @@
 		"-E",
 		"/opt/homebrew/share/cmake/Modules/CMakeCXXCompilerABI.cpp"
 	],
-	"MOC_PREDEFS_FILE" : "/Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/moc_predefs.h",
+	"MOC_PREDEFS_FILE" : "/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/moc_predefs.h",
 	"MOC_RELAXED_MODE" : false,
 	"MOC_SKIP" : 
 	[
-		"/Users/cam/asiatica-va/AVA_V01_cpp/build/.qt/rcc/qrc_ava_resources.cpp"
+		"/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/.qt/rcc/qrc_ava_resources.cpp"
 	],
 	"MULTI_CONFIG" : false,
 	"PARALLEL" : 10,
-	"PARSE_CACHE_FILE" : "/Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles/AVA_autogen.dir/ParseCache.txt",
+	"PARSE_CACHE_FILE" : "/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles/AVA_autogen.dir/ParseCache.txt",
 	"QT_MOC_EXECUTABLE" : "/opt/homebrew/share/qt/libexec/moc",
 	"QT_UIC_EXECUTABLE" : "/opt/homebrew/share/qt/libexec/uic",
 	"QT_VERSION_MAJOR" : 6,
 	"QT_VERSION_MINOR" : 10,
-	"SETTINGS_FILE" : "/Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles/AVA_autogen.dir/AutogenUsed.txt",
+	"SETTINGS_FILE" : "/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles/AVA_autogen.dir/AutogenUsed.txt",
 	"SOURCES" : 
 	[
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/components/GameControls.cpp",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/GameControls.cpp",
 			"MU",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/components/Scoreboard.cpp",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.cpp",
 			"MU",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/components/TimelineBar.cpp",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.cpp",
 			"MU",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.cpp",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.cpp",
 			"MU",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/components/VideoPlayer.cpp",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoPlayer.cpp",
 			"MU",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/export/ClipExporter.cpp",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipExporter.cpp",
 			"MU",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.cpp",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.cpp",
 			"MU",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/export/ExportDialog.cpp",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ExportDialog.cpp",
 			"MU",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp",
-			"MU",
-			null
-		],
-		[ "/Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.cpp", "MU", null ],
-		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.cpp",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp",
 			"MU",
 			null
 		],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.cpp",
 			"MU",
 			null
 		],
-		[ "/Users/cam/asiatica-va/AVA_V01_cpp/main.cpp", "MU", null ],
-		[ "/Users/cam/asiatica-va/AVA_V01_cpp/state/TagSession.cpp", "MU", null ],
-		[ "/Users/cam/asiatica-va/AVA_V01_cpp/style/theme.cpp", "MU", null ],
 		[
-			"/Users/cam/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.cpp",
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.cpp",
 			"MU",
 			null
 		],
-		[ "/Users/cam/asiatica-va/AVA_V01_cpp/ui/MainWindow.cpp", "MU", null ],
-		[ "/Users/cam/asiatica-va/AVA_V01_cpp/ui/StatsWindow.cpp", "MU", null ],
-		[ "/Users/cam/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.cpp", "MU", null ],
-		[ "/Users/cam/asiatica-va/AVA_V01_cpp/ui/WorkWindow.cpp", "MU", null ]
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm",
+			"MU",
+			null
+		],
+		[ "/Users/cam/dev/asiatica-va/AVA_V01_cpp/main.cpp", "MU", null ],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.cpp",
+			"MU",
+			null
+		],
+		[ "/Users/cam/dev/asiatica-va/AVA_V01_cpp/style/theme.cpp", "MU", null ],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/MainWindow.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/StatsWindow.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.cpp",
+			"MU",
+			null
+		]
 	],
 	"UIC_OPTIONS" : [],
 	"UIC_SEARCH_PATHS" : [],
 	"UIC_SKIP" : 
 	[
-		"/Users/cam/asiatica-va/AVA_V01_cpp/build/.qt/rcc/qrc_ava_resources.cpp"
+		"/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/.qt/rcc/qrc_ava_resources.cpp"
 	],
 	"UIC_UI_FILES" : [],
 	"USE_BETTER_GRAPH" : true,

@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/components/TimelineBar.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/TimelineBar.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/TimelineBar.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer \
   /opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qcompare.h \
@@ -968,7 +968,7 @@ CMakeFiles/AVA.dir/components/TimelineBar.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/../style/StyleProps.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/../style/StyleProps.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QVariant \

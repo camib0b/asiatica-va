@@ -7,7 +7,7 @@ set(CMAKE_DEPENDS_GENERATOR "Unix Makefiles")
 # The top level Makefile was generated from the following files:
 set(CMAKE_MAKEFILE_DEPENDS
   "CMakeCache.txt"
-  "/Users/cam/asiatica-va/AVA_V01_cpp/CMakeLists.txt"
+  "/Users/cam/dev/asiatica-va/AVA_V01_cpp/CMakeLists.txt"
   ".qt/info_plist/AVA/Info.plist"
   "CMakeFiles/4.2.1/CMakeCXXCompiler.cmake"
   "CMakeFiles/4.2.1/CMakeSystem.cmake"

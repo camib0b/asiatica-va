@@ -16,6 +16,7 @@
 #include <QPushButton>
 #include <QTextStream>
 #include <QVBoxLayout>
+#include <QSize>
 
 VideoConcatenator::VideoConcatenator(QObject* parent) : QObject(parent) {}
 
@@ -84,6 +85,10 @@ void VideoConcatenator::startConcatenation(const QStringList& inputPaths,
 }
 
 void VideoConcatenator::cancel() {
+    // Ignore spurious cancel (e.g. QProgressDialog teardown) after a successful run;
+    // otherwise succeeded_ would be cleared and callers return false incorrectly.
+    if (finished_ && succeeded_) return;
+
     cancelled_ = true;
     if (process_ && process_->state() != QProcess::NotRunning) {
         process_->kill();
@@ -119,6 +124,7 @@ bool VideoConcatenator::waitWithProgress(QWidget* parentWidget) {
         0, 0, parentWidget);
     progress.setWindowModality(Qt::WindowModal);
     progress.setMinimumDuration(0);
+    progress.setMinimumSize(QSize(520, 180));
 
     QEventLoop loop;
 
@@ -136,8 +142,11 @@ bool VideoConcatenator::waitWithProgress(QWidget* parentWidget) {
         loop.exec();
     }
 
+    // Snapshot before close(): on some platforms closing the dialog can emit
+    // canceled(), which would call cancel() and wrongly clear succeeded_.
+    const bool concatenationOk = succeeded_;
     progress.close();
-    return succeeded_;
+    return concatenationOk;
 }
 
 QStringList VideoConcatenator::selectVideoFiles(QWidget* parentWidget) {
@@ -152,7 +161,7 @@ bool VideoConcatenator::showFileOrderDialog(QStringList& filePaths,
                                             QWidget* parentWidget) {
     QDialog dialog(parentWidget);
     dialog.setWindowTitle(AppLocale::trUi("concat.dialog_title"));
-    dialog.setMinimumSize(620, 300);
+    dialog.setMinimumSize(960, 300);
 
     auto* layout = new QVBoxLayout(&dialog);
     layout->setSpacing(16);
@@ -162,14 +171,6 @@ bool VideoConcatenator::showFileOrderDialog(QStringList& filePaths,
     Style::setRole(titleLabel, "h1");
     titleLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(titleLabel);
-
-    auto* subtitleLabel = new QLabel(AppLocale::trUi("concat.dialog_subtitle"), &dialog);
-    subtitleLabel->setWordWrap(true);
-    subtitleLabel->setAlignment(Qt::AlignCenter);
-    Style::setRole(subtitleLabel, "subhero");
-    layout->addWidget(subtitleLabel);
-
-    layout->addSpacing(4);
 
     auto* listWidget = new QListWidget(&dialog);
     listWidget->setFlow(QListView::LeftToRight);
@@ -189,10 +190,15 @@ bool VideoConcatenator::showFileOrderDialog(QStringList& filePaths,
         "  border-radius: 6px;"
         "  padding: 6px 14px;"
         "  background: #f5f5f5;"
+        "  color: #1a1a1a;"
         "}"
         "QListWidget::item:selected {"
         "  border: 2px solid #4a90d9;"
         "  background: #e4eefb;"
+        "  color: #1a1a1a;"
+        "}"
+        "QListWidget::item:selected:active {"
+        "  color: #1a1a1a;"
         "}"));
 
     for (const QString& path : filePaths) {
@@ -203,7 +209,7 @@ bool VideoConcatenator::showFileOrderDialog(QStringList& filePaths,
         listWidget->addItem(item);
     }
     if (listWidget->count() > 0) listWidget->setCurrentRow(0);
-    layout->addWidget(listWidget, 0, Qt::AlignCenter);
+    layout->addWidget(listWidget);
 
     auto* moveRow = new QHBoxLayout();
     moveRow->setSpacing(8);

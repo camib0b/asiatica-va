@@ -43,6 +43,7 @@
 #include <QModelIndex>
 #include <QSplitter>
 #include <QHBoxLayout>
+#include <QScrollBar>
 
 namespace {
 
@@ -253,6 +254,9 @@ void WorkWindow::setTagSession(TagSession* session) {
 
 void WorkWindow::setMode(Mode m) {
     if (mode_ == m) return;
+    if (mode_ == Mode::Tagging && m == Mode::Analyzing) {
+        captureTaggingModeUiStateForRestore();
+    }
     mode_ = m;
     if (m == Mode::Tagging)
         applyTaggingLayout();
@@ -316,6 +320,9 @@ void WorkWindow::buildUi() {
     topLayout->addSpacing(16);
 
     videoPlayer_ = new VideoPlayer(this);
+    // Children (video surface, controls, timeline) are reparented into WorkWindow layouts; the shell
+    // widget must stay hidden or it paints an empty rectangle at (0,0) over the mode toggle row.
+    videoPlayer_->hide();
     auto* videoControlsBar = videoPlayer_->controlsBar();
     videoControlsRow_ = new QWidget(this);
     auto* videoControlsLayout = new QHBoxLayout(videoControlsRow_);
@@ -590,6 +597,9 @@ void WorkWindow::applyTaggingLayout() {
     statsWindow_->hide();
     if (notesEdit_) notesEdit_->hide();
 
+    if (gameControls_) gameControls_->show();
+    if (scoreboard_) scoreboard_->show();
+
     if (taggingVideoTagsSplitter_) {
         taggingVideoTagsSplitter_->show();
     }
@@ -598,7 +608,7 @@ void WorkWindow::applyTaggingLayout() {
         taggingMainRow_->show();
     }
 
-    QTimer::singleShot(0, this, [this]() { applyTaggingSplitterGeometry(); });
+    QTimer::singleShot(0, this, [this]() { restoreTaggingModeUiStateAfterLayout(); });
 
     // Keep tag list in sync with session after layout change
     rebuildTagsList();
@@ -733,6 +743,35 @@ void WorkWindow::applyTaggingSplitterGeometry() {
     const int topH = qMax(160, inner * 58 / 100);
     const int bottomH = qMax(120, inner - topH);
     taggingVideoTagsSplitter_->setSizes({topH, bottomH});
+}
+
+void WorkWindow::captureTaggingModeUiStateForRestore() {
+    if (!taggingVideoTagsSplitter_ || taggingVideoTagsSplitter_->count() != 2) {
+        return;
+    }
+    preservedTaggingVideoTagsSplitterSizes_ = taggingVideoTagsSplitter_->sizes();
+    hasPreservedTaggingUiState_ = true;
+    if (tagsTable_) {
+        preservedTagsTableVerticalScrollValue_ = tagsTable_->verticalScrollBar()->value();
+        preservedTagsTableHorizontalScrollValue_ = tagsTable_->horizontalScrollBar()->value();
+    }
+}
+
+void WorkWindow::restoreTaggingModeUiStateAfterLayout() {
+    if (mode_ != Mode::Tagging) return;
+    if (hasPreservedTaggingUiState_ && preservedTaggingVideoTagsSplitterSizes_.size() == 2 &&
+        taggingVideoTagsSplitter_) {
+        const int h = taggingVideoTagsSplitter_->height();
+        if (h >= 100) {
+            taggingVideoTagsSplitter_->setSizes(preservedTaggingVideoTagsSplitterSizes_);
+        }
+    } else {
+        applyTaggingSplitterGeometry();
+    }
+    if (tagsTable_ && hasPreservedTaggingUiState_) {
+        tagsTable_->verticalScrollBar()->setValue(preservedTagsTableVerticalScrollValue_);
+        tagsTable_->horizontalScrollBar()->setValue(preservedTagsTableHorizontalScrollValue_);
+    }
 }
 
 void WorkWindow::wireSignals() {
@@ -903,6 +942,8 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     if (filePath.isEmpty()) return;
 
     sourceVideoPath_ = filePath;
+    hasPreservedTaggingUiState_ = false;
+    preservedTaggingVideoTagsSplitterSizes_.clear();
 
     if (tagSession_) tagSession_->clear();
     hasPendingTag_ = false;
@@ -996,6 +1037,9 @@ void WorkWindow::onReplaceVideo() {
 }
 
 void WorkWindow::onDiscardVideo() {
+    hasPreservedTaggingUiState_ = false;
+    preservedTaggingVideoTagsSplitterSizes_.clear();
+
     if (videoPlayer_) videoPlayer_->setControlsVisible(false);
     if (gameControls_) gameControls_->hide();
     if (scoreboard_) scoreboard_->hide();

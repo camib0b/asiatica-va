@@ -105,6 +105,7 @@ protected:
   QPushButton* specialButton_ = nullptr;
   QPushButton* turnoverButton_ = nullptr;
   QPushButton* cardButton_ = nullptr;
+  QPushButton* shootoutButton_ = nullptr;
   QPushButton* psButton_ = nullptr;
 
   // keyboard shortcuts (same row-major order as on-screen grid):
@@ -120,6 +121,7 @@ protected:
   QAction* specialAction_ = nullptr;
   QAction* turnoverAction_ = nullptr;
   QAction* cardAction_ = nullptr;
+  QAction* shootoutAction_ = nullptr;
   QAction* psAction_ = nullptr;
   QList<QAction*> followUpNumberActions_;
   QAction* escapeAction_ = nullptr;

@@ -5,6 +5,7 @@
 #include <QString>
 #include <QBrush>
 #include <QHash>
+#include <QList>
 #include <QSet>
 
 class QLabel;
@@ -82,6 +83,8 @@ private:
   void applyAnalyzingLayout();
   void applyAnalyzingSplitterGeometry();
   void applyTaggingSplitterGeometry();
+  void captureTaggingModeUiStateForRestore();
+  void restoreTaggingModeUiStateAfterLayout();
   void rebuildTagsList();
   void rebuildFilterMenu();
   void updateFilterIndicator();
@@ -176,4 +179,9 @@ private:
   QString sourceVideoPath_;
   QTemporaryDir* concatenatedVideoTempDir_ = nullptr;
   VideoConcatenator* pendingConcatenator_ = nullptr;
+
+  QList<int> preservedTaggingVideoTagsSplitterSizes_;
+  int preservedTagsTableVerticalScrollValue_ = 0;
+  int preservedTagsTableHorizontalScrollValue_ = 0;
+  bool hasPreservedTaggingUiState_ = false;
 };

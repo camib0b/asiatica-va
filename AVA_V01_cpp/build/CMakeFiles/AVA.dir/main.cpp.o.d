@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/main.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/main.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/MainWindow.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/main.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/MainWindow.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QMainWindow \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qmainwindow.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsglobal.h \
@@ -968,7 +968,7 @@ CMakeFiles/AVA.dir/main.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtabwidget.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QString \
-  /Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QApplication \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qcoreapplication.h \
@@ -984,4 +984,4 @@ CMakeFiles/AVA.dir/main.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/qlocale.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication_platform.h \
   /opt/homebrew/lib/QtGui.framework/Headers/QIcon \
-  /Users/cam/asiatica-va/AVA_V01_cpp/style/theme.h
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/style/theme.h

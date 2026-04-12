@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/components/Scoreboard.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/Scoreboard.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/Scoreboard.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QVector \
   /opt/homebrew/lib/QtCore.framework/Headers/qvector.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qlist.h \
@@ -968,11 +968,11 @@ CMakeFiles/AVA.dir/components/Scoreboard.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/../state/TagSession.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/../state/TagSession.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QObject \
   /opt/homebrew/lib/QtCore.framework/Headers/QHash \
   /opt/homebrew/lib/QtCore.framework/Headers/QString \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/../style/StyleProps.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/../style/StyleProps.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QVariant \

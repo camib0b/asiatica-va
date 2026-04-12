@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/export/ExportDialog.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/export/ExportDialog.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/export/ExportDialog.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ExportDialog.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ExportDialog.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QDialog \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsglobal.h \
@@ -970,18 +970,18 @@ CMakeFiles/AVA.dir/export/ExportDialog.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/QVector \
   /opt/homebrew/lib/QtCore.framework/Headers/qvector.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
-  /Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/state/TagSession.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QObject \
   /opt/homebrew/lib/QtCore.framework/Headers/QHash \
-  /Users/cam/asiatica-va/AVA_V01_cpp/export/ClipExporter.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipExporter.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QProcess \
   /opt/homebrew/lib/QtCore.framework/Headers/qprocess.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qiodevice.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QStringList \
-  /Users/cam/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
-  /Users/cam/asiatica-va/AVA_V01_cpp/style/StyleProps.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/style/StyleProps.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QVariant \

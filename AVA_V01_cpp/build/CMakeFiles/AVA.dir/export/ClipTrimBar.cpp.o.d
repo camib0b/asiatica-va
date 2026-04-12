@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/export/ClipTrimBar.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qwidget.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsglobal.h \

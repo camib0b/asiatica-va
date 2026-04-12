@@ -53,10 +53,10 @@ RM = /opt/homebrew/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /Users/cam/asiatica-va/AVA_V01_cpp
+CMAKE_SOURCE_DIR = /Users/cam/dev/asiatica-va/AVA_V01_cpp
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /Users/cam/asiatica-va/AVA_V01_cpp/build
+CMAKE_BINARY_DIR = /Users/cam/dev/asiatica-va/AVA_V01_cpp/build
 
 # Utility rule file for AVA_autogen_timestamp_deps.
 
@@ -81,6 +81,6 @@ CMakeFiles/AVA_autogen_timestamp_deps.dir/clean:
 .PHONY : CMakeFiles/AVA_autogen_timestamp_deps.dir/clean
 
 CMakeFiles/AVA_autogen_timestamp_deps.dir/depend:
-	cd /Users/cam/asiatica-va/AVA_V01_cpp/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /Users/cam/asiatica-va/AVA_V01_cpp /Users/cam/asiatica-va/AVA_V01_cpp /Users/cam/asiatica-va/AVA_V01_cpp/build /Users/cam/asiatica-va/AVA_V01_cpp/build /Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles/AVA_autogen_timestamp_deps.dir/DependInfo.cmake "--color=$(COLOR)" AVA_autogen_timestamp_deps
+	cd /Users/cam/dev/asiatica-va/AVA_V01_cpp/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /Users/cam/dev/asiatica-va/AVA_V01_cpp /Users/cam/dev/asiatica-va/AVA_V01_cpp /Users/cam/dev/asiatica-va/AVA_V01_cpp/build /Users/cam/dev/asiatica-va/AVA_V01_cpp/build /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles/AVA_autogen_timestamp_deps.dir/DependInfo.cmake "--color=$(COLOR)" AVA_autogen_timestamp_deps
 .PHONY : CMakeFiles/AVA_autogen_timestamp_deps.dir/depend
 

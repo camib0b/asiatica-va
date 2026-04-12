@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/state/TagSession.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/state/TagSession.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/state/TagSession.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QObject \
   /opt/homebrew/lib/QtCore.framework/Headers/qobject.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qobjectdefs.h \

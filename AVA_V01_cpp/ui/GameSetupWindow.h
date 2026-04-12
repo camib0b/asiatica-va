@@ -43,7 +43,6 @@ private:
 
   QString videoPath_;
   QLabel* titleLabel_ = nullptr;
-  QLabel* subtitleLabel_ = nullptr;
   QLabel* homeTeamLabel_ = nullptr;
   QLabel* awayTeamLabel_ = nullptr;
   QLabel* homeColorLabel_ = nullptr;

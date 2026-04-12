@@ -57,10 +57,10 @@ RM = /opt/homebrew/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /Users/cam/asiatica-va/AVA_V01_cpp
+CMAKE_SOURCE_DIR = /Users/cam/dev/asiatica-va/AVA_V01_cpp
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /Users/cam/asiatica-va/AVA_V01_cpp/build
+CMAKE_BINARY_DIR = /Users/cam/dev/asiatica-va/AVA_V01_cpp/build
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -87,9 +87,9 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles /Users/cam/asiatica-va/AVA_V01_cpp/build//CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles /Users/cam/dev/asiatica-va/AVA_V01_cpp/build//CMakeFiles/progress.marks
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/cam/asiatica-va/AVA_V01_cpp/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles 0
 .PHONY : all
 
 # The main clean target

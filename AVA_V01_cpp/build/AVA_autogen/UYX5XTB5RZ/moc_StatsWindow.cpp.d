@@ -1,5 +1,5 @@
-/Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/moc_StatsWindow.cpp: /Users/cam/asiatica-va/AVA_V01_cpp/ui/StatsWindow.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/build/AVA_autogen/moc_predefs.h \
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/moc_StatsWindow.cpp: /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/StatsWindow.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/moc_predefs.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/Availability.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/AvailabilityInternal.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/AvailabilityInternalLegacy.h \
@@ -725,7 +725,7 @@
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/limits.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/ptrcheck.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdarg.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/state/TagSession.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QHash \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QObject \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QString \

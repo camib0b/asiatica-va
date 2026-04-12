@@ -726,49 +726,49 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/limits.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/ptrcheck.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdarg.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/CMakeLists.txt \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/CMakeLists.txt \
   AVA_autogen/moc_predefs.h \
   CMakeFiles/4.2.1/CMakeCXXCompiler.cmake \
   CMakeFiles/4.2.1/CMakeSystem.cmake \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/GameControls.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/GameControls.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/Scoreboard.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/Scoreboard.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/TimelineBar.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/TimelineBar.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/VideoPlayer.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/VideoPlayer.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/export/ClipExporter.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/export/ClipExporter.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/export/ExportDialog.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/export/ExportDialog.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm \
-  /Users/cam/asiatica-va/AVA_V01_cpp/main.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/state/TagSession.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/state/TagSession.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/style/theme.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/style/theme.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/MainWindow.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/MainWindow.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/StatsWindow.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/StatsWindow.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/WorkWindow.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/GameControls.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/GameControls.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoPlayer.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoPlayer.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipExporter.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipExporter.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ExportDialog.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ExportDialog.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/main.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/style/theme.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/style/theme.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/MainWindow.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/MainWindow.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/StatsWindow.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/StatsWindow.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QElapsedTimer \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QHash \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QList \
@@ -1307,6 +1307,8 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
 
 /opt/homebrew/share/cmake/Modules/FindVulkan.cmake:
 
+/opt/homebrew/share/cmake/Modules/FindPackageMessage.cmake:
+
 /opt/homebrew/share/cmake/Modules/FindOpenGL.cmake:
 
 /opt/homebrew/share/cmake/Modules/Compiler/GNU.cmake:
@@ -1417,6 +1419,8 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
 
 /opt/homebrew/lib/cmake/Qt6GuiTools/Qt6GuiToolsVersionlessTargets.cmake:
 
+/opt/homebrew/lib/cmake/Qt6GuiTools/Qt6GuiToolsDependencies.cmake:
+
 /opt/homebrew/lib/cmake/Qt6GuiTools/Qt6GuiToolsConfig.cmake:
 
 /opt/homebrew/lib/cmake/Qt6GuiTools/Qt6GuiToolsAdditionalTargetInfo.cmake:
@@ -1451,8 +1455,6 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
 
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QSvgIconPluginTargets-release.cmake:
 
-/opt/homebrew/lib/cmake/Qt6Gui/Qt6QSvgIconPluginAdditionalTargetInfo.cmake:
-
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QPdfPluginTargets.cmake:
 
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QPdfPluginConfig.cmake:
@@ -1473,6 +1475,8 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
 
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QJpegPluginTargets-release.cmake:
 
+/opt/homebrew/lib/cmake/Qt6Gui/Qt6QJpegPluginConfig.cmake:
+
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QJp2PluginTargets.cmake:
 
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QTiffPluginAdditionalTargetInfo.cmake:
@@ -1486,6 +1490,10 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QICOPluginTargets-release.cmake:
 
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QGifPluginTargets.cmake:
+
+/opt/homebrew/share/cmake/Modules/CheckIncludeFileCXX.cmake:
+
+/opt/homebrew/lib/cmake/Qt6Gui/Qt6QGifPluginConfig.cmake:
 
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QGifPluginAdditionalTargetInfo.cmake:
 
@@ -1545,6 +1553,8 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
 
 /opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinMicrophonePermissionPluginDependencies.cmake:
 
+/opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinMicrophonePermissionPluginAdditionalTargetInfo.cmake:
+
 /opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinLocationPermissionPluginTargets.cmake:
 
 /opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinLocationPermissionPluginAdditionalTargetInfo.cmake:
@@ -1566,6 +1576,8 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
 /opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinCalendarPermissionPluginConfig.cmake:
 
 /opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinBluetoothPermissionPluginTargets-release.cmake:
+
+/opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinBluetoothPermissionPluginDependencies.cmake:
 
 /opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinCalendarPermissionPluginDependencies.cmake:
 
@@ -1595,6 +1607,8 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
 
 /opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentConfigVersion.cmake:
 
+/opt/homebrew/lib/cmake/Qt6/macos/Info.plist.app.in:
+
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QSvgPluginConfig.cmake:
 
 /opt/homebrew/lib/cmake/Qt6/QtPublicToolHelpers.cmake:
@@ -1610,6 +1624,8 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
 /opt/homebrew/lib/cmake/Qt6/QtPublicSbomGenerationHelpers.cmake:
 
 /opt/homebrew/lib/cmake/Qt6/QtPublicSbomFileHelpers.cmake:
+
+/opt/homebrew/lib/cmake/Qt6/QtPublicSbomCycloneDXHelpers.cmake:
 
 /opt/homebrew/lib/cmake/Qt6/QtPublicSbomCpeHelpers.cmake:
 
@@ -1659,17 +1675,13 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtWidgets.framework/Versions/A/Headers/qwidget.h:
 
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtWidgets.framework/Versions/A/Headers/qtwidgetsglobal.h:
+
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtWidgets.framework/Versions/A/Headers/qsizepolicy.h:
 
 /opt/homebrew/share/cmake/Modules/FindPackageHandleStandardArgs.cmake:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtWidgets.framework/Versions/A/Headers/QWidget:
-
-/opt/homebrew/lib/cmake/Qt6Gui/Qt6QMinimalIntegrationPluginAdditionalTargetInfo.cmake:
-
-/opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentConfig.cmake:
-
-/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtWidgets.framework/Versions/A/Headers/QMainWindow:
 
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QJpegPluginAdditionalTargetInfo.cmake:
 
@@ -1791,6 +1803,8 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qprocess.h:
 
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qpair.h:
+
 /opt/homebrew/lib/cmake/Qt6Network/Qt6QTlsBackendOpenSSLPluginTargets.cmake:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qobjectdefs_impl.h:
@@ -1877,8 +1891,6 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/q20memory.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/state/TagSession.h:
-
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QVector:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QString:
@@ -1901,69 +1913,73 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/u
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QElapsedTimer:
 
-/opt/homebrew/share/cmake/Modules/FindPackageMessage.cmake:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/StatsWindow.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h:
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_constructible.h:
 
-/opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinBluetoothPermissionPluginDependencies.cmake:
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__functional/binary_negate.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.cpp:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/ui/StatsWindow.cpp:
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__configuration/language.h:
 
-/opt/homebrew/share/cmake/Modules/CheckIncludeFileCXX.cmake:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/MainWindow.h:
 
-/opt/homebrew/lib/cmake/Qt6Gui/Qt6QGifPluginConfig.cmake:
+/opt/homebrew/lib/cmake/Qt6Gui/Qt6QSvgIconPluginAdditionalTargetInfo.cmake:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/ui/MainWindow.h:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/MainWindow.cpp:
 
-/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qalloc.h:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.cpp:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.cpp:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_mbstate_t.h:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/style/theme.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/style/theme.h:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/style/theme.cpp:
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_caddr_t.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/find_end.h:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/main.cpp:
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__atomic/atomic_flag.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.h:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ExportDialog.h:
 
-/opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinLocationPermissionPluginConfig.cmake:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__atomic/contention_t.h:
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_u_int16_t.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.cpp:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipExporter.h:
 
-/opt/homebrew/lib/cmake/Qt6Gui/Qt6QJpegPluginConfig.cmake:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipExporter.cpp:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/export/ExportDialog.cpp:
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/lexicographical_compare.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/components/VideoPlayer.h:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoPlayer.h:
 
-/opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinContactsPermissionPluginTargets-release.cmake:
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__math/traits.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/components/VideoPlayer.cpp:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.cpp:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.cpp:
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__bit/countr.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/components/Scoreboard.h:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.h:
 
-/opt/homebrew/lib/cmake/Qt6CoreTools/Qt6CoreToolsTargets.cmake:
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/find.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_pthread/_pthread_rwlockattr_t.h:
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__configuration/compiler.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/components/GameControls.h:
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/wchar.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/components/GameControls.cpp:
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.cpp:
 
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QMngPluginTargets.cmake:
 
 CMakeFiles/4.2.1/CMakeSystem.cmake:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/aligned_storage.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/CMakeLists.txt:
 
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QTuioTouchPluginTargets-release.cmake:
 
@@ -1987,6 +2003,8 @@ CMakeFiles/4.2.1/CMakeSystem.cmake:
 
 /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stdarg___gnuc_va_list.h:
 
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/xlocale/_time.h:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcompare_impl.h:
@@ -2005,6 +2023,8 @@ CMakeFiles/4.2.1/CMakeSystem.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__atomic/memory_order.h:
 
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.cpp:
+
 CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_uintptr_t.h:
@@ -2017,13 +2037,13 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_u_int64_t.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_u_int16_t.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_u_int.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_trivially_assignable.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_u_char.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_timespec.h:
 
@@ -2037,11 +2057,17 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_null.h:
 
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_mbstate_t.h:
+
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qalloc.h:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/container_traits.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_key_t.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_int8_t.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/StatsWindow.cpp:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_int16_t.h:
 
@@ -2061,13 +2087,13 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /opt/homebrew/lib/cmake/Qt6/QtPublicCMakeVersionHelpers.cmake:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/export/ClipExporter.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_fd_zero.h:
 
 /opt/homebrew/share/cmake/Modules/CMakeCXXInformation.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_fd_copy.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.cpp:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdarwinhelpers.h:
 
@@ -2081,17 +2107,25 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_pthread/_pthread_t.h:
 
+/opt/homebrew/lib/cmake/Qt6CoreTools/Qt6CoreToolsTargets.cmake:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_pthread/_pthread_rwlockattr_t.h:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_pthread/_pthread_rwlock_t.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_integral.h:
-
-/Users/cam/asiatica-va/AVA_V01_cpp/export/ClipExporter.cpp:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_pthread/_pthread_once_t.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_pthread/_pthread_mutexattr_t.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_pthread/_pthread_cond_t.h:
+
+/opt/homebrew/lib/cmake/Qt6Gui/Qt6QICNSPluginConfig.cmake:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/reverse_copy.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__utility/exchange.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ExportDialog.cpp:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_endian.h:
 
@@ -2113,17 +2147,13 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/machine/endian.h:
 
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.cpp:
+
 /opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinLocationPermissionPluginTargets-release.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/machine/_types.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/libkern/_OSByteOrder.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/find.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__configuration/compiler.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/wchar.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__functional/binder2nd.h:
 
@@ -2134,10 +2164,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/has_unique_object_representation.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/unordered_map:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/AvailabilityInternalLegacy.h:
-
-/Users/cam/asiatica-va/AVA_V01_cpp/ui/StatsWindow.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__thread/support.h:
 
@@ -2154,6 +2180,8 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/tuple:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/string.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h:
 
 /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stdarg_va_arg.h:
 
@@ -2173,8 +2201,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/stdint.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.h:
-
 /opt/homebrew/lib/cmake/Qt6/QtPublicSbomGenerationCycloneDXHelpers.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/stdexcept:
@@ -2189,6 +2215,8 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/set:
 
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.cpp:
+
 /opt/homebrew/share/cmake/Modules/CMakeCheckCompilerFlagCommonPatterns.cmake:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qforeach.h:
@@ -2198,6 +2226,12 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/mutex:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/math.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/for_each.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/system_error:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/style/theme.cpp:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlatin1stringview.h:
 
@@ -2251,6 +2285,12 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__vector/pmr.h:
 
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/minmax_element.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_reference_wrapper.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/GameControls.cpp:
+
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qfunctionaltools_impl.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__vector/comparison.h:
@@ -2297,19 +2337,9 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__utility/convert_to_integral.h:
 
-/opt/homebrew/lib/cmake/Qt6GuiTools/Qt6GuiToolsDependencies.cmake:
-
-/Users/cam/asiatica-va/AVA_V01_cpp/components/TimelineBar.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__utility/as_const.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__undef_macros:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/sift_down.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__thread/support/pthread.h:
-
-/Users/cam/asiatica-va/AVA_V01_cpp/components/TimelineBar.cpp:
 
 /opt/homebrew/lib/cmake/Qt6WidgetsTools/Qt6WidgetsToolsConfigVersionImpl.cmake:
 
@@ -2377,8 +2407,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_unbounded_array.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/ui/MainWindow.cpp:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_trivially_relocatable.h:
 
 /opt/homebrew/lib/cmake/Qt6/QtPublicSbomDocumentNamespaceHelpers.cmake:
@@ -2417,10 +2445,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_referenceable.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/minmax_element.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_reference_wrapper.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_pointer.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/string_view:
@@ -2435,10 +2459,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_nothrow_assignable.h:
 
-/opt/homebrew/lib/cmake/Qt6/QtPublicSbomCycloneDXHelpers.cmake:
-
-/Users/cam/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h:
-
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QCocoaIntegrationPluginAdditionalTargetInfo.cmake:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qmetacontainer.h:
@@ -2448,6 +2468,16 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/cwctype:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_literal_type.h:
+
+/opt/homebrew/lib/cmake/Qt6Gui/Qt6QMinimalIntegrationPluginAdditionalTargetInfo.cmake:
+
+/opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentConfig.cmake:
+
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtWidgets.framework/Versions/A/Headers/QMainWindow:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_integral.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_function.h:
 
@@ -2493,10 +2523,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_abstract.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__iterator/iter_move.h:
-
-/Users/cam/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h:
-
 /opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/integral_constant.h:
@@ -2504,8 +2530,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/enable_if.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/dependent_type.h:
-
-/Users/cam/asiatica-va/AVA_V01_cpp/export/ExportDialog.h:
 
 /opt/homebrew/lib/cmake/Qt6Network/Qt6QSecureTransportBackendPluginTargets.cmake:
 
@@ -2617,11 +2641,13 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/xlocale.h:
 
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/sift_down.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__thread/support/pthread.h:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/invoke.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__thread/id.h:
-
-/Users/cam/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.cpp:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__system_error/throw_system_error.h:
 
@@ -2648,12 +2674,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/count_if.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__split_buffer:
-
-/opt/homebrew/lib/cmake/Qt6Gui/Qt6QICNSPluginConfig.cmake:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/reverse_copy.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__utility/exchange.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/_mb_cur_max.h:
 
@@ -2737,8 +2757,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_implicitly_default_constructible.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/aligned_storage.h:
-
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QWbmpPluginTargets.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__tuple/tuple_element.h:
@@ -2746,10 +2764,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__numeric/gcd_lcm.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__numeric/adjacent_difference.h:
-
-/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtWidgets.framework/Versions/A/Headers/qtwidgetsglobal.h:
-
-/Users/cam/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__fwd/variant.h:
 
@@ -2773,15 +2787,11 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__mutex/mutex.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__atomic/atomic_flag.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__fwd/sstream.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/cstdint:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__memory_resource/memory_resource.h:
-
-/Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/maybe_const.h:
 
@@ -2871,11 +2881,11 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__memory/addressof.h:
 
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/copy_if.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__mutex/lock_guard.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__math/traits.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__iterator/advance.h:
 
@@ -2895,6 +2905,8 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_errno_t.h:
 
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoPlayer.cpp:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_final.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__math/modulo.h:
@@ -2902,10 +2914,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__functional/mem_fun_ref.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__math/min_max.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/for_each.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/system_error:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcomparehelpers.h:
 
@@ -3001,6 +3009,8 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__iterator/next.h:
 
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.cpp:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__cstddef/nullptr_t.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__iterator/move_sentinel.h:
@@ -3018,6 +3028,8 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/_locale.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__configuration/availability.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/main.cpp:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__iterator/iterator_traits.h:
 
@@ -3056,6 +3068,8 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__exception/terminate.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__iterator/bounded_iter.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__iterator/aliasing_iterator.h:
 
@@ -3175,10 +3189,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__functional/pointer_to_unary_function.h:
 
-/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qpair.h:
-
-/Users/cam/asiatica-va/AVA_V01_cpp/CMakeLists.txt:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__functional/operations.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__functional/hash.h:
@@ -3225,10 +3235,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__concepts/predicate.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_constructible.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__functional/binary_negate.h:
-
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/q20functional.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_base_of.h:
@@ -3248,6 +3254,8 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qtextstream.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__exception/exception.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/GameControls.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__debug_utils/strict_weak_ordering_check.h:
 
@@ -3273,8 +3281,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__debug_utils/randomize_range.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__cstddef/size_t.h:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qstringmatcher.h:
@@ -3286,8 +3292,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__new/nothrow_t.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/qos.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__bit/countr.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/comp.h:
 
@@ -3321,8 +3325,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QObject:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/ui/WorkWindow.cpp:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_fd_set.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/remove_const.h:
@@ -3342,8 +3344,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qtcoreexports.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__concepts/movable.h:
-
-/Users/cam/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/rank.h:
 
@@ -3393,8 +3393,6 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__chrono/system_clock.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/lexicographical_compare.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__ranges/container_compatible_range.h:
 
 /opt/homebrew/lib/cmake/Qt6Core/Qt6CoreAdditionalTargetInfo.cmake:
@@ -3427,15 +3425,13 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__bit/popcount.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/upper_bound.h:
-
-/Users/cam/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.cpp:
-
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QOffscreenIntegrationPluginConfig.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/wctype.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__chrono/time_point.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__bit/invert_if.h:
 
@@ -3511,13 +3507,17 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__memory/unique_temporary_buffer.h:
 
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/AvailabilityInternalLegacy.h:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/equal.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/swap_ranges.h:
 
-/Users/cam/asiatica-va/AVA_V01_cpp/state/TagSession.cpp:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/is_sorted_until.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/find_end.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__compare/compare_three_way_result.h:
 
@@ -3599,17 +3599,19 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/adjacent_find.h:
 
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__iterator/iter_move.h:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/ranges_copy.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__functional/is_transparent.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/upper_bound.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types.h:
 
 /opt/homebrew/lib/cmake/Qt6/QtPublicAppleHelpers.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__ranges/data.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__configuration/language.h:
 
 /opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinMicrophonePermissionPluginTargets.cmake:
 
@@ -3635,15 +3637,7 @@ AVA_autogen/moc_predefs.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__iterator/erase_if_container.h:
 
-/opt/homebrew/lib/cmake/Qt6/macos/Info.plist.app.in:
-
-/Users/cam/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/push_heap.h:
-
-/opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinMicrophonePermissionPluginAdditionalTargetInfo.cmake:
-
-/Users/cam/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/none_of.h:
 
@@ -3683,11 +3677,11 @@ AVA_autogen/moc_predefs.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__concepts/totally_ordered.h:
 
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.cpp:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/common_reference.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__atomic/atomic.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_caddr_t.h:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtWidgets.framework/Versions/A/Headers/QDialog:
 
@@ -3698,6 +3692,10 @@ AVA_autogen/moc_predefs.h:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__variant/monostate.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__concepts/derived_from.h:
+
+/opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinContactsPermissionPluginTargets-release.cmake:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.cpp:
 
 /opt/homebrew/share/cmake/Modules/MacroAddFileDependencies.cmake:
 
@@ -3739,6 +3737,10 @@ AVA_autogen/moc_predefs.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/libkern/arm/_OSByteOrder.h:
 
+/opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinLocationPermissionPluginConfig.cmake:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__atomic/contention_t.h:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/sys/_types/_useconds_t.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__type_traits/is_constant_evaluated.h:
@@ -3776,8 +3778,6 @@ AVA_autogen/moc_predefs.h:
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtGui.framework/Versions/A/Headers/qtguiglobal.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/c++/v1/__algorithm/copy_move_common.h:
-
-/Users/cam/asiatica-va/AVA_V01_cpp/components/Scoreboard.cpp:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.2.sdk/usr/include/arm/_types.h:
 

@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/WorkWindow.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qwidget.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsglobal.h \
@@ -969,16 +969,17 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/QString \
   /opt/homebrew/lib/QtGui.framework/Headers/QBrush \
   /opt/homebrew/lib/QtCore.framework/Headers/QHash \
+  /opt/homebrew/lib/QtCore.framework/Headers/QList \
   /opt/homebrew/lib/QtCore.framework/Headers/QSet \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../state/TagSession.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../state/TagSession.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QObject \
   /opt/homebrew/lib/QtCore.framework/Headers/QVector \
   /opt/homebrew/lib/QtCore.framework/Headers/qvector.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../style/StyleProps.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../style/StyleProps.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QVariant \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../components/VideoPlayer.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../components/VideoPlayer.h \
   /opt/homebrew/lib/QtMultimedia.framework/Headers/QMediaPlayer \
   /opt/homebrew/lib/QtMultimedia.framework/Headers/qmediaplayer.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qurl.h \
@@ -987,25 +988,24 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtMultimedia.framework/Headers/qtmultimediaexports.h \
   /opt/homebrew/lib/QtMultimedia.framework/Headers/qtaudio.h \
   /opt/homebrew/lib/QtMultimedia.framework/Headers/qaudio.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../components/GameControls.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../components/GameControls.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QStringList \
-  /opt/homebrew/lib/QtCore.framework/Headers/QList \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../components/Scoreboard.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/StatsWindow.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../i18n/AppLocale.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../i18n/LocaleNotifier.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../export/ExportDialog.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../components/Scoreboard.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/StatsWindow.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../i18n/AppLocale.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../i18n/LocaleNotifier.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../export/ExportDialog.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QDialog \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/state/TagSession.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/ui/../export/VideoConcatenator.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../export/VideoConcatenator.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QProcess \
   /opt/homebrew/lib/QtCore.framework/Headers/qprocess.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qiodevice.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/TimelineBar.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer \
   /opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
@@ -1146,4 +1146,6 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/QFont \
   /opt/homebrew/lib/QtCore.framework/Headers/QModelIndex \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QSplitter \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qsplitter.h
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qsplitter.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QScrollBar \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qscrollbar.h

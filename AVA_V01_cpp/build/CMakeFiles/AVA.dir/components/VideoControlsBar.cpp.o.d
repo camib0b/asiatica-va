@@ -1,6 +1,6 @@
 CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o: \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.cpp \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qwidget.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtwidgetsglobal.h \
@@ -966,11 +966,11 @@ CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QHash \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/../style/StyleProps.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/../style/StyleProps.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QVariant \
-  /Users/cam/asiatica-va/AVA_V01_cpp/components/../i18n/AppLocale.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/../i18n/AppLocale.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QString \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
