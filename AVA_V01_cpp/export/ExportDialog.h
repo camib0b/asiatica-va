@@ -12,6 +12,7 @@ class QAudioOutput;
 class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
+class QEvent;
 class QLabel;
 class QLineEdit;
 class QMediaPlayer;
@@ -22,6 +23,7 @@ class QVideoWidget;
 
 class ClipExporter;
 class ClipTrimBar;
+class VideoControlsBar;
 
 class ExportDialog final : public QDialog {
     Q_OBJECT
@@ -50,6 +52,13 @@ private slots:
     void onExportProgress(int currentClip, int totalClips);
     void onExportFinished(bool success, const QString& message);
 
+    void onPreviewSlowerClicked();
+    void onPreviewFasterClicked();
+    void onPreviewResetSpeedClicked();
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
 private:
     struct ClipTrimData {
         TagSession::GameTag tag;
@@ -73,8 +82,17 @@ private:
     void updateClipNavigation();
     void ensurePreviewPlayer();
     void stopPreviewPlayer();
+    void applyPreviewPlaybackRate();
+    void updateTrimPageKeyboardShortcutsForCurrentPage();
+    void attachTrimPageKeyboardShortcuts();
+    void detachTrimPageKeyboardShortcuts();
     void regenerateOverlayTexts();
     QString teamDisplayName(const QString& teamKey) const;
+    QString sanitizedExportFileNamePart(const QString& raw) const;
+    QString suggestedExportBaseName() const;
+    QString defaultExportSuggestedFilePath() const;
+    void applySuggestedOutputPathFromForm();
+    void refreshOutputPathIfFollowingForm();
 
     TagSession* tagSession_;
     QString sourceVideoPath_;
@@ -92,6 +110,7 @@ private:
     QComboBox* sortOrderCombo_ = nullptr;
     QComboBox* exportLanguageCombo_ = nullptr;
     QCheckBox* includeBottomOverlayCheckBox_ = nullptr;
+    QCheckBox* includeScoreboardOverlayCheckBox_ = nullptr;
     QLabel* clipCountLabel_ = nullptr;
     QDoubleSpinBox* beforePaddingSpin_ = nullptr;
     QDoubleSpinBox* afterPaddingSpin_ = nullptr;
@@ -104,8 +123,8 @@ private:
     QLabel* clipNavigationLabel_ = nullptr;
     QPushButton* prevClipButton_ = nullptr;
     QPushButton* nextClipButton_ = nullptr;
-    QPushButton* playPauseButton_ = nullptr;
     QPushButton* discardClipButton_ = nullptr;
+    VideoControlsBar* previewControlsBar_ = nullptr;
     QVideoWidget* previewVideoWidget_ = nullptr;
     QMediaPlayer* previewPlayer_ = nullptr;
     QAudioOutput* previewAudioOutput_ = nullptr;
@@ -125,4 +144,10 @@ private:
     QString translatedEvent_;
 
     ClipExporter* exporter_ = nullptr;
+
+    double previewPlaybackRate_ = 1.0;
+    bool trimKeyboardShortcutsInstalled_ = false;
+    bool exportInProgress_ = false;
+
+    QString lastAutoOutputPathSuggestion_;
 };

@@ -29,6 +29,18 @@ public:
 
   void setControlsVisible(bool visible);
   void setControlsEnabled(bool enabled);
+  void setPlaybackKeyboardShortcutsEnabled(bool enabled);
+
+  /// True when keyboard shortcuts should drive playback (media loaded and not temporarily disabled).
+  bool isMediaKeyboardControlActive() const {
+    return mediaControlsEnabled_ && playbackKeyboardShortcutsEnabled_;
+  }
+
+  /// Play/pause with the same visual feedback as the controls bar (used when shortcuts are handled outside this widget).
+  void togglePlayPauseWithControlFlash();
+  void playbackSlowerWithControlFlash();
+  void playbackFasterWithControlFlash();
+  void playbackResetSpeedWithControlFlash();
 
 signals:
   void videoClosed();
@@ -55,7 +67,8 @@ private:
   void buildUi();
   void wireSignals();
   void buildKeyboardShortcuts();
-  
+  void updatePlaybackShortcutActionStates();
+
   void seekByMs(qint64 deltaMs);
   void setPlaybackRateAndPlay(double rate);
   void setupPlaybackReliabilityHooks();
@@ -71,15 +84,14 @@ private:
   TimelineBar* videoTimelineBar_ = nullptr;
   QVideoWidget* videoWidget_ = nullptr;
 
-  // keyboard shortcuts:
-  QAction* slowerAction_ = nullptr;
-  QAction* fasterAction_ = nullptr;
-  QAction* resetSpeedAction_ = nullptr;
-  QAction* togglePlayPauseAction_ = nullptr;
+  // keyboard shortcuts (seek arrows only; play/speed keys are handled in WorkWindow — see buildKeyboardShortcuts):
   QAction* seekSmallBackAction_ = nullptr;
   QAction* seekSmallForwardAction_ = nullptr;
   QAction* seekBigBackAction_ = nullptr;
   QAction* seekBigForwardAction_ = nullptr;
+
+  bool mediaControlsEnabled_ = false;
+  bool playbackKeyboardShortcutsEnabled_ = true;
 
   // Settings or constants:
   double playbackRate_ = 1.0;

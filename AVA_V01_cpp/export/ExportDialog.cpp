@@ -2,29 +2,50 @@
 #include "ClipExporter.h"
 #include "ClipTrimBar.h"
 #include "TagSession.h"
+#include "VideoControlsBar.h"
 #include "AppLocale.h"
 #include "StyleProps.h"
 
+#include <QAbstractSpinBox>
+#include <QApplication>
 #include <QAudioOutput>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDir>
 #include <QDoubleSpinBox>
+#include <QEvent>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QKeyEvent>
 #include <QMediaPlayer>
 #include <QMessageBox>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QStackedWidget>
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QVideoWidget>
 
 #include <algorithm>
+
+namespace {
+constexpr double kPreviewMinPlaybackRate = 0.25;
+constexpr double kPreviewMaxPlaybackRate = 4.0;
+constexpr double kPreviewPlaybackRateStep = 0.25;
+
+/// Suggested export path uses ASCII "special"; UI labels use ☆ via AppLocale::trEvent.
+QString eventLabelForExportSuggestedFileName(const QString& canonicalEvent) {
+    if (canonicalEvent == QStringLiteral("Special")) {
+        return QStringLiteral("special");
+    }
+    return AppLocale::trEvent(canonicalEvent);
+}
+} // namespace
 
 ExportDialog::ExportDialog(TagSession* session,
                            const QString& sourceVideoPath,
@@ -56,6 +77,7 @@ ExportDialog::ExportDialog(TagSession* session,
 }
 
 ExportDialog::~ExportDialog() {
+    detachTrimPageKeyboardShortcuts();
     stopPreviewPlayer();
 }
 
@@ -135,6 +157,12 @@ void ExportDialog::buildSettingsPage() {
     includeBottomOverlayCheckBox_->setChecked(true);
     formLayout->addRow(QString(), includeBottomOverlayCheckBox_);
 
+    includeScoreboardOverlayCheckBox_ =
+        new QCheckBox(AppLocale::trUi("export.include_scoreboard_overlay"), settingsPage_);
+    includeScoreboardOverlayCheckBox_->setCursor(Qt::PointingHandCursor);
+    includeScoreboardOverlayCheckBox_->setChecked(true);
+    formLayout->addRow(QString(), includeScoreboardOverlayCheckBox_);
+
     clipCountLabel_ = new QLabel(settingsPage_);
     Style::setRole(clipCountLabel_, "muted");
     formLayout->addRow(QString(), clipCountLabel_);
@@ -159,6 +187,11 @@ void ExportDialog::buildSettingsPage() {
     pathRow->setSpacing(8);
     outputPathEdit_ = new QLineEdit(settingsPage_);
     outputPathEdit_->setPlaceholderText(AppLocale::trUi("export.output_placeholder"));
+    connect(outputPathEdit_, &QLineEdit::textChanged, this, [this](const QString& text) {
+        if (text.trimmed().isEmpty()) {
+            lastAutoOutputPathSuggestion_.clear();
+        }
+    });
     pathRow->addWidget(outputPathEdit_, 1);
 
     browseButton_ = new QPushButton(AppLocale::trUi("export.browse"), settingsPage_);
@@ -209,37 +242,32 @@ void ExportDialog::buildTrimPage() {
     navRow->setSpacing(8);
 
     prevClipButton_ = new QPushButton(QStringLiteral("\u25C0"), trimPage_);
-    prevClipButton_->setFixedWidth(36);
     prevClipButton_->setCursor(Qt::PointingHandCursor);
     Style::setVariant(prevClipButton_, "outline");
+    Style::setSize(prevClipButton_, "xs");
+    prevClipButton_->setFixedSize(44, 40);
     connect(prevClipButton_, &QPushButton::clicked, this, &ExportDialog::onPrevClipClicked);
     navRow->addWidget(prevClipButton_);
-
-    playPauseButton_ = new QPushButton(QStringLiteral("\u25B6"), trimPage_);
-    playPauseButton_->setFixedWidth(36);
-    playPauseButton_->setCursor(Qt::PointingHandCursor);
-    Style::setVariant(playPauseButton_, "outline");
-    connect(playPauseButton_, &QPushButton::clicked,
-            this, &ExportDialog::onTogglePreviewPlayPause);
-    navRow->addWidget(playPauseButton_);
 
     clipNavigationLabel_ = new QLabel(trimPage_);
     clipNavigationLabel_->setAlignment(Qt::AlignCenter);
     navRow->addWidget(clipNavigationLabel_, 1);
 
     discardClipButton_ = new QPushButton(QStringLiteral("\U0001F5D1"), trimPage_);
-    discardClipButton_->setFixedWidth(36);
     discardClipButton_->setCursor(Qt::PointingHandCursor);
     discardClipButton_->setToolTip(AppLocale::trUi("export.discard_clip"));
     Style::setVariant(discardClipButton_, "ghost");
+    Style::setSize(discardClipButton_, "xs");
+    discardClipButton_->setFixedSize(44, 40);
     connect(discardClipButton_, &QPushButton::clicked,
             this, &ExportDialog::onDiscardClipClicked);
     navRow->addWidget(discardClipButton_);
 
     nextClipButton_ = new QPushButton(QStringLiteral("\u25B6"), trimPage_);
-    nextClipButton_->setFixedWidth(36);
     nextClipButton_->setCursor(Qt::PointingHandCursor);
     Style::setVariant(nextClipButton_, "outline");
+    Style::setSize(nextClipButton_, "xs");
+    nextClipButton_->setFixedSize(44, 40);
     connect(nextClipButton_, &QPushButton::clicked, this, &ExportDialog::onNextClipClicked);
     navRow->addWidget(nextClipButton_);
 
@@ -252,6 +280,9 @@ void ExportDialog::buildTrimPage() {
     previewVideoWidget_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     previewVideoWidget_->setStyleSheet(QStringLiteral("background-color: black;"));
     layout->addWidget(previewVideoWidget_, 1);
+
+    previewControlsBar_ = new VideoControlsBar(trimPage_);
+    layout->addWidget(previewControlsBar_);
 
     // Trim bar
     clipTrimBar_ = new ClipTrimBar(trimPage_);
@@ -373,6 +404,7 @@ void ExportDialog::updateClipCount() {
     if (canonicalEvent.isEmpty()) {
         clipCountLabel_->setText(QString());
         if (reviewButton_) reviewButton_->setEnabled(false);
+        refreshOutputPathIfFollowingForm();
         return;
     }
 
@@ -390,14 +422,12 @@ void ExportDialog::updateClipCount() {
     clipCountLabel_->setText(
         QStringLiteral("%1 %2").arg(count).arg(AppLocale::trUi("export.clips_label")));
     if (reviewButton_) reviewButton_->setEnabled(count > 0);
+
+    refreshOutputPathIfFollowingForm();
 }
 
 void ExportDialog::onBrowseOutputPath() {
-    const QString canonicalEvent = eventTypeCombo_->currentData().toString();
-    const QFileInfo sourceInfo(sourceVideoPath_);
-    const QString defaultName = QStringLiteral("%1_%2.mp4")
-        .arg(sourceInfo.completeBaseName(), canonicalEvent.toLower().replace(' ', '_'));
-    const QString defaultPath = sourceInfo.dir().filePath(defaultName);
+    const QString defaultPath = defaultExportSuggestedFilePath();
 
     const QString path = QFileDialog::getSaveFileName(
         this,
@@ -406,7 +436,9 @@ void ExportDialog::onBrowseOutputPath() {
         QStringLiteral("MP4 (*.mp4);;All files (*.*)"));
 
     if (!path.isEmpty()) {
+        QSignalBlocker blocker(outputPathEdit_);
         outputPathEdit_->setText(path);
+        lastAutoOutputPathSuggestion_.clear();
     }
 }
 
@@ -426,6 +458,10 @@ void ExportDialog::onReviewClipsClicked() {
     currentTrimIndex_ = 0;
     showClipAtIndex(0);
     pagesStack_->setCurrentWidget(trimPage_);
+    updateTrimPageKeyboardShortcutsForCurrentPage();
+    if (previewVideoWidget_) {
+        previewVideoWidget_->setFocus(Qt::OtherFocusReason);
+    }
 }
 
 void ExportDialog::buildTrimDataFromSettings() {
@@ -503,6 +539,7 @@ void ExportDialog::buildTrimDataFromSettings() {
 void ExportDialog::onBackToSettingsClicked() {
     stopPreviewPlayer();
     pagesStack_->setCurrentWidget(settingsPage_);
+    updateTrimPageKeyboardShortcutsForCurrentPage();
 }
 
 // ---------------------------------------------------------------------------
@@ -524,19 +561,80 @@ void ExportDialog::ensurePreviewPlayer() {
 
     connect(previewPlayer_, &QMediaPlayer::playbackStateChanged,
             this, [this](QMediaPlayer::PlaybackState state) {
-        if (playPauseButton_) {
-            playPauseButton_->setText(
-                state == QMediaPlayer::PlayingState
-                    ? QStringLiteral("\u23F8")
-                    : QStringLiteral("\u25B6"));
+        const bool playing = (state == QMediaPlayer::PlayingState);
+        if (previewControlsBar_) {
+            previewControlsBar_->setPlaying(playing);
         }
     });
+
+    if (previewControlsBar_) {
+        previewControlsBar_->setEnabledForMedia(true);
+        previewControlsBar_->setPlaying(false);
+        previewControlsBar_->setMuted(true);
+        previewControlsBar_->setPlaybackRate(previewPlaybackRate_);
+        previewPlayer_->setPlaybackRate(previewPlaybackRate_);
+
+        connect(previewControlsBar_, &VideoControlsBar::playRequested,
+                previewPlayer_, &QMediaPlayer::play);
+        connect(previewControlsBar_, &VideoControlsBar::pauseRequested,
+                previewPlayer_, &QMediaPlayer::pause);
+        connect(previewControlsBar_, &VideoControlsBar::seekRequestedMs, this,
+                [this](qint64 deltaMs) {
+            if (!previewPlayer_) return;
+            const qint64 durationMs = previewPlayer_->duration();
+            const qint64 positionMs = previewPlayer_->position();
+            const qint64 nextMs = positionMs + deltaMs;
+            const qint64 targetMs = (durationMs > 0)
+                ? std::clamp(nextMs, qint64{0}, durationMs)
+                : std::max<qint64>(0, nextMs);
+            previewPlayer_->setPosition(targetMs);
+        });
+        connect(previewControlsBar_, &VideoControlsBar::slowerRequested,
+                this, &ExportDialog::onPreviewSlowerClicked);
+        connect(previewControlsBar_, &VideoControlsBar::fasterRequested,
+                this, &ExportDialog::onPreviewFasterClicked);
+        connect(previewControlsBar_, &VideoControlsBar::resetSpeedRequested,
+                this, &ExportDialog::onPreviewResetSpeedClicked);
+        connect(previewControlsBar_, &VideoControlsBar::muteToggled, this,
+                [this](bool muted) {
+            if (previewAudioOutput_) previewAudioOutput_->setMuted(muted);
+        });
+    }
 }
 
 void ExportDialog::stopPreviewPlayer() {
     if (previewPlayer_) {
         previewPlayer_->stop();
     }
+    if (previewControlsBar_) {
+        previewControlsBar_->setPlaying(false);
+    }
+}
+
+void ExportDialog::applyPreviewPlaybackRate() {
+    if (previewPlayer_) {
+        previewPlayer_->setPlaybackRate(previewPlaybackRate_);
+    }
+    if (previewControlsBar_) {
+        previewControlsBar_->setPlaybackRate(previewPlaybackRate_);
+    }
+}
+
+void ExportDialog::onPreviewSlowerClicked() {
+    previewPlaybackRate_ = std::max(kPreviewMinPlaybackRate,
+                                    previewPlaybackRate_ - kPreviewPlaybackRateStep);
+    applyPreviewPlaybackRate();
+}
+
+void ExportDialog::onPreviewFasterClicked() {
+    previewPlaybackRate_ = std::min(kPreviewMaxPlaybackRate,
+                                    previewPlaybackRate_ + kPreviewPlaybackRateStep);
+    applyPreviewPlaybackRate();
+}
+
+void ExportDialog::onPreviewResetSpeedClicked() {
+    previewPlaybackRate_ = 1.0;
+    applyPreviewPlaybackRate();
 }
 
 void ExportDialog::onTogglePreviewPlayPause() {
@@ -591,6 +689,7 @@ void ExportDialog::showClipAtIndex(int index) {
     if (previewPlayer_) {
         previewPlayer_->pause();
         previewPlayer_->setPosition(clip.startMs);
+        previewPlayer_->setPlaybackRate(previewPlaybackRate_);
     }
 
     if (includeNoteCheckBox_) {
@@ -656,6 +755,7 @@ void ExportDialog::onDiscardClipClicked() {
     if (trimData_.isEmpty()) {
         stopPreviewPlayer();
         pagesStack_->setCurrentWidget(settingsPage_);
+        updateTrimPageKeyboardShortcutsForCurrentPage();
         QMessageBox::information(this,
             AppLocale::trUi("export.title"),
             AppLocale::trUi("export.all_clips_discarded"));
@@ -695,6 +795,78 @@ QString ExportDialog::teamDisplayName(const QString& teamKey) const {
     return teamKey;
 }
 
+QString ExportDialog::sanitizedExportFileNamePart(const QString& raw) const {
+    QString segment = raw.trimmed();
+    const QString forbidden = QStringLiteral("\\/:*?\"<>|\r\n\t");
+    for (QChar character : forbidden) {
+        segment.replace(character, QLatin1Char('_'));
+    }
+    while (segment.contains(QStringLiteral("  "))) {
+        segment.replace(QStringLiteral("  "), QStringLiteral(" "));
+    }
+    if (segment.isEmpty()) {
+        return QStringLiteral("clip");
+    }
+    return segment;
+}
+
+QString ExportDialog::suggestedExportBaseName() const {
+    const QString homeSegment =
+        sanitizedExportFileNamePart(teamDisplayName(QStringLiteral("Home")));
+    const QString awaySegment =
+        sanitizedExportFileNamePart(teamDisplayName(QStringLiteral("Away")));
+    const QString canonicalEvent =
+        eventTypeCombo_ ? eventTypeCombo_->currentData().toString() : QString();
+    const QString eventSegment = canonicalEvent.isEmpty()
+        ? sanitizedExportFileNamePart(QStringLiteral("clips"))
+        : sanitizedExportFileNamePart(eventLabelForExportSuggestedFileName(canonicalEvent));
+    const QString teamChoiceSegment = teamFilterCombo_
+        ? sanitizedExportFileNamePart(teamFilterCombo_->currentText())
+        : sanitizedExportFileNamePart(AppLocale::trUi("export.team_all"));
+    return QStringLiteral("%1 vs %2 - %3 %4")
+        .arg(homeSegment, awaySegment, eventSegment, teamChoiceSegment);
+}
+
+QString ExportDialog::defaultExportSuggestedFilePath() const {
+    const QFileInfo sourceInfo(sourceVideoPath_);
+    const QString directoryPath = sourceInfo.absolutePath();
+    return QDir(directoryPath).filePath(suggestedExportBaseName()
+        + QStringLiteral(".mp4"));
+}
+
+void ExportDialog::applySuggestedOutputPathFromForm() {
+    if (!outputPathEdit_) return;
+    const QString suggestedPath = defaultExportSuggestedFilePath();
+    {
+        QSignalBlocker blocker(outputPathEdit_);
+        outputPathEdit_->setText(suggestedPath);
+    }
+    lastAutoOutputPathSuggestion_ = suggestedPath;
+}
+
+void ExportDialog::refreshOutputPathIfFollowingForm() {
+    if (!outputPathEdit_ || sourceVideoPath_.isEmpty()) return;
+
+    const QString canonicalEvent =
+        eventTypeCombo_ ? eventTypeCombo_->currentData().toString() : QString();
+    const QString currentPath = outputPathEdit_->text();
+
+    if (canonicalEvent.isEmpty()) {
+        if (currentPath.trimmed().isEmpty() || currentPath == lastAutoOutputPathSuggestion_) {
+            QSignalBlocker blocker(outputPathEdit_);
+            outputPathEdit_->clear();
+            lastAutoOutputPathSuggestion_.clear();
+        }
+        return;
+    }
+
+    if (!currentPath.trimmed().isEmpty() && currentPath != lastAutoOutputPathSuggestion_) {
+        return;
+    }
+
+    applySuggestedOutputPathFromForm();
+}
+
 // ---------------------------------------------------------------------------
 // Export
 // ---------------------------------------------------------------------------
@@ -730,6 +902,8 @@ void ExportDialog::onExportClicked() {
     clips.reserve(trimData_.size());
     const bool includeBottomOverlay =
         !includeBottomOverlayCheckBox_ || includeBottomOverlayCheckBox_->isChecked();
+    const bool includeScoreboardOverlay =
+        !includeScoreboardOverlayCheckBox_ || includeScoreboardOverlayCheckBox_->isChecked();
     for (const auto& td : trimData_) {
         const QString secondary =
             (td.includeSecondaryOverlay && !td.secondaryOverlayText.isEmpty())
@@ -737,48 +911,50 @@ void ExportDialog::onExportClicked() {
         const QString primary = includeBottomOverlay ? td.overlayText : QString();
         const QString secondaryText = includeBottomOverlay ? secondary : QString();
 
-        int initialHomeGoals = 0;
-        int initialAwayGoals = 0;
-        struct InClipGoal {
-            qint64 positionMs;
-            QString team;
-        };
-        QVector<InClipGoal> inClipGoals;
-
-        for (const auto& tag : allTags) {
-            if (tag.mainEvent != QStringLiteral("Goal")) continue;
-            if (tag.positionMs <= td.startMs) {
-                if (tag.team == QStringLiteral("Home")) ++initialHomeGoals;
-                else if (tag.team == QStringLiteral("Away")) ++initialAwayGoals;
-            } else if (tag.positionMs <= td.endMs) {
-                inClipGoals.append({tag.positionMs, tag.team});
-            }
-        }
-
-        std::sort(inClipGoals.begin(), inClipGoals.end(),
-                  [](const InClipGoal& a, const InClipGoal& b) {
-            return a.positionMs < b.positionMs;
-        });
-
         QVector<TimedScoreboard> scoreboardPhases;
-        scoreboardPhases.append({0.0, {homeName, awayName,
-                                       initialHomeGoals, initialAwayGoals,
-                                       homeColorHex, awayColorHex}});
+        if (includeScoreboardOverlay) {
+            int initialHomeGoals = 0;
+            int initialAwayGoals = 0;
+            struct InClipGoal {
+                qint64 positionMs;
+                QString team;
+            };
+            QVector<InClipGoal> inClipGoals;
 
-        int runningHome = initialHomeGoals;
-        int runningAway = initialAwayGoals;
-        for (const auto& goal : inClipGoals) {
-            if (goal.team == QStringLiteral("Home")) ++runningHome;
-            else if (goal.team == QStringLiteral("Away")) ++runningAway;
+            for (const auto& tag : allTags) {
+                if (tag.mainEvent != QStringLiteral("Goal")) continue;
+                if (tag.positionMs <= td.startMs) {
+                    if (tag.team == QStringLiteral("Home")) ++initialHomeGoals;
+                    else if (tag.team == QStringLiteral("Away")) ++initialAwayGoals;
+                } else if (tag.positionMs <= td.endMs) {
+                    inClipGoals.append({tag.positionMs, tag.team});
+                }
+            }
 
-            const double offsetSeconds = (goal.positionMs - td.startMs) / 1000.0;
-            if (scoreboardPhases.last().activationOffsetSeconds == offsetSeconds) {
-                scoreboardPhases.last().scoreboard.homeGoals = runningHome;
-                scoreboardPhases.last().scoreboard.awayGoals = runningAway;
-            } else {
-                scoreboardPhases.append({offsetSeconds, {homeName, awayName,
-                                                         runningHome, runningAway,
-                                                         homeColorHex, awayColorHex}});
+            std::sort(inClipGoals.begin(), inClipGoals.end(),
+                      [](const InClipGoal& a, const InClipGoal& b) {
+                return a.positionMs < b.positionMs;
+            });
+
+            scoreboardPhases.append({0.0, {homeName, awayName,
+                                           initialHomeGoals, initialAwayGoals,
+                                           homeColorHex, awayColorHex}});
+
+            int runningHome = initialHomeGoals;
+            int runningAway = initialAwayGoals;
+            for (const auto& goal : inClipGoals) {
+                if (goal.team == QStringLiteral("Home")) ++runningHome;
+                else if (goal.team == QStringLiteral("Away")) ++runningAway;
+
+                const double offsetSeconds = (goal.positionMs - td.startMs) / 1000.0;
+                if (scoreboardPhases.last().activationOffsetSeconds == offsetSeconds) {
+                    scoreboardPhases.last().scoreboard.homeGoals = runningHome;
+                    scoreboardPhases.last().scoreboard.awayGoals = runningAway;
+                } else {
+                    scoreboardPhases.append({offsetSeconds, {homeName, awayName,
+                                                             runningHome, runningAway,
+                                                             homeColorHex, awayColorHex}});
+                }
             }
         }
 
@@ -854,10 +1030,12 @@ void ExportDialog::onExportFinished(bool success, const QString& message) {
 }
 
 void ExportDialog::setExporting(bool exporting) {
+    exportInProgress_ = exporting;
+
     if (prevClipButton_) prevClipButton_->setEnabled(!exporting);
     if (nextClipButton_) nextClipButton_->setEnabled(!exporting);
-    if (playPauseButton_) playPauseButton_->setEnabled(!exporting);
     if (discardClipButton_) discardClipButton_->setEnabled(!exporting);
+    if (previewControlsBar_) previewControlsBar_->setEnabled(!exporting);
     if (clipTrimBar_) clipTrimBar_->setEnabled(!exporting);
     if (includeNoteCheckBox_) includeNoteCheckBox_->setEnabled(!exporting);
     if (noteLineEdit_) noteLineEdit_->setEnabled(!exporting && includeNoteCheckBox_->isChecked());
@@ -875,4 +1053,95 @@ void ExportDialog::setExporting(bool exporting) {
             progressLabel_->show();
         }
     }
+
+    updateTrimPageKeyboardShortcutsForCurrentPage();
+}
+
+void ExportDialog::updateTrimPageKeyboardShortcutsForCurrentPage() {
+    const bool wantShortcuts = pagesStack_
+        && pagesStack_->currentWidget() == trimPage_
+        && !exportInProgress_;
+    if (wantShortcuts) {
+        attachTrimPageKeyboardShortcuts();
+    } else {
+        detachTrimPageKeyboardShortcuts();
+    }
+}
+
+void ExportDialog::attachTrimPageKeyboardShortcuts() {
+    if (trimKeyboardShortcutsInstalled_) return;
+    if (QApplication* application = qApp) {
+        application->installEventFilter(this);
+    }
+    trimKeyboardShortcutsInstalled_ = true;
+}
+
+void ExportDialog::detachTrimPageKeyboardShortcuts() {
+    if (!trimKeyboardShortcutsInstalled_) return;
+    if (QApplication* application = qApp) {
+        application->removeEventFilter(this);
+    }
+    trimKeyboardShortcutsInstalled_ = false;
+}
+
+bool ExportDialog::eventFilter(QObject* watched, QEvent* event) {
+    if (!trimKeyboardShortcutsInstalled_
+        || event->type() != QEvent::KeyPress
+        || !trimPage_
+        || !pagesStack_
+        || pagesStack_->currentWidget() != trimPage_) {
+        return false;
+    }
+
+    QWidget* targetWidget = qobject_cast<QWidget*>(watched);
+    if (!targetWidget) return false;
+    if (targetWidget != trimPage_ && !trimPage_->isAncestorOf(targetWidget)) return false;
+
+    auto* keyEvent = static_cast<QKeyEvent*>(event);
+
+    if (keyEvent->key() == Qt::Key_Tab || keyEvent->key() == Qt::Key_Backtab) {
+        QWidget* focusWidget = QApplication::focusWidget();
+        if (focusWidget == noteLineEdit_ && noteLineEdit_->isEnabled()) {
+            return false;
+        }
+        const bool shift = (keyEvent->key() == Qt::Key_Backtab)
+            || (keyEvent->modifiers() & Qt::ShiftModifier);
+        if (shift) {
+            if (prevClipButton_ && prevClipButton_->isEnabled()) {
+                onPrevClipClicked();
+                return true;
+            }
+        } else {
+            if (nextClipButton_ && nextClipButton_->isEnabled()) {
+                onNextClipClicked();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    if (keyEvent->key() == Qt::Key_Space && keyEvent->modifiers() == Qt::NoModifier) {
+        QWidget* focusWidget = QApplication::focusWidget();
+        if (focusWidget == noteLineEdit_ && noteLineEdit_->isEnabled()) {
+            return false;
+        }
+        if (qobject_cast<QAbstractSpinBox*>(focusWidget)) {
+            return false;
+        }
+        // Space always toggles preview playback on the trim page; never activate the focused QPushButton
+        // (e.g. discard) as if it were the default button.
+        if (previewPlayer_ && previewControlsBar_ && previewControlsBar_->isEnabled()) {
+            const auto state = previewPlayer_->playbackState();
+            if (state == QMediaPlayer::PlayingState) {
+                previewControlsBar_->flashPauseButton();
+            } else {
+                previewControlsBar_->flashPlayButton();
+            }
+            onTogglePreviewPlayPause();
+            return true;
+        }
+        return false;
+    }
+
+    return false;
 }

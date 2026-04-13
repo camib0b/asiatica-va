@@ -19,6 +19,9 @@ class GameControls final : public QWidget {
   Q_OBJECT
 
 public:
+  /// Minimum width of the control grid (button column content), in device pixels.
+  static constexpr int kMinimumPanelWidthPx = 255;
+
   explicit GameControls(QWidget* parent = nullptr);
 
   /// Sets home/away team names on the top row (from game setup). Empty names use "home"/"away".

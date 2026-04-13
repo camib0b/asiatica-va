@@ -15,9 +15,6 @@ AppLocale::Language g_language = AppLocale::Language::English;
 const QHash<QString, QString>& spanishEventMap() {
   static const QHash<QString, QString> map = {
       // Main grid
-      {QStringLiteral("16-yd play"), QStringLiteral("Salida 16")},
-      {QStringLiteral("50-yd play"), QStringLiteral("Juego 50")},
-      {QStringLiteral("75-yd play"), QStringLiteral("Juego 75")},
       {QStringLiteral("Circle Entry"), QStringLiteral("Ingreso área")},
       {QStringLiteral("Shot"), QStringLiteral("Tiro")},
       {QStringLiteral("Goal"), QStringLiteral("Gol")},
@@ -25,10 +22,9 @@ const QHash<QString, QString>& spanishEventMap() {
       {QStringLiteral("PS"), QStringLiteral("Penal")},
       {QStringLiteral("S.O."), QStringLiteral("S.O.")},
       {QStringLiteral("Pass"), QStringLiteral("Pase")},
-      {QStringLiteral("Special"), QStringLiteral("Especial")},
       {QStringLiteral("Turnover"), QStringLiteral("Pérdida")},
       {QStringLiteral("Card"), QStringLiteral("Tarjeta")},
-      {QStringLiteral("PC Foul"), QStringLiteral("Falta de PC")},
+      {QStringLiteral("PC Foul"), QStringLiteral("Falta PC")},
 
       // First-level follow-ups
       {QStringLiteral("On target"), QStringLiteral("Al arco")},
@@ -92,6 +88,9 @@ const QHash<QString, QString>& spanishEventMap() {
 QString translateEventForLanguage(const QString& canonicalToken, AppLocale::Language language) {
   const QString key = canonicalToken.trimmed();
   if (key.isEmpty()) return key;
+  if (key == QStringLiteral("Special")) {
+    return QStringLiteral("☆");
+  }
   if (language != AppLocale::Language::Spanish) return key;
   const auto& map = spanishEventMap();
   const auto it = map.find(key);
@@ -241,9 +240,9 @@ QString trUi(const char* key) {
         {QStringLiteral("vc.tt.pause"), QStringLiteral("space  Pause")},
         {QStringLiteral("vc.tt.back"), QStringLiteral("⟵  Back")},
         {QStringLiteral("vc.tt.forward"), QStringLiteral("⟶  Forward")},
-        {QStringLiteral("vc.tt.slower"), QStringLiteral("{  Slower")},
-        {QStringLiteral("vc.tt.faster"), QStringLiteral("}  Faster")},
-        {QStringLiteral("vc.tt.reset"), QStringLiteral("\\  Reset speed")},
+        {QStringLiteral("vc.tt.slower"), QStringLiteral("-  Slower")},
+        {QStringLiteral("vc.tt.faster"), QStringLiteral("+  Faster")},
+        {QStringLiteral("vc.tt.reset"), QStringLiteral("}  Reset speed")},
         {QStringLiteral("menu.export_clips"), QStringLiteral("Export clips…")},
         {QStringLiteral("export.title"), QStringLiteral("Export Clips")},
         {QStringLiteral("export.subtitle"), QStringLiteral("Create a video compilation of all clips for a selected event type.")},
@@ -258,6 +257,7 @@ QString trUi(const char* key) {
         {QStringLiteral("export.sort_by_team"), QStringLiteral("By team, then chronological")},
         {QStringLiteral("export.overlay_language"), QStringLiteral("Overlay language:")},
         {QStringLiteral("export.include_bottom_overlay"), QStringLiteral("Include bottom tag overlay")},
+        {QStringLiteral("export.include_scoreboard_overlay"), QStringLiteral("Include scoreboard overlay")},
         {QStringLiteral("export.before_tag"), QStringLiteral("Before tag:")},
         {QStringLiteral("export.after_tag"), QStringLiteral("After tag:")},
         {QStringLiteral("export.save_to"), QStringLiteral("Save to:")},
@@ -355,9 +355,9 @@ QString trUi(const char* key) {
       {QStringLiteral("vc.tt.pause"), QStringLiteral("espacio  Pausa")},
       {QStringLiteral("vc.tt.back"), QStringLiteral("⟵  Atrás")},
       {QStringLiteral("vc.tt.forward"), QStringLiteral("⟶  Adelante")},
-      {QStringLiteral("vc.tt.slower"), QStringLiteral("{  Más lento")},
-      {QStringLiteral("vc.tt.faster"), QStringLiteral("}  Más rápido")},
-      {QStringLiteral("vc.tt.reset"), QStringLiteral("\\  Restablecer velocidad")},
+        {QStringLiteral("vc.tt.slower"), QStringLiteral("-  Más lento")},
+        {QStringLiteral("vc.tt.faster"), QStringLiteral("+  Más rápido")},
+        {QStringLiteral("vc.tt.reset"), QStringLiteral("}  Restablecer velocidad")},
       {QStringLiteral("menu.export_clips"), QStringLiteral("Exportar clips…")},
       {QStringLiteral("export.title"), QStringLiteral("Exportar clips")},
       {QStringLiteral("export.subtitle"), QStringLiteral("Crear un video con todos los clips de un tipo de evento seleccionado.")},
@@ -371,8 +371,9 @@ QString trUi(const char* key) {
       {QStringLiteral("export.sort_chronological"), QStringLiteral("Cronológico")},
       {QStringLiteral("export.sort_by_team"), QStringLiteral("Por equipo, luego cronológico")},
       {QStringLiteral("export.overlay_language"), QStringLiteral("Idioma del overlay:")},
-      {QStringLiteral("export.include_bottom_overlay"), QStringLiteral("Incluir overlay de etiqueta inferior")},
-      {QStringLiteral("export.before_tag"), QStringLiteral("Antes de la marca:")},
+        {QStringLiteral("export.include_bottom_overlay"), QStringLiteral("Incluir overlay de etiqueta inferior")},
+        {QStringLiteral("export.include_scoreboard_overlay"), QStringLiteral("Incluir overlay de marcador")},
+        {QStringLiteral("export.before_tag"), QStringLiteral("Antes de la marca:")},
       {QStringLiteral("export.after_tag"), QStringLiteral("Después de la marca:")},
       {QStringLiteral("export.save_to"), QStringLiteral("Guardar en:")},
       {QStringLiteral("export.output_placeholder"), QStringLiteral("Elegir archivo de salida…")},

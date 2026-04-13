@@ -24,7 +24,7 @@ void setupFollowUpButton(QPushButton* button, const QString& canonicalKey) {
 } // namespace
 
 GameControls::GameControls(QWidget* parent) : QWidget(parent) {
-  setMinimumWidth(300);
+  setMinimumWidth(kMinimumPanelWidthPx);
   buildUi();
   wireSignals();
   buildKeyboardShortcuts();
@@ -182,11 +182,11 @@ void GameControls::buildUi() {
 
   // Create main event buttons (title + keyboard hint on second line)
   hit16ydButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(hit16ydButton_, QStringLiteral("16-yd play"), QStringLiteral("Q"));
+  configureMainGameControlButton(hit16ydButton_, QStringLiteral("16-yd"), QStringLiteral("Q"));
   hit50ydButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(hit50ydButton_, QStringLiteral("50-yd play"), QStringLiteral("W"));
+  configureMainGameControlButton(hit50ydButton_, QStringLiteral("50-yd"), QStringLiteral("W"));
   hit75ydButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(hit75ydButton_, QStringLiteral("75-yd play"), QStringLiteral("E"));
+  configureMainGameControlButton(hit75ydButton_, QStringLiteral("75-yd"), QStringLiteral("E"));
   pcButton_ = new QPushButton(mainGridWidget);
   configureMainGameControlButton(pcButton_, QStringLiteral("PC"), QStringLiteral("R"));
 
@@ -201,6 +201,7 @@ void GameControls::buildUi() {
 
   passButton_ = new QPushButton(mainGridWidget);
   configureMainGameControlButton(passButton_, QStringLiteral("Pass"), QStringLiteral("Z"));
+  // Visible title is ☆ in all locales (AppLocale::trEvent); canonical key stays "Special".
   specialButton_ = new QPushButton(mainGridWidget);
   configureMainGameControlButton(specialButton_, QStringLiteral("Special"), QStringLiteral("X"));
   turnoverButton_ = new QPushButton(mainGridWidget);
@@ -444,8 +445,10 @@ void GameControls::onFollowUpButtonClicked() {
         followUpPayload = selectedTeamLabel() + QStringLiteral(" → ") + currentFirstFollowUp_;
       } else if (currentMainEvent_ == QStringLiteral("Card")) {
         followUpPayload = currentFirstFollowUp_ + QStringLiteral(" → ") + selectedTeamLabel();
-      } else if (currentMainEvent_ == QStringLiteral("75-yd play")) {
+      } else if (currentMainEvent_ == QStringLiteral("75-yd")) {
         followUpPayload = currentFirstFollowUp_ + QStringLiteral(" → ") + selectedTeamLabel();
+      } else if (currentMainEvent_ == QStringLiteral("S.O.")) {
+        followUpPayload = selectedTeamLabel() + QStringLiteral(" → ") + currentFirstFollowUp_;
       } else {
         followUpPayload = currentFirstFollowUp_;
       }
@@ -470,21 +473,6 @@ void GameControls::onFollowUpButtonClicked() {
     if (currentMainEvent_ == QStringLiteral("Circle Entry")) {
       const QString combined = selectedTeamLabel() + QStringLiteral(" → ") + currentFirstFollowUp_ +
                                QStringLiteral(" → ") + followUpName;
-      emit gameEventMarked(currentMainEvent_, combined);
-      clearActiveMainButton();
-      hideFollowUpButtons();
-      currentMainEvent_.clear();
-      currentFirstFollowUp_.clear();
-      currentSecondFollowUp_.clear();
-      followUpStage_ = FollowUpStage::None;
-      return;
-    }
-
-    if (currentMainEvent_ == QStringLiteral("S.O.")) {
-      const QString shootoutTeamLabel = currentFirstFollowUp_ == QStringLiteral("Home")
-                                            ? homeTeamFollowUpLabel_
-                                            : awayTeamFollowUpLabel_;
-      const QString combined = shootoutTeamLabel + QStringLiteral(" → ") + followUpName;
       emit gameEventMarked(currentMainEvent_, combined);
       clearActiveMainButton();
       hideFollowUpButtons();
@@ -617,10 +605,10 @@ QStringList GameControls::getFirstLevelFollowUps(const QString& mainEvent) const
   if (mainEvent == "PC") {
     return {QStringLiteral("Direct shot"), QStringLiteral("Variant"), QStringLiteral("Ruined")};
   }
-  if (mainEvent == "16-yd play" || mainEvent == "50-yd play") {
+  if (mainEvent == QStringLiteral("16-yd") || mainEvent == QStringLiteral("50-yd")) {
     return {};
   }
-  if (mainEvent == "75-yd play") {
+  if (mainEvent == QStringLiteral("75-yd")) {
     return {"Forward", "Sideways", "Back"};
   }
   if (mainEvent == "Goal") {
@@ -645,13 +633,13 @@ QStringList GameControls::getFirstLevelFollowUps(const QString& mainEvent) const
     return {QStringLiteral("Goal"), QStringLiteral("No Goal")};
   }
   if (mainEvent == QStringLiteral("S.O.")) {
-    return {QStringLiteral("Home"), QStringLiteral("Away")};
+    return {QStringLiteral("Converted"), QStringLiteral("Missed"), QStringLiteral("Replay")};
   }
   return {};
 }
 
 QStringList GameControls::getSecondLevelFollowUps(const QString& mainEvent, const QString& firstFollowUp) const {
-  if (mainEvent == "16-yd play" || mainEvent == "50-yd play") {
+  if (mainEvent == QStringLiteral("16-yd") || mainEvent == QStringLiteral("50-yd")) {
     return {};
   }
   if (mainEvent == "Goal") {
@@ -660,7 +648,7 @@ QStringList GameControls::getSecondLevelFollowUps(const QString& mainEvent, cons
   if (mainEvent == "Card") {
     return {};
   }
-  if (mainEvent == "75-yd play") {
+  if (mainEvent == QStringLiteral("75-yd")) {
     if (firstFollowUp == "Forward" || firstFollowUp == "Sideways" || firstFollowUp == "Back") {
       return {};
     }
@@ -706,13 +694,6 @@ QStringList GameControls::getSecondLevelFollowUps(const QString& mainEvent, cons
     return {};
   }
 
-  if (mainEvent == QStringLiteral("S.O.")) {
-    if (firstFollowUp == QStringLiteral("Home") || firstFollowUp == QStringLiteral("Away")) {
-      return {QStringLiteral("Converted"), QStringLiteral("Missed"), QStringLiteral("Replay")};
-    }
-    return {};
-  }
-
   return {};
 }
 
@@ -735,7 +716,7 @@ void GameControls::showFirstLevelFollowUps(const QString& mainEvent) {
 
   // If no follow-up actions, emit the main event directly and return
   if (actions.isEmpty()) {
-    if (mainEvent == QStringLiteral("16-yd play") || mainEvent == QStringLiteral("50-yd play") ||
+    if (mainEvent == QStringLiteral("16-yd") || mainEvent == QStringLiteral("50-yd") ||
         mainEvent == QStringLiteral("Goal")) {
       emit gameEventMarked(mainEvent, selectedTeamLabel());
     } else {
@@ -752,13 +733,7 @@ void GameControls::showFirstLevelFollowUps(const QString& mainEvent) {
   // Create new follow-up buttons
   for (const QString& action : actions) {
     auto* button = new QPushButton(followUpContainer_);
-    if (mainEvent == QStringLiteral("S.O.") &&
-        (action == QStringLiteral("Home") || action == QStringLiteral("Away"))) {
-      button->setProperty("gameEventKey", action);
-      button->setText(action == QStringLiteral("Home") ? homeTeamFollowUpLabel_ : awayTeamFollowUpLabel_);
-    } else {
-      setupFollowUpButton(button, action);
-    }
+    setupFollowUpButton(button, action);
     Style::setSize(button, "md");
     Style::setVariant(button, "gameControlFollowUp");
     button->setFocusPolicy(Qt::ClickFocus);
@@ -787,7 +762,7 @@ void GameControls::showSecondLevelFollowUps(const QString& mainEvent, const QStr
   QStringList actions = getSecondLevelFollowUps(currentMainEvent_, firstFollowUp);
   if (actions.isEmpty()) {
     QString combined;
-    if (currentMainEvent_ == QStringLiteral("75-yd play")) {
+    if (currentMainEvent_ == QStringLiteral("75-yd")) {
       combined = firstFollowUp + QStringLiteral(" → ") + selectedTeamLabel();
     } else if (currentMainEvent_ == QStringLiteral("Card")) {
       combined = firstFollowUp + QStringLiteral(" → ") + selectedTeamLabel();
@@ -1030,7 +1005,8 @@ bool GameControls::eventFilter(QObject* obj, QEvent* event) {
     }
     QWidget* w = qobject_cast<QWidget*>(obj);
     if (w && (w == this || focusableButtonsOrder().contains(qobject_cast<QPushButton*>(w)))) {
-      if (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter || keyEvent->key() == Qt::Key_Space) {
+      // Space is reserved for video play/pause (WorkWindow / VideoPlayer), never for game controls.
+      if (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) {
         QWidget* focus = focusWidget();
         QPushButton* btn = qobject_cast<QPushButton*>(focus);
         if (btn && focusableButtonsOrder().contains(btn)) {
@@ -1059,7 +1035,8 @@ void GameControls::keyPressEvent(QKeyEvent* event) {
     event->accept();
     return;
   }
-  if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter || event->key() == Qt::Key_Space) {
+  // Space is reserved for video play/pause (WorkWindow / VideoPlayer), never for game controls.
+  if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
     QWidget* focus = focusWidget();
     QPushButton* btn = qobject_cast<QPushButton*>(focus);
     if (btn && focusableButtonsOrder().contains(btn)) {

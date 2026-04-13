@@ -15,6 +15,7 @@
 #include "TimelineBar.h"
 
 #include <QLabel>
+#include <QLineEdit>
 #include <QMessageBox>
 #include <QStackedWidget>
 #include <QWidget>
@@ -44,8 +45,23 @@
 #include <QSplitter>
 #include <QHBoxLayout>
 #include <QScrollBar>
+#include <QApplication>
+#include <QAbstractSpinBox>
+#include <QComboBox>
+#include <QTextEdit>
+#include <QKeyEvent>
 
 namespace {
+
+bool isTextInteractionFocusWidget(QWidget* widget) {
+    if (!widget) return false;
+    if (qobject_cast<QLineEdit*>(widget)) return true;
+    if (qobject_cast<QAbstractSpinBox*>(widget)) return true;
+    if (qobject_cast<QPlainTextEdit*>(widget)) return true;
+    if (qobject_cast<QTextEdit*>(widget)) return true;
+    if (qobject_cast<QComboBox*>(widget)) return true;
+    return false;
+}
 
 void detachWidgetFromParent(QWidget* widget) {
     if (!widget) return;
@@ -141,11 +157,63 @@ WorkWindow::WorkWindow(QWidget* parent) : QWidget(parent) {
     wireSignals();
     applyTaggingLayout();
     applyUiStrings();
+    if (auto* application = qobject_cast<QApplication*>(QApplication::instance())) {
+        application->installEventFilter(this);
+    }
 }
 
 WorkWindow::~WorkWindow() {
+    if (auto* application = qobject_cast<QApplication*>(QApplication::instance())) {
+        application->removeEventFilter(this);
+    }
     cleanupPendingConcatenation();
     cleanupConcatenatedVideo();
+}
+
+bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(QWidget* focusWidget) const {
+    if (!focusWidget) return false;
+    if (focusWidget->window() != window()) return false;
+    if (!isAncestorOf(focusWidget)) return false;
+    if (!contentStack_ || contentStack_->currentIndex() != 1) return false;
+    if (mode_ == Mode::Analyzing && notesEdit_ && focusWidget == notesEdit_) return false;
+    if (isTextInteractionFocusWidget(focusWidget)) return false;
+    if (!videoPlayer_ || !videoPlayer_->isMediaKeyboardControlActive()) return false;
+    return true;
+}
+
+bool WorkWindow::eventFilter(QObject* watched, QEvent* event) {
+    if (event->type() == QEvent::KeyPress) {
+        auto* keyEvent = static_cast<QKeyEvent*>(event);
+        QWidget* focusWidget = QApplication::focusWidget();
+        if (!shouldDeliverPlaybackKeyboardToVideoPlayer(focusWidget)) {
+            return QWidget::eventFilter(watched, event);
+        }
+
+        const int key = keyEvent->key();
+        const Qt::KeyboardModifiers mods = keyEvent->modifiers();
+
+        if (key == Qt::Key_Space && mods == Qt::NoModifier) {
+            videoPlayer_->togglePlayPauseWithControlFlash();
+            return true;
+        }
+
+        if (key == Qt::Key_Minus && (mods == Qt::NoModifier || mods == Qt::KeypadModifier)) {
+            videoPlayer_->playbackSlowerWithControlFlash();
+            return true;
+        }
+
+        if ((key == Qt::Key_Plus && (mods == Qt::NoModifier || mods == Qt::KeypadModifier)) ||
+            (key == Qt::Key_Equal && mods == Qt::ShiftModifier)) {
+            videoPlayer_->playbackFasterWithControlFlash();
+            return true;
+        }
+
+        if (key == Qt::Key_BraceRight && mods == Qt::ShiftModifier) {
+            videoPlayer_->playbackResetSpeedWithControlFlash();
+            return true;
+        }
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 void WorkWindow::setConcatenatedVideoTempDir(QTemporaryDir* dir) {
@@ -565,6 +633,11 @@ void WorkWindow::applyTaggingLayout() {
     QWidget* vw = videoPlayer_->videoWidget();
     static_cast<QBoxLayout*>(taggingVideoCol_->layout())->addWidget(vw, 1);
     auto* rightLayout = static_cast<QBoxLayout*>(taggingRightCol_->layout());
+    if (gameControls_) {
+        // Analyzing mode lowers minimum width; restore so tagging labels are not clipped.
+        gameControls_->setMinimumWidth(GameControls::kMinimumPanelWidthPx);
+        gameControls_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    }
     rightLayout->addWidget(gameControls_, 1);
     rightLayout->addWidget(scoreboard_, 0);
 
@@ -658,7 +731,7 @@ void WorkWindow::applyAnalyzingLayout() {
     timeline->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     tagsSection_->setMinimumWidth(160);
     tagsSection_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    gameControls_->setMinimumWidth(200);
+    gameControls_->setMinimumWidth(GameControls::kMinimumPanelWidthPx);
     gameControls_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     analyzingTagsControlsSplitter_->addWidget(tagsSection_);
@@ -1066,6 +1139,14 @@ void WorkWindow::onExportClips() {
     auto* dialog = new ExportDialog(tagSession_, sourceVideoPath_, duration, this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModal(true);
+    if (videoPlayer_) {
+        videoPlayer_->setPlaybackKeyboardShortcutsEnabled(false);
+    }
+    connect(dialog, &QDialog::finished, this, [this](int) {
+        if (videoPlayer_) {
+            videoPlayer_->setPlaybackKeyboardShortcutsEnabled(true);
+        }
+    });
     dialog->show();
 }
 

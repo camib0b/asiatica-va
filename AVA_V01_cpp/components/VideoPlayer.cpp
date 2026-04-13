@@ -156,29 +156,9 @@ void VideoPlayer::buildKeyboardShortcuts() {
       return act;
     };
   
-    slowerAction_ = makeAction(QKeySequence(Qt::Key_BraceLeft), [this]() {
-        if (videoControlsBar_) videoControlsBar_->flashSlowerButton();
-        onSlowerClicked();
-    });
-    fasterAction_ = makeAction(QKeySequence(Qt::Key_BraceRight), [this]() {
-        if (videoControlsBar_) videoControlsBar_->flashFasterButton();
-        onFasterClicked();
-    });
-    resetSpeedAction_ = makeAction(QKeySequence(Qt::Key_Backslash), [this]() {
-        if (videoControlsBar_) videoControlsBar_->flashResetSpeedButton();
-        onResetSpeedClicked();
-    });
-  
-    togglePlayPauseAction_ = makeAction(QKeySequence(Qt::Key_Space), [this]() {
-        if (!player_) return;
-        const auto state = player_->playbackState();
-        if (videoControlsBar_) {
-            (state == QMediaPlayer::PlayingState) ? videoControlsBar_->flashPauseButton()
-                                                  : videoControlsBar_->flashPlayButton();
-        }
-        onTogglePlayPause();
-    });
-    
+    // Space, − / + / reset-speed keys are handled in WorkWindow via a QApplication event filter because this
+    // widget stays hidden while its children are reparented into the layout (hidden owners do not get QAction shortcuts).
+
     // Arrows: small seek
     seekSmallBackAction_ = makeAction(QKeySequence(Qt::Key_Left), [this]() {
         if (videoControlsBar_) videoControlsBar_->flashSeekBackButton();
@@ -199,10 +179,6 @@ void VideoPlayer::buildKeyboardShortcuts() {
         onSeekBigForward();
     });
     
-    slowerAction_->setEnabled(false);
-    fasterAction_->setEnabled(false);
-    resetSpeedAction_->setEnabled(false);
-    togglePlayPauseAction_->setEnabled(false);
     seekSmallBackAction_->setEnabled(false);
     seekSmallForwardAction_->setEnabled(false);
     seekBigBackAction_->setEnabled(false);
@@ -216,6 +192,7 @@ void VideoPlayer::setControlsVisible(bool visible) {
 }
 
 void VideoPlayer::setControlsEnabled(bool enabled) {
+    mediaControlsEnabled_ = enabled;
     if (videoControlsBar_) videoControlsBar_->setEnabledForMedia(enabled);
     if (videoWidget_) videoWidget_->setEnabled(enabled);
     if (videoTimelineBar_) {
@@ -223,15 +200,20 @@ void VideoPlayer::setControlsEnabled(bool enabled) {
         videoTimelineBar_->setEnabledForMedia(enabled);
     }
 
-    // keyboard shortcuts:
-    if (slowerAction_) slowerAction_->setEnabled(enabled);
-    if (fasterAction_) fasterAction_->setEnabled(enabled);
-    if (resetSpeedAction_) resetSpeedAction_->setEnabled(enabled);
-    if (togglePlayPauseAction_) togglePlayPauseAction_->setEnabled(enabled);
-    if (seekSmallBackAction_) seekSmallBackAction_->setEnabled(enabled);
-    if (seekSmallForwardAction_) seekSmallForwardAction_->setEnabled(enabled);
-    if (seekBigBackAction_) seekBigBackAction_->setEnabled(enabled);
-    if (seekBigForwardAction_) seekBigForwardAction_->setEnabled(enabled);
+    updatePlaybackShortcutActionStates();
+}
+
+void VideoPlayer::setPlaybackKeyboardShortcutsEnabled(bool enabled) {
+    playbackKeyboardShortcutsEnabled_ = enabled;
+    updatePlaybackShortcutActionStates();
+}
+
+void VideoPlayer::updatePlaybackShortcutActionStates() {
+    const bool shortcutsOn = mediaControlsEnabled_ && playbackKeyboardShortcutsEnabled_;
+    if (seekSmallBackAction_) seekSmallBackAction_->setEnabled(shortcutsOn);
+    if (seekSmallForwardAction_) seekSmallForwardAction_->setEnabled(shortcutsOn);
+    if (seekBigBackAction_) seekBigBackAction_->setEnabled(shortcutsOn);
+    if (seekBigForwardAction_) seekBigForwardAction_->setEnabled(shortcutsOn);
 }
 
 void VideoPlayer::seekByMs(qint64 deltaMs) {
@@ -277,6 +259,31 @@ void VideoPlayer::onTogglePlayPause() {
     if (!player_) return;
     const auto state = player_->playbackState();
     (state == QMediaPlayer::PlayingState) ? player_->pause() : player_->play();
+}
+
+void VideoPlayer::togglePlayPauseWithControlFlash() {
+    if (!player_) return;
+    const auto state = player_->playbackState();
+    if (videoControlsBar_) {
+        (state == QMediaPlayer::PlayingState) ? videoControlsBar_->flashPauseButton()
+                                              : videoControlsBar_->flashPlayButton();
+    }
+    onTogglePlayPause();
+}
+
+void VideoPlayer::playbackSlowerWithControlFlash() {
+    if (videoControlsBar_) videoControlsBar_->flashSlowerButton();
+    onSlowerClicked();
+}
+
+void VideoPlayer::playbackFasterWithControlFlash() {
+    if (videoControlsBar_) videoControlsBar_->flashFasterButton();
+    onFasterClicked();
+}
+
+void VideoPlayer::playbackResetSpeedWithControlFlash() {
+    if (videoControlsBar_) videoControlsBar_->flashResetSpeedButton();
+    onResetSpeedClicked();
 }
 
 void VideoPlayer::setPlaybackRateAndPlay(double rate) {

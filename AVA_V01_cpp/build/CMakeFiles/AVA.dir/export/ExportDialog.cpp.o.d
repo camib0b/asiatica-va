@@ -1140,6 +1140,7 @@ CMakeFiles/AVA.dir/export/ExportDialog.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qprogressbar.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QPushButton \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QSignalBlocker \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStackedWidget \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstackedwidget.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QUrl \
