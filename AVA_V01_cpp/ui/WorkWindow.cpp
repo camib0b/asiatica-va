@@ -49,7 +49,6 @@
 #include <QAbstractSpinBox>
 #include <QComboBox>
 #include <QTextEdit>
-#include <QKeyEvent>
 
 namespace {
 
@@ -157,15 +156,9 @@ WorkWindow::WorkWindow(QWidget* parent) : QWidget(parent) {
     wireSignals();
     applyTaggingLayout();
     applyUiStrings();
-    if (auto* application = qobject_cast<QApplication*>(QApplication::instance())) {
-        application->installEventFilter(this);
-    }
 }
 
 WorkWindow::~WorkWindow() {
-    if (auto* application = qobject_cast<QApplication*>(QApplication::instance())) {
-        application->removeEventFilter(this);
-    }
     cleanupPendingConcatenation();
     cleanupConcatenatedVideo();
 }
@@ -181,39 +174,16 @@ bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(QWidget* focusWidget
     return true;
 }
 
-bool WorkWindow::eventFilter(QObject* watched, QEvent* event) {
-    if (event->type() == QEvent::KeyPress) {
-        auto* keyEvent = static_cast<QKeyEvent*>(event);
-        QWidget* focusWidget = QApplication::focusWidget();
-        if (!shouldDeliverPlaybackKeyboardToVideoPlayer(focusWidget)) {
-            return QWidget::eventFilter(watched, event);
-        }
-
-        const int key = keyEvent->key();
-        const Qt::KeyboardModifiers mods = keyEvent->modifiers();
-
-        if (key == Qt::Key_Space && mods == Qt::NoModifier) {
-            videoPlayer_->togglePlayPauseWithControlFlash();
-            return true;
-        }
-
-        if (key == Qt::Key_Minus && (mods == Qt::NoModifier || mods == Qt::KeypadModifier)) {
-            videoPlayer_->playbackSlowerWithControlFlash();
-            return true;
-        }
-
-        if ((key == Qt::Key_Plus && (mods == Qt::NoModifier || mods == Qt::KeypadModifier)) ||
-            (key == Qt::Key_Equal && mods == Qt::ShiftModifier)) {
-            videoPlayer_->playbackFasterWithControlFlash();
-            return true;
-        }
-
-        if (key == Qt::Key_BraceRight && mods == Qt::ShiftModifier) {
-            videoPlayer_->playbackResetSpeedWithControlFlash();
-            return true;
-        }
+void WorkWindow::onApplicationFocusWidgetChanged(QWidget* /*oldFocus*/, QWidget* newFocus) {
+    if (!videoPlayer_ || !videoPlayer_->controlsBar()) {
+        return;
     }
-    return QWidget::eventFilter(watched, event);
+    const bool allowPlaybackShortcuts = shouldDeliverPlaybackKeyboardToVideoPlayer(newFocus);
+    videoPlayer_->controlsBar()->setPlaybackShortcutFocusGate(allowPlaybackShortcuts);
+}
+
+void WorkWindow::refreshPlaybackShortcutFocusGate() {
+    onApplicationFocusWidgetChanged(nullptr, QApplication::focusWidget());
 }
 
 void WorkWindow::setConcatenatedVideoTempDir(QTemporaryDir* dir) {
@@ -332,6 +302,7 @@ void WorkWindow::setMode(Mode m) {
         applyAnalyzingLayout();
     if (modeTaggingBtn_) modeTaggingBtn_->setChecked(m == Mode::Tagging);
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->setChecked(m == Mode::Analyzing);
+    refreshPlaybackShortcutFocusGate();
 }
 
 TagSession::GameTag WorkWindow::currentTagContext() const {
@@ -970,6 +941,11 @@ void WorkWindow::wireSignals() {
     undoTagAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     connect(undoTagAction, &QAction::triggered, this, &WorkWindow::onUndoLastTag);
     addAction(undoTagAction);
+
+    if (QApplication* application = qobject_cast<QApplication*>(QApplication::instance())) {
+        connect(application, &QApplication::focusChanged, this, &WorkWindow::onApplicationFocusWidgetChanged);
+    }
+    refreshPlaybackShortcutFocusGate();
 }
 
 
@@ -979,6 +955,7 @@ void WorkWindow::showTeamSetupForVideo(const QString& filePath) {
     gameSetupWidget_->setTeamDefaults(QString(), QString(), QString(), QString());
     contentStack_->setCurrentIndex(0);
     gameSetupWidget_->setInitialFocus();
+    refreshPlaybackShortcutFocusGate();
 }
 
 void WorkWindow::onTeamSetupConfirmed(const QString& filePath,
@@ -1062,6 +1039,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
 
     rebuildFilterMenu();
     rebuildTagsList();
+    refreshPlaybackShortcutFocusGate();
 }
 
 void WorkWindow::onReplaceVideo() {
@@ -1130,6 +1108,7 @@ void WorkWindow::onDiscardVideo() {
 
     cleanupConcatenatedVideo();
     emit videoClosed();
+    refreshPlaybackShortcutFocusGate();
 }
 
 void WorkWindow::onExportClips() {

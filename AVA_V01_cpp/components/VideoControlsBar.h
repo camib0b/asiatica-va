@@ -6,6 +6,7 @@
 class QPushButton;
 class QLabel;
 class QTimer;
+class QAction;
 
 class VideoControlsBar final : public QWidget {
   Q_OBJECT
@@ -14,6 +15,13 @@ public:
   explicit VideoControlsBar(QWidget* parent = nullptr);
 
   void setEnabledForMedia(bool enabled);
+
+  /// Media loaded and not temporarily disabled (e.g. export dialog); combined with focus gate for shortcuts.
+  void setPlaybackShortcutMediaGate(bool enabled);
+
+  /// WorkWindow focus / mode policy (text fields, other windows, setup screen).
+  void setPlaybackShortcutFocusGate(bool allowed);
+
   void setPlaying(bool playing);
   void setPlaybackRate(double rate);
   void setMuted(bool muted);
@@ -38,9 +46,13 @@ signals:
   void resetSpeedRequested();
   void muteToggled(bool muted);
 
+  void togglePlayPauseFromKeyboardShortcut();
+
 private:
   void buildUi();
   void wireSignals();
+  void buildKeyboardShortcuts();
+  void updatePlaybackShortcutEnablement();
   void updateSpeedLabel();
   void flashButtonBorder(QPushButton* button);
 
@@ -55,6 +67,14 @@ private:
   QPushButton* resetSpeedButton_  = nullptr;
   QPushButton* muteButton_        = nullptr;
   QLabel* speedLabel_             = nullptr;
+
+  QAction* togglePlayPauseAction_ = nullptr;
+  QAction* slowerPlaybackAction_ = nullptr;
+  QAction* fasterPlaybackAction_ = nullptr;
+  QAction* resetSpeedAction_ = nullptr;
+
+  bool playbackShortcutMediaGate_ = false;
+  bool playbackShortcutFocusGate_ = false;
 
   double playbackRate_ = 1.0;
 };

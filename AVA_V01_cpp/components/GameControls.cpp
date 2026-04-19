@@ -1005,7 +1005,7 @@ bool GameControls::eventFilter(QObject* obj, QEvent* event) {
     }
     QWidget* w = qobject_cast<QWidget*>(obj);
     if (w && (w == this || focusableButtonsOrder().contains(qobject_cast<QPushButton*>(w)))) {
-      // Space is reserved for video play/pause (WorkWindow / VideoPlayer), never for game controls.
+      // Space is reserved for video play/pause (VideoControlsBar application shortcut), never for game controls.
       if (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) {
         QWidget* focus = focusWidget();
         QPushButton* btn = qobject_cast<QPushButton*>(focus);
@@ -1035,7 +1035,7 @@ void GameControls::keyPressEvent(QKeyEvent* event) {
     event->accept();
     return;
   }
-  // Space is reserved for video play/pause (WorkWindow / VideoPlayer), never for game controls.
+  // Space is reserved for video play/pause (VideoControlsBar application shortcut), never for game controls.
   if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
     QWidget* focus = focusWidget();
     QPushButton* btn = qobject_cast<QPushButton*>(focus);

@@ -94,6 +94,8 @@ void VideoPlayer::wireSignals() {
     connect(videoControlsBar_, &VideoControlsBar::seekRequestedMs, this, [this](qint64 deltaMs) {
         seekByMs(deltaMs);
     });
+    connect(videoControlsBar_, &VideoControlsBar::togglePlayPauseFromKeyboardShortcut, this,
+            &VideoPlayer::togglePlayPauseWithControlFlash);
 
     // play pause button sensible to state changes:
     connect(player_, &QMediaPlayer::playbackStateChanged, this, [this](QMediaPlayer::PlaybackState state) {
@@ -156,8 +158,8 @@ void VideoPlayer::buildKeyboardShortcuts() {
       return act;
     };
   
-    // Space, − / + / reset-speed keys are handled in WorkWindow via a QApplication event filter because this
-    // widget stays hidden while its children are reparented into the layout (hidden owners do not get QAction shortcuts).
+    // Space and playback-speed keys live on VideoControlsBar (Qt::ApplicationShortcut), same pattern as GameControls.
+    // This widget stays hidden while its children are reparented; the controls bar is visible in the layout.
 
     // Arrows: small seek
     seekSmallBackAction_ = makeAction(QKeySequence(Qt::Key_Left), [this]() {
@@ -214,6 +216,9 @@ void VideoPlayer::updatePlaybackShortcutActionStates() {
     if (seekSmallForwardAction_) seekSmallForwardAction_->setEnabled(shortcutsOn);
     if (seekBigBackAction_) seekBigBackAction_->setEnabled(shortcutsOn);
     if (seekBigForwardAction_) seekBigForwardAction_->setEnabled(shortcutsOn);
+    if (videoControlsBar_) {
+        videoControlsBar_->setPlaybackShortcutMediaGate(shortcutsOn);
+    }
 }
 
 void VideoPlayer::seekByMs(qint64 deltaMs) {

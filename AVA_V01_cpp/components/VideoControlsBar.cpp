@@ -6,6 +6,10 @@
 #include <QLabel>
 #include <QPushButton>
 
+#include <QAction>
+#include <QApplication>
+#include <QKeySequence>
+
 #include <QTimer>
 #include <QPalette>
 #include <QColor>
@@ -20,6 +24,7 @@ constexpr qint64 kSeekStepMs = 2000;
 VideoControlsBar::VideoControlsBar(QWidget* parent): QWidget(parent) {
   buildUi();
   wireSignals();
+  buildKeyboardShortcuts();
   setEnabledForMedia(false);
   setPlaying(false);
   setPlaybackRate(1.0);
@@ -140,6 +145,73 @@ void VideoControlsBar::wireSignals() {
   connect(muteButton_, &QPushButton::toggled, this, &VideoControlsBar::muteToggled);
 }
 
+void VideoControlsBar::buildKeyboardShortcuts() {
+  Q_ASSERT(QApplication::instance() != nullptr);
+
+  togglePlayPauseAction_ = new QAction(this);
+  togglePlayPauseAction_->setShortcut(QKeySequence(Qt::Key_Space));
+  togglePlayPauseAction_->setShortcutContext(Qt::ApplicationShortcut);
+  connect(togglePlayPauseAction_, &QAction::triggered, this, [this]() {
+    emit togglePlayPauseFromKeyboardShortcut();
+  });
+  addAction(togglePlayPauseAction_);
+
+  slowerPlaybackAction_ = new QAction(this);
+  slowerPlaybackAction_->setShortcuts({
+      QKeySequence(Qt::Key_Minus),
+      QKeySequence(Qt::Key_Minus | Qt::KeypadModifier),
+  });
+  slowerPlaybackAction_->setShortcutContext(Qt::ApplicationShortcut);
+  connect(slowerPlaybackAction_, &QAction::triggered, this, &VideoControlsBar::flashSlowerButton);
+  connect(slowerPlaybackAction_, &QAction::triggered, this, &VideoControlsBar::slowerRequested);
+  addAction(slowerPlaybackAction_);
+
+  fasterPlaybackAction_ = new QAction(this);
+  fasterPlaybackAction_->setShortcuts({
+      QKeySequence(Qt::Key_Plus),
+      QKeySequence(Qt::Key_Plus | Qt::KeypadModifier),
+      QKeySequence(Qt::SHIFT | Qt::Key_Equal),
+  });
+  fasterPlaybackAction_->setShortcutContext(Qt::ApplicationShortcut);
+  connect(fasterPlaybackAction_, &QAction::triggered, this, &VideoControlsBar::flashFasterButton);
+  connect(fasterPlaybackAction_, &QAction::triggered, this, &VideoControlsBar::fasterRequested);
+  addAction(fasterPlaybackAction_);
+
+  resetSpeedAction_ = new QAction(this);
+  resetSpeedAction_->setShortcut(QKeySequence(Qt::SHIFT | Qt::Key_BraceRight));
+  resetSpeedAction_->setShortcutContext(Qt::ApplicationShortcut);
+  connect(resetSpeedAction_, &QAction::triggered, this, &VideoControlsBar::flashResetSpeedButton);
+  connect(resetSpeedAction_, &QAction::triggered, this, &VideoControlsBar::resetSpeedRequested);
+  addAction(resetSpeedAction_);
+
+  updatePlaybackShortcutEnablement();
+}
+
+void VideoControlsBar::setPlaybackShortcutMediaGate(bool enabled) {
+  playbackShortcutMediaGate_ = enabled;
+  updatePlaybackShortcutEnablement();
+}
+
+void VideoControlsBar::setPlaybackShortcutFocusGate(bool allowed) {
+  playbackShortcutFocusGate_ = allowed;
+  updatePlaybackShortcutEnablement();
+}
+
+void VideoControlsBar::updatePlaybackShortcutEnablement() {
+  const bool shortcutsActive = playbackShortcutMediaGate_ && playbackShortcutFocusGate_;
+  if (togglePlayPauseAction_) {
+    togglePlayPauseAction_->setEnabled(shortcutsActive);
+  }
+  if (slowerPlaybackAction_) {
+    slowerPlaybackAction_->setEnabled(shortcutsActive);
+  }
+  if (fasterPlaybackAction_) {
+    fasterPlaybackAction_->setEnabled(shortcutsActive);
+  }
+  if (resetSpeedAction_) {
+    resetSpeedAction_->setEnabled(shortcutsActive);
+  }
+}
 
 void VideoControlsBar::setEnabledForMedia(bool enabled) {
   playButton_->setEnabled(enabled);

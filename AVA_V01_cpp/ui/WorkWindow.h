@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QWidget>
-#include <QEvent>
 #include <QtGlobal>
 #include <QString>
 #include <QBrush>
@@ -48,9 +47,6 @@ public:
   void setPendingConcatenation(VideoConcatenator* concatenator);
   Mode mode() const { return mode_; }
   void setMode(Mode m);
-
-protected:
-  bool eventFilter(QObject* watched, QEvent* event) override;
 
 signals:
   void videoClosed();
@@ -112,6 +108,8 @@ private:
 
   /// Whether Space and playback-speed keys should control the main video player (same rules for all).
   bool shouldDeliverPlaybackKeyboardToVideoPlayer(QWidget* focusWidget) const;
+  void onApplicationFocusWidgetChanged(QWidget* oldFocus, QWidget* newFocus);
+  void refreshPlaybackShortcutFocusGate();
 
   // Mode and layout
   Mode mode_ = Mode::Tagging;
