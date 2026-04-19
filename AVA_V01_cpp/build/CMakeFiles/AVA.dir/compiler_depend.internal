@@ -792,7 +792,6 @@
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QElapsedTimer
- /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QEvent
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QHash
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QList
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QObject
@@ -810,7 +809,6 @@
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/q20utility.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/q23type_traits.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/q23utility.h
- /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qabstracteventdispatcher.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qalgorithms.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qalloc.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qanystringview.h
@@ -821,7 +819,6 @@
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qatomic.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qatomic_cxx11.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbasicatomic.h
- /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbasictimer.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbindingstorage.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbytearray.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbytearrayalgorithms.h
@@ -839,14 +836,11 @@
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcontainerinfo.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcontainertools_impl.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcontiguouscache.h
- /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcoreevent.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdarwinhelpers.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdatastream.h
- /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdeadlinetimer.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdebug.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qelapsedtimer.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qendian.h
- /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qeventloop.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qexceptionhandling.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qflags.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qfloat16.h
@@ -6386,6 +6380,9 @@ CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o
  /opt/homebrew/lib/QtCore.framework/Headers/qcontainerinfo.h
  /opt/homebrew/lib/QtCore.framework/Headers/qcontainertools_impl.h
  /opt/homebrew/lib/QtCore.framework/Headers/qcontiguouscache.h
+ /opt/homebrew/lib/QtCore.framework/Headers/qcoreapplication.h
+ /opt/homebrew/lib/QtCore.framework/Headers/qcoreapplication_platform.h
+ /opt/homebrew/lib/QtCore.framework/Headers/qcoreevent.h
  /opt/homebrew/lib/QtCore.framework/Headers/qdarwinhelpers.h
  /opt/homebrew/lib/QtCore.framework/Headers/qdatastream.h
  /opt/homebrew/lib/QtCore.framework/Headers/qdeadlinetimer.h
@@ -6410,6 +6407,7 @@ CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o
  /opt/homebrew/lib/QtCore.framework/Headers/qlatin1stringview.h
  /opt/homebrew/lib/QtCore.framework/Headers/qline.h
  /opt/homebrew/lib/QtCore.framework/Headers/qlist.h
+ /opt/homebrew/lib/QtCore.framework/Headers/qlocale.h
  /opt/homebrew/lib/QtCore.framework/Headers/qlogging.h
  /opt/homebrew/lib/QtCore.framework/Headers/qmalloc.h
  /opt/homebrew/lib/QtCore.framework/Headers/qmap.h
@@ -6419,6 +6417,7 @@ CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o
  /opt/homebrew/lib/QtCore.framework/Headers/qmetatype.h
  /opt/homebrew/lib/QtCore.framework/Headers/qminmax.h
  /opt/homebrew/lib/QtCore.framework/Headers/qnamespace.h
+ /opt/homebrew/lib/QtCore.framework/Headers/qnativeinterface.h
  /opt/homebrew/lib/QtCore.framework/Headers/qnumeric.h
  /opt/homebrew/lib/QtCore.framework/Headers/qobject.h
  /opt/homebrew/lib/QtCore.framework/Headers/qobject_impl.h
@@ -6483,7 +6482,9 @@ CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o
  /opt/homebrew/lib/QtCore.framework/Headers/qversiontagging.h
  /opt/homebrew/lib/QtCore.framework/Headers/qxptype_traits.h
  /opt/homebrew/lib/QtCore.framework/Headers/qyieldcpu.h
+ /opt/homebrew/lib/QtGui.framework/Headers/QAction
  /opt/homebrew/lib/QtGui.framework/Headers/QColor
+ /opt/homebrew/lib/QtGui.framework/Headers/QKeySequence
  /opt/homebrew/lib/QtGui.framework/Headers/QPalette
  /opt/homebrew/lib/QtGui.framework/Headers/qaction.h
  /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h
@@ -6494,8 +6495,11 @@ CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o
  /opt/homebrew/lib/QtGui.framework/Headers/qfontinfo.h
  /opt/homebrew/lib/QtGui.framework/Headers/qfontmetrics.h
  /opt/homebrew/lib/QtGui.framework/Headers/qfontvariableaxis.h
+ /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication.h
+ /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication_platform.h
  /opt/homebrew/lib/QtGui.framework/Headers/qicon.h
  /opt/homebrew/lib/QtGui.framework/Headers/qimage.h
+ /opt/homebrew/lib/QtGui.framework/Headers/qinputmethod.h
  /opt/homebrew/lib/QtGui.framework/Headers/qkeysequence.h
  /opt/homebrew/lib/QtGui.framework/Headers/qpaintdevice.h
  /opt/homebrew/lib/QtGui.framework/Headers/qpalette.h
@@ -6512,12 +6516,14 @@ CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o
  /opt/homebrew/lib/QtGui.framework/Headers/qtguiglobal.h
  /opt/homebrew/lib/QtGui.framework/Headers/qtransform.h
  /opt/homebrew/lib/QtGui.framework/Headers/qwindowdefs.h
+ /opt/homebrew/lib/QtWidgets.framework/Headers/QApplication
  /opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout
  /opt/homebrew/lib/QtWidgets.framework/Headers/QLabel
  /opt/homebrew/lib/QtWidgets.framework/Headers/QPushButton
  /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle
  /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget
  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractbutton.h
+ /opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/qframe.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h
@@ -10544,6 +10550,7 @@ CMakeFiles/AVA.dir/export/ExportDialog.cpp.o
  /opt/homebrew/lib/QtCore.framework/Headers/QObject
  /opt/homebrew/lib/QtCore.framework/Headers/QProcess
  /opt/homebrew/lib/QtCore.framework/Headers/QRect
+ /opt/homebrew/lib/QtCore.framework/Headers/QSignalBlocker
  /opt/homebrew/lib/QtCore.framework/Headers/QSize
  /opt/homebrew/lib/QtCore.framework/Headers/QSizeF
  /opt/homebrew/lib/QtCore.framework/Headers/QString
@@ -22951,7 +22958,6 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o
  /opt/homebrew/lib/QtGui.framework/Headers/QColor
  /opt/homebrew/lib/QtGui.framework/Headers/QFont
  /opt/homebrew/lib/QtGui.framework/Headers/QIcon
- /opt/homebrew/lib/QtGui.framework/Headers/QKeyEvent
  /opt/homebrew/lib/QtGui.framework/Headers/QKeySequence
  /opt/homebrew/lib/QtGui.framework/Headers/QTransform
  /opt/homebrew/lib/QtGui.framework/Headers/qabstracttextdocumentlayout.h

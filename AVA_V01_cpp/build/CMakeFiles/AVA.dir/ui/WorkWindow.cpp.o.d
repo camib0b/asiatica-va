@@ -990,12 +990,6 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qsizepolicy.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QEvent \
-  /opt/homebrew/lib/QtCore.framework/Headers/qcoreevent.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qbasictimer.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qabstracteventdispatcher.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qeventloop.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qdeadlinetimer.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
   /opt/homebrew/lib/QtCore.framework/Headers/QString \
   /opt/homebrew/lib/QtGui.framework/Headers/QBrush \
@@ -1144,6 +1138,11 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/qabstracttextdocumentlayout.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qtextlayout.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qevent.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qcoreevent.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qbasictimer.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qabstracteventdispatcher.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qeventloop.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qdeadlinetimer.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qeventpoint.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qvector2d.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qvectornd.h \
@@ -1182,5 +1181,4 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QAbstractSpinBox \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QComboBox \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qcombobox.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QTextEdit \
-  /opt/homebrew/lib/QtGui.framework/Headers/QKeyEvent
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QTextEdit

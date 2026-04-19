@@ -48,7 +48,8 @@ template <> constexpr inline auto VideoControlsBar::qt_create_metaobjectdata<qt_
         "fasterRequested",
         "resetSpeedRequested",
         "muteToggled",
-        "muted"
+        "muted",
+        "togglePlayPauseFromKeyboardShortcut"
     };
 
     QtMocHelpers::UintData qt_methods {
@@ -70,6 +71,8 @@ template <> constexpr inline auto VideoControlsBar::qt_create_metaobjectdata<qt_
         QtMocHelpers::SignalData<void(bool)>(9, 2, QMC::AccessPublic, QMetaType::Void, {{
             { QMetaType::Bool, 10 },
         }}),
+        // Signal 'togglePlayPauseFromKeyboardShortcut'
+        QtMocHelpers::SignalData<void()>(11, 2, QMC::AccessPublic, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -100,6 +103,7 @@ void VideoControlsBar::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int
         case 4: _t->fasterRequested(); break;
         case 5: _t->resetSpeedRequested(); break;
         case 6: _t->muteToggled((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1]))); break;
+        case 7: _t->togglePlayPauseFromKeyboardShortcut(); break;
         default: ;
         }
     }
@@ -117,6 +121,8 @@ void VideoControlsBar::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int
         if (QtMocHelpers::indexOfMethod<void (VideoControlsBar::*)()>(_a, &VideoControlsBar::resetSpeedRequested, 5))
             return;
         if (QtMocHelpers::indexOfMethod<void (VideoControlsBar::*)(bool )>(_a, &VideoControlsBar::muteToggled, 6))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (VideoControlsBar::*)()>(_a, &VideoControlsBar::togglePlayPauseFromKeyboardShortcut, 7))
             return;
     }
 }
@@ -140,14 +146,14 @@ int VideoControlsBar::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 7)
+        if (_id < 8)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 7;
+        _id -= 8;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 7)
+        if (_id < 8)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 7;
+        _id -= 8;
     }
     return _id;
 }
@@ -192,5 +198,11 @@ void VideoControlsBar::resetSpeedRequested()
 void VideoControlsBar::muteToggled(bool _t1)
 {
     QMetaObject::activate<void>(this, &staticMetaObject, 6, nullptr, _t1);
+}
+
+// SIGNAL 7
+void VideoControlsBar::togglePlayPauseFromKeyboardShortcut()
+{
+    QMetaObject::activate(this, &staticMetaObject, 7, nullptr);
 }
 QT_WARNING_POP

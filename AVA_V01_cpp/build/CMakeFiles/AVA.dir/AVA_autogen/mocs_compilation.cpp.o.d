@@ -1053,11 +1053,5 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/../../../ui/WelcomeWindow.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/moc_WorkWindow.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/../../../ui/WorkWindow.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QEvent \
-  /opt/homebrew/lib/QtCore.framework/Headers/qcoreevent.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qbasictimer.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qabstracteventdispatcher.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qeventloop.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qdeadlinetimer.h \
   /opt/homebrew/lib/QtGui.framework/Headers/QBrush \
   /opt/homebrew/lib/QtCore.framework/Headers/QSet
