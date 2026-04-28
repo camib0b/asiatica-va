@@ -991,14 +991,19 @@ CMakeFiles/AVA.dir/export/ExportDialog.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qsizepolicy.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QHash \
+  /opt/homebrew/lib/QtCore.framework/Headers/QPair \
   /opt/homebrew/lib/QtCore.framework/Headers/QString \
   /opt/homebrew/lib/QtCore.framework/Headers/QVector \
   /opt/homebrew/lib/QtCore.framework/Headers/qvector.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QDate \
+  /opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qcalendar.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qlocale.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QObject \
-  /opt/homebrew/lib/QtCore.framework/Headers/QHash \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipExporter.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QProcess \
   /opt/homebrew/lib/QtCore.framework/Headers/qprocess.h \
@@ -1006,7 +1011,9 @@ CMakeFiles/AVA.dir/export/ExportDialog.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/QStringList \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/style/StyleProps.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
@@ -1015,7 +1022,6 @@ CMakeFiles/AVA.dir/export/ExportDialog.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractspinbox.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qvalidator.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qregularexpression.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qlocale.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QApplication \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qcoreapplication.h \
@@ -1054,8 +1060,6 @@ CMakeFiles/AVA.dir/export/ExportDialog.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/qdir.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qdirlisting.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qfiledevice.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qcalendar.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qfile.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/filesystem \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__filesystem/copy_options.h \
@@ -1106,6 +1110,8 @@ CMakeFiles/AVA.dir/export/ExportDialog.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qlayoutitem.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QGroupBox \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qgroupbox.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QLabel \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qlabel.h \

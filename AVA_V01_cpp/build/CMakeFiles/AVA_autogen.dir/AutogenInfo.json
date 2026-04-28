@@ -499,6 +499,12 @@
 			null
 		],
 		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.h",
+			"MU",
+			"CV7R3MSKRA/moc_XmlExporter.cpp",
+			null
+		],
+		[
 			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h",
 			"MU",
 			"O3VI4VFR3H/moc_AppLocale.cpp",
@@ -514,6 +520,12 @@
 			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.h",
 			"MU",
 			"CCJAUQYTHV/moc_PlaybackActivity.cpp",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.h",
+			"MU",
+			"EO7GX2X5BD/moc_EventDefaults.cpp",
 			null
 		],
 		[
@@ -688,6 +700,11 @@
 			null
 		],
 		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.cpp",
+			"MU",
+			null
+		],
+		[
 			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.cpp",
 			"MU",
 			null
@@ -703,6 +720,11 @@
 			null
 		],
 		[ "/Users/cam/dev/asiatica-va/AVA_V01_cpp/main.cpp", "MU", null ],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.cpp",
+			"MU",
+			null
+		],
 		[
 			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.cpp",
 			"MU",

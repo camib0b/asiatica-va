@@ -1,8 +1,10 @@
 #include "ExportDialog.h"
 #include "ClipExporter.h"
 #include "ClipTrimBar.h"
+#include "EventDefaults.h"
 #include "TagSession.h"
 #include "VideoControlsBar.h"
+#include "XmlExporter.h"
 #include "AppLocale.h"
 #include "StyleProps.h"
 
@@ -17,6 +19,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -73,6 +76,8 @@ ExportDialog::ExportDialog(TagSession* session,
     pagesStack_->setCurrentWidget(settingsPage_);
 
     populateEventTypes();
+    rebuildEventDurationOverrides();
+    updatePathFieldForFormat();
     updateClipCount();
 }
 
@@ -105,6 +110,19 @@ void ExportDialog::buildSettingsPage() {
     auto* formLayout = new QFormLayout();
     formLayout->setSpacing(10);
     formLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+
+    outputFormatCombo_ = new QComboBox(settingsPage_);
+    outputFormatCombo_->setMinimumWidth(200);
+    outputFormatCombo_->addItem(AppLocale::trUi("export.format_mp4"),
+                                static_cast<int>(OutputFormat::Mp4));
+    outputFormatCombo_->addItem(AppLocale::trUi("export.format_xml"),
+                                static_cast<int>(OutputFormat::Xml));
+    outputFormatCombo_->addItem(AppLocale::trUi("export.format_both"),
+                                static_cast<int>(OutputFormat::Both));
+    outputFormatCombo_->setCurrentIndex(0);
+    connect(outputFormatCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &ExportDialog::onOutputFormatChanged);
+    formLayout->addRow(AppLocale::trUi("export.output_format"), outputFormatCombo_);
 
     eventTypeCombo_ = new QComboBox(settingsPage_);
     eventTypeCombo_->setMinimumWidth(200);
@@ -167,21 +185,11 @@ void ExportDialog::buildSettingsPage() {
     Style::setRole(clipCountLabel_, "muted");
     formLayout->addRow(QString(), clipCountLabel_);
 
-    beforePaddingSpin_ = new QDoubleSpinBox(settingsPage_);
-    beforePaddingSpin_->setRange(0.0, 30.0);
-    beforePaddingSpin_->setValue(3.0);
-    beforePaddingSpin_->setSuffix(QStringLiteral(" s"));
-    beforePaddingSpin_->setSingleStep(0.5);
-    beforePaddingSpin_->setDecimals(1);
-    formLayout->addRow(AppLocale::trUi("export.before_tag"), beforePaddingSpin_);
-
-    afterPaddingSpin_ = new QDoubleSpinBox(settingsPage_);
-    afterPaddingSpin_->setRange(0.0, 30.0);
-    afterPaddingSpin_->setValue(3.0);
-    afterPaddingSpin_->setSuffix(QStringLiteral(" s"));
-    afterPaddingSpin_->setSingleStep(0.5);
-    afterPaddingSpin_->setDecimals(1);
-    formLayout->addRow(AppLocale::trUi("export.after_tag"), afterPaddingSpin_);
+    eventDurationsGroup_ = new QGroupBox(AppLocale::trUi("export.event_durations_header"), settingsPage_);
+    eventDurationsForm_ = new QFormLayout(eventDurationsGroup_);
+    eventDurationsForm_->setSpacing(6);
+    eventDurationsForm_->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    formLayout->addRow(QString(), eventDurationsGroup_);
 
     auto* pathRow = new QHBoxLayout();
     pathRow->setSpacing(8);
@@ -390,6 +398,128 @@ void ExportDialog::onTeamFilterChanged(int /*index*/) {
     updateSortOrderVisibility();
 }
 
+void ExportDialog::onOutputFormatChanged(int /*index*/) {
+    updatePathFieldForFormat();
+    refreshOutputPathIfFollowingForm();
+
+    // Adjust the primary action label so XML-only users can export directly from the settings
+    // page instead of going through the per-clip trim flow (which only matters for MP4 output).
+    if (reviewButton_) {
+        if (selectedOutputFormat() == OutputFormat::Xml) {
+            reviewButton_->setText(AppLocale::trUi("export.export_xml_now"));
+            reviewButton_->setEnabled(tagSession_ && !tagSession_->tags().isEmpty());
+        } else {
+            reviewButton_->setText(AppLocale::trUi("export.review_clips"));
+            updateClipCount();  // re-applies the count-based enable state for MP4/Both modes
+        }
+    }
+}
+
+ExportDialog::OutputFormat ExportDialog::selectedOutputFormat() const {
+    if (!outputFormatCombo_) return OutputFormat::Mp4;
+    return static_cast<OutputFormat>(outputFormatCombo_->currentData().toInt());
+}
+
+void ExportDialog::updatePathFieldForFormat() {
+    if (!outputPathEdit_) return;
+    const OutputFormat format = selectedOutputFormat();
+    QString placeholder;
+    switch (format) {
+        case OutputFormat::Mp4: placeholder = AppLocale::trUi("export.output_placeholder"); break;
+        case OutputFormat::Xml: placeholder = AppLocale::trUi("export.output_placeholder_xml"); break;
+        case OutputFormat::Both: placeholder = AppLocale::trUi("export.output_placeholder_both"); break;
+    }
+    outputPathEdit_->setPlaceholderText(placeholder);
+
+    // For XML-only export the per-clip review and per-event filter no longer drive output, but
+    // we still let the user open it (so they can trim individual clips and have the trims persist
+    // into the XML). Disable the review button when no per-clip work makes sense for XML-only.
+    if (reviewButton_) {
+        // updateClipCount already enables/disables based on count; no change here.
+    }
+}
+
+void ExportDialog::rebuildEventDurationOverrides() {
+    if (!eventDurationsForm_ || !eventDurationsGroup_) return;
+
+    // Tear down existing rows
+    eventDurationSpinners_.clear();
+    while (eventDurationsForm_->rowCount() > 0) {
+        eventDurationsForm_->removeRow(0);
+    }
+
+    if (!tagSession_) {
+        eventDurationsGroup_->hide();
+        return;
+    }
+
+    QStringList eventNames;
+    const auto& counts = tagSession_->mainEventCounts();
+    for (auto it = counts.cbegin(); it != counts.cend(); ++it) {
+        if (EventDefaults::isTimeControlEvent(it.key())) continue;
+        if (it.value() <= 0) continue;
+        eventNames.append(it.key());
+    }
+    if (eventNames.isEmpty()) {
+        eventDurationsGroup_->hide();
+        return;
+    }
+    eventNames.sort(Qt::CaseInsensitive);
+    eventDurationsGroup_->show();
+
+    for (const QString& eventName : eventNames) {
+        const auto duration = EventDefaults::defaultFor(eventName);
+        const double preSeconds = duration.preMs / 1000.0;
+        const double postSeconds = duration.postMs / 1000.0;
+
+        auto* rowWidget = new QWidget(eventDurationsGroup_);
+        auto* rowLayout = new QHBoxLayout(rowWidget);
+        rowLayout->setContentsMargins(0, 0, 0, 0);
+        rowLayout->setSpacing(8);
+
+        auto* preSpin = new QDoubleSpinBox(rowWidget);
+        preSpin->setRange(0.0, 60.0);
+        preSpin->setValue(preSeconds);
+        preSpin->setSuffix(QStringLiteral(" s"));
+        preSpin->setSingleStep(0.5);
+        preSpin->setDecimals(2);
+        preSpin->setPrefix(AppLocale::trUi("export.event_duration_pre_prefix"));
+
+        auto* postSpin = new QDoubleSpinBox(rowWidget);
+        postSpin->setRange(0.0, 60.0);
+        postSpin->setValue(postSeconds);
+        postSpin->setSuffix(QStringLiteral(" s"));
+        postSpin->setSingleStep(0.5);
+        postSpin->setDecimals(2);
+        postSpin->setPrefix(AppLocale::trUi("export.event_duration_post_prefix"));
+
+        rowLayout->addWidget(preSpin, 1);
+        rowLayout->addWidget(postSpin, 1);
+
+        eventDurationSpinners_.insert(eventName, qMakePair(preSpin, postSpin));
+
+        const QString rowLabel = AppLocale::trEvent(eventName);
+        eventDurationsForm_->addRow(rowLabel, rowWidget);
+
+        connect(preSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+                [this, eventName](double) { onEventDurationOverrideChanged(eventName); });
+        connect(postSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+                [this, eventName](double) { onEventDurationOverrideChanged(eventName); });
+    }
+}
+
+void ExportDialog::onEventDurationOverrideChanged(const QString& mainEvent) {
+    if (!tagSession_) return;
+    auto it = eventDurationSpinners_.find(mainEvent);
+    if (it == eventDurationSpinners_.end()) return;
+    QDoubleSpinBox* preSpin = it.value().first;
+    QDoubleSpinBox* postSpin = it.value().second;
+    if (!preSpin || !postSpin) return;
+    const qint64 preMs = static_cast<qint64>(preSpin->value() * 1000.0);
+    const qint64 postMs = static_cast<qint64>(postSpin->value() * 1000.0);
+    tagSession_->applyDefaultsToUntrimmedTags(mainEvent, preMs, postMs);
+}
+
 void ExportDialog::updateSortOrderVisibility() {
     const bool allTeams = teamFilterCombo_
         && teamFilterCombo_->currentData().toString().isEmpty();
@@ -400,10 +530,14 @@ void ExportDialog::updateSortOrderVisibility() {
 void ExportDialog::updateClipCount() {
     if (!clipCountLabel_ || !tagSession_ || !eventTypeCombo_) return;
 
+    const bool isXmlOnly = selectedOutputFormat() == OutputFormat::Xml;
     const QString canonicalEvent = eventTypeCombo_->currentData().toString();
     if (canonicalEvent.isEmpty()) {
         clipCountLabel_->setText(QString());
-        if (reviewButton_) reviewButton_->setEnabled(false);
+        if (reviewButton_) {
+            // XML-only does not require an event type since it exports every tag in the session.
+            reviewButton_->setEnabled(isXmlOnly && !tagSession_->tags().isEmpty());
+        }
         refreshOutputPathIfFollowingForm();
         return;
     }
@@ -421,7 +555,9 @@ void ExportDialog::updateClipCount() {
 
     clipCountLabel_->setText(
         QStringLiteral("%1 %2").arg(count).arg(AppLocale::trUi("export.clips_label")));
-    if (reviewButton_) reviewButton_->setEnabled(count > 0);
+    if (reviewButton_) {
+        reviewButton_->setEnabled(isXmlOnly ? !tagSession_->tags().isEmpty() : count > 0);
+    }
 
     refreshOutputPathIfFollowingForm();
 }
@@ -429,11 +565,22 @@ void ExportDialog::updateClipCount() {
 void ExportDialog::onBrowseOutputPath() {
     const QString defaultPath = defaultExportSuggestedFilePath();
 
+    QString filter;
+    switch (selectedOutputFormat()) {
+        case OutputFormat::Xml:
+            filter = QStringLiteral("XML (*.xml);;All files (*.*)");
+            break;
+        case OutputFormat::Both:
+        case OutputFormat::Mp4:
+            filter = QStringLiteral("MP4 (*.mp4);;All files (*.*)");
+            break;
+    }
+
     const QString path = QFileDialog::getSaveFileName(
         this,
         AppLocale::trUi("export.save_dialog_title"),
         defaultPath,
-        QStringLiteral("MP4 (*.mp4);;All files (*.*)"));
+        filter);
 
     if (!path.isEmpty()) {
         QSignalBlocker blocker(outputPathEdit_);
@@ -447,6 +594,13 @@ void ExportDialog::onBrowseOutputPath() {
 // ---------------------------------------------------------------------------
 
 void ExportDialog::onReviewClipsClicked() {
+    // XML-only mode skips the trim flow entirely: clip intervals are read directly from the
+    // GameTags (already seeded by EventDefaults / per-event overrides / earlier trim sessions).
+    if (selectedOutputFormat() == OutputFormat::Xml) {
+        onExportClicked();
+        return;
+    }
+
     const QString canonicalEvent = eventTypeCombo_->currentData().toString();
     if (canonicalEvent.isEmpty()) return;
 
@@ -508,8 +662,6 @@ void ExportDialog::buildTrimDataFromSettings() {
         });
     }
 
-    const double beforePaddingMs = beforePaddingSpin_->value() * 1000.0;
-    const double afterPaddingMs = afterPaddingSpin_->value() * 1000.0;
     const int totalClips = matchingTags.size();
     translatedEvent_ =
         AppLocale::trEventForLanguage(canonicalEvent, exportLanguage_);
@@ -517,9 +669,12 @@ void ExportDialog::buildTrimDataFromSettings() {
     trimData_.reserve(totalClips);
     for (int i = 0; i < totalClips; ++i) {
         const auto& entry = matchingTags[i];
-        qint64 clipStart = static_cast<qint64>(entry.tag.positionMs - beforePaddingMs);
-        qint64 clipEnd = static_cast<qint64>(entry.tag.positionMs + afterPaddingMs);
 
+        // Seed clip interval from the GameTag's stored startMs/endMs (single source of truth).
+        // TagSession::addTag already populated these from EventDefaults when the tag was created;
+        // ExportDialog's per-event-type overrides further mutate them via applyDefaultsToUntrimmedTags.
+        qint64 clipStart = entry.tag.startMs;
+        qint64 clipEnd = entry.tag.endMs;
         if (clipStart < 0) clipStart = 0;
         if (videoDurationMs_ > 0 && clipEnd > videoDurationMs_) clipEnd = videoDurationMs_;
         if (clipEnd <= clipStart) clipEnd = clipStart + 1000;
@@ -531,8 +686,15 @@ void ExportDialog::buildTrimDataFromSettings() {
             .arg(totalClips);
 
         const bool hasNote = !entry.tag.note.trimmed().isEmpty();
-        trimData_.append({entry.tag, clipStart, clipEnd, overlayText,
-                          hasNote, entry.tag.note.trimmed()});
+        ClipTrimData td;
+        td.tag = entry.tag;
+        td.tagSessionIndex = entry.originalIndex;
+        td.startMs = clipStart;
+        td.endMs = clipEnd;
+        td.overlayText = overlayText;
+        td.includeSecondaryOverlay = hasNote;
+        td.secondaryOverlayText = entry.tag.note.trimmed();
+        trimData_.append(td);
     }
 }
 
@@ -668,12 +830,15 @@ void ExportDialog::showClipAtIndex(int index) {
 
     const auto& clip = trimData_.at(index);
 
-    const qint64 beforePaddingMs =
-        static_cast<qint64>(beforePaddingSpin_->value() * 1000.0);
-    const qint64 afterPaddingMs =
-        static_cast<qint64>(afterPaddingSpin_->value() * 1000.0);
+    // Use the clip's actual interval to compute a comfortable preview window. We need a window
+    // wide enough on both sides for the user to extend the trim, so derive it from the existing
+    // pre/post extent rather than a removed global spinner.
+    const qint64 preExtent = clip.tag.positionMs > clip.startMs
+        ? (clip.tag.positionMs - clip.startMs) : qint64{0};
+    const qint64 postExtent = clip.endMs > clip.tag.positionMs
+        ? (clip.endMs - clip.tag.positionMs) : qint64{0};
     const qint64 halfWindow = std::max(qint64{25000},
-        std::max(beforePaddingMs, afterPaddingMs) + 5000);
+        std::max(preExtent, postExtent) + 5000);
 
     qint64 windowStart = clip.tag.positionMs - halfWindow;
     qint64 windowEnd = clip.tag.positionMs + halfWindow;
@@ -706,8 +871,16 @@ void ExportDialog::showClipAtIndex(int index) {
 void ExportDialog::saveTrimForCurrentClip() {
     if (currentTrimIndex_ < 0 || currentTrimIndex_ >= trimData_.size()) return;
     if (clipTrimBar_) {
-        trimData_[currentTrimIndex_].startMs = clipTrimBar_->inPointMs();
-        trimData_[currentTrimIndex_].endMs = clipTrimBar_->outPointMs();
+        const qint64 newStart = clipTrimBar_->inPointMs();
+        const qint64 newEnd = clipTrimBar_->outPointMs();
+        ClipTrimData& td = trimData_[currentTrimIndex_];
+        td.startMs = newStart;
+        td.endMs = newEnd;
+        // Persist the trim back into TagSession so the XML exporter sees the same start/end as the
+        // MP4 pipeline. Skips when the index is invalid (e.g. the clip was just discarded).
+        if (tagSession_ && td.tagSessionIndex >= 0) {
+            tagSession_->setTagInterval(td.tagSessionIndex, newStart, newEnd);
+        }
     }
     if (includeNoteCheckBox_) {
         trimData_[currentTrimIndex_].includeSecondaryOverlay =
@@ -830,8 +1003,12 @@ QString ExportDialog::suggestedExportBaseName() const {
 QString ExportDialog::defaultExportSuggestedFilePath() const {
     const QFileInfo sourceInfo(sourceVideoPath_);
     const QString directoryPath = sourceInfo.absolutePath();
-    return QDir(directoryPath).filePath(suggestedExportBaseName()
-        + QStringLiteral(".mp4"));
+    QString extension = QStringLiteral(".mp4");
+    if (outputFormatCombo_) {
+        const auto format = static_cast<OutputFormat>(outputFormatCombo_->currentData().toInt());
+        if (format == OutputFormat::Xml) extension = QStringLiteral(".xml");
+    }
+    return QDir(directoryPath).filePath(suggestedExportBaseName() + extension);
 }
 
 void ExportDialog::applySuggestedOutputPathFromForm() {
@@ -880,6 +1057,42 @@ void ExportDialog::onExportClicked() {
         if (outputPathEdit_->text().trimmed().isEmpty()) return;
     }
 
+    const OutputFormat format = selectedOutputFormat();
+    const QString chosenPath = outputPathEdit_->text().trimmed();
+
+    // Helper that picks/derives the .xml file path for the current export.
+    auto deriveXmlPath = [&chosenPath, format]() {
+        QFileInfo info(chosenPath);
+        const QString suffix = info.suffix().toLower();
+        if (format == OutputFormat::Xml) {
+            // For XML-only, accept whatever extension the user typed but ensure .xml.
+            if (suffix == QLatin1String("xml")) return chosenPath;
+            return QDir(info.absolutePath())
+                .filePath(info.completeBaseName() + QStringLiteral(".xml"));
+        }
+        // For Both, sit alongside the .mp4.
+        return QDir(info.absolutePath())
+            .filePath(info.completeBaseName() + QStringLiteral(".xml"));
+    };
+
+    // XML-only path: skip the entire ffmpeg pipeline and just serialize the session.
+    if (format == OutputFormat::Xml) {
+        const QString xmlPath = deriveXmlPath();
+        QString error;
+        const bool ok = XmlExporter::writeAllInstances(tagSession_, xmlPath, &error);
+        if (ok) {
+            QMessageBox::information(this,
+                AppLocale::trUi("export.title"),
+                AppLocale::trUi("export.xml_success"));
+            accept();
+        } else {
+            QMessageBox::critical(this,
+                AppLocale::trUi("export.title"),
+                error.isEmpty() ? AppLocale::trUi("export.xml_failed") : error);
+        }
+        return;
+    }
+
     const QString ffmpegPath = ClipExporter::findFfmpeg();
     if (ffmpegPath.isEmpty()) {
         QMessageBox::critical(this,
@@ -889,6 +1102,20 @@ void ExportDialog::onExportClicked() {
     }
 
     if (trimData_.isEmpty()) return;
+
+    // For "Both", write the XML before kicking off ffmpeg so the user keeps the report even if
+    // the long-running MP4 pipeline fails or is cancelled.
+    if (format == OutputFormat::Both) {
+        const QString xmlPath = deriveXmlPath();
+        QString error;
+        const bool ok = XmlExporter::writeAllInstances(tagSession_, xmlPath, &error);
+        if (!ok) {
+            QMessageBox::critical(this,
+                AppLocale::trUi("export.title"),
+                error.isEmpty() ? AppLocale::trUi("export.xml_failed") : error);
+            return;
+        }
+    }
 
     const QString homeName = teamDisplayName(QStringLiteral("Home"));
     const QString awayName = teamDisplayName(QStringLiteral("Away"));

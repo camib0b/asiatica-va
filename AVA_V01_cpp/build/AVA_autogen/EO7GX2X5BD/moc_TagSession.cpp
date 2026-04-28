@@ -46,6 +46,7 @@ template <> constexpr inline auto TagSession::qt_create_metaobjectdata<qt_meta_t
         "tag",
         "tagNoteChanged",
         "index",
+        "tagIntervalChanged",
         "statsChanged"
     };
 
@@ -60,8 +61,12 @@ template <> constexpr inline auto TagSession::qt_create_metaobjectdata<qt_meta_t
         QtMocHelpers::SignalData<void(int)>(6, 2, QMC::AccessPublic, QMetaType::Void, {{
             { QMetaType::Int, 7 },
         }}),
+        // Signal 'tagIntervalChanged'
+        QtMocHelpers::SignalData<void(int)>(8, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Int, 7 },
+        }}),
         // Signal 'statsChanged'
-        QtMocHelpers::SignalData<void()>(8, 2, QMC::AccessPublic, QMetaType::Void),
+        QtMocHelpers::SignalData<void()>(9, 2, QMC::AccessPublic, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -88,7 +93,8 @@ void TagSession::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 0: _t->cleared(); break;
         case 1: _t->tagAdded((*reinterpret_cast<std::add_pointer_t<TagSession::GameTag>>(_a[1]))); break;
         case 2: _t->tagNoteChanged((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
-        case 3: _t->statsChanged(); break;
+        case 3: _t->tagIntervalChanged((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
+        case 4: _t->statsChanged(); break;
         default: ;
         }
     }
@@ -99,7 +105,9 @@ void TagSession::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
             return;
         if (QtMocHelpers::indexOfMethod<void (TagSession::*)(int )>(_a, &TagSession::tagNoteChanged, 2))
             return;
-        if (QtMocHelpers::indexOfMethod<void (TagSession::*)()>(_a, &TagSession::statsChanged, 3))
+        if (QtMocHelpers::indexOfMethod<void (TagSession::*)(int )>(_a, &TagSession::tagIntervalChanged, 3))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (TagSession::*)()>(_a, &TagSession::statsChanged, 4))
             return;
     }
 }
@@ -123,14 +131,14 @@ int TagSession::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 4)
+        if (_id < 5)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 4;
+        _id -= 5;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 4)
+        if (_id < 5)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 4;
+        _id -= 5;
     }
     return _id;
 }
@@ -154,8 +162,14 @@ void TagSession::tagNoteChanged(int _t1)
 }
 
 // SIGNAL 3
+void TagSession::tagIntervalChanged(int _t1)
+{
+    QMetaObject::activate<void>(this, &staticMetaObject, 3, nullptr, _t1);
+}
+
+// SIGNAL 4
 void TagSession::statsChanged()
 {
-    QMetaObject::activate(this, &staticMetaObject, 3, nullptr);
+    QMetaObject::activate(this, &staticMetaObject, 4, nullptr);
 }
 QT_WARNING_POP

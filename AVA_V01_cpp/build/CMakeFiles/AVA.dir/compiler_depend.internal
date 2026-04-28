@@ -770,6 +770,8 @@
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ExportDialog.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.h
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.cpp
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.cpp
@@ -777,6 +779,8 @@
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/main.cpp
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.cpp
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/style/theme.cpp
@@ -791,10 +795,12 @@
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h
+ /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QDate
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QElapsedTimer
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QHash
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QList
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QObject
+ /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QPair
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QProcess
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QSet
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QString
@@ -824,6 +830,7 @@
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbytearrayalgorithms.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbytearraylist.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbytearrayview.h
+ /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcalendar.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qchar.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcheckedint_impl.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcompare.h
@@ -838,6 +845,7 @@
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcontiguouscache.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdarwinhelpers.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdatastream.h
+ /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdatetime.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdebug.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qelapsedtimer.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qendian.h
@@ -859,6 +867,7 @@
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlatin1stringview.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qline.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlist.h
+ /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlocale.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlogging.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qmalloc.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qmap.h
@@ -2174,10 +2183,12 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/moc_VideoPlayer.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h
+ /opt/homebrew/lib/QtCore.framework/Headers/QDate
  /opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer
  /opt/homebrew/lib/QtCore.framework/Headers/QHash
  /opt/homebrew/lib/QtCore.framework/Headers/QList
  /opt/homebrew/lib/QtCore.framework/Headers/QObject
+ /opt/homebrew/lib/QtCore.framework/Headers/QPair
  /opt/homebrew/lib/QtCore.framework/Headers/QProcess
  /opt/homebrew/lib/QtCore.framework/Headers/QSet
  /opt/homebrew/lib/QtCore.framework/Headers/QString
@@ -2208,6 +2219,7 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o
  /opt/homebrew/lib/QtCore.framework/Headers/qbytearrayalgorithms.h
  /opt/homebrew/lib/QtCore.framework/Headers/qbytearraylist.h
  /opt/homebrew/lib/QtCore.framework/Headers/qbytearrayview.h
+ /opt/homebrew/lib/QtCore.framework/Headers/qcalendar.h
  /opt/homebrew/lib/QtCore.framework/Headers/qchar.h
  /opt/homebrew/lib/QtCore.framework/Headers/qcheckedint_impl.h
  /opt/homebrew/lib/QtCore.framework/Headers/qcompare.h
@@ -2222,6 +2234,7 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o
  /opt/homebrew/lib/QtCore.framework/Headers/qcontiguouscache.h
  /opt/homebrew/lib/QtCore.framework/Headers/qdarwinhelpers.h
  /opt/homebrew/lib/QtCore.framework/Headers/qdatastream.h
+ /opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h
  /opt/homebrew/lib/QtCore.framework/Headers/qdebug.h
  /opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h
  /opt/homebrew/lib/QtCore.framework/Headers/qendian.h
@@ -2243,6 +2256,7 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o
  /opt/homebrew/lib/QtCore.framework/Headers/qlatin1stringview.h
  /opt/homebrew/lib/QtCore.framework/Headers/qline.h
  /opt/homebrew/lib/QtCore.framework/Headers/qlist.h
+ /opt/homebrew/lib/QtCore.framework/Headers/qlocale.h
  /opt/homebrew/lib/QtCore.framework/Headers/qlogging.h
  /opt/homebrew/lib/QtCore.framework/Headers/qmalloc.h
  /opt/homebrew/lib/QtCore.framework/Headers/qmap.h
@@ -18532,6 +18546,8 @@ CMakeFiles/AVA.dir/ui/GameSetupWindow.cpp.o
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/style/StyleProps.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.h
+ /opt/homebrew/lib/QtCore.framework/Headers/QDate
+ /opt/homebrew/lib/QtCore.framework/Headers/QSignalBlocker
  /opt/homebrew/lib/QtCore.framework/Headers/QString
  /opt/homebrew/lib/QtCore.framework/Headers/QVariant
  /opt/homebrew/lib/QtCore.framework/Headers/q17memory.h
@@ -18558,6 +18574,7 @@ CMakeFiles/AVA.dir/ui/GameSetupWindow.cpp.o
  /opt/homebrew/lib/QtCore.framework/Headers/qbytearrayalgorithms.h
  /opt/homebrew/lib/QtCore.framework/Headers/qbytearraylist.h
  /opt/homebrew/lib/QtCore.framework/Headers/qbytearrayview.h
+ /opt/homebrew/lib/QtCore.framework/Headers/qcalendar.h
  /opt/homebrew/lib/QtCore.framework/Headers/qchar.h
  /opt/homebrew/lib/QtCore.framework/Headers/qcheckedint_impl.h
  /opt/homebrew/lib/QtCore.framework/Headers/qcompare.h
@@ -18572,6 +18589,7 @@ CMakeFiles/AVA.dir/ui/GameSetupWindow.cpp.o
  /opt/homebrew/lib/QtCore.framework/Headers/qcontiguouscache.h
  /opt/homebrew/lib/QtCore.framework/Headers/qdarwinhelpers.h
  /opt/homebrew/lib/QtCore.framework/Headers/qdatastream.h
+ /opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h
  /opt/homebrew/lib/QtCore.framework/Headers/qdebug.h
  /opt/homebrew/lib/QtCore.framework/Headers/qendian.h
  /opt/homebrew/lib/QtCore.framework/Headers/qexceptionhandling.h
@@ -18649,6 +18667,7 @@ CMakeFiles/AVA.dir/ui/GameSetupWindow.cpp.o
  /opt/homebrew/lib/QtCore.framework/Headers/qtenvironmentvariables.h
  /opt/homebrew/lib/QtCore.framework/Headers/qtextstream.h
  /opt/homebrew/lib/QtCore.framework/Headers/qtformat_impl.h
+ /opt/homebrew/lib/QtCore.framework/Headers/qtimezone.h
  /opt/homebrew/lib/QtCore.framework/Headers/qtmetamacros.h
  /opt/homebrew/lib/QtCore.framework/Headers/qtnoop.h
  /opt/homebrew/lib/QtCore.framework/Headers/qtpreprocessorsupport.h
@@ -18701,6 +18720,7 @@ CMakeFiles/AVA.dir/ui/GameSetupWindow.cpp.o
  /opt/homebrew/lib/QtGui.framework/Headers/qwindowdefs.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/QColorDialog
  /opt/homebrew/lib/QtWidgets.framework/Headers/QComboBox
+ /opt/homebrew/lib/QtWidgets.framework/Headers/QDateEdit
  /opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout
  /opt/homebrew/lib/QtWidgets.framework/Headers/QLabel
  /opt/homebrew/lib/QtWidgets.framework/Headers/QLineEdit
@@ -18715,6 +18735,7 @@ CMakeFiles/AVA.dir/ui/GameSetupWindow.cpp.o
  /opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/qcolordialog.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/qcombobox.h
+ /opt/homebrew/lib/QtWidgets.framework/Headers/qdatetimeedit.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/qframe.h
  /opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h
@@ -19609,6 +19630,7 @@ CMakeFiles/AVA.dir/ui/MainWindow.cpp.o
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/MainWindow.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h
+ /opt/homebrew/lib/QtCore.framework/Headers/QDate
  /opt/homebrew/lib/QtCore.framework/Headers/QHash
  /opt/homebrew/lib/QtCore.framework/Headers/QList
  /opt/homebrew/lib/QtCore.framework/Headers/QObject
@@ -22769,16 +22791,19 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.h
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/style/StyleProps.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/StatsWindow.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h
+ /opt/homebrew/lib/QtCore.framework/Headers/QDate
  /opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer
  /opt/homebrew/lib/QtCore.framework/Headers/QHash
  /opt/homebrew/lib/QtCore.framework/Headers/QList
  /opt/homebrew/lib/QtCore.framework/Headers/QModelIndex
  /opt/homebrew/lib/QtCore.framework/Headers/QObject
+ /opt/homebrew/lib/QtCore.framework/Headers/QPair
  /opt/homebrew/lib/QtCore.framework/Headers/QProcess
  /opt/homebrew/lib/QtCore.framework/Headers/QRect
  /opt/homebrew/lib/QtCore.framework/Headers/QSet

@@ -994,6 +994,10 @@ CMakeFiles/AVA.dir/components/Scoreboard.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/../state/TagSession.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QDate \
+  /opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qcalendar.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qlocale.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QObject \
   /opt/homebrew/lib/QtCore.framework/Headers/QHash \
   /opt/homebrew/lib/QtCore.framework/Headers/QString \

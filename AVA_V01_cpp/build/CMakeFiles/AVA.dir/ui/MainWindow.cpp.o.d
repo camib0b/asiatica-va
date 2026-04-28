@@ -1061,6 +1061,7 @@ CMakeFiles/AVA.dir/ui/MainWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QWidget \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QDate \
   /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
   /opt/homebrew/lib/QtGui.framework/Headers/QBrush \
   /opt/homebrew/lib/QtCore.framework/Headers/QHash \

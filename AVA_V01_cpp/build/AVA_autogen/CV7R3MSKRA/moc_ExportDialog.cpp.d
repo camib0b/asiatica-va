@@ -748,8 +748,10 @@
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/xlocale/_time.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QDate \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QHash \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QObject \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QPair \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QString \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QVector \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QtGlobal \
@@ -776,6 +778,7 @@
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbytearrayalgorithms.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbytearraylist.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbytearrayview.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcalendar.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qchar.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcheckedint_impl.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcompare.h \
@@ -790,6 +793,7 @@
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcontiguouscache.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdarwinhelpers.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdatastream.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdatetime.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdebug.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qendian.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qexceptionhandling.h \
@@ -809,6 +813,7 @@
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlatin1stringview.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qline.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlist.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlocale.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlogging.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qmalloc.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qmap.h \

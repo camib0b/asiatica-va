@@ -633,6 +633,7 @@
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/numeric \
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/optional \
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/ratio \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/set \
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/stdbool.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/stddef.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/stdexcept \
@@ -648,6 +649,7 @@
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/type_traits \
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/typeinfo \
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/unordered_map \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/unordered_set \
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/utility \
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/variant \
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/vector \
@@ -743,6 +745,7 @@
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/time.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/xlocale.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/xlocale/_time.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QDate \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QHash \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QObject \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QString \
@@ -752,8 +755,11 @@
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/q20functional.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/q20memory.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/q20type_traits.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/q20utility.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/q23type_traits.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/q23utility.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qalgorithms.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qalloc.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qanystringview.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qarraydata.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qarraydataops.h \
@@ -767,6 +773,7 @@
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbytearrayalgorithms.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbytearraylist.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbytearrayview.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcalendar.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qchar.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcompare.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcompare_impl.h \
@@ -777,8 +784,11 @@
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcontainerfwd.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcontainerinfo.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcontainertools_impl.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcontiguouscache.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdarwinhelpers.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdatastream.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdatetime.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdebug.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qexceptionhandling.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qflags.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qfloat16.h \
@@ -795,8 +805,10 @@
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qiterator.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlatin1stringview.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlist.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlocale.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlogging.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qmalloc.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qmap.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qmath.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qmetacontainer.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qmetatype.h \
@@ -813,6 +825,11 @@
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qrefcount.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qscopedpointer.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qscopeguard.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qset.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qshareddata.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qshareddata_impl.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qsharedpointer.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qsharedpointer_impl.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qstdlibdetection.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qstring.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qstringalgorithms.h \
@@ -837,6 +854,7 @@
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qtdeprecationdefinitions.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qtdeprecationmarkers.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qtenvironmentvariables.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qtextstream.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qtformat_impl.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qtmetamacros.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qtnoop.h \
@@ -849,6 +867,8 @@
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qtypeinfo.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qtypes.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qutf8stringview.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qvariant.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qvarlengtharray.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qvector.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qversiontagging.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qxptype_traits.h \

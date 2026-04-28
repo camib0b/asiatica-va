@@ -1,12 +1,10 @@
 CMakeFiles/AVA.dir/state/TagSession.cpp.o: \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QObject \
-  /opt/homebrew/lib/QtCore.framework/Headers/qobject.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qobjectdefs.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qnamespace.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qglobal.h \
-  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/type_traits \
+  /opt/homebrew/lib/QtCore.framework/Headers/QDate \
+  /opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qcalendar.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/limits \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__config \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__config_site \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__configuration/abi.h \
@@ -16,12 +14,20 @@ CMakeFiles/AVA.dir/state/TagSession.cpp.o: \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__configuration/language.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__configuration/experimental.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__configuration/hardening.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_arithmetic.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/integral_constant.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_floating_point.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/remove_cv.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_integral.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_signed.h \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__undef_macros \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/version \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/type_traits \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/add_cv_quals.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/add_pointer.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_referenceable.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/void_t.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_void.h \
-  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/integral_constant.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/remove_reference.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/add_reference.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/aligned_storage.h \
@@ -41,10 +47,6 @@ CMakeFiles/AVA.dir/state/TagSession.cpp.o: \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/extent.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/has_virtual_destructor.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_abstract.h \
-  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_arithmetic.h \
-  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_floating_point.h \
-  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/remove_cv.h \
-  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_integral.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_array.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_assignable.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_base_of.h \
@@ -72,7 +74,6 @@ CMakeFiles/AVA.dir/state/TagSession.cpp.o: \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_pointer.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_polymorphic.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_scalar.h \
-  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_signed.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_standard_layout.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_trivial.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_trivially_assignable.h \
@@ -129,7 +130,7 @@ CMakeFiles/AVA.dir/state/TagSession.cpp.o: \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_aggregate.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_swappable.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/negation.h \
-  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/version \
+  /opt/homebrew/lib/QtCore.framework/Headers/qglobal.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/cstddef \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/stddef.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/21/include/stddef.h \
@@ -149,7 +150,6 @@ CMakeFiles/AVA.dir/state/TagSession.cpp.o: \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__cstddef/ptrdiff_t.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/utility \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__utility/move.h \
-  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__undef_macros \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__utility/pair.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__compare/common_comparison_category.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__compare/ordering.h \
@@ -192,7 +192,6 @@ CMakeFiles/AVA.dir/state/TagSession.cpp.o: \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/promote.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__math/min_max.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__math/roots.h \
-  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/limits \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_constant_evaluated.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__math/special_functions.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__math/copysign.h \
@@ -710,6 +709,8 @@ CMakeFiles/AVA.dir/state/TagSession.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/qtresource.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qttranslation.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qversiontagging.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qlocale.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qvariant.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qcompare.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qstdlibdetection.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qcomparehelpers.h \
@@ -858,14 +859,11 @@ CMakeFiles/AVA.dir/state/TagSession.cpp.o: \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__locale_dir/wbuffer_convert.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__locale_dir/wstring_convert.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/cstdarg \
-  /opt/homebrew/lib/QtCore.framework/Headers/qtmetamacros.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qobjectdefs_impl.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qfunctionaltools_impl.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qstring.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qchar.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qstringview.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qmetatype.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qbytearray.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qrefcount.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qnamespace.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qtmetamacros.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qarraydata.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qpair.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qarraydatapointer.h \
@@ -878,7 +876,15 @@ CMakeFiles/AVA.dir/state/TagSession.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/qbytearrayalgorithms.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qbytearrayview.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qstringfwd.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qdatastream.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qchar.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qstringview.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qstringalgorithms.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qiodevicebase.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qscopedpointer.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qfloat16.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qhashfunctions.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qstring.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qlatin1stringview.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qanystringview.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qutf8stringview.h \
@@ -887,8 +893,6 @@ CMakeFiles/AVA.dir/state/TagSession.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/qstringbuilder.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qstringconverter.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qstringconverter_base.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qlist.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qhashfunctions.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/numeric \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__numeric/accumulate.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__numeric/adjacent_difference.h \
@@ -906,36 +910,53 @@ CMakeFiles/AVA.dir/state/TagSession.cpp.o: \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__numeric/transform_reduce.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/execution \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/is_execution_policy.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qiterator.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qbytearraylist.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qstringlist.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qalgorithms.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qstringmatcher.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qscopedpointer.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qmetatype.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qdatastream.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qiodevicebase.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qfloat16.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qmath.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qalgorithms.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qtformat_impl.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qiterable.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qtaggedpointer.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qmetacontainer.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qcontainerinfo.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qobjectdefs.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qobjectdefs_impl.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qfunctionaltools_impl.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qscopeguard.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/list \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/map \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__fwd/map.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__tree \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__fwd/set.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qobject_impl.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qbindingstorage.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qdebug.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qtextstream.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qcontiguouscache.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qsharedpointer.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qshareddata.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qsharedpointer_impl.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/chrono \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__chrono/file_clock.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/forward_list \
-  /opt/homebrew/lib/QtCore.framework/Headers/QHash \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/set \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/unordered_set \
+  /opt/homebrew/lib/QtCore.framework/Headers/qlist.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qiterator.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qbytearraylist.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qstringlist.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qstringmatcher.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qmap.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qshareddata_impl.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qset.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qhash.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qvarlengtharray.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qalloc.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/q23utility.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/q20utility.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qobject.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qobject_impl.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qbindingstorage.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QObject \
+  /opt/homebrew/lib/QtCore.framework/Headers/QHash \
   /opt/homebrew/lib/QtCore.framework/Headers/QString \
   /opt/homebrew/lib/QtCore.framework/Headers/QVector \
   /opt/homebrew/lib/QtCore.framework/Headers/qvector.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal
+  /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.h

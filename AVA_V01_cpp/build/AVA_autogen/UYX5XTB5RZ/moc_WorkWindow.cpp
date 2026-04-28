@@ -68,7 +68,13 @@ template <> constexpr inline auto WorkWindow::qt_create_metaobjectdata<qt_meta_t
         "awayName",
         "homeColor",
         "awayColor",
+        "competitionName",
+        "gameDate",
+        "homeAbbrev",
+        "awayAbbrev",
         "onTeamSetupCancelled",
+        "onGameStartRequested",
+        "onNextQuarterRequested",
         "onExportClips",
         "onApplicationLanguageChanged"
     };
@@ -117,16 +123,21 @@ template <> constexpr inline auto WorkWindow::qt_create_metaobjectdata<qt_meta_t
         // Slot 'saveNoteDebounceFired'
         QtMocHelpers::SlotData<void()>(23, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'onTeamSetupConfirmed'
-        QtMocHelpers::SlotData<void(const QString &, const QString &, const QString &, const QString &, const QString &)>(24, 2, QMC::AccessPrivate, QMetaType::Void, {{
+        QtMocHelpers::SlotData<void(const QString &, const QString &, const QString &, const QString &, const QString &, const QString &, const QDate &, const QString &, const QString &)>(24, 2, QMC::AccessPrivate, QMetaType::Void, {{
             { QMetaType::QString, 25 }, { QMetaType::QString, 26 }, { QMetaType::QString, 27 }, { QMetaType::QString, 28 },
-            { QMetaType::QString, 29 },
+            { QMetaType::QString, 29 }, { QMetaType::QString, 30 }, { QMetaType::QDate, 31 }, { QMetaType::QString, 32 },
+            { QMetaType::QString, 33 },
         }}),
         // Slot 'onTeamSetupCancelled'
-        QtMocHelpers::SlotData<void()>(30, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(34, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onGameStartRequested'
+        QtMocHelpers::SlotData<void()>(35, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onNextQuarterRequested'
+        QtMocHelpers::SlotData<void()>(36, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'onExportClips'
-        QtMocHelpers::SlotData<void()>(31, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(37, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'onApplicationLanguageChanged'
-        QtMocHelpers::SlotData<void()>(32, 2, QMC::AccessPrivate, QMetaType::Void),
+        QtMocHelpers::SlotData<void()>(38, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -167,10 +178,12 @@ void WorkWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 14: _t->onModeToggled(); break;
         case 15: _t->showStatsOverlay(); break;
         case 16: _t->saveNoteDebounceFired(); break;
-        case 17: _t->onTeamSetupConfirmed((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[3])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[4])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[5]))); break;
+        case 17: _t->onTeamSetupConfirmed((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[3])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[4])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[5])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[6])),(*reinterpret_cast<std::add_pointer_t<QDate>>(_a[7])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[8])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[9]))); break;
         case 18: _t->onTeamSetupCancelled(); break;
-        case 19: _t->onExportClips(); break;
-        case 20: _t->onApplicationLanguageChanged(); break;
+        case 19: _t->onGameStartRequested(); break;
+        case 20: _t->onNextQuarterRequested(); break;
+        case 21: _t->onExportClips(); break;
+        case 22: _t->onApplicationLanguageChanged(); break;
         default: ;
         }
     }
@@ -199,14 +212,14 @@ int WorkWindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 21)
+        if (_id < 23)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 21;
+        _id -= 23;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 21)
+        if (_id < 23)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 21;
+        _id -= 23;
     }
     return _id;
 }

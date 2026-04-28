@@ -20,6 +20,7 @@ qt_add_executable(AVA
   ui/GameSetupWindow.cpp
   ui/WorkWindow.cpp
   ui/StatsWindow.cpp
+  state/EventDefaults.cpp
   state/TagSession.cpp
   components/VideoControlsBar.cpp
   components/TimelineBar.cpp
@@ -30,6 +31,7 @@ qt_add_executable(AVA
   export/ClipTrimBar.cpp
   export/ExportDialog.cpp
   export/VideoConcatenator.cpp
+  export/XmlExporter.cpp
 )
 
 # macOS app bundle and Dock icon

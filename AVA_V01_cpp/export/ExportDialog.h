@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QDialog>
+#include <QHash>
+#include <QPair>
 #include <QString>
 #include <QVector>
 #include <QtGlobal>
@@ -13,6 +15,8 @@ class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
 class QEvent;
+class QFormLayout;
+class QGroupBox;
 class QLabel;
 class QLineEdit;
 class QMediaPlayer;
@@ -35,9 +39,16 @@ public:
                           QWidget* parent = nullptr);
     ~ExportDialog() override;
 
+    enum class OutputFormat {
+        Mp4 = 0,
+        Xml = 1,
+        Both = 2,
+    };
+
 private slots:
     void onEventTypeChanged(int index);
     void onTeamFilterChanged(int index);
+    void onOutputFormatChanged(int index);
     void onBrowseOutputPath();
     void onReviewClipsClicked();
     void onBackToSettingsClicked();
@@ -62,6 +73,7 @@ protected:
 private:
     struct ClipTrimData {
         TagSession::GameTag tag;
+        int tagSessionIndex = -1;
         qint64 startMs;
         qint64 endMs;
         QString overlayText;
@@ -72,9 +84,13 @@ private:
     void buildSettingsPage();
     void buildTrimPage();
     void populateEventTypes();
+    void rebuildEventDurationOverrides();
+    void onEventDurationOverrideChanged(const QString& mainEvent);
     void updateClipCount();
     void updateSortOrderVisibility();
     void setExporting(bool exporting);
+    void updatePathFieldForFormat();
+    OutputFormat selectedOutputFormat() const;
 
     void buildTrimDataFromSettings();
     void saveTrimForCurrentClip();
@@ -106,14 +122,16 @@ private:
     // Settings page widgets
     QComboBox* eventTypeCombo_ = nullptr;
     QComboBox* teamFilterCombo_ = nullptr;
+    QComboBox* outputFormatCombo_ = nullptr;
     QLabel* sortOrderLabel_ = nullptr;
     QComboBox* sortOrderCombo_ = nullptr;
     QComboBox* exportLanguageCombo_ = nullptr;
     QCheckBox* includeBottomOverlayCheckBox_ = nullptr;
     QCheckBox* includeScoreboardOverlayCheckBox_ = nullptr;
     QLabel* clipCountLabel_ = nullptr;
-    QDoubleSpinBox* beforePaddingSpin_ = nullptr;
-    QDoubleSpinBox* afterPaddingSpin_ = nullptr;
+    QGroupBox* eventDurationsGroup_ = nullptr;
+    QFormLayout* eventDurationsForm_ = nullptr;
+    QHash<QString, QPair<QDoubleSpinBox*, QDoubleSpinBox*>> eventDurationSpinners_;
     QLineEdit* outputPathEdit_ = nullptr;
     QPushButton* browseButton_ = nullptr;
     QPushButton* reviewButton_ = nullptr;

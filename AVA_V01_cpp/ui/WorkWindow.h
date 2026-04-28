@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QDate>
 #include <QWidget>
 #include <QtGlobal>
 #include <QString>
@@ -70,8 +71,14 @@ private slots:
   void saveNoteDebounceFired();
   void onTeamSetupConfirmed(const QString& filePath,
                             const QString& homeName, const QString& awayName,
-                            const QString& homeColor, const QString& awayColor);
+                            const QString& homeColor, const QString& awayColor,
+                            const QString& competitionName,
+                            const QDate& gameDate,
+                            const QString& homeAbbrev,
+                            const QString& awayAbbrev);
   void onTeamSetupCancelled();
+  void onGameStartRequested();
+  void onNextQuarterRequested();
   void onExportClips();
   void onApplicationLanguageChanged();
 

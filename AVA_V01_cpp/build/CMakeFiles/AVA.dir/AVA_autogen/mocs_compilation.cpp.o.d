@@ -1031,8 +1031,13 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/../../../export/ExportDialog.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QDialog \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QPair \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QDate \
+  /opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qcalendar.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qlocale.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/moc_VideoConcatenator.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/../../../export/VideoConcatenator.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/O3VI4VFR3H/moc_LocaleNotifier.cpp \

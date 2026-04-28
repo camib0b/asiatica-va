@@ -43,6 +43,7 @@ template <> constexpr inline auto ExportDialog::qt_create_metaobjectdata<qt_meta
         "",
         "index",
         "onTeamFilterChanged",
+        "onOutputFormatChanged",
         "onBrowseOutputPath",
         "onReviewClipsClicked",
         "onBackToSettingsClicked",
@@ -75,46 +76,50 @@ template <> constexpr inline auto ExportDialog::qt_create_metaobjectdata<qt_meta
         QtMocHelpers::SlotData<void(int)>(4, 2, QMC::AccessPrivate, QMetaType::Void, {{
             { QMetaType::Int, 3 },
         }}),
+        // Slot 'onOutputFormatChanged'
+        QtMocHelpers::SlotData<void(int)>(5, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 3 },
+        }}),
         // Slot 'onBrowseOutputPath'
-        QtMocHelpers::SlotData<void()>(5, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onReviewClipsClicked'
         QtMocHelpers::SlotData<void()>(6, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onBackToSettingsClicked'
+        // Slot 'onReviewClipsClicked'
         QtMocHelpers::SlotData<void()>(7, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onPrevClipClicked'
+        // Slot 'onBackToSettingsClicked'
         QtMocHelpers::SlotData<void()>(8, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onNextClipClicked'
+        // Slot 'onPrevClipClicked'
         QtMocHelpers::SlotData<void()>(9, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onTogglePreviewPlayPause'
+        // Slot 'onNextClipClicked'
         QtMocHelpers::SlotData<void()>(10, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onTogglePreviewPlayPause'
+        QtMocHelpers::SlotData<void()>(11, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'onTrimSeekRequested'
-        QtMocHelpers::SlotData<void(qint64)>(11, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::LongLong, 12 },
+        QtMocHelpers::SlotData<void(qint64)>(12, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::LongLong, 13 },
         }}),
         // Slot 'onPreviewPositionChanged'
-        QtMocHelpers::SlotData<void(qint64)>(13, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::LongLong, 12 },
+        QtMocHelpers::SlotData<void(qint64)>(14, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::LongLong, 13 },
         }}),
         // Slot 'onDiscardClipClicked'
-        QtMocHelpers::SlotData<void()>(14, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onExportClicked'
         QtMocHelpers::SlotData<void()>(15, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onCancelExportClicked'
+        // Slot 'onExportClicked'
         QtMocHelpers::SlotData<void()>(16, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onCancelExportClicked'
+        QtMocHelpers::SlotData<void()>(17, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'onExportProgress'
-        QtMocHelpers::SlotData<void(int, int)>(17, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::Int, 18 }, { QMetaType::Int, 19 },
+        QtMocHelpers::SlotData<void(int, int)>(18, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 19 }, { QMetaType::Int, 20 },
         }}),
         // Slot 'onExportFinished'
-        QtMocHelpers::SlotData<void(bool, const QString &)>(20, 2, QMC::AccessPrivate, QMetaType::Void, {{
-            { QMetaType::Bool, 21 }, { QMetaType::QString, 22 },
+        QtMocHelpers::SlotData<void(bool, const QString &)>(21, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Bool, 22 }, { QMetaType::QString, 23 },
         }}),
         // Slot 'onPreviewSlowerClicked'
-        QtMocHelpers::SlotData<void()>(23, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onPreviewFasterClicked'
         QtMocHelpers::SlotData<void()>(24, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onPreviewResetSpeedClicked'
+        // Slot 'onPreviewFasterClicked'
         QtMocHelpers::SlotData<void()>(25, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onPreviewResetSpeedClicked'
+        QtMocHelpers::SlotData<void()>(26, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -140,22 +145,23 @@ void ExportDialog::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id
         switch (_id) {
         case 0: _t->onEventTypeChanged((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
         case 1: _t->onTeamFilterChanged((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
-        case 2: _t->onBrowseOutputPath(); break;
-        case 3: _t->onReviewClipsClicked(); break;
-        case 4: _t->onBackToSettingsClicked(); break;
-        case 5: _t->onPrevClipClicked(); break;
-        case 6: _t->onNextClipClicked(); break;
-        case 7: _t->onTogglePreviewPlayPause(); break;
-        case 8: _t->onTrimSeekRequested((*reinterpret_cast<std::add_pointer_t<qint64>>(_a[1]))); break;
-        case 9: _t->onPreviewPositionChanged((*reinterpret_cast<std::add_pointer_t<qint64>>(_a[1]))); break;
-        case 10: _t->onDiscardClipClicked(); break;
-        case 11: _t->onExportClicked(); break;
-        case 12: _t->onCancelExportClicked(); break;
-        case 13: _t->onExportProgress((*reinterpret_cast<std::add_pointer_t<int>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2]))); break;
-        case 14: _t->onExportFinished((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[2]))); break;
-        case 15: _t->onPreviewSlowerClicked(); break;
-        case 16: _t->onPreviewFasterClicked(); break;
-        case 17: _t->onPreviewResetSpeedClicked(); break;
+        case 2: _t->onOutputFormatChanged((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
+        case 3: _t->onBrowseOutputPath(); break;
+        case 4: _t->onReviewClipsClicked(); break;
+        case 5: _t->onBackToSettingsClicked(); break;
+        case 6: _t->onPrevClipClicked(); break;
+        case 7: _t->onNextClipClicked(); break;
+        case 8: _t->onTogglePreviewPlayPause(); break;
+        case 9: _t->onTrimSeekRequested((*reinterpret_cast<std::add_pointer_t<qint64>>(_a[1]))); break;
+        case 10: _t->onPreviewPositionChanged((*reinterpret_cast<std::add_pointer_t<qint64>>(_a[1]))); break;
+        case 11: _t->onDiscardClipClicked(); break;
+        case 12: _t->onExportClicked(); break;
+        case 13: _t->onCancelExportClicked(); break;
+        case 14: _t->onExportProgress((*reinterpret_cast<std::add_pointer_t<int>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2]))); break;
+        case 15: _t->onExportFinished((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[2]))); break;
+        case 16: _t->onPreviewSlowerClicked(); break;
+        case 17: _t->onPreviewFasterClicked(); break;
+        case 18: _t->onPreviewResetSpeedClicked(); break;
         default: ;
         }
     }
@@ -180,14 +186,14 @@ int ExportDialog::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 18)
+        if (_id < 19)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 18;
+        _id -= 19;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 18)
+        if (_id < 19)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 18;
+        _id -= 19;
     }
     return _id;
 }

@@ -769,6 +769,8 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ExportDialog.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.cpp \
@@ -776,6 +778,8 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/main.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/style/theme.cpp \
@@ -790,10 +794,12 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QDate \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QElapsedTimer \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QHash \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QList \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QObject \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QPair \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QProcess \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QSet \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QString \
@@ -823,6 +829,7 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbytearrayalgorithms.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbytearraylist.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbytearrayview.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcalendar.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qchar.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcheckedint_impl.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcompare.h \
@@ -837,6 +844,7 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcontiguouscache.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdarwinhelpers.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdatastream.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdatetime.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdebug.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qelapsedtimer.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qendian.h \
@@ -858,6 +866,7 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlatin1stringview.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qline.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlist.h \
+  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlocale.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlogging.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qmalloc.h \
   /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qmap.h \
@@ -1768,8 +1777,6 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qstringfwd.h:
 
-/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qstringconverter_base.h:
-
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qstringconverter.h:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qstringbuilder.h:
@@ -1826,7 +1833,9 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlogging.h:
 
-/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qline.h:
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qstringconverter_base.h:
+
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlocale.h:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qlatin1stringview.h:
 
@@ -1863,6 +1872,8 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcheckedint_impl.h:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qchar.h:
+
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qcalendar.h:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qbytearraylist.h:
 
@@ -1904,17 +1915,27 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/q20iterator.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__algorithm/lexicographical_compare_three_way.h:
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qstringlist.h:
 
-/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QObject:
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QStringList:
+
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qanystringview.h:
+
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QSet:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QProcess:
+
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qline.h:
+
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QPair:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__iterator/wrap_iter.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__functional/mem_fun_ref.h:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QList:
+
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QDate:
 
 /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h:
 
@@ -1934,9 +1955,13 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
 
 /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.cpp:
 
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.cpp:
+
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__type_traits/is_convertible.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__utility/in_place.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.h:
 
 /Users/cam/dev/asiatica-va/AVA_V01_cpp/main.cpp:
 
@@ -1951,6 +1976,12 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
 /opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinContactsPermissionPluginTargets-release.cmake:
 
 /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.cpp:
+
+/opt/homebrew/lib/cmake/Qt6Gui/Qt6QTuioTouchPluginConfig.cmake:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__locale_dir/messages.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.cpp:
 
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QICNSPluginConfig.cmake:
 
@@ -1989,6 +2020,8 @@ CMakeFiles/4.2.1/CMakeCXXCompiler.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__locale_dir/time.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/sys/cdefs.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/sys/_types/_uintptr_t.h:
 
@@ -2370,10 +2403,6 @@ AVA_autogen/moc_predefs.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__type_traits/reference_constructs_from_temporary.h:
 
-/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qstringlist.h:
-
-/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QStringList:
-
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qalgorithms.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__memory/shared_count.h:
@@ -2753,6 +2782,8 @@ AVA_autogen/moc_predefs.h:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__algorithm/nth_element.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__mutex/tag_types.h:
+
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qdatetime.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__mutex/once_flag.h:
 
@@ -3486,10 +3517,6 @@ CMakeFiles/4.2.1/CMakeSystem.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__thread/id.h:
 
-/opt/homebrew/lib/cmake/Qt6Gui/Qt6QTuioTouchPluginConfig.cmake:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__locale_dir/messages.h:
-
 /opt/homebrew/lib/cmake/Qt6Core/Qt6QDarwinCalendarPermissionPluginDependencies.cmake:
 
 /opt/homebrew/lib/cmake/Qt6Core/Qt6CoreVersionlessAliasTargets.cmake:
@@ -3596,10 +3623,6 @@ CMakeFiles/4.2.1/CMakeSystem.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__atomic/check_memory_order.h:
 
-/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qanystringview.h:
-
-/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QSet:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__math/gamma.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__system_error/error_condition.h:
@@ -3679,6 +3702,10 @@ CMakeFiles/4.2.1/CMakeSystem.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__algorithm/merge.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__algorithm/set_symmetric_difference.h:
+
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QObject:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__algorithm/lexicographical_compare_three_way.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__memory/uninitialized_algorithms.h:
 

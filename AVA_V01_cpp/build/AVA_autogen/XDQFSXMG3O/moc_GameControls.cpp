@@ -46,10 +46,14 @@ template <> constexpr inline auto GameControls::qt_create_metaobjectdata<qt_meta
         "followUpEvent",
         "teamSideSelected",
         "isHome",
+        "gameStartRequested",
+        "nextQuarterRequested",
         "onHomeTeamButtonClicked",
         "onAwayTeamButtonClicked",
         "onMainButtonClicked",
-        "onFollowUpButtonClicked"
+        "onFollowUpButtonClicked",
+        "onStartGameButtonClicked",
+        "onNextQuarterButtonClicked"
     };
 
     QtMocHelpers::UintData qt_methods {
@@ -69,14 +73,22 @@ template <> constexpr inline auto GameControls::qt_create_metaobjectdata<qt_meta
         QtMocHelpers::SignalData<void(bool)>(6, 2, QMC::AccessPublic, QMetaType::Void, {{
             { QMetaType::Bool, 7 },
         }}),
+        // Signal 'gameStartRequested'
+        QtMocHelpers::SignalData<void()>(8, 2, QMC::AccessPublic, QMetaType::Void),
+        // Signal 'nextQuarterRequested'
+        QtMocHelpers::SignalData<void()>(9, 2, QMC::AccessPublic, QMetaType::Void),
         // Slot 'onHomeTeamButtonClicked'
-        QtMocHelpers::SlotData<void()>(8, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onAwayTeamButtonClicked'
-        QtMocHelpers::SlotData<void()>(9, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onMainButtonClicked'
         QtMocHelpers::SlotData<void()>(10, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onFollowUpButtonClicked'
+        // Slot 'onAwayTeamButtonClicked'
         QtMocHelpers::SlotData<void()>(11, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onMainButtonClicked'
+        QtMocHelpers::SlotData<void()>(12, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onFollowUpButtonClicked'
+        QtMocHelpers::SlotData<void()>(13, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onStartGameButtonClicked'
+        QtMocHelpers::SlotData<void()>(14, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onNextQuarterButtonClicked'
+        QtMocHelpers::SlotData<void()>(15, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -104,10 +116,14 @@ void GameControls::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id
         case 1: _t->gameEventMarked((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[2]))); break;
         case 2: _t->gameEventMarked((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
         case 3: _t->teamSideSelected((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1]))); break;
-        case 4: _t->onHomeTeamButtonClicked(); break;
-        case 5: _t->onAwayTeamButtonClicked(); break;
-        case 6: _t->onMainButtonClicked(); break;
-        case 7: _t->onFollowUpButtonClicked(); break;
+        case 4: _t->gameStartRequested(); break;
+        case 5: _t->nextQuarterRequested(); break;
+        case 6: _t->onHomeTeamButtonClicked(); break;
+        case 7: _t->onAwayTeamButtonClicked(); break;
+        case 8: _t->onMainButtonClicked(); break;
+        case 9: _t->onFollowUpButtonClicked(); break;
+        case 10: _t->onStartGameButtonClicked(); break;
+        case 11: _t->onNextQuarterButtonClicked(); break;
         default: ;
         }
     }
@@ -117,6 +133,10 @@ void GameControls::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id
         if (QtMocHelpers::indexOfMethod<void (GameControls::*)(const QString & , const QString & )>(_a, &GameControls::gameEventMarked, 1))
             return;
         if (QtMocHelpers::indexOfMethod<void (GameControls::*)(bool )>(_a, &GameControls::teamSideSelected, 3))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (GameControls::*)()>(_a, &GameControls::gameStartRequested, 4))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (GameControls::*)()>(_a, &GameControls::nextQuarterRequested, 5))
             return;
     }
 }
@@ -140,14 +160,14 @@ int GameControls::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 8)
+        if (_id < 12)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 8;
+        _id -= 12;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 8)
+        if (_id < 12)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 8;
+        _id -= 12;
     }
     return _id;
 }
@@ -168,5 +188,17 @@ void GameControls::gameEventMarked(const QString & _t1, const QString & _t2)
 void GameControls::teamSideSelected(bool _t1)
 {
     QMetaObject::activate<void>(this, &staticMetaObject, 3, nullptr, _t1);
+}
+
+// SIGNAL 4
+void GameControls::gameStartRequested()
+{
+    QMetaObject::activate(this, &staticMetaObject, 4, nullptr);
+}
+
+// SIGNAL 5
+void GameControls::nextQuarterRequested()
+{
+    QMetaObject::activate(this, &staticMetaObject, 5, nullptr);
 }
 QT_WARNING_POP

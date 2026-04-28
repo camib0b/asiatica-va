@@ -991,6 +991,10 @@ CMakeFiles/AVA.dir/ui/StatsWindow.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/qcursor.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qbitmap.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../state/TagSession.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QDate \
+  /opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qcalendar.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qlocale.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QObject \
   /opt/homebrew/lib/QtCore.framework/Headers/QHash \
   /opt/homebrew/lib/QtCore.framework/Headers/QString \
@@ -1024,7 +1028,6 @@ CMakeFiles/AVA.dir/ui/StatsWindow.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/qitemselectionmodel.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractitemdelegate.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstyleoption.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qlocale.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractspinbox.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qvalidator.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qregularexpression.h \

@@ -419,6 +419,30 @@ export/VideoConcatenator.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.s
 .PHONY : export/VideoConcatenator.cpp.s
 
+export/XmlExporter.o: export/XmlExporter.cpp.o
+.PHONY : export/XmlExporter.o
+
+# target to build an object file
+export/XmlExporter.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/XmlExporter.cpp.o
+.PHONY : export/XmlExporter.cpp.o
+
+export/XmlExporter.i: export/XmlExporter.cpp.i
+.PHONY : export/XmlExporter.i
+
+# target to preprocess a source file
+export/XmlExporter.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/XmlExporter.cpp.i
+.PHONY : export/XmlExporter.cpp.i
+
+export/XmlExporter.s: export/XmlExporter.cpp.s
+.PHONY : export/XmlExporter.s
+
+# target to generate assembly for a file
+export/XmlExporter.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/XmlExporter.cpp.s
+.PHONY : export/XmlExporter.cpp.s
+
 i18n/AppLocale.o: i18n/AppLocale.cpp.o
 .PHONY : i18n/AppLocale.o
 
@@ -514,6 +538,30 @@ main.s: main.cpp.s
 main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/main.cpp.s
 .PHONY : main.cpp.s
+
+state/EventDefaults.o: state/EventDefaults.cpp.o
+.PHONY : state/EventDefaults.o
+
+# target to build an object file
+state/EventDefaults.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/state/EventDefaults.cpp.o
+.PHONY : state/EventDefaults.cpp.o
+
+state/EventDefaults.i: state/EventDefaults.cpp.i
+.PHONY : state/EventDefaults.i
+
+# target to preprocess a source file
+state/EventDefaults.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/state/EventDefaults.cpp.i
+.PHONY : state/EventDefaults.cpp.i
+
+state/EventDefaults.s: state/EventDefaults.cpp.s
+.PHONY : state/EventDefaults.s
+
+# target to generate assembly for a file
+state/EventDefaults.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/state/EventDefaults.cpp.s
+.PHONY : state/EventDefaults.cpp.s
 
 state/TagSession.o: state/TagSession.cpp.o
 .PHONY : state/TagSession.o
@@ -727,6 +775,9 @@ help:
 	@echo "... export/VideoConcatenator.o"
 	@echo "... export/VideoConcatenator.i"
 	@echo "... export/VideoConcatenator.s"
+	@echo "... export/XmlExporter.o"
+	@echo "... export/XmlExporter.i"
+	@echo "... export/XmlExporter.s"
 	@echo "... i18n/AppLocale.o"
 	@echo "... i18n/AppLocale.i"
 	@echo "... i18n/AppLocale.s"
@@ -739,6 +790,9 @@ help:
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
+	@echo "... state/EventDefaults.o"
+	@echo "... state/EventDefaults.i"
+	@echo "... state/EventDefaults.s"
 	@echo "... state/TagSession.o"
 	@echo "... state/TagSession.i"
 	@echo "... state/TagSession.s"

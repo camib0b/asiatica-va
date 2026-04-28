@@ -3,6 +3,7 @@
 #include "../components/VideoPlayer.h"
 #include "../components/GameControls.h"
 #include "../components/Scoreboard.h"
+#include "../state/EventDefaults.h"
 #include "../state/TagSession.h"
 #include "StatsWindow.h"
 #include "GameSetupWindow.h"
@@ -844,6 +845,13 @@ void WorkWindow::wireSignals() {
         contextTeam_ = isHome ? QStringLiteral("Home") : QStringLiteral("Away");
     });
 
+    if (gameControls_) {
+        connect(gameControls_, &GameControls::gameStartRequested, this,
+                &WorkWindow::onGameStartRequested);
+        connect(gameControls_, &GameControls::nextQuarterRequested, this,
+                &WorkWindow::onNextQuarterRequested);
+    }
+
     connect(gameControls_, &GameControls::gameEventMarked, this, [this](const QString& mainEvent, const QString& followUpEvent) {
         if (!videoPlayer_) return;
 
@@ -857,6 +865,14 @@ void WorkWindow::wireSignals() {
         pendingTimestampMs_ = 0;
 
         if (tagSession_) {
+            // Refresh the period context from GameControls so every newly tagged event lands in the
+            // correct quarter even if the user has not interacted with WorkWindow in between.
+            if (gameControls_) {
+                const QString currentPeriod = gameControls_->currentPeriodName();
+                if (!currentPeriod.isEmpty()) {
+                    contextPeriod_ = currentPeriod;
+                }
+            }
             TagSession::GameTag tag;
             tag.mainEvent = mainEvent;
             tag.followUpEvent = followUpEvent;
@@ -873,6 +889,7 @@ void WorkWindow::wireSignals() {
             } else {
                 tag.team = ctx.team;
             }
+            // tag.startMs / tag.endMs left at 0 so TagSession::addTag seeds them from EventDefaults.
             tagSession_->addTag(tag);
         }
     });
@@ -953,6 +970,7 @@ void WorkWindow::showTeamSetupForVideo(const QString& filePath) {
     if (!gameSetupWidget_ || !contentStack_) return;
     gameSetupWidget_->setVideoPath(filePath);
     gameSetupWidget_->setTeamDefaults(QString(), QString(), QString(), QString());
+    gameSetupWidget_->setMetadataDefaults(QString(), QDate::currentDate(), QString(), QString());
     contentStack_->setCurrentIndex(0);
     gameSetupWidget_->setInitialFocus();
     refreshPlaybackShortcutFocusGate();
@@ -960,7 +978,11 @@ void WorkWindow::showTeamSetupForVideo(const QString& filePath) {
 
 void WorkWindow::onTeamSetupConfirmed(const QString& filePath,
                                        const QString& homeName, const QString& awayName,
-                                       const QString& homeColor, const QString& awayColor) {
+                                       const QString& homeColor, const QString& awayColor,
+                                       const QString& competitionName,
+                                       const QDate& gameDate,
+                                       const QString& homeAbbrev,
+                                       const QString& awayAbbrev) {
     if (pendingConcatenator_) {
         const bool concatOk = pendingConcatenator_->waitWithProgress(this);
         if (!concatOk) {
@@ -977,9 +999,68 @@ void WorkWindow::onTeamSetupConfirmed(const QString& filePath,
         pendingConcatenator_ = nullptr;
     }
 
-    if (tagSession_) tagSession_->setGameTeams(homeName, awayName, homeColor, awayColor);
+    if (tagSession_) {
+        tagSession_->setGameTeams(homeName, awayName, homeColor, awayColor);
+        tagSession_->setGameMetadata(competitionName, gameDate, homeAbbrev, awayAbbrev);
+    }
     if (contentStack_) contentStack_->setCurrentIndex(1);
     loadVideoFromFile(filePath);
+}
+
+void WorkWindow::onGameStartRequested() {
+    if (!videoPlayer_ || !tagSession_) return;
+    const qint64 anchorMs = videoPlayer_->currentPositionMs();
+    tagSession_->setGameStartAnchor(anchorMs);
+    tagSession_->setCurrentQuarter(0, anchorMs);
+    contextPeriod_ = QStringLiteral("Q1");
+
+    // Insert the start-anchor instance: a 2-second window starting at the anchor moment.
+    TagSession::GameTag anchorTag;
+    anchorTag.mainEvent = QString::fromLatin1(EventDefaults::TimeCodes::kStartAnchor);
+    anchorTag.positionMs = anchorMs;
+    anchorTag.startMs = anchorMs;
+    anchorTag.endMs = anchorMs + 2000;
+    anchorTag.period = QStringLiteral("Q1");
+    anchorTag.intervalManuallyEdited = true; // anchor span is fixed; default-table changes must not move it
+    tagSession_->addTag(anchorTag);
+}
+
+void WorkWindow::onNextQuarterRequested() {
+    if (!videoPlayer_ || !tagSession_) return;
+    if (tagSession_->currentQuarterIndex() < 0) return;
+
+    const int closingIndex = tagSession_->currentQuarterIndex();
+    const qint64 quarterStartMs = tagSession_->currentQuarterStartMs();
+    const qint64 nowMs = videoPlayer_->currentPositionMs();
+    const qint64 endMs = nowMs >= quarterStartMs ? nowMs : quarterStartMs;
+
+    static const QString kQuarterCodes[4] = {
+        QString::fromLatin1(EventDefaults::TimeCodes::kQuarter1),
+        QString::fromLatin1(EventDefaults::TimeCodes::kQuarter2),
+        QString::fromLatin1(EventDefaults::TimeCodes::kQuarter3),
+        QString::fromLatin1(EventDefaults::TimeCodes::kQuarter4),
+    };
+
+    if (closingIndex < 0 || closingIndex > 3) return;
+
+    TagSession::GameTag quarterTag;
+    quarterTag.mainEvent = kQuarterCodes[closingIndex];
+    quarterTag.positionMs = quarterStartMs;
+    quarterTag.startMs = quarterStartMs;
+    quarterTag.endMs = endMs;
+    quarterTag.period = kQuarterCodes[closingIndex];
+    quarterTag.intervalManuallyEdited = true; // quarter span is anchored to user clicks
+    tagSession_->addTag(quarterTag);
+
+    const int nextIndex = closingIndex + 1;
+    if (nextIndex >= 4) {
+        tagSession_->clearCurrentQuarter();
+        tagSession_->setQuarterPhase(TagSession::QuarterPhase::GameEnded);
+        contextPeriod_.clear();
+    } else {
+        tagSession_->setCurrentQuarter(nextIndex, nowMs);
+        contextPeriod_ = kQuarterCodes[nextIndex];
+    }
 }
 
 void WorkWindow::onTeamSetupCancelled() {
@@ -999,14 +1080,16 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     hasPendingTag_ = false;
     pendingMainEvent_.clear();
     pendingTimestampMs_ = 0;
+    contextPeriod_.clear();
     if (tagsTable_) tagsTable_->setRowCount(0);
 
     if (videoPlayer_) {
         videoPlayer_->loadVideoFromFile(filePath);
         videoPlayer_->setControlsVisible(true);
     }
-    
+
     if (gameControls_) {
+        gameControls_->resetGameTimeState();
         gameControls_->show();
         if (tagSession_) {
             gameControls_->setSessionTeamNames(tagSession_->homeTeamName(), tagSession_->awayTeamName());
@@ -1092,7 +1175,10 @@ void WorkWindow::onDiscardVideo() {
     preservedTaggingVideoTagsSplitterSizes_.clear();
 
     if (videoPlayer_) videoPlayer_->setControlsVisible(false);
-    if (gameControls_) gameControls_->hide();
+    if (gameControls_) {
+        gameControls_->resetGameTimeState();
+        gameControls_->hide();
+    }
     if (scoreboard_) scoreboard_->hide();
     if (modeTaggingBtn_) modeTaggingBtn_->hide();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->hide();
@@ -1101,6 +1187,7 @@ void WorkWindow::onDiscardVideo() {
     hasPendingTag_ = false;
     pendingMainEvent_.clear();
     pendingTimestampMs_ = 0;
+    contextPeriod_.clear();
     if (tagsTable_) tagsTable_->setRowCount(0);
     if (tagsHeaderRow_) tagsHeaderRow_->hide();
     if (tagsTable_) tagsTable_->hide();

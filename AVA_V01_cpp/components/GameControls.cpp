@@ -29,9 +29,11 @@ GameControls::GameControls(QWidget* parent) : QWidget(parent) {
   wireSignals();
   buildKeyboardShortcuts();
   hideFollowUpButtons();
+  updateGameTimeButtonsUi();
   applyUiLanguage();
   installEventFilter(this);
-  for (auto* btn : {homeTeamButton_, awayTeamButton_, hit16ydButton_, hit50ydButton_, hit75ydButton_,
+  for (auto* btn : {startGameButton_, nextQuarterButton_, homeTeamButton_, awayTeamButton_,
+                    hit16ydButton_, hit50ydButton_, hit75ydButton_,
                     pcButton_, enterDButton_, pcFoulButton_, shotButton_, goalButton_, passButton_,
                     specialButton_, turnoverButton_, cardButton_, shootoutButton_, psButton_})
     if (btn) btn->installEventFilter(this);
@@ -111,6 +113,92 @@ void GameControls::applyUiLanguage() {
     const QString key = titleLabel->property("gameEventName").toString();
     titleLabel->setText(AppLocale::trEvent(key));
   }
+  updateGameTimeButtonsUi();
+}
+
+void GameControls::resetGameTimeState() {
+  gamePhase_ = GamePhase::NotStarted;
+  updateGameTimeButtonsUi();
+}
+
+QString GameControls::currentPeriodName() const {
+  switch (gamePhase_) {
+    case GamePhase::Q1: return QStringLiteral("Q1");
+    case GamePhase::Q2: return QStringLiteral("Q2");
+    case GamePhase::Q3: return QStringLiteral("Q3");
+    case GamePhase::Q4: return QStringLiteral("Q4");
+    case GamePhase::NotStarted:
+    case GamePhase::Ended:
+      return QString();
+  }
+  return QString();
+}
+
+void GameControls::updateGameTimeButtonsUi() {
+  if (!startGameButton_ || !nextQuarterButton_ || !quarterStatusLabel_) return;
+
+  startGameButton_->setText(AppLocale::trUi("gamecontrols.start_game"));
+
+  switch (gamePhase_) {
+    case GamePhase::NotStarted:
+      startGameButton_->setEnabled(true);
+      nextQuarterButton_->setEnabled(false);
+      nextQuarterButton_->setText(AppLocale::trUi("gamecontrols.start_q1"));
+      quarterStatusLabel_->setText(AppLocale::trUi("gamecontrols.quarter_not_started"));
+      break;
+    case GamePhase::Q1:
+      startGameButton_->setEnabled(false);
+      nextQuarterButton_->setEnabled(true);
+      nextQuarterButton_->setText(AppLocale::trUi("gamecontrols.start_q2"));
+      quarterStatusLabel_->setText(QStringLiteral("Q1"));
+      break;
+    case GamePhase::Q2:
+      startGameButton_->setEnabled(false);
+      nextQuarterButton_->setEnabled(true);
+      nextQuarterButton_->setText(AppLocale::trUi("gamecontrols.start_q3"));
+      quarterStatusLabel_->setText(QStringLiteral("Q2"));
+      break;
+    case GamePhase::Q3:
+      startGameButton_->setEnabled(false);
+      nextQuarterButton_->setEnabled(true);
+      nextQuarterButton_->setText(AppLocale::trUi("gamecontrols.start_q4"));
+      quarterStatusLabel_->setText(QStringLiteral("Q3"));
+      break;
+    case GamePhase::Q4:
+      startGameButton_->setEnabled(false);
+      nextQuarterButton_->setEnabled(true);
+      nextQuarterButton_->setText(AppLocale::trUi("gamecontrols.end_game"));
+      quarterStatusLabel_->setText(QStringLiteral("Q4"));
+      break;
+    case GamePhase::Ended:
+      startGameButton_->setEnabled(false);
+      nextQuarterButton_->setEnabled(false);
+      nextQuarterButton_->setText(AppLocale::trUi("gamecontrols.end_game"));
+      quarterStatusLabel_->setText(AppLocale::trUi("gamecontrols.quarter_ended"));
+      break;
+  }
+}
+
+void GameControls::onStartGameButtonClicked() {
+  if (gamePhase_ != GamePhase::NotStarted) return;
+  flashButtonBorder(startGameButton_);
+  gamePhase_ = GamePhase::Q1;
+  updateGameTimeButtonsUi();
+  emit gameStartRequested();
+}
+
+void GameControls::onNextQuarterButtonClicked() {
+  if (gamePhase_ == GamePhase::NotStarted || gamePhase_ == GamePhase::Ended) return;
+  flashButtonBorder(nextQuarterButton_);
+  switch (gamePhase_) {
+    case GamePhase::Q1: gamePhase_ = GamePhase::Q2; break;
+    case GamePhase::Q2: gamePhase_ = GamePhase::Q3; break;
+    case GamePhase::Q3: gamePhase_ = GamePhase::Q4; break;
+    case GamePhase::Q4: gamePhase_ = GamePhase::Ended; break;
+    default: return;
+  }
+  updateGameTimeButtonsUi();
+  emit nextQuarterRequested();
 }
 
 void GameControls::setActiveMainButton(QPushButton* button) {
@@ -154,6 +242,33 @@ void GameControls::buildUi() {
   auto* mainLayout = new QVBoxLayout(this);
   mainLayout->setContentsMargins(0, 0, 0, 0);
   mainLayout->setSpacing(12);
+
+  // Game-time row: Start Game | Next Quarter | quarter status label
+  auto* gameTimeRowWidget = new QWidget(this);
+  auto* gameTimeRowLayout = new QHBoxLayout(gameTimeRowWidget);
+  gameTimeRowLayout->setContentsMargins(0, 0, 0, 0);
+  gameTimeRowLayout->setSpacing(8);
+
+  startGameButton_ = new QPushButton(gameTimeRowWidget);
+  Style::setVariant(startGameButton_, "gameControl");
+  Style::setSize(startGameButton_, "sm");
+  startGameButton_->setFocusPolicy(Qt::ClickFocus);
+  startGameButton_->setMinimumHeight(40);
+
+  nextQuarterButton_ = new QPushButton(gameTimeRowWidget);
+  Style::setVariant(nextQuarterButton_, "gameControl");
+  Style::setSize(nextQuarterButton_, "sm");
+  nextQuarterButton_->setFocusPolicy(Qt::ClickFocus);
+  nextQuarterButton_->setMinimumHeight(40);
+
+  quarterStatusLabel_ = new QLabel(gameTimeRowWidget);
+  quarterStatusLabel_->setAlignment(Qt::AlignCenter);
+  quarterStatusLabel_->setMinimumWidth(48);
+  Style::setRole(quarterStatusLabel_, "h3");
+
+  gameTimeRowLayout->addWidget(startGameButton_, 1);
+  gameTimeRowLayout->addWidget(nextQuarterButton_, 1);
+  gameTimeRowLayout->addWidget(quarterStatusLabel_, 0);
 
   auto* teamRowWidget = new QWidget(this);
   auto* teamRowLayout = new QHBoxLayout(teamRowWidget);
@@ -256,6 +371,7 @@ void GameControls::buildUi() {
   followUpLayout_->setContentsMargins(0, 0, 0, 0);
   followUpLayout_->setSpacing(8);
 
+  mainLayout->addWidget(gameTimeRowWidget);
   mainLayout->addWidget(teamRowWidget);
   mainLayout->addWidget(mainGridWidget);
   mainLayout->addWidget(followUpContainer_);
@@ -263,6 +379,15 @@ void GameControls::buildUi() {
 }
 
 void GameControls::wireSignals() {
+  if (startGameButton_) {
+    connect(startGameButton_, &QPushButton::clicked, this,
+            &GameControls::onStartGameButtonClicked);
+  }
+  if (nextQuarterButton_) {
+    connect(nextQuarterButton_, &QPushButton::clicked, this,
+            &GameControls::onNextQuarterButtonClicked);
+  }
+
   connect(homeTeamButton_, &QPushButton::clicked, this,
           [this]() { flashButtonBorder(homeTeamButton_); });
   connect(homeTeamButton_, &QPushButton::clicked, this, &GameControls::onHomeTeamButtonClicked);
@@ -344,6 +469,16 @@ void GameControls::buildKeyboardShortcuts() {
   });
   psAction_ = makeAction(Qt::Key_B, [this]() {
     if (psButton_ && psButton_->isVisible() && psButton_->isEnabled()) psButton_->click();
+  });
+
+  // Game-time shortcuts: G starts the game, H advances to the next quarter.
+  startGameAction_ = makeAction(Qt::Key_G, [this]() {
+    if (startGameButton_ && startGameButton_->isVisible() && startGameButton_->isEnabled())
+      startGameButton_->click();
+  });
+  nextQuarterAction_ = makeAction(Qt::Key_H, [this]() {
+    if (nextQuarterButton_ && nextQuarterButton_->isVisible() && nextQuarterButton_->isEnabled())
+      nextQuarterButton_->click();
   });
 
   // Follow-ups: map visible follow-up buttons to 1..9
