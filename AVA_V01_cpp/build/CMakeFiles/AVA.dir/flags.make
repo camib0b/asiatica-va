@@ -12,3 +12,5 @@ CXX_FLAGS = -std=gnu++17 -arch arm64
 
 # Custom options: CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o_OPTIONS = -fobjc-arc
 
+# Custom options: CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.o_OPTIONS = -fobjc-arc
+

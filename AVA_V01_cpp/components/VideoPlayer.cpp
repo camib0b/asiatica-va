@@ -4,9 +4,13 @@
 
 #ifdef Q_OS_MACOS
 #include "../macos/PlaybackActivity.h"
+#include "../macos/SystemPowerNotifier.h"
 #else
 static void avaBeginPlaybackUserActivity() {}
 static void avaEndPlaybackUserActivity() {}
+using AvaSystemPowerCallback = void (*)(void* context);
+static void avaInstallSystemPowerObservers(void*, AvaSystemPowerCallback, AvaSystemPowerCallback) {}
+static void avaRemoveSystemPowerObservers(void*) {}
 #endif
 
 #include <QtGlobal>
@@ -37,11 +41,13 @@ VideoPlayer::VideoPlayer(QWidget* parent) : QWidget(parent) {
     buildUi();
     wireSignals();
     setupPlaybackReliabilityHooks();
+    registerSystemPowerObservers();
     buildKeyboardShortcuts();
     setControlsEnabled(false);
 }
 
 VideoPlayer::~VideoPlayer() {
+    unregisterSystemPowerObservers();
     avaEndPlaybackUserActivity();
 }
 
@@ -371,18 +377,100 @@ void VideoPlayer::nudgePlaybackAfterBackendStall() {
 }
 
 void VideoPlayer::reloadCurrentMediaFromDisk() {
+    if (!player_) return;
+    reloadCurrentMediaFromDisk(player_->position(), playbackRate_, userRequestedPlaying_);
+}
+
+void VideoPlayer::reloadCurrentMediaFromDisk(qint64 resumePositionMs, double rate, bool resumePlaying) {
     if (!player_ || loadedSourcePath_.isEmpty()) return;
-    const qint64 pos = player_->position();
-    const double savedRate = playbackRate_;
-    const bool resumePlaying = userRequestedPlaying_;
+    const QString sourcePath = loadedSourcePath_;
 
     player_->stop();
     player_->setSource(QUrl());
-    player_->setSource(QUrl::fromLocalFile(loadedSourcePath_));
-    player_->setPlaybackRate(savedRate);
-    if (videoControlsBar_) videoControlsBar_->setPlaybackRate(savedRate);
-    player_->setPosition(pos);
+    player_->setSource(QUrl::fromLocalFile(sourcePath));
+
+    playbackRate_ = rate;
+    player_->setPlaybackRate(playbackRate_);
+    if (videoControlsBar_) videoControlsBar_->setPlaybackRate(playbackRate_);
+
+    player_->setPosition(resumePositionMs);
+    userRequestedPlaying_ = resumePlaying;
     if (resumePlaying) player_->play();
+
+    // Reset stall watchdog so the freshly rebuilt pipeline is not flagged as stalled
+    // due to stale position samples from before the reload.
+    consecutivePlaybackStallTicks_ = 0;
+    lastStallCheckPositionMs_ = -1;
+}
+
+void VideoPlayer::registerSystemPowerObservers() {
+    avaInstallSystemPowerObservers(this,
+                                   &VideoPlayer::systemWillSleepCallback,
+                                   &VideoPlayer::systemDidWakeCallback);
+}
+
+void VideoPlayer::unregisterSystemPowerObservers() {
+    avaRemoveSystemPowerObservers(this);
+}
+
+void VideoPlayer::systemWillSleepCallback(void* context) {
+    if (auto* self = static_cast<VideoPlayer*>(context)) {
+        self->onSystemWillSleep();
+    }
+}
+
+void VideoPlayer::systemDidWakeCallback(void* context) {
+    if (auto* self = static_cast<VideoPlayer*>(context)) {
+        self->onSystemDidWake();
+    }
+}
+
+void VideoPlayer::onSystemWillSleep() {
+    if (!player_ || loadedSourcePath_.isEmpty()) return;
+
+    // Capture the playback snapshot now while the pipeline is still healthy. After wake,
+    // QMediaPlayer's reported state on macOS is unreliable (position() may stop advancing
+    // while playbackState() lies, or play()/setPosition() silently no-op) so we cannot
+    // reconstruct what the user wanted from a freshly woken player.
+    const auto state = player_->playbackState();
+    sleepRecoveryWasPlaying_ = userRequestedPlaying_ || state == QMediaPlayer::PlayingState;
+    sleepRecoveryPositionMs_ = player_->position();
+    sleepRecoveryRate_ = playbackRate_;
+    sleepRecoveryPending_ = true;
+}
+
+void VideoPlayer::onSystemDidWake() {
+    if (!player_ || loadedSourcePath_.isEmpty()) {
+        sleepRecoveryPending_ = false;
+        return;
+    }
+
+    qint64 targetPositionMs;
+    double targetRate;
+    bool resumePlaying;
+    if (sleepRecoveryPending_) {
+        targetPositionMs = sleepRecoveryPositionMs_;
+        targetRate = sleepRecoveryRate_;
+        resumePlaying = sleepRecoveryWasPlaying_;
+    } else {
+        // Defensive fallback for the rare case did-wake fires without a paired will-sleep
+        // (e.g. the observer was installed mid-sleep). Use the last-known intent and
+        // current position; even a stale position is preferable to leaving the user stuck.
+        targetPositionMs = player_->position();
+        targetRate = playbackRate_;
+        resumePlaying = userRequestedPlaying_;
+    }
+    sleepRecoveryPending_ = false;
+
+    // Defer the rebuild briefly so CoreAudio and the AVFoundation render pipeline have time
+    // to come back online after wake before we hand them a new source. Reloading immediately
+    // sometimes results in the new pipeline also coming up in a half-initialised state.
+    constexpr int kSleepRecoveryReloadDelayMs = 500;
+    QTimer::singleShot(kSleepRecoveryReloadDelayMs, this,
+                       [this, targetPositionMs, targetRate, resumePlaying]() {
+                           if (!player_ || loadedSourcePath_.isEmpty()) return;
+                           reloadCurrentMediaFromDisk(targetPositionMs, targetRate, resumePlaying);
+                       });
 }
 
 void VideoPlayer::loadVideoFromFile(const QString& filePath) {

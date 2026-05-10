@@ -778,6 +778,8 @@
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/SystemPowerNotifier.h
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/SystemPowerNotifier.mm
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/main.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.h

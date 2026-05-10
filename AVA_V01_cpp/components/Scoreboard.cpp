@@ -1,5 +1,6 @@
 #include "Scoreboard.h"
 #include "../state/TagSession.h"
+#include "../state/EventDefaults.h"
 #include "../style/StyleProps.h"
 
 #include <algorithm>
@@ -7,6 +8,7 @@
 #include <QLabel>
 #include <QHBoxLayout>
 #include <QFont>
+#include <QVBoxLayout>
 
 Scoreboard::Scoreboard(QWidget* parent) : QWidget(parent) {
     setObjectName(QStringLiteral("Scoreboard"));
@@ -15,9 +17,13 @@ Scoreboard::Scoreboard(QWidget* parent) : QWidget(parent) {
 }
 
 void Scoreboard::buildUi() {
-    auto* layout = new QHBoxLayout(this);
-    layout->setContentsMargins(14, 10, 14, 10);
-    layout->setSpacing(0);
+    auto* rootLayout = new QVBoxLayout(this);
+    rootLayout->setContentsMargins(14, 10, 14, 10);
+    rootLayout->setSpacing(2);
+
+    auto* scoreRowLayout = new QHBoxLayout();
+    scoreRowLayout->setContentsMargins(0, 0, 0, 0);
+    scoreRowLayout->setSpacing(0);
 
     homeColorSwatch_ = new QWidget(this);
     homeColorSwatch_->setFixedSize(4, 28);
@@ -49,19 +55,29 @@ void Scoreboard::buildUi() {
     awayColorSwatch_->setFixedSize(4, 28);
     awayColorSwatch_->setStyleSheet(QStringLiteral("background: #F87171; border-radius: 2px;"));
 
-    layout->addWidget(homeColorSwatch_);
-    layout->addSpacing(10);
-    layout->addWidget(homeTeamNameLabel_);
-    layout->addStretch(1);
-    layout->addWidget(homeScoreLabel_);
-    layout->addSpacing(10);
-    layout->addWidget(separatorLabel_);
-    layout->addSpacing(10);
-    layout->addWidget(awayScoreLabel_);
-    layout->addStretch(1);
-    layout->addWidget(awayTeamNameLabel_);
-    layout->addSpacing(10);
-    layout->addWidget(awayColorSwatch_);
+    scoreRowLayout->addWidget(homeColorSwatch_);
+    scoreRowLayout->addSpacing(10);
+    scoreRowLayout->addWidget(homeTeamNameLabel_);
+    scoreRowLayout->addStretch(1);
+    scoreRowLayout->addWidget(homeScoreLabel_);
+    scoreRowLayout->addSpacing(10);
+    scoreRowLayout->addWidget(separatorLabel_);
+    scoreRowLayout->addSpacing(10);
+    scoreRowLayout->addWidget(awayScoreLabel_);
+    scoreRowLayout->addStretch(1);
+    scoreRowLayout->addWidget(awayTeamNameLabel_);
+    scoreRowLayout->addSpacing(10);
+    scoreRowLayout->addWidget(awayColorSwatch_);
+
+    currentPeriodLabel_ = new QLabel(this);
+    currentPeriodLabel_->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
+    QFont periodFont = currentPeriodLabel_->font();
+    periodFont.setPointSizeF(std::max(8.0, periodFont.pointSizeF() - 2.0));
+    currentPeriodLabel_->setFont(periodFont);
+    currentPeriodLabel_->setStyleSheet(QStringLiteral("color: rgba(255, 255, 255, 0.72);"));
+
+    rootLayout->addLayout(scoreRowLayout);
+    rootLayout->addWidget(currentPeriodLabel_);
 }
 
 void Scoreboard::setTagSession(TagSession* session) {
@@ -72,18 +88,21 @@ void Scoreboard::setTagSession(TagSession* session) {
             connect(tagSession_, &TagSession::statsChanged, this, [this]() {
                 rebuildGoalTimeline();
                 updateScores();
+                updateCurrentPeriodIndicator();
             });
         }
     }
     updateTeamDisplay();
     rebuildGoalTimeline();
     updateScores();
+    updateCurrentPeriodIndicator();
 }
 
 void Scoreboard::setCurrentTimestampMs(qint64 positionMs) {
     if (currentTimestampMs_ == positionMs) return;
     currentTimestampMs_ = positionMs;
     updateScores();
+    updateCurrentPeriodIndicator();
 }
 
 void Scoreboard::rebuildGoalTimeline() {
@@ -114,6 +133,58 @@ void Scoreboard::updateScores() {
     const int awayGoals = countGoalsAtOrBefore(awayGoalTimesMs_, currentTimestampMs_);
     if (homeScoreLabel_) homeScoreLabel_->setText(QString::number(homeGoals));
     if (awayScoreLabel_) awayScoreLabel_->setText(QString::number(awayGoals));
+}
+
+QString Scoreboard::currentPeriodForTimestamp(qint64 positionMs) const {
+    if (!tagSession_) return QString();
+
+    struct QuarterSpan {
+        QString label;
+        qint64 startMs = 0;
+        qint64 endMs = 0;
+    };
+
+    QVector<QuarterSpan> closedQuarterSpans;
+    closedQuarterSpans.reserve(4);
+    for (const auto& tag : tagSession_->tags()) {
+        const bool isQuarterTag =
+            tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kQuarter1) ||
+            tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kQuarter2) ||
+            tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kQuarter3) ||
+            tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kQuarter4);
+        if (!isQuarterTag) continue;
+        closedQuarterSpans.append({tag.mainEvent, tag.startMs, tag.endMs});
+    }
+
+    std::sort(closedQuarterSpans.begin(), closedQuarterSpans.end(),
+              [](const QuarterSpan& lhs, const QuarterSpan& rhs) {
+                  if (lhs.startMs == rhs.startMs) return lhs.endMs < rhs.endMs;
+                  return lhs.startMs < rhs.startMs;
+              });
+
+    for (const QuarterSpan& quarterSpan : closedQuarterSpans) {
+        if (positionMs >= quarterSpan.startMs && positionMs <= quarterSpan.endMs) {
+            return quarterSpan.label;
+        }
+    }
+
+    if (tagSession_->quarterPhase() == TagSession::QuarterPhase::QuarterInProgress) {
+        const int quarterIndex = tagSession_->currentQuarterIndex();
+        if (quarterIndex >= 0 && quarterIndex < 4 &&
+            positionMs >= tagSession_->currentQuarterStartMs()) {
+            static const char* kQuarterLabels[4] = {"Q1", "Q2", "Q3", "Q4"};
+            return QString::fromLatin1(kQuarterLabels[quarterIndex]);
+        }
+    }
+
+    return QString();
+}
+
+void Scoreboard::updateCurrentPeriodIndicator() {
+    if (!currentPeriodLabel_) return;
+    const QString periodLabel = currentPeriodForTimestamp(currentTimestampMs_);
+    currentPeriodLabel_->setText(periodLabel);
+    currentPeriodLabel_->setVisible(!periodLabel.isEmpty());
 }
 
 void Scoreboard::updateTeamDisplay() {

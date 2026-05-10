@@ -777,6 +777,8 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/SystemPowerNotifier.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/SystemPowerNotifier.mm \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/main.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.h \
@@ -1929,11 +1931,7 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QPair:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__iterator/wrap_iter.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__functional/mem_fun_ref.h:
-
-/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QList:
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QHash:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QDate:
 
@@ -1964,6 +1962,10 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
 /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.h:
 
 /Users/cam/dev/asiatica-va/AVA_V01_cpp/main.cpp:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__atomic/fence.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/SystemPowerNotifier.mm:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__concepts/arithmetic.h:
 
@@ -2242,8 +2244,6 @@ AVA_autogen/moc_predefs.h:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/execution:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/errno.h:
-
-/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QHash:
 
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QICOPluginAdditionalTargetInfo.cmake:
 
@@ -3367,6 +3367,12 @@ CMakeFiles/4.2.1/CMakeSystem.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__new/placement_new_delete.h:
 
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QList:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__iterator/wrap_iter.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__functional/mem_fun_ref.h:
+
 /opt/homebrew/share/cmake/Modules/FindPackageMessage.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__algorithm/stable_partition.h:
@@ -3501,8 +3507,6 @@ CMakeFiles/4.2.1/CMakeSystem.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__algorithm/ranges_copy_n.h:
 
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__atomic/fence.h:
-
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__iterator/reverse_iterator.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__numeric/adjacent_difference.h:
@@ -3574,6 +3578,8 @@ CMakeFiles/4.2.1/CMakeSystem.cmake:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__algorithm/min.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__algorithm/shuffle.h:
+
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/SystemPowerNotifier.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__debug_utils/randomize_range.h:
 

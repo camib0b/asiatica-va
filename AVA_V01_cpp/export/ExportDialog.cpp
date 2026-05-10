@@ -181,6 +181,19 @@ void ExportDialog::buildSettingsPage() {
     includeScoreboardOverlayCheckBox_->setChecked(true);
     formLayout->addRow(QString(), includeScoreboardOverlayCheckBox_);
 
+    includeAudioTrackCheckBox_ =
+        new QCheckBox(AppLocale::trUi("export.include_audio_track"), settingsPage_);
+    includeAudioTrackCheckBox_->setCursor(Qt::PointingHandCursor);
+    includeAudioTrackCheckBox_->setChecked(true);
+    formLayout->addRow(QString(), includeAudioTrackCheckBox_);
+
+    includeAvaOverlayCheckBox_ =
+        new QCheckBox(AppLocale::trUi("export.include_ava_overlay"), settingsPage_);
+    includeAvaOverlayCheckBox_->setCursor(Qt::PointingHandCursor);
+    includeAvaOverlayCheckBox_->setChecked(true);
+    // TODO(paywall): gate this toggle behind subscription entitlements when billing is added.
+    formLayout->addRow(QString(), includeAvaOverlayCheckBox_);
+
     clipCountLabel_ = new QLabel(settingsPage_);
     Style::setRole(clipCountLabel_, "muted");
     formLayout->addRow(QString(), clipCountLabel_);
@@ -1131,6 +1144,10 @@ void ExportDialog::onExportClicked() {
         !includeBottomOverlayCheckBox_ || includeBottomOverlayCheckBox_->isChecked();
     const bool includeScoreboardOverlay =
         !includeScoreboardOverlayCheckBox_ || includeScoreboardOverlayCheckBox_->isChecked();
+    const bool includeAudioTrack =
+        !includeAudioTrackCheckBox_ || includeAudioTrackCheckBox_->isChecked();
+    const bool includeAvaOverlay =
+        !includeAvaOverlayCheckBox_ || includeAvaOverlayCheckBox_->isChecked();
     for (const auto& td : trimData_) {
         const QString secondary =
             (td.includeSecondaryOverlay && !td.secondaryOverlayText.isEmpty())
@@ -1196,6 +1213,8 @@ void ExportDialog::onExportClicked() {
     exporter_->setSourceVideo(sourceVideoPath_);
     exporter_->setOutputPath(outputPathEdit_->text().trimmed());
     exporter_->setClips(clips);
+    exporter_->setIncludeAudioTrack(includeAudioTrack);
+    exporter_->setIncludeBrandingOverlay(includeAvaOverlay);
 
     connect(exporter_, &ClipExporter::progressChanged,
             this, &ExportDialog::onExportProgress);

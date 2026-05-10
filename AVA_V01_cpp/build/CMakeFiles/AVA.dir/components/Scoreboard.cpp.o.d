@@ -1001,6 +1001,7 @@ CMakeFiles/AVA.dir/components/Scoreboard.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/QObject \
   /opt/homebrew/lib/QtCore.framework/Headers/QHash \
   /opt/homebrew/lib/QtCore.framework/Headers/QString \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/../state/EventDefaults.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/../style/StyleProps.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
@@ -1017,4 +1018,5 @@ CMakeFiles/AVA.dir/components/Scoreboard.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qlayout.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qlayoutitem.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \
-  /opt/homebrew/lib/QtGui.framework/Headers/QFont
+  /opt/homebrew/lib/QtGui.framework/Headers/QFont \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout

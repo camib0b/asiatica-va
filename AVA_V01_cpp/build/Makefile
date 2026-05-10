@@ -515,6 +515,30 @@ macos/PlaybackActivity.mm.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.s
 .PHONY : macos/PlaybackActivity.mm.s
 
+macos/SystemPowerNotifier.o: macos/SystemPowerNotifier.mm.o
+.PHONY : macos/SystemPowerNotifier.o
+
+# target to build an object file
+macos/SystemPowerNotifier.mm.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.o
+.PHONY : macos/SystemPowerNotifier.mm.o
+
+macos/SystemPowerNotifier.i: macos/SystemPowerNotifier.mm.i
+.PHONY : macos/SystemPowerNotifier.i
+
+# target to preprocess a source file
+macos/SystemPowerNotifier.mm.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.i
+.PHONY : macos/SystemPowerNotifier.mm.i
+
+macos/SystemPowerNotifier.s: macos/SystemPowerNotifier.mm.s
+.PHONY : macos/SystemPowerNotifier.s
+
+# target to generate assembly for a file
+macos/SystemPowerNotifier.mm.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.s
+.PHONY : macos/SystemPowerNotifier.mm.s
+
 main.o: main.cpp.o
 .PHONY : main.o
 
@@ -787,6 +811,9 @@ help:
 	@echo "... macos/PlaybackActivity.o"
 	@echo "... macos/PlaybackActivity.i"
 	@echo "... macos/PlaybackActivity.s"
+	@echo "... macos/SystemPowerNotifier.o"
+	@echo "... macos/SystemPowerNotifier.i"
+	@echo "... macos/SystemPowerNotifier.s"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"

@@ -41,6 +41,8 @@ public:
     void setSourceVideo(const QString& path);
     void setOutputPath(const QString& path);
     void setClips(const QVector<ClipSegment>& clips);
+    void setIncludeAudioTrack(bool includeAudioTrack);
+    void setIncludeBrandingOverlay(bool includeBrandingOverlay);
 
     void startExport();
     void cancelExport();
@@ -78,4 +80,6 @@ private:
     QStringList tempClipPaths_;
     QString ffmpegPath_;
     QString brandingImagePath_;
+    bool includeAudioTrack_ = true;
+    bool includeBrandingOverlay_ = true;
 };

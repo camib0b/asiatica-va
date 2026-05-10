@@ -20,8 +20,10 @@ private:
   void buildUi();
   void rebuildGoalTimeline();
   void updateScores();
+  void updateCurrentPeriodIndicator();
   void updateTeamDisplay();
   int countGoalsAtOrBefore(const QVector<qint64>& sortedGoalTimesMs, qint64 positionMs) const;
+  QString currentPeriodForTimestamp(qint64 positionMs) const;
 
   TagSession* tagSession_ = nullptr;
   qint64 currentTimestampMs_ = 0;
@@ -33,6 +35,7 @@ private:
   QLabel* homeScoreLabel_ = nullptr;
   QLabel* separatorLabel_ = nullptr;
   QLabel* awayScoreLabel_ = nullptr;
+  QLabel* currentPeriodLabel_ = nullptr;
   QLabel* awayTeamNameLabel_ = nullptr;
   QWidget* awayColorSwatch_ = nullptr;
 };

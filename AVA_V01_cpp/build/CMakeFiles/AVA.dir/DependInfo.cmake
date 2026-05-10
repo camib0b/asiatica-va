@@ -24,6 +24,7 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.cpp" "CMakeFiles/AVA.dir/i18n/AppLocale.cpp.o" "gcc" "CMakeFiles/AVA.dir/i18n/AppLocale.cpp.o.d"
   "/Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.cpp" "CMakeFiles/AVA.dir/i18n/LocaleNotifier.cpp.o" "gcc" "CMakeFiles/AVA.dir/i18n/LocaleNotifier.cpp.o.d"
   "/Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm" "CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o" "gcc" "CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o.d"
+  "/Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/SystemPowerNotifier.mm" "CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.o" "gcc" "CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.o.d"
   "/Users/cam/dev/asiatica-va/AVA_V01_cpp/main.cpp" "CMakeFiles/AVA.dir/main.cpp.o" "gcc" "CMakeFiles/AVA.dir/main.cpp.o.d"
   "/Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.cpp" "CMakeFiles/AVA.dir/state/EventDefaults.cpp.o" "gcc" "CMakeFiles/AVA.dir/state/EventDefaults.cpp.o.d"
   "/Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.cpp" "CMakeFiles/AVA.dir/state/TagSession.cpp.o" "gcc" "CMakeFiles/AVA.dir/state/TagSession.cpp.o.d"

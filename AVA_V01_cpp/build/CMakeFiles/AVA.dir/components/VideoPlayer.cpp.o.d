@@ -1005,6 +1005,7 @@ CMakeFiles/AVA.dir/components/VideoPlayer.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/../macos/PlaybackActivity.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/../macos/SystemPowerNotifier.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qlayout.h \

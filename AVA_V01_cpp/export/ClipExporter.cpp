@@ -38,6 +38,12 @@ QString ClipExporter::findFfmpeg() {
 void ClipExporter::setSourceVideo(const QString& path) { sourceVideoPath_ = path; }
 void ClipExporter::setOutputPath(const QString& path) { outputPath_ = path; }
 void ClipExporter::setClips(const QVector<ClipSegment>& clips) { clips_ = clips; }
+void ClipExporter::setIncludeAudioTrack(bool includeAudioTrack) {
+    includeAudioTrack_ = includeAudioTrack;
+}
+void ClipExporter::setIncludeBrandingOverlay(bool includeBrandingOverlay) {
+    includeBrandingOverlay_ = includeBrandingOverlay;
+}
 
 bool ClipExporter::isRunning() const {
     return currentProcess_ && currentProcess_->state() != QProcess::NotRunning;
@@ -68,8 +74,10 @@ void ClipExporter::startExport() {
         return;
     }
 
-    brandingImagePath_ = generateBrandingImage(
-        tempDir_->filePath(QStringLiteral("branding.png")));
+    if (includeBrandingOverlay_) {
+        brandingImagePath_ = generateBrandingImage(
+            tempDir_->filePath(QStringLiteral("branding.png")));
+    }
 
     processNextClip();
 }
@@ -134,40 +142,71 @@ void ClipExporter::processNextClip() {
                   << QStringLiteral("-i") << overlayImagePath;
     }
 
-    arguments << QStringLiteral("-loop") << QStringLiteral("1")
-              << QStringLiteral("-i") << brandingImagePath_;
+    if (includeBrandingOverlay_) {
+        arguments << QStringLiteral("-loop") << QStringLiteral("1")
+                  << QStringLiteral("-i") << brandingImagePath_;
+    }
 
     for (const QString& path : scoreboardImagePaths) {
         arguments << QStringLiteral("-loop") << QStringLiteral("1")
                   << QStringLiteral("-i") << path;
     }
 
-    const int brandingInput = includeBottomOverlay ? 2 : 1;
-    const int firstScoreboardInput = brandingInput + 1;
+    int nextInputIndex = 1;
+    int bottomOverlayInput = -1;
+    int brandingInput = -1;
+    int firstScoreboardInput = -1;
+
+    if (includeBottomOverlay) {
+        bottomOverlayInput = nextInputIndex++;
+    }
+    if (includeBrandingOverlay_) {
+        brandingInput = nextInputIndex++;
+    }
+    if (scoreboardCount > 0) {
+        firstScoreboardInput = nextInputIndex;
+    }
 
     QString filterComplex;
+    QString currentVideoLabel = QStringLiteral("0:v");
+    int stageCounter = 0;
+
+    auto appendOverlayStage = [&filterComplex, &currentVideoLabel, &stageCounter](
+                                  int inputIndex, const QString& overlayExpression) {
+        const QString nextLabel = QStringLiteral("ov%1").arg(stageCounter++);
+        if (!filterComplex.isEmpty()) {
+            filterComplex += QStringLiteral(";");
+        }
+        filterComplex += QStringLiteral("[%1][%2:v]overlay=%3[%4]")
+                             .arg(currentVideoLabel)
+                             .arg(inputIndex)
+                             .arg(overlayExpression)
+                             .arg(nextLabel);
+        currentVideoLabel = nextLabel;
+    };
+
     if (includeBottomOverlay) {
-        filterComplex += QStringLiteral(
-            "[0:v][1:v]overlay=24:main_h-overlay_h-72[ov];"
-            "[ov][%1:v]overlay=main_w-overlay_w-16:16").arg(brandingInput);
-    } else {
-        filterComplex += QStringLiteral(
-            "[0:v][%1:v]overlay=main_w-overlay_w-16:16").arg(brandingInput);
+        appendOverlayStage(bottomOverlayInput, QStringLiteral("24:main_h-overlay_h-72"));
+    }
+    if (includeBrandingOverlay_) {
+        appendOverlayStage(brandingInput, QStringLiteral("main_w-overlay_w-16:16"));
     }
 
     if (scoreboardCount == 0) {
-        filterComplex += QStringLiteral("[v]");
+        if (!filterComplex.isEmpty()) {
+            filterComplex += QStringLiteral(";");
+        }
+        filterComplex += QStringLiteral("[%1]null[v]").arg(currentVideoLabel);
     } else if (scoreboardCount == 1) {
-        filterComplex += QStringLiteral("[br];[br][%1:v]overlay=16:16[v]")
+        if (!filterComplex.isEmpty()) {
+            filterComplex += QStringLiteral(";");
+        }
+        filterComplex += QStringLiteral("[%1][%2:v]overlay=16:16[v]")
+            .arg(currentVideoLabel)
             .arg(firstScoreboardInput);
     } else {
-        filterComplex += QStringLiteral("[br]");
-
         for (int s = 0; s < scoreboardCount; ++s) {
             const int inputIndex = firstScoreboardInput + s;
-            const QString inputLabel = (s == 0)
-                ? QStringLiteral("br")
-                : QStringLiteral("sb%1").arg(s - 1);
             const QString outputLabel = (s == scoreboardCount - 1)
                 ? QStringLiteral("v")
                 : QStringLiteral("sb%1").arg(s);
@@ -193,24 +232,32 @@ void ClipExporter::processNextClip() {
                     .arg(QString::number(nextOffset, 'f', 3));
             }
 
+            if (!filterComplex.isEmpty()) {
+                filterComplex += QStringLiteral(";");
+            }
             filterComplex += QStringLiteral(
-                ";[%1][%2:v]overlay=16:16:enable='%3'[%4]")
-                .arg(inputLabel)
+                "[%1][%2:v]overlay=16:16:enable='%3'[%4]")
+                .arg(currentVideoLabel)
                 .arg(inputIndex)
                 .arg(enableExpr)
                 .arg(outputLabel);
+            currentVideoLabel = outputLabel;
         }
     }
 
     arguments << QStringLiteral("-filter_complex") << filterComplex
-              << QStringLiteral("-map") << QStringLiteral("[v]")
-              << QStringLiteral("-map") << QStringLiteral("0:a?")
-              << QStringLiteral("-t") << QString::number(durationSeconds, 'f', 3)
+              << QStringLiteral("-map") << QStringLiteral("[v]");
+    if (includeAudioTrack_) {
+        arguments << QStringLiteral("-map") << QStringLiteral("0:a?")
+                  << QStringLiteral("-c:a") << QStringLiteral("aac")
+                  << QStringLiteral("-b:a") << QStringLiteral("128k");
+    } else {
+        arguments << QStringLiteral("-an");
+    }
+    arguments << QStringLiteral("-t") << QString::number(durationSeconds, 'f', 3)
               << QStringLiteral("-c:v") << QStringLiteral("libx264")
               << QStringLiteral("-preset") << QStringLiteral("fast")
               << QStringLiteral("-crf") << QStringLiteral("23")
-              << QStringLiteral("-c:a") << QStringLiteral("aac")
-              << QStringLiteral("-b:a") << QStringLiteral("128k")
               << QStringLiteral("-movflags") << QStringLiteral("+faststart")
               << tempPath;
 

@@ -912,8 +912,8 @@
  mdp:/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtWidgets.framework/Versions/A/Headers/qtwidgetsglobal.h
  mdp:/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtWidgets.framework/Versions/A/Headers/qwidget.h
 /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.h
-/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.h
 /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.cpp
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.h
 /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h
  mmc:Q_OBJECT
  mdp:/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/Availability.h
@@ -4485,8 +4485,9 @@
  mdp:/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qversiontagging.h
  mdp:/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qxptype_traits.h
  mdp:/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/qyieldcpu.h
-/Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h
 /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.cpp
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/SystemPowerNotifier.h
 /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h
  mmc:Q_OBJECT
  mdp:/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/Availability.h
@@ -14440,4 +14441,5 @@
  mdp:/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtWidgets.framework/Versions/A/Headers/qtwidgetsglobal.h
  mdp:/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtWidgets.framework/Versions/A/Headers/qwidget.h
 /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ExportDialog.cpp
+/Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/SystemPowerNotifier.mm
 /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp

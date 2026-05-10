@@ -37,6 +37,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/AVA.dir/i18n/LocaleNotifier.cpp.o.d"
   "CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o"
   "CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o.d"
+  "CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.o"
+  "CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.o.d"
   "CMakeFiles/AVA.dir/main.cpp.o"
   "CMakeFiles/AVA.dir/main.cpp.o.d"
   "CMakeFiles/AVA.dir/state/EventDefaults.cpp.o"

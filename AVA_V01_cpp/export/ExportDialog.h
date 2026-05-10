@@ -128,6 +128,8 @@ private:
     QComboBox* exportLanguageCombo_ = nullptr;
     QCheckBox* includeBottomOverlayCheckBox_ = nullptr;
     QCheckBox* includeScoreboardOverlayCheckBox_ = nullptr;
+    QCheckBox* includeAudioTrackCheckBox_ = nullptr;
+    QCheckBox* includeAvaOverlayCheckBox_ = nullptr;
     QLabel* clipCountLabel_ = nullptr;
     QGroupBox* eventDurationsGroup_ = nullptr;
     QFormLayout* eventDurationsForm_ = nullptr;

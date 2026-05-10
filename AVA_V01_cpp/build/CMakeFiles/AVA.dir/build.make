@@ -408,10 +408,24 @@ CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -fobjc-arc -S /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/PlaybackActivity.mm -o CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.s
 
+CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.o: CMakeFiles/AVA.dir/flags.make
+CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.o: /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/SystemPowerNotifier.mm
+CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.o: CMakeFiles/AVA.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_26) "Building CXX object CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -fobjc-arc -MD -MT CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.o -MF CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.o.d -o CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.o -c /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/SystemPowerNotifier.mm
+
+CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -fobjc-arc -E /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/SystemPowerNotifier.mm > CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.i
+
+CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -fobjc-arc -S /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/SystemPowerNotifier.mm -o CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.s
+
 CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o: CMakeFiles/AVA.dir/flags.make
 CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o: .qt/rcc/qrc_ava_resources.cpp
 CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o: CMakeFiles/AVA.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_26) "Building CXX object CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_27) "Building CXX object CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o -MF CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o.d -o CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o -c /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/.qt/rcc/qrc_ava_resources.cpp
 
 CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.i: cmake_force
@@ -447,6 +461,7 @@ AVA_OBJECTS = \
 "CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.o" \
 "CMakeFiles/AVA.dir/export/XmlExporter.cpp.o" \
 "CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o" \
+"CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.o" \
 "CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o"
 
 # External object files for target AVA
@@ -475,6 +490,7 @@ AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/export/ExportDialog.cpp.o
 AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/export/VideoConcatenator.cpp.o
 AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/export/XmlExporter.cpp.o
 AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/macos/PlaybackActivity.mm.o
+AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/macos/SystemPowerNotifier.mm.o
 AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o
 AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/build.make
 AVA.app/Contents/MacOS/AVA: /opt/homebrew/lib/QtMultimediaWidgets.framework/Versions/A/QtMultimediaWidgets
@@ -484,7 +500,7 @@ AVA.app/Contents/MacOS/AVA: /opt/homebrew/lib/QtNetwork.framework/Versions/A/QtN
 AVA.app/Contents/MacOS/AVA: /opt/homebrew/lib/QtGui.framework/Versions/A/QtGui
 AVA.app/Contents/MacOS/AVA: /opt/homebrew/lib/QtCore.framework/Versions/A/QtCore
 AVA.app/Contents/MacOS/AVA: CMakeFiles/AVA.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_27) "Linking CXX executable AVA.app/Contents/MacOS/AVA"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_28) "Linking CXX executable AVA.app/Contents/MacOS/AVA"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/AVA.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
