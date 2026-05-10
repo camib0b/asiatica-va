@@ -1019,7 +1019,6 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtMultimedia.framework/Headers/qaudio.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../components/GameControls.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QStringList \
-  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../components/Scoreboard.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../state/EventDefaults.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/StatsWindow.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.h \

@@ -791,38 +791,6 @@ QWidget#VideoControlsBarSlim QLabel {
   font-size: 12px;
 }
 
-/* =========================
-   Scoreboard
-========================= */
-
-QWidget#Scoreboard {
-  background: #18181b;
-  border-radius: 6px;
-  min-height: 48px;
-  max-height: 64px;
-}
-
-QWidget#Scoreboard QLabel[role="scoreboardTeamName"] {
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 11px;
-  font-weight: 600;
-  background: transparent;
-}
-
-QWidget#Scoreboard QLabel[role="scoreboardScore"] {
-  color: #FFFFFF;
-  font-size: 26px;
-  font-weight: 700;
-  background: transparent;
-}
-
-QWidget#Scoreboard QLabel[role="scoreboardSeparator"] {
-  color: rgba(255, 255, 255, 0.25);
-  font-size: 18px;
-  font-weight: 400;
-  background: transparent;
-}
-
 /* Compact game controls in tagging right column */
 QWidget#TaggingRightCol QPushButton[variant="gameControl"] {
   padding: 4px 6px;

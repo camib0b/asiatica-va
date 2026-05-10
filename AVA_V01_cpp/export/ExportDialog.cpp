@@ -1180,9 +1180,9 @@ void ExportDialog::onExportClicked() {
                 return a.positionMs < b.positionMs;
             });
 
-            scoreboardPhases.append({0.0, {homeName, awayName,
-                                           initialHomeGoals, initialAwayGoals,
-                                           homeColorHex, awayColorHex}});
+            scoreboardPhases.append(
+                {0.0, {homeName, awayName, initialHomeGoals, initialAwayGoals, homeColorHex, awayColorHex,
+                       tagSession_ ? tagSession_->periodLabelAtTimestampMs(td.startMs) : QString()}});
 
             int runningHome = initialHomeGoals;
             int runningAway = initialAwayGoals;
@@ -1194,10 +1194,17 @@ void ExportDialog::onExportClicked() {
                 if (scoreboardPhases.last().activationOffsetSeconds == offsetSeconds) {
                     scoreboardPhases.last().scoreboard.homeGoals = runningHome;
                     scoreboardPhases.last().scoreboard.awayGoals = runningAway;
+                    if (tagSession_) {
+                        scoreboardPhases.last().scoreboard.periodLabel =
+                            tagSession_->periodLabelAtTimestampMs(goal.positionMs);
+                    }
                 } else {
-                    scoreboardPhases.append({offsetSeconds, {homeName, awayName,
-                                                             runningHome, runningAway,
-                                                             homeColorHex, awayColorHex}});
+                    scoreboardPhases.append({offsetSeconds,
+                                             {homeName, awayName, runningHome, runningAway, homeColorHex,
+                                              awayColorHex,
+                                              tagSession_ ? tagSession_->periodLabelAtTimestampMs(
+                                                                goal.positionMs)
+                                                          : QString()}});
                 }
             }
         }

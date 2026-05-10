@@ -2,6 +2,8 @@
 
 #include "EventDefaults.h"
 
+#include <algorithm>
+
 TagSession::TagSession(QObject* parent) : QObject(parent) {}
 
 void TagSession::clear() {
@@ -162,4 +164,46 @@ void TagSession::resetGameTimeState() {
   currentQuarterIndex_ = -1;
   currentQuarterStartMs_ = 0;
   quarterPhase_ = QuarterPhase::NotStarted;
+}
+
+QString TagSession::periodLabelAtTimestampMs(qint64 positionMs) const {
+  struct QuarterSpan {
+    QString label;
+    qint64 startMs = 0;
+    qint64 endMs = 0;
+  };
+
+  QVector<QuarterSpan> closedQuarterSpans;
+  closedQuarterSpans.reserve(4);
+  for (const GameTag& tag : tags_) {
+    const bool isQuarterTag =
+        tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kQuarter1) ||
+        tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kQuarter2) ||
+        tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kQuarter3) ||
+        tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kQuarter4);
+    if (!isQuarterTag) continue;
+    closedQuarterSpans.append({tag.mainEvent, tag.startMs, tag.endMs});
+  }
+
+  std::sort(closedQuarterSpans.begin(), closedQuarterSpans.end(),
+            [](const QuarterSpan& lhs, const QuarterSpan& rhs) {
+              if (lhs.startMs == rhs.startMs) return lhs.endMs < rhs.endMs;
+              return lhs.startMs < rhs.startMs;
+            });
+
+  for (const QuarterSpan& quarterSpan : closedQuarterSpans) {
+    if (positionMs >= quarterSpan.startMs && positionMs <= quarterSpan.endMs) {
+      return quarterSpan.label;
+    }
+  }
+
+  if (quarterPhase_ == QuarterPhase::QuarterInProgress) {
+    const int quarterIndex = currentQuarterIndex_;
+    if (quarterIndex >= 0 && quarterIndex < 4 && positionMs >= currentQuarterStartMs_) {
+      static const char* kQuarterLabels[4] = {"Q1", "Q2", "Q3", "Q4"};
+      return QString::fromLatin1(kQuarterLabels[quarterIndex]);
+    }
+  }
+
+  return QString();
 }

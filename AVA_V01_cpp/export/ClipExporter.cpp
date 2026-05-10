@@ -201,6 +201,7 @@ void ClipExporter::processNextClip() {
         if (!filterComplex.isEmpty()) {
             filterComplex += QStringLiteral(";");
         }
+        // Top-left padding; composite PNG includes quarter square on the left of the score strip.
         filterComplex += QStringLiteral("[%1][%2:v]overlay=16:16[v]")
             .arg(currentVideoLabel)
             .arg(firstScoreboardInput);
@@ -419,20 +420,20 @@ QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
     contentWidth += kSwatchWidth;
 
     const int rowHeight = qMax(nameMetrics.height(), scoreMetrics.height());
-    const int imageWidth = contentWidth + 2 * kPaddingH;
-    const int imageHeight = rowHeight + 2 * kPaddingV;
+    const int boardWidth = contentWidth + 2 * kPaddingH;
+    const int boardHeight = rowHeight + 2 * kPaddingV;
 
-    QImage image(imageWidth, imageHeight, QImage::Format_ARGB32_Premultiplied);
-    image.fill(Qt::transparent);
+    QImage boardImage(boardWidth, boardHeight, QImage::Format_ARGB32_Premultiplied);
+    boardImage.fill(Qt::transparent);
 
-    QPainter painter(&image);
+    QPainter painter(&boardImage);
     painter.setRenderHint(QPainter::Antialiasing);
     painter.setRenderHint(QPainter::TextAntialiasing);
 
     painter.setPen(Qt::NoPen);
     constexpr int kScoreboardBackgroundAlpha = 198;
     painter.setBrush(QColor(15, 23, 42, kScoreboardBackgroundAlpha));
-    painter.drawRoundedRect(image.rect(), kCornerRadius, kCornerRadius);
+    painter.drawRoundedRect(boardImage.rect(), kCornerRadius, kCornerRadius);
 
     auto parseColor = [](const QString& hex, const QColor& fallback) -> QColor {
         QString h = hex.trimmed();
@@ -442,7 +443,7 @@ QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
     };
 
     int x = kPaddingH;
-    const int centerY = imageHeight / 2;
+    const int centerY = boardHeight / 2;
 
     const QColor homeColor = parseColor(data.homeColorHex, QColor(96, 165, 250));
     painter.setBrush(homeColor);
@@ -497,7 +498,39 @@ QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
                             kSwatchRadius, kSwatchRadius);
 
     painter.end();
-    image.save(outputPath, "PNG");
+
+    const QString quarterText = data.periodLabel.trimmed();
+    if (quarterText.isEmpty()) {
+        boardImage.save(outputPath, "PNG");
+        return outputPath;
+    }
+
+    const int quarterGap = qRound(10 * kScoreboardScale);
+    const int squareSide = boardHeight;
+    const int compositeWidth = squareSide + quarterGap + boardWidth;
+
+    QImage composite(compositeWidth, boardHeight, QImage::Format_ARGB32_Premultiplied);
+    composite.fill(Qt::transparent);
+
+    QPainter compositePainter(&composite);
+    compositePainter.setRenderHint(QPainter::Antialiasing);
+    compositePainter.setRenderHint(QPainter::TextAntialiasing);
+
+    compositePainter.setPen(Qt::NoPen);
+    compositePainter.setBrush(QColor(15, 23, 42, kScoreboardBackgroundAlpha));
+    compositePainter.drawRoundedRect(0, 0, squareSide, squareSide, kCornerRadius, kCornerRadius);
+
+    QFont quarterFont(QStringLiteral("Helvetica"));
+    quarterFont.setWeight(QFont::Bold);
+    quarterFont.setPixelSize(qMax(11, qRound(static_cast<double>(squareSide) * 0.34)));
+    compositePainter.setFont(quarterFont);
+    compositePainter.setPen(QColor(255, 255, 255));
+    compositePainter.drawText(QRect(0, 0, squareSide, squareSide), Qt::AlignCenter, quarterText);
+
+    compositePainter.drawImage(squareSide + quarterGap, 0, boardImage);
+    compositePainter.end();
+
+    composite.save(outputPath, "PNG");
     return outputPath;
 }
 

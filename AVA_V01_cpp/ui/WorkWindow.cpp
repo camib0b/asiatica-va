@@ -2,7 +2,6 @@
 #include "../style/StyleProps.h"
 #include "../components/VideoPlayer.h"
 #include "../components/GameControls.h"
-#include "../components/Scoreboard.h"
 #include "../state/EventDefaults.h"
 #include "../state/TagSession.h"
 #include "StatsWindow.h"
@@ -257,7 +256,6 @@ void WorkWindow::setTagSession(TagSession* session) {
     tagSession_ = session;
     if (statsWindow_) statsWindow_->setTagSession(tagSession_);
     if (statsOverlay_) statsOverlay_->setTagSession(tagSession_);
-    if (scoreboard_) scoreboard_->setTagSession(tagSession_);
 
     rebuildFilterMenu();
     rebuildTagsList();
@@ -524,7 +522,6 @@ void WorkWindow::buildUi() {
         QStringLiteral("#TaggingVideoTagsSplitter { background-color: #FFFFFF; }"));
 
     gameControls_ = new GameControls(this);
-    scoreboard_ = new Scoreboard(this);
     statsWindow_ = new StatsWindow(this);
     statsWindow_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     statsWindow_->setMinimumHeight(180);
@@ -564,7 +561,6 @@ void WorkWindow::buildUi() {
 
     if (videoPlayer_) videoPlayer_->setControlsVisible(false);
     if (gameControls_) gameControls_->hide();
-    if (scoreboard_) scoreboard_->hide();
     if (statsWindow_) statsWindow_->hide();
     if (tagsHeaderRow_) tagsHeaderRow_->hide();
     if (tagsTable_) tagsTable_->hide();
@@ -583,7 +579,6 @@ void WorkWindow::applyTaggingLayout() {
     }
     detachWidgetFromParent(tagsSection_);
     detachWidgetFromParent(gameControls_);
-    detachWidgetFromParent(scoreboard_);
     detachWidgetFromParent(analyzingTagsControlsSplitter_);
     detachWidgetFromParent(statsWindow_);
     if (notesEdit_) detachWidgetFromParent(notesEdit_);
@@ -611,7 +606,6 @@ void WorkWindow::applyTaggingLayout() {
         gameControls_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     }
     rightLayout->addWidget(gameControls_, 1);
-    rightLayout->addWidget(scoreboard_, 0);
 
     while (QLayoutItem* item = contentLayout_->takeAt(0)) {
         delete item;  // widget stays in tree; do not setParent(nullptr)
@@ -643,7 +637,6 @@ void WorkWindow::applyTaggingLayout() {
     if (notesEdit_) notesEdit_->hide();
 
     if (gameControls_) gameControls_->show();
-    if (scoreboard_) scoreboard_->show();
 
     if (taggingVideoTagsSplitter_) {
         taggingVideoTagsSplitter_->show();
@@ -681,12 +674,9 @@ void WorkWindow::applyAnalyzingLayout() {
     detachWidgetFromParent(vw);
     detachWidgetFromParent(tagsSection_);
     detachWidgetFromParent(gameControls_);
-    detachWidgetFromParent(scoreboard_);
     detachWidgetFromParent(statsWindow_);
     if (notesEdit_) detachWidgetFromParent(notesEdit_);
     detachWidgetFromParent(timeline);
-    if (scoreboard_) scoreboard_->hide();
-
     if (videoTimelineRow_) videoTimelineRow_->hide();
 
     while (analyzingTagsControlsSplitter_->count() > 0) {
@@ -933,7 +923,7 @@ void WorkWindow::wireSignals() {
     noteDebounceTimer_->setSingleShot(true);
     connect(noteDebounceTimer_, &QTimer::timeout, this, &WorkWindow::saveNoteDebounceFired);
 
-    // Debounce playhead-driven table scans: scoreboard is O(log n), but row highlighting is O(rows).
+    // Debounce playhead-driven table scans: row highlighting is O(rows).
     playheadSideEffectsDebounceTimer_ = new QTimer(this);
     playheadSideEffectsDebounceTimer_->setSingleShot(true);
     playheadSideEffectsDebounceTimer_->setInterval(200);
@@ -1097,10 +1087,6 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
         }
         contextTeam_ = "Home";
     }
-    if (scoreboard_) {
-        scoreboard_->setTagSession(tagSession_);
-        scoreboard_->show();
-    }
     if (modeTaggingBtn_) modeTaggingBtn_->show();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->show();
 
@@ -1179,7 +1165,6 @@ void WorkWindow::onDiscardVideo() {
         gameControls_->resetGameTimeState();
         gameControls_->hide();
     }
-    if (scoreboard_) scoreboard_->hide();
     if (modeTaggingBtn_) modeTaggingBtn_->hide();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->hide();
 
@@ -1405,7 +1390,6 @@ void WorkWindow::clearNewTagFlash() {
 
 void WorkWindow::onPlayheadPositionChanged(qint64 positionMs) {
     updateTagPlayheadHighlight(positionMs);
-    if (scoreboard_) scoreboard_->setCurrentTimestampMs(positionMs);
 }
 
 void WorkWindow::updateTagPlayheadHighlight(qint64 positionMs) {

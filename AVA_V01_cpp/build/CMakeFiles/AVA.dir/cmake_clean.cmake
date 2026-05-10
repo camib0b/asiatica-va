@@ -13,8 +13,6 @@ file(REMOVE_RECURSE
   "CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o.d"
   "CMakeFiles/AVA.dir/components/GameControls.cpp.o"
   "CMakeFiles/AVA.dir/components/GameControls.cpp.o.d"
-  "CMakeFiles/AVA.dir/components/Scoreboard.cpp.o"
-  "CMakeFiles/AVA.dir/components/Scoreboard.cpp.o.d"
   "CMakeFiles/AVA.dir/components/TimelineBar.cpp.o"
   "CMakeFiles/AVA.dir/components/TimelineBar.cpp.o.d"
   "CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o"

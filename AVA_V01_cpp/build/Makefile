@@ -227,30 +227,6 @@ components/GameControls.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/GameControls.cpp.s
 .PHONY : components/GameControls.cpp.s
 
-components/Scoreboard.o: components/Scoreboard.cpp.o
-.PHONY : components/Scoreboard.o
-
-# target to build an object file
-components/Scoreboard.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/Scoreboard.cpp.o
-.PHONY : components/Scoreboard.cpp.o
-
-components/Scoreboard.i: components/Scoreboard.cpp.i
-.PHONY : components/Scoreboard.i
-
-# target to preprocess a source file
-components/Scoreboard.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/Scoreboard.cpp.i
-.PHONY : components/Scoreboard.cpp.i
-
-components/Scoreboard.s: components/Scoreboard.cpp.s
-.PHONY : components/Scoreboard.s
-
-# target to generate assembly for a file
-components/Scoreboard.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/components/Scoreboard.cpp.s
-.PHONY : components/Scoreboard.cpp.s
-
 components/TimelineBar.o: components/TimelineBar.cpp.o
 .PHONY : components/TimelineBar.o
 
@@ -775,9 +751,6 @@ help:
 	@echo "... components/GameControls.o"
 	@echo "... components/GameControls.i"
 	@echo "... components/GameControls.s"
-	@echo "... components/Scoreboard.o"
-	@echo "... components/Scoreboard.i"
-	@echo "... components/Scoreboard.s"
 	@echo "... components/TimelineBar.o"
 	@echo "... components/TimelineBar.i"
 	@echo "... components/TimelineBar.s"

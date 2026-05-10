@@ -451,12 +451,6 @@
 			null
 		],
 		[
-			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.h",
-			"MU",
-			"XDQFSXMG3O/moc_Scoreboard.cpp",
-			null
-		],
-		[
 			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.h",
 			"MU",
 			"XDQFSXMG3O/moc_TimelineBar.cpp",
@@ -662,11 +656,6 @@
 	[
 		[
 			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/GameControls.cpp",
-			"MU",
-			null
-		],
-		[
-			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.cpp",
 			"MU",
 			null
 		],

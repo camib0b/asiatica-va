@@ -28,7 +28,6 @@ class VideoPlayer;
 class GameControls;
 class GameSetupWindow;
 class StatsWindow;
-class Scoreboard;
 
 #include "../state/TagSession.h"
 
@@ -151,7 +150,6 @@ private:
   // UI:
   VideoPlayer* videoPlayer_ = nullptr;
   GameControls* gameControls_ = nullptr;
-  Scoreboard* scoreboard_ = nullptr;
   StatsWindow* statsWindow_ = nullptr;
   QPlainTextEdit* notesEdit_ = nullptr;
   QDialog* statsOverlayDialog_ = nullptr;

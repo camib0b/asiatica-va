@@ -84,6 +84,9 @@ public:
   void clearCurrentQuarter();
   void resetGameTimeState();
 
+  /// Quarter label from TimeCodes tags (Q1–Q4) and live quarter state; empty if unknown.
+  QString periodLabelAtTimestampMs(qint64 positionMs) const;
+
   const QVector<GameTag>& tags() const { return tags_; }
   const QHash<QString, int>& mainEventCounts() const { return mainEventCounts_; }
   const QHash<QString, QHash<QString, int>>& followUpCountsByMainEvent() const { return followUpCountsByMainEvent_; }

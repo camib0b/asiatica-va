@@ -12,7 +12,6 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/mocs_compilation.cpp" "CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o" "gcc" "CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o.d"
   "/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/.qt/rcc/qrc_ava_resources.cpp" "CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o" "gcc" "CMakeFiles/AVA.dir/build/.qt/rcc/qrc_ava_resources.cpp.o.d"
   "/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/GameControls.cpp" "CMakeFiles/AVA.dir/components/GameControls.cpp.o" "gcc" "CMakeFiles/AVA.dir/components/GameControls.cpp.o.d"
-  "/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.cpp" "CMakeFiles/AVA.dir/components/Scoreboard.cpp.o" "gcc" "CMakeFiles/AVA.dir/components/Scoreboard.cpp.o.d"
   "/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.cpp" "CMakeFiles/AVA.dir/components/TimelineBar.cpp.o" "gcc" "CMakeFiles/AVA.dir/components/TimelineBar.cpp.o.d"
   "/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.cpp" "CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o" "gcc" "CMakeFiles/AVA.dir/components/VideoControlsBar.cpp.o.d"
   "/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoPlayer.cpp" "CMakeFiles/AVA.dir/components/VideoPlayer.cpp.o" "gcc" "CMakeFiles/AVA.dir/components/VideoPlayer.cpp.o.d"

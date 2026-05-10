@@ -999,13 +999,11 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/qtmochelpers.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qtmocconstants.h \
   /opt/homebrew/lib/QtCore.framework/Headers/q20algorithm.h \
-  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/moc_Scoreboard.cpp \
-  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/../../../components/Scoreboard.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/moc_TimelineBar.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/../../../components/TimelineBar.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer \
   /opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/moc_VideoControlsBar.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/../../../components/VideoControlsBar.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/moc_VideoPlayer.cpp \
