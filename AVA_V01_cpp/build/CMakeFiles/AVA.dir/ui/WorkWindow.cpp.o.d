@@ -1170,6 +1170,7 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/QIcon \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QFrame \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QBoxLayout \
+  /opt/homebrew/lib/QtCore.framework/Headers/QFileInfo \
   /opt/homebrew/lib/QtCore.framework/Headers/QTimer \
   /opt/homebrew/lib/QtCore.framework/Headers/qtimer.h \
   /opt/homebrew/lib/QtGui.framework/Headers/QFont \

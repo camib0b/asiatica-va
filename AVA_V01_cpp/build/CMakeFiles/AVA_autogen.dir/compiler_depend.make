@@ -753,8 +753,6 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
   CMakeFiles/4.2.1/CMakeSystem.cmake \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/GameControls.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/GameControls.h \
-  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.cpp \
-  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.cpp \
@@ -1931,7 +1929,11 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QPair:
 
-/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QHash:
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__iterator/wrap_iter.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__functional/mem_fun_ref.h:
+
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QList:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QDate:
 
@@ -1996,10 +1998,6 @@ AVA_autogen/timestamp: /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/u
 /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.cpp:
 
 /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.cpp:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__algorithm/find_if_not.h:
-
-/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.cpp:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/xlocale/_time.h:
 
@@ -2244,6 +2242,8 @@ AVA_autogen/moc_predefs.h:
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/execution:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/errno.h:
+
+/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QHash:
 
 /opt/homebrew/lib/cmake/Qt6Gui/Qt6QICOPluginAdditionalTargetInfo.cmake:
 
@@ -2955,6 +2955,8 @@ CMakeFiles/4.2.1/CMakeSystem.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__iterator/segmented_iterator.h:
 
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__algorithm/find_if_not.h:
+
 /opt/homebrew/lib/cmake/Qt6Widgets/Qt6WidgetsPlugins.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__functional/is_transparent.h:
@@ -3367,12 +3369,6 @@ CMakeFiles/4.2.1/CMakeSystem.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__new/placement_new_delete.h:
 
-/opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QList:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__iterator/wrap_iter.h:
-
-/Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__functional/mem_fun_ref.h:
-
 /opt/homebrew/share/cmake/Modules/FindPackageMessage.cmake:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__algorithm/stable_partition.h:
@@ -3390,8 +3386,6 @@ CMakeFiles/4.2.1/CMakeSystem.cmake:
 /opt/homebrew/lib/cmake/Qt6Concurrent/Qt6ConcurrentConfig.cmake:
 
 /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtWidgets.framework/Versions/A/Headers/QMainWindow:
-
-/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__charconv/to_chars_integral.h:
 

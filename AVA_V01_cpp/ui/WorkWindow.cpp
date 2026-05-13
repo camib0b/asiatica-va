@@ -38,6 +38,7 @@
 #include <QIcon>
 #include <QFrame>
 #include <QBoxLayout>
+#include <QFileInfo>
 #include <QTimer>
 #include <QDialog>
 #include <QFont>
@@ -189,6 +190,14 @@ void WorkWindow::refreshPlaybackShortcutFocusGate() {
 void WorkWindow::setConcatenatedVideoTempDir(QTemporaryDir* dir) {
     cleanupConcatenatedVideo();
     concatenatedVideoTempDir_ = dir;
+}
+
+void WorkWindow::setExportDefaultDirectoryFromVideoPath(const QString& videoPath) {
+    exportDefaultDirectoryPath_.clear();
+    if (videoPath.trimmed().isEmpty()) return;
+
+    const QFileInfo videoInfo(videoPath);
+    exportDefaultDirectoryPath_ = videoInfo.absolutePath();
 }
 
 void WorkWindow::setPendingConcatenation(VideoConcatenator* concatenator) {
@@ -1056,6 +1065,7 @@ void WorkWindow::onNextQuarterRequested() {
 void WorkWindow::onTeamSetupCancelled() {
     cleanupPendingConcatenation();
     cleanupConcatenatedVideo();
+    exportDefaultDirectoryPath_.clear();
     emit videoClosed();
 }
 
@@ -1118,12 +1128,14 @@ void WorkWindow::onReplaceVideo() {
     if (filePaths.size() == 1) {
         cleanupPendingConcatenation();
         cleanupConcatenatedVideo();
+        setExportDefaultDirectoryFromVideoPath(filePaths.first());
         loadVideoFromFile(filePaths.first());
         return;
     }
 
     filePaths.sort(Qt::CaseInsensitive);
     if (!VideoConcatenator::showFileOrderDialog(filePaths, this)) return;
+    setExportDefaultDirectoryFromVideoPath(filePaths.first());
 
     auto* tempDir = new QTemporaryDir();
     if (!tempDir->isValid()) {
@@ -1179,6 +1191,7 @@ void WorkWindow::onDiscardVideo() {
     if (statsWindow_) statsWindow_->hide();
 
     cleanupConcatenatedVideo();
+    exportDefaultDirectoryPath_.clear();
     emit videoClosed();
     refreshPlaybackShortcutFocusGate();
 }
@@ -1187,7 +1200,8 @@ void WorkWindow::onExportClips() {
     if (!tagSession_ || tagSession_->tags().isEmpty() || sourceVideoPath_.isEmpty()) return;
 
     const qint64 duration = videoPlayer_ ? videoPlayer_->durationMs() : 0;
-    auto* dialog = new ExportDialog(tagSession_, sourceVideoPath_, duration, this);
+    auto* dialog = new ExportDialog(tagSession_, sourceVideoPath_, duration,
+                                    exportDefaultDirectoryPath_, this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModal(true);
     if (videoPlayer_) {

@@ -43,6 +43,7 @@ public:
   void loadVideoFromFile(const QString& filePath);
   void showTeamSetupForVideo(const QString& filePath);
   void setTagSession(TagSession* session);
+  void setExportDefaultDirectoryFromVideoPath(const QString& videoPath);
   void setConcatenatedVideoTempDir(QTemporaryDir* dir);
   void setPendingConcatenation(VideoConcatenator* concatenator);
   Mode mode() const { return mode_; }
@@ -187,6 +188,7 @@ private:
   QString contextSituation_;
 
   QString sourceVideoPath_;
+  QString exportDefaultDirectoryPath_;
   QTemporaryDir* concatenatedVideoTempDir_ = nullptr;
   VideoConcatenator* pendingConcatenator_ = nullptr;
 

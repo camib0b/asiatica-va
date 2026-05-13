@@ -2170,12 +2170,10 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: AVA_autogen/mocs_compilat
   AVA_autogen/UYX5XTB5RZ/moc_WelcomeWindow.cpp \
   AVA_autogen/UYX5XTB5RZ/moc_WorkWindow.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/GameControls.h \
-  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoPlayer.h \
   AVA_autogen/XDQFSXMG3O/moc_GameControls.cpp \
-  AVA_autogen/XDQFSXMG3O/moc_Scoreboard.cpp \
   AVA_autogen/XDQFSXMG3O/moc_TimelineBar.cpp \
   AVA_autogen/XDQFSXMG3O/moc_VideoControlsBar.cpp \
   AVA_autogen/XDQFSXMG3O/moc_VideoPlayer.cpp \
@@ -25581,7 +25579,6 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: /Users/cam/dev/asiatica-va/AVA_V01_cpp/u
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/GameControls.h \
-  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoPlayer.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ExportDialog.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.h \
@@ -27248,8 +27245,6 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: /Users/cam/dev/asiatica-va/AVA_V01_cpp/u
 /opt/homebrew/lib/QtWidgets.framework/Headers/QSlider:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__algorithm/set_intersection.h:
-
-/Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/CoreServices.framework/Frameworks/CarbonCore.framework/Headers/TextCommon.h:
 
@@ -32616,8 +32611,6 @@ AVA_autogen/XDQFSXMG3O/moc_GameControls.cpp:
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__type_traits/common_type.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__functional/hash.h:
-
-AVA_autogen/XDQFSXMG3O/moc_Scoreboard.cpp:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX26.4.sdk/usr/include/c++/v1/__functional/function.h:
 

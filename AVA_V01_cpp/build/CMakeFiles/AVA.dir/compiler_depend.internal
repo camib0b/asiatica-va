@@ -2172,12 +2172,10 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/moc_WelcomeWindow.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/moc_WorkWindow.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/GameControls.h
- /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoPlayer.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/moc_GameControls.cpp
- /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/moc_Scoreboard.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/moc_TimelineBar.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/moc_VideoControlsBar.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/moc_VideoPlayer.cpp
@@ -25606,7 +25604,6 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/GameControls.h
- /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/Scoreboard.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoPlayer.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ExportDialog.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.h

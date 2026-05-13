@@ -53,10 +53,12 @@ QString eventLabelForExportSuggestedFileName(const QString& canonicalEvent) {
 ExportDialog::ExportDialog(TagSession* session,
                            const QString& sourceVideoPath,
                            qint64 videoDurationMs,
+                           const QString& defaultOutputDirectoryPath,
                            QWidget* parent)
     : QDialog(parent)
     , tagSession_(session)
     , sourceVideoPath_(sourceVideoPath)
+    , defaultOutputDirectoryPath_(defaultOutputDirectoryPath)
     , videoDurationMs_(videoDurationMs)
 {
     setWindowTitle(AppLocale::trUi("export.title"));
@@ -1015,7 +1017,10 @@ QString ExportDialog::suggestedExportBaseName() const {
 
 QString ExportDialog::defaultExportSuggestedFilePath() const {
     const QFileInfo sourceInfo(sourceVideoPath_);
-    const QString directoryPath = sourceInfo.absolutePath();
+    QString directoryPath = defaultOutputDirectoryPath_.trimmed();
+    if (directoryPath.isEmpty()) {
+        directoryPath = sourceInfo.absolutePath();
+    }
     QString extension = QStringLiteral(".mp4");
     if (outputFormatCombo_) {
         const auto format = static_cast<OutputFormat>(outputFormatCombo_->currentData().toInt());
