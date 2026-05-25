@@ -81,6 +81,7 @@ private slots:
   void onNextQuarterRequested();
   void onExportClips();
   void onClipDurationSettings();
+  void onImportXml();
   void onApplicationLanguageChanged();
 
 private:
@@ -147,6 +148,7 @@ private:
   QAction* replaceVideoAction_ = nullptr;
   QAction* discardVideoAction_ = nullptr;
   QAction* exportClipsAction_ = nullptr;
+  QAction* importXmlAction_ = nullptr;
   QAction* clipDurationSettingsAction_ = nullptr;
   QAction* statsOverlayAction_ = nullptr;
 

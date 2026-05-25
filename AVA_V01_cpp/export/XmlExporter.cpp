@@ -1,5 +1,6 @@
 #include "XmlExporter.h"
 
+#include "EventCodeMap.h"
 #include "EventDefaults.h"
 #include "TagSession.h"
 
@@ -18,28 +19,6 @@
 namespace XmlExporter {
 
 namespace {
-
-/// Returns the short XML code for a canonical main-event name, or empty when the event
-/// has no team-affiliated short code (i.e. it is a neutral / pass-through code).
-QString shortCodeForMainEvent(const QString& canonicalMainEvent) {
-  static const QHash<QString, QString> kMap = {
-      {QStringLiteral("Goal"),         QStringLiteral("GOAL")},
-      {QStringLiteral("Shot"),         QStringLiteral("SHOT")},
-      {QStringLiteral("PC"),           QStringLiteral("PC")},
-      {QStringLiteral("PC Foul"),      QStringLiteral("PCF")},
-      {QStringLiteral("Card"),         QStringLiteral("CARD")},
-      {QStringLiteral("Pass"),         QStringLiteral("PASS")},
-      {QStringLiteral("Circle Entry"), QStringLiteral("ENTRY")},
-      {QStringLiteral("16-yd"),        QStringLiteral("16YD")},
-      {QStringLiteral("50-yd"),        QStringLiteral("50YD")},
-      {QStringLiteral("75-yd"),        QStringLiteral("75YD")},
-      {QStringLiteral("Turnover"),     QStringLiteral("TO")},
-      {QStringLiteral("Special"),      QStringLiteral("SPC")},
-      {QStringLiteral("PS"),           QStringLiteral("PS")},
-      {QStringLiteral("S.O."),         QStringLiteral("SO")},
-  };
-  return kMap.value(canonicalMainEvent);
-}
 
 /// Time-control codes are written verbatim as the <code>: Q1, Q2, Q3, Q4, Inicio, TM.
 QString neutralPassThroughCode(const QString& canonicalMainEvent) {
@@ -210,7 +189,7 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
   // Team-affiliated code: requires both team abbreviation and a short code mapping. When
   // either is missing we still emit a single neutral <code> using the canonical event name
   // so the user does not silently lose information.
-  const QString shortCode = shortCodeForMainEvent(tag.mainEvent);
+  const QString shortCode = EventCodeMap::shortCodeForMainEvent(tag.mainEvent);
   const bool hasAbbrevs = !homeAbbrev.isEmpty() && !awayAbbrev.isEmpty();
   const QString taggedAbbrev =
       tag.team == QStringLiteral("Home") ? homeAbbrev :

@@ -11,13 +11,18 @@
 #include "../i18n/LocaleNotifier.h"
 #include "../export/ExportDialog.h"
 #include "../export/VideoConcatenator.h"
+#include "../export/XmlImporter.h"
+#include "XmlSyncDialog.h"
+#include "XmlEventMappingDialog.h"
 
 #include "VideoControlsBar.h"
 #include "TimelineBar.h"
 
 #include <QLabel>
 #include <QLineEdit>
+#include <QFileDialog>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QStackedWidget>
 #include <QWidget>
 #include <QVBoxLayout>
@@ -231,6 +236,7 @@ void WorkWindow::applyUiStrings() {
     if (replaceVideoAction_) replaceVideoAction_->setText(AppLocale::trUi("menu.replace_video"));
     if (discardVideoAction_) discardVideoAction_->setText(AppLocale::trUi("menu.close_video"));
     if (exportClipsAction_) exportClipsAction_->setText(AppLocale::trUi("menu.export_clips"));
+    if (importXmlAction_) importXmlAction_->setText(AppLocale::trUi("menu.import_xml"));
     if (clipDurationSettingsAction_) {
         clipDurationSettingsAction_->setText(AppLocale::trUi("menu.clip_durations"));
     }
@@ -298,6 +304,26 @@ void WorkWindow::setTagSession(TagSession* session) {
         rebuildFilterMenu();
         rebuildTagsList();
         flashNewTagRow();
+    });
+    connect(tagSession_, &TagSession::tagsImported, this, [this]() {
+        rebuildFilterMenu();
+        rebuildTagsList();
+        if (gameControls_) {
+            gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
+                                            tagSession_->currentQuarterIndex());
+        }
+        if (tagSession_->currentQuarterIndex() >= 0) {
+            static const QString kQuarterCodes[4] = {
+                QString::fromLatin1(EventDefaults::TimeCodes::kQuarter1),
+                QString::fromLatin1(EventDefaults::TimeCodes::kQuarter2),
+                QString::fromLatin1(EventDefaults::TimeCodes::kQuarter3),
+                QString::fromLatin1(EventDefaults::TimeCodes::kQuarter4),
+            };
+            const int quarterIndex = tagSession_->currentQuarterIndex();
+            if (quarterIndex >= 0 && quarterIndex < 4) {
+                contextPeriod_ = kQuarterCodes[quarterIndex];
+            }
+        }
     });
     connect(tagSession_, &TagSession::tagNoteChanged, this, [this](int) { loadNoteForSelectedTag(); });
 }
@@ -397,6 +423,7 @@ void WorkWindow::buildUi() {
     replaceVideoAction_ = videoMenu_->addAction(QString());
     discardVideoAction_ = videoMenu_->addAction(QString());
     videoMenu_->addSeparator();
+    importXmlAction_ = videoMenu_->addAction(QString());
     clipDurationSettingsAction_ = videoMenu_->addAction(QString());
     exportClipsAction_ = videoMenu_->addAction(QString());
     videoMenuButton_->setMenu(videoMenu_);
@@ -836,6 +863,7 @@ void WorkWindow::wireSignals() {
     connect(videoPlayer_, &VideoPlayer::videoClosed, this, &WorkWindow::videoClosed);
 
     connect(exportClipsAction_, &QAction::triggered, this, &WorkWindow::onExportClips);
+    connect(importXmlAction_, &QAction::triggered, this, &WorkWindow::onImportXml);
     connect(clipDurationSettingsAction_, &QAction::triggered, this,
             &WorkWindow::onClipDurationSettings);
 
@@ -1229,6 +1257,88 @@ void WorkWindow::onClipDurationSettings() {
     connect(&LocaleNotifier::instance(), &LocaleNotifier::languageChanged, dialog,
             &ClipDurationSettingsDialog::applyUiStrings);
     dialog->show();
+}
+
+void WorkWindow::onImportXml() {
+    if (!tagSession_ || !videoPlayer_ || sourceVideoPath_.isEmpty()) return;
+
+    const QString filePath = QFileDialog::getOpenFileName(
+        this,
+        AppLocale::trUi("xml_import.select_file"),
+        exportDefaultDirectoryPath_.isEmpty() ? QString() : exportDefaultDirectoryPath_,
+        AppLocale::trUi("file.xml_filter"));
+    if (filePath.isEmpty()) return;
+
+    QVector<XmlImporter::ParsedInstance> instances;
+    QString parseError;
+    if (!XmlImporter::parse(filePath, &instances, &parseError)) {
+        QMessageBox::warning(this, AppLocale::trUi("xml_import.title"), parseError);
+        return;
+    }
+
+    TagSession::ImportMode importMode = TagSession::ImportMode::Replace;
+    if (!tagSession_->tags().isEmpty()) {
+        QMessageBox conflictBox(this);
+        conflictBox.setWindowTitle(AppLocale::trUi("xml_import.conflict_title"));
+        conflictBox.setText(AppLocale::trUi("xml_import.conflict_message"));
+        QPushButton* replaceButton =
+            conflictBox.addButton(AppLocale::trUi("xml_import.conflict_replace"),
+                                  QMessageBox::AcceptRole);
+        QPushButton* mergeButton =
+            conflictBox.addButton(AppLocale::trUi("xml_import.conflict_merge"),
+                                  QMessageBox::AcceptRole);
+        conflictBox.addButton(AppLocale::trUi("xml_import.cancel"), QMessageBox::RejectRole);
+        conflictBox.setDefaultButton(replaceButton);
+        conflictBox.exec();
+        if (conflictBox.clickedButton() == replaceButton) {
+            importMode = TagSession::ImportMode::Replace;
+        } else if (conflictBox.clickedButton() == mergeButton) {
+            importMode = TagSession::ImportMode::Merge;
+        } else {
+            return;
+        }
+    }
+
+    bool anchorUsedFallback = false;
+    const XmlImporter::ParsedInstance anchorInstance =
+        XmlImporter::syncAnchorInstance(instances, &anchorUsedFallback);
+
+    XmlSyncDialog syncDialog(videoPlayer_, anchorInstance, instances, anchorUsedFallback, this);
+    syncDialog.setModal(true);
+    if (videoPlayer_) {
+        videoPlayer_->setPlaybackKeyboardShortcutsEnabled(false);
+    }
+    const int syncResult = syncDialog.exec();
+    if (videoPlayer_) {
+        videoPlayer_->setPlaybackKeyboardShortcutsEnabled(true);
+    }
+    if (syncResult != QDialog::Accepted) return;
+
+    const qint64 offsetMs = syncDialog.offsetMs();
+
+    XmlEventMappingDialog mappingDialog(instances, offsetMs, tagSession_, this);
+    mappingDialog.setModal(true);
+    if (mappingDialog.exec() != QDialog::Accepted) return;
+
+    const QVector<TagSession::GameTag> importedTags = mappingDialog.buildGameTags();
+    if (importedTags.isEmpty()) {
+        QMessageBox::information(this, AppLocale::trUi("xml_import.title"),
+                                 AppLocale::trUi("xml_import.mapping_none_selected"));
+        return;
+    }
+
+    const qint64 videoDurationMs = videoPlayer_->durationMs();
+    const TagSession::ImportResult result =
+        tagSession_->importTags(importedTags, importMode, videoDurationMs);
+
+    const int dialogSkipped = mappingDialog.skippedInstanceCount();
+    QMessageBox::information(
+        this,
+        AppLocale::trUi("xml_import.title"),
+        AppLocale::trUi("xml_import.complete_summary")
+            .arg(result.importedCount)
+            .arg(dialogSkipped)
+            .arg(result.clampedCount));
 }
 
 void WorkWindow::onModeToggled() {

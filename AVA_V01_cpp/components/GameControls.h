@@ -6,6 +6,8 @@
 #include <QHash>
 #include <QVector>
 
+#include "../state/TagSession.h"
+
 class QPushButton;
 class QLabel;
 class QGridLayout;
@@ -35,6 +37,9 @@ public:
 
   /// Resets the Start Game / Next Quarter UI back to the "no game started" state.
   void resetGameTimeState();
+
+  /// Syncs Start/Next Quarter buttons with imported or restored session quarter state.
+  void restoreGamePhase(TagSession::QuarterPhase phase, int currentQuarterIndex);
 
   /// Returns the canonical period name (\c "Q1".."Q4") of the quarter currently in progress,
   /// or an empty string when no quarter is in progress.

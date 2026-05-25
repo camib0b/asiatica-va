@@ -71,6 +71,154 @@ void TagSession::addTag(const GameTag& tag) {
   emit statsChanged();
 }
 
+TagSession::ImportResult TagSession::importTags(const QVector<GameTag>& tags,
+                                                ImportMode mode,
+                                                qint64 videoDurationMs) {
+  ImportResult result;
+  result.skippedCount = 0;
+
+  if (mode == ImportMode::Replace) {
+    tags_.clear();
+    mainEventCounts_.clear();
+    followUpCountsByMainEvent_.clear();
+    resetGameTimeState();
+  }
+
+  for (const GameTag& incoming : tags) {
+    GameTag stored = incoming;
+    bool clamped = false;
+
+    if (stored.startMs < 0) {
+      stored.startMs = 0;
+      clamped = true;
+    }
+    if (videoDurationMs >= 0 && stored.startMs > videoDurationMs) {
+      stored.startMs = videoDurationMs;
+      clamped = true;
+    }
+    if (stored.endMs < stored.startMs) {
+      stored.endMs = stored.startMs;
+      clamped = true;
+    }
+    if (videoDurationMs >= 0 && stored.endMs > videoDurationMs) {
+      stored.endMs = videoDurationMs;
+      clamped = true;
+    }
+    if (stored.positionMs < stored.startMs) {
+      stored.positionMs = stored.startMs;
+      clamped = true;
+    }
+    if (stored.positionMs > stored.endMs) {
+      stored.positionMs = stored.endMs;
+      clamped = true;
+    }
+
+    if (clamped) ++result.clampedCount;
+    tags_.push_back(stored);
+    ++result.importedCount;
+  }
+
+  std::stable_sort(tags_.begin(), tags_.end(),
+                   [](const GameTag& a, const GameTag& b) {
+                     if (a.startMs != b.startMs) return a.startMs < b.startMs;
+                     return a.positionMs < b.positionMs;
+                   });
+
+  rebuildStatsFromTags();
+  restoreGameTimeStateFromTags();
+  emit tagsImported();
+  emit statsChanged();
+  return result;
+}
+
+void TagSession::rebuildStatsFromTags() {
+  mainEventCounts_.clear();
+  followUpCountsByMainEvent_.clear();
+  for (const GameTag& tag : tags_) {
+    const int nextMainCount = mainEventCounts_.value(tag.mainEvent, 0) + 1;
+    mainEventCounts_.insert(tag.mainEvent, nextMainCount);
+    if (!tag.followUpEvent.isEmpty()) {
+      auto& followUps = followUpCountsByMainEvent_[tag.mainEvent];
+      const int nextFollowUpCount = followUps.value(tag.followUpEvent, 0) + 1;
+      followUps.insert(tag.followUpEvent, nextFollowUpCount);
+    }
+  }
+}
+
+void TagSession::restoreGameTimeStateFromTags() {
+  gameStartAnchorMs_ = -1;
+  currentQuarterIndex_ = -1;
+  currentQuarterStartMs_ = 0;
+  quarterPhase_ = QuarterPhase::NotStarted;
+
+  for (const GameTag& tag : tags_) {
+    if (tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kStartAnchor)) {
+      gameStartAnchorMs_ = tag.startMs;
+      break;
+    }
+  }
+
+  static const QString kQuarterCodes[4] = {
+      QString::fromLatin1(EventDefaults::TimeCodes::kQuarter1),
+      QString::fromLatin1(EventDefaults::TimeCodes::kQuarter2),
+      QString::fromLatin1(EventDefaults::TimeCodes::kQuarter3),
+      QString::fromLatin1(EventDefaults::TimeCodes::kQuarter4),
+  };
+
+  bool hasClosedQuarter[4] = {false, false, false, false};
+  qint64 quarterStartMs[4] = {0, 0, 0, 0};
+  qint64 quarterEndMs[4] = {0, 0, 0, 0};
+
+  for (const GameTag& tag : tags_) {
+    for (int i = 0; i < 4; ++i) {
+      if (tag.mainEvent == kQuarterCodes[i]) {
+        hasClosedQuarter[i] = true;
+        quarterStartMs[i] = tag.startMs;
+        quarterEndMs[i] = tag.endMs;
+        break;
+      }
+    }
+  }
+
+  if (hasClosedQuarter[3]) {
+    quarterPhase_ = QuarterPhase::GameEnded;
+    return;
+  }
+
+  int lastClosedIndex = -1;
+  for (int i = 3; i >= 0; --i) {
+    if (hasClosedQuarter[i]) {
+      lastClosedIndex = i;
+      break;
+    }
+  }
+
+  if (lastClosedIndex >= 0 && lastClosedIndex < 3) {
+    const int nextIndex = lastClosedIndex + 1;
+    quarterPhase_ = QuarterPhase::QuarterInProgress;
+    currentQuarterIndex_ = nextIndex;
+    currentQuarterStartMs_ = quarterEndMs[lastClosedIndex];
+    return;
+  }
+
+  if (lastClosedIndex == -1 && gameStartAnchorMs_ >= 0) {
+    quarterPhase_ = QuarterPhase::QuarterInProgress;
+    currentQuarterIndex_ = 0;
+    currentQuarterStartMs_ = gameStartAnchorMs_;
+    return;
+  }
+
+  for (int i = 0; i < 4; ++i) {
+    if (hasClosedQuarter[i]) continue;
+    if (i == 0 && gameStartAnchorMs_ >= 0) {
+      quarterPhase_ = QuarterPhase::QuarterInProgress;
+      currentQuarterIndex_ = 0;
+      currentQuarterStartMs_ = gameStartAnchorMs_;
+      return;
+    }
+  }
+}
+
 void TagSession::removeTag(int index) {
   if (index < 0 || index >= tags_.size()) return;
 

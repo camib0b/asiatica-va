@@ -1,6 +1,7 @@
 #include "GameControls.h"
 #include "../style/StyleProps.h"
 #include "../i18n/AppLocale.h"
+#include "../state/TagSession.h"
 
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -118,6 +119,27 @@ void GameControls::applyUiLanguage() {
 
 void GameControls::resetGameTimeState() {
   gamePhase_ = GamePhase::NotStarted;
+  updateGameTimeButtonsUi();
+}
+
+void GameControls::restoreGamePhase(TagSession::QuarterPhase phase, int currentQuarterIndex) {
+  switch (phase) {
+    case TagSession::QuarterPhase::NotStarted:
+      gamePhase_ = GamePhase::NotStarted;
+      break;
+    case TagSession::QuarterPhase::GameEnded:
+      gamePhase_ = GamePhase::Ended;
+      break;
+    case TagSession::QuarterPhase::QuarterInProgress:
+      switch (currentQuarterIndex) {
+        case 0: gamePhase_ = GamePhase::Q1; break;
+        case 1: gamePhase_ = GamePhase::Q2; break;
+        case 2: gamePhase_ = GamePhase::Q3; break;
+        case 3: gamePhase_ = GamePhase::Q4; break;
+        default: gamePhase_ = GamePhase::NotStarted; break;
+      }
+      break;
+  }
   updateGameTimeButtonsUi();
 }
 

@@ -20,8 +20,11 @@ qt_add_executable(AVA
   ui/GameSetupWindow.cpp
   ui/WorkWindow.cpp
   ui/ClipDurationSettingsDialog.cpp
+  ui/XmlSyncDialog.cpp
+  ui/XmlEventMappingDialog.cpp
   ui/StatsWindow.cpp
   state/EventDefaults.cpp
+  state/EventCodeMap.cpp
   state/TagSession.cpp
   components/VideoControlsBar.cpp
   components/TimelineBar.cpp
@@ -32,6 +35,7 @@ qt_add_executable(AVA
   export/ExportDialog.cpp
   export/VideoConcatenator.cpp
   export/XmlExporter.cpp
+  export/XmlImporter.cpp
   export/YouTubeConfig.cpp
   export/YouTubeAuthManager.cpp
   export/YouTubeUploader.cpp

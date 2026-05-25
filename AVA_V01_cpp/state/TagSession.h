@@ -33,6 +33,17 @@ public:
     GameEnded,
   };
 
+  enum class ImportMode {
+    Replace,
+    Merge,
+  };
+
+  struct ImportResult {
+    int importedCount = 0;
+    int skippedCount = 0;
+    int clampedCount = 0;
+  };
+
   explicit TagSession(QObject* parent = nullptr);
   ~TagSession() override = default;
 
@@ -58,6 +69,9 @@ public:
   QString awayAbbrev() const { return awayAbbrev_; }
 
   void addTag(const GameTag& tag);
+  ImportResult importTags(const QVector<GameTag>& tags,
+                          ImportMode mode,
+                          qint64 videoDurationMs = -1);
   void removeTag(int index);
   void setTagNote(int index, const QString& note);
   QString tagNote(int index) const;
@@ -95,11 +109,14 @@ public:
 signals:
   void cleared();
   void tagAdded(const TagSession::GameTag& tag);
+  void tagsImported();
   void tagNoteChanged(int index);
   void tagIntervalChanged(int index);
   void statsChanged();
 
 private:
+  void rebuildStatsFromTags();
+  void restoreGameTimeStateFromTags();
   QVector<GameTag> tags_;
   QHash<QString, int> mainEventCounts_;
   QHash<QString, QHash<QString, int>> followUpCountsByMainEvent_;
