@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Multimedia MultimediaWidgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Multimedia MultimediaWidgets Network)
 
 qt_standard_project_setup()
 
@@ -19,6 +19,7 @@ qt_add_executable(AVA
   ui/WelcomeWindow.cpp
   ui/GameSetupWindow.cpp
   ui/WorkWindow.cpp
+  ui/ClipDurationSettingsDialog.cpp
   ui/StatsWindow.cpp
   state/EventDefaults.cpp
   state/TagSession.cpp
@@ -31,6 +32,9 @@ qt_add_executable(AVA
   export/ExportDialog.cpp
   export/VideoConcatenator.cpp
   export/XmlExporter.cpp
+  export/YouTubeConfig.cpp
+  export/YouTubeAuthManager.cpp
+  export/YouTubeUploader.cpp
 )
 
 # macOS app bundle and Dock icon
@@ -69,4 +73,14 @@ target_link_libraries(AVA PRIVATE
   Qt6::Widgets
   Qt6::Multimedia
   Qt6::MultimediaWidgets
+  Qt6::Network
 )
+
+set(YOUTUBE_OAUTH_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/config/youtube_oauth.json")
+if(EXISTS "${YOUTUBE_OAUTH_CONFIG}")
+  add_custom_command(TARGET AVA POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${YOUTUBE_OAUTH_CONFIG}"
+      "$<TARGET_FILE_DIR:AVA>/youtube_oauth.json"
+    COMMENT "Copying YouTube OAuth config into app bundle")
+endif()

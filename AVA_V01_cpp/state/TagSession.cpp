@@ -116,11 +116,14 @@ QString TagSession::tagNote(int index) const {
   return tags_[index].note;
 }
 
-void TagSession::setTagInterval(int index, qint64 startMs, qint64 endMs) {
+void TagSession::setTagInterval(int index, qint64 startMs, qint64 endMs, bool userInitiated) {
   if (index < 0 || index >= tags_.size()) return;
   if (startMs < 0) startMs = 0;
   if (endMs < startMs) endMs = startMs;
   GameTag& tag = tags_[index];
+  if (userInitiated) {
+    tag.intervalManuallyEdited = true;
+  }
   if (tag.startMs == startMs && tag.endMs == endMs) return;
   tag.startMs = startMs;
   tag.endMs = endMs;
@@ -136,6 +139,7 @@ void TagSession::applyDefaultsToUntrimmedTags(const QString& mainEvent, qint64 p
   for (int i = 0; i < tags_.size(); ++i) {
     GameTag& tag = tags_[i];
     if (tag.mainEvent != mainEvent) continue;
+    // Manually trimmed clips (export review or fixed game-time spans) are never touched.
     if (tag.intervalManuallyEdited) continue;
     qint64 start = tag.positionMs - preMs;
     qint64 end = tag.positionMs + postMs;

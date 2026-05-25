@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QString>
+#include <QStringList>
 #include <QtGlobal>
 
 namespace EventDefaults {
@@ -28,8 +29,24 @@ bool isQuarterEvent(const QString& canonicalMainEvent);
 /// (start anchor, quarter spans, timeouts) and not by symmetric pre/post pads.
 bool isTimeControlEvent(const QString& canonicalMainEvent);
 
-/// Default pre/post pad (in milliseconds) for a tag of the given main-event type.
-/// For quarter events this returns {0, 0} (start/end are set explicitly by the caller).
+/// All clip event types shown in Clip Duration Settings (fixed display order).
+QStringList allConfigurableEventTypes();
+
+/// Hard-coded factory defaults (ignores user overrides).
+EventDuration factoryDefaultFor(const QString& canonicalMainEvent);
+
+/// Effective default: user override when set, otherwise factory default.
 EventDuration defaultFor(const QString& canonicalMainEvent);
+
+bool hasUserOverride(const QString& canonicalMainEvent);
+
+/// Persist a user override and update the in-memory cache.
+void setUserOverride(const QString& canonicalMainEvent, qint64 preMs, qint64 postMs);
+
+/// Remove all user overrides from memory and QSettings.
+void clearUserOverrides();
+
+/// Load persisted overrides from QSettings (call once at app startup).
+void loadFromSettings();
 
 } // namespace EventDefaults

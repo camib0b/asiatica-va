@@ -62,8 +62,9 @@ public:
   void setTagNote(int index, const QString& note);
   QString tagNote(int index) const;
   /// Updates the clip interval (start/end in ms) of the tag at \p index.
-  /// Marks the interval as user-edited so future default-duration changes do not overwrite it.
-  void setTagInterval(int index, qint64 startMs, qint64 endMs);
+  /// When \p userInitiated is true (export trim bar drag), the tag is always marked as
+  /// manually trimmed so later default-duration changes cannot overwrite it.
+  void setTagInterval(int index, qint64 startMs, qint64 endMs, bool userInitiated = false);
   /// Re-applies pre/post defaults (in ms) to every tag of \p mainEvent that has not been
   /// manually trimmed. Quarter / start-anchor tags are skipped because their interval is
   /// determined by user clicks, not by symmetric pads.

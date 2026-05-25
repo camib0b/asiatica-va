@@ -1,4 +1,5 @@
 #include "WorkWindow.h"
+#include "ClipDurationSettingsDialog.h"
 #include "../style/StyleProps.h"
 #include "../components/VideoPlayer.h"
 #include "../components/GameControls.h"
@@ -230,6 +231,9 @@ void WorkWindow::applyUiStrings() {
     if (replaceVideoAction_) replaceVideoAction_->setText(AppLocale::trUi("menu.replace_video"));
     if (discardVideoAction_) discardVideoAction_->setText(AppLocale::trUi("menu.close_video"));
     if (exportClipsAction_) exportClipsAction_->setText(AppLocale::trUi("menu.export_clips"));
+    if (clipDurationSettingsAction_) {
+        clipDurationSettingsAction_->setText(AppLocale::trUi("menu.clip_durations"));
+    }
     if (tagsHeaderLabel_) tagsHeaderLabel_->setText(AppLocale::trUi("tags.header"));
     if (tagsFilterButton_) tagsFilterButton_->setText(AppLocale::trUi("tags.filter"));
     if (tagsRemoveFiltersButton_) tagsRemoveFiltersButton_->setText(AppLocale::trUi("tags.remove_filters"));
@@ -393,6 +397,7 @@ void WorkWindow::buildUi() {
     replaceVideoAction_ = videoMenu_->addAction(QString());
     discardVideoAction_ = videoMenu_->addAction(QString());
     videoMenu_->addSeparator();
+    clipDurationSettingsAction_ = videoMenu_->addAction(QString());
     exportClipsAction_ = videoMenu_->addAction(QString());
     videoMenuButton_->setMenu(videoMenu_);
     videoControlsLayout->addWidget(videoMenuButton_, 0, Qt::AlignRight | Qt::AlignVCenter);
@@ -831,6 +836,8 @@ void WorkWindow::wireSignals() {
     connect(videoPlayer_, &VideoPlayer::videoClosed, this, &WorkWindow::videoClosed);
 
     connect(exportClipsAction_, &QAction::triggered, this, &WorkWindow::onExportClips);
+    connect(clipDurationSettingsAction_, &QAction::triggered, this,
+            &WorkWindow::onClipDurationSettings);
 
     // GameControls -> capture timestamp and store tags
     connect(gameControls_, &GameControls::mainEventPressed, this, [this](const QString& mainEvent) {
@@ -1212,6 +1219,15 @@ void WorkWindow::onExportClips() {
             videoPlayer_->setPlaybackKeyboardShortcutsEnabled(true);
         }
     });
+    dialog->show();
+}
+
+void WorkWindow::onClipDurationSettings() {
+    auto* dialog = new ClipDurationSettingsDialog(tagSession_, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModal(true);
+    connect(&LocaleNotifier::instance(), &LocaleNotifier::languageChanged, dialog,
+            &ClipDurationSettingsDialog::applyUiStrings);
     dialog->show();
 }
 

@@ -70,6 +70,5 @@ dist/
 .coverage
 htmlcov/
 
-# --- Python Qt (generated from .qrc) ---
-*_rc.py
-resources_rc.py
+# --- Secrets / local API credentials ---
+**/youtube_oauth.json

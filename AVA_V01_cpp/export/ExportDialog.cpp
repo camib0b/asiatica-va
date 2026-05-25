@@ -1,10 +1,11 @@
 #include "ExportDialog.h"
 #include "ClipExporter.h"
 #include "ClipTrimBar.h"
-#include "EventDefaults.h"
 #include "TagSession.h"
 #include "VideoControlsBar.h"
 #include "XmlExporter.h"
+#include "YouTubeAuthManager.h"
+#include "YouTubeConfig.h"
 #include "AppLocale.h"
 #include "StyleProps.h"
 
@@ -13,13 +14,12 @@
 #include <QAudioOutput>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDesktopServices>
 #include <QDir>
-#include <QDoubleSpinBox>
 #include <QEvent>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
-#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -78,9 +78,20 @@ ExportDialog::ExportDialog(TagSession* session,
     pagesStack_->setCurrentWidget(settingsPage_);
 
     populateEventTypes();
-    rebuildEventDurationOverrides();
     updatePathFieldForFormat();
     updateClipCount();
+
+    youtubeAuth_ = new YouTubeAuthManager(this);
+    youtubeUploader_ = new YouTubeUploader(youtubeAuth_, this);
+    connect(youtubeAuth_, &YouTubeAuthManager::authStateChanged,
+            this, &ExportDialog::onYouTubeAuthStateChanged);
+    connect(youtubeAuth_, &YouTubeAuthManager::authError,
+            this, &ExportDialog::onYouTubeAuthError);
+    connect(youtubeUploader_, &YouTubeUploader::progressChanged,
+            this, &ExportDialog::onYouTubeUploadProgress);
+    connect(youtubeUploader_, &YouTubeUploader::uploadFinished,
+            this, &ExportDialog::onYouTubeUploadFinished);
+    updateYouTubeSection();
 }
 
 ExportDialog::~ExportDialog() {
@@ -200,12 +211,6 @@ void ExportDialog::buildSettingsPage() {
     Style::setRole(clipCountLabel_, "muted");
     formLayout->addRow(QString(), clipCountLabel_);
 
-    eventDurationsGroup_ = new QGroupBox(AppLocale::trUi("export.event_durations_header"), settingsPage_);
-    eventDurationsForm_ = new QFormLayout(eventDurationsGroup_);
-    eventDurationsForm_->setSpacing(6);
-    eventDurationsForm_->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
-    formLayout->addRow(QString(), eventDurationsGroup_);
-
     auto* pathRow = new QHBoxLayout();
     pathRow->setSpacing(8);
     outputPathEdit_ = new QLineEdit(settingsPage_);
@@ -224,6 +229,42 @@ void ExportDialog::buildSettingsPage() {
     pathRow->addWidget(browseButton_, 0);
 
     formLayout->addRow(AppLocale::trUi("export.save_to"), pathRow);
+
+    uploadToYouTubeCheckBox_ =
+        new QCheckBox(AppLocale::trUi("export.upload_to_youtube"), settingsPage_);
+    uploadToYouTubeCheckBox_->setCursor(Qt::PointingHandCursor);
+    uploadToYouTubeCheckBox_->setChecked(false);
+    connect(uploadToYouTubeCheckBox_, &QCheckBox::toggled,
+            this, [this](bool checked) { Q_UNUSED(checked); updateYouTubeSection(); });
+    formLayout->addRow(QString(), uploadToYouTubeCheckBox_);
+
+    youtubeStatusLabel_ = new QLabel(settingsPage_);
+    Style::setRole(youtubeStatusLabel_, "muted");
+    youtubeStatusLabel_->setWordWrap(true);
+    formLayout->addRow(AppLocale::trUi("export.youtube_account"), youtubeStatusLabel_);
+
+    youtubePlaylistLabel_ = new QLabel(settingsPage_);
+    Style::setRole(youtubePlaylistLabel_, "muted");
+    youtubePlaylistLabel_->setWordWrap(true);
+    formLayout->addRow(AppLocale::trUi("export.youtube_playlist"), youtubePlaylistLabel_);
+
+    auto* youtubeButtonRow = new QHBoxLayout();
+    youtubeButtonRow->setSpacing(8);
+    youtubeConnectButton_ = new QPushButton(AppLocale::trUi("export.youtube_connect"), settingsPage_);
+    youtubeConnectButton_->setCursor(Qt::PointingHandCursor);
+    Style::setVariant(youtubeConnectButton_, "secondary");
+    connect(youtubeConnectButton_, &QPushButton::clicked,
+            this, &ExportDialog::onYouTubeConnectClicked);
+    youtubeButtonRow->addWidget(youtubeConnectButton_);
+
+    youtubeDisconnectButton_ = new QPushButton(AppLocale::trUi("export.youtube_disconnect"), settingsPage_);
+    youtubeDisconnectButton_->setCursor(Qt::PointingHandCursor);
+    Style::setVariant(youtubeDisconnectButton_, "outline");
+    connect(youtubeDisconnectButton_, &QPushButton::clicked,
+            this, &ExportDialog::onYouTubeDisconnectClicked);
+    youtubeButtonRow->addWidget(youtubeDisconnectButton_);
+    youtubeButtonRow->addStretch(1);
+    formLayout->addRow(QString(), youtubeButtonRow);
 
     layout->addLayout(formLayout);
     layout->addStretch(1);
@@ -312,10 +353,10 @@ void ExportDialog::buildTrimPage() {
     connect(clipTrimBar_, &ClipTrimBar::seekRequested,
             this, &ExportDialog::onTrimSeekRequested);
     connect(clipTrimBar_, &ClipTrimBar::inPointChanged, this, [this](qint64) {
-        saveTrimForCurrentClip();
+        saveTrimForCurrentClip(true);
     });
     connect(clipTrimBar_, &ClipTrimBar::outPointChanged, this, [this](qint64) {
-        saveTrimForCurrentClip();
+        saveTrimForCurrentClip(true);
     });
     layout->addWidget(clipTrimBar_);
 
@@ -415,7 +456,8 @@ void ExportDialog::onTeamFilterChanged(int /*index*/) {
 
 void ExportDialog::onOutputFormatChanged(int /*index*/) {
     updatePathFieldForFormat();
-    refreshOutputPathIfFollowingForm();
+    updateFilterControlsForFormat();
+    updateClipCount();
 
     // Adjust the primary action label so XML-only users can export directly from the settings
     // page instead of going through the per-clip trim flow (which only matters for MP4 output).
@@ -425,9 +467,9 @@ void ExportDialog::onOutputFormatChanged(int /*index*/) {
             reviewButton_->setEnabled(tagSession_ && !tagSession_->tags().isEmpty());
         } else {
             reviewButton_->setText(AppLocale::trUi("export.review_clips"));
-            updateClipCount();  // re-applies the count-based enable state for MP4/Both modes
         }
     }
+    updateYouTubeSection();
 }
 
 ExportDialog::OutputFormat ExportDialog::selectedOutputFormat() const {
@@ -446,106 +488,61 @@ void ExportDialog::updatePathFieldForFormat() {
     }
     outputPathEdit_->setPlaceholderText(placeholder);
 
-    // For XML-only export the per-clip review and per-event filter no longer drive output, but
-    // we still let the user open it (so they can trim individual clips and have the trims persist
-    // into the XML). Disable the review button when no per-clip work makes sense for XML-only.
-    if (reviewButton_) {
-        // updateClipCount already enables/disables based on count; no change here.
-    }
-}
-
-void ExportDialog::rebuildEventDurationOverrides() {
-    if (!eventDurationsForm_ || !eventDurationsGroup_) return;
-
-    // Tear down existing rows
-    eventDurationSpinners_.clear();
-    while (eventDurationsForm_->rowCount() > 0) {
-        eventDurationsForm_->removeRow(0);
-    }
-
-    if (!tagSession_) {
-        eventDurationsGroup_->hide();
-        return;
-    }
-
-    QStringList eventNames;
-    const auto& counts = tagSession_->mainEventCounts();
-    for (auto it = counts.cbegin(); it != counts.cend(); ++it) {
-        if (EventDefaults::isTimeControlEvent(it.key())) continue;
-        if (it.value() <= 0) continue;
-        eventNames.append(it.key());
-    }
-    if (eventNames.isEmpty()) {
-        eventDurationsGroup_->hide();
-        return;
-    }
-    eventNames.sort(Qt::CaseInsensitive);
-    eventDurationsGroup_->show();
-
-    for (const QString& eventName : eventNames) {
-        const auto duration = EventDefaults::defaultFor(eventName);
-        const double preSeconds = duration.preMs / 1000.0;
-        const double postSeconds = duration.postMs / 1000.0;
-
-        auto* rowWidget = new QWidget(eventDurationsGroup_);
-        auto* rowLayout = new QHBoxLayout(rowWidget);
-        rowLayout->setContentsMargins(0, 0, 0, 0);
-        rowLayout->setSpacing(8);
-
-        auto* preSpin = new QDoubleSpinBox(rowWidget);
-        preSpin->setRange(0.0, 60.0);
-        preSpin->setValue(preSeconds);
-        preSpin->setSuffix(QStringLiteral(" s"));
-        preSpin->setSingleStep(0.5);
-        preSpin->setDecimals(2);
-        preSpin->setPrefix(AppLocale::trUi("export.event_duration_pre_prefix"));
-
-        auto* postSpin = new QDoubleSpinBox(rowWidget);
-        postSpin->setRange(0.0, 60.0);
-        postSpin->setValue(postSeconds);
-        postSpin->setSuffix(QStringLiteral(" s"));
-        postSpin->setSingleStep(0.5);
-        postSpin->setDecimals(2);
-        postSpin->setPrefix(AppLocale::trUi("export.event_duration_post_prefix"));
-
-        rowLayout->addWidget(preSpin, 1);
-        rowLayout->addWidget(postSpin, 1);
-
-        eventDurationSpinners_.insert(eventName, qMakePair(preSpin, postSpin));
-
-        const QString rowLabel = AppLocale::trEvent(eventName);
-        eventDurationsForm_->addRow(rowLabel, rowWidget);
-
-        connect(preSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
-                [this, eventName](double) { onEventDurationOverrideChanged(eventName); });
-        connect(postSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
-                [this, eventName](double) { onEventDurationOverrideChanged(eventName); });
-    }
-}
-
-void ExportDialog::onEventDurationOverrideChanged(const QString& mainEvent) {
-    if (!tagSession_) return;
-    auto it = eventDurationSpinners_.find(mainEvent);
-    if (it == eventDurationSpinners_.end()) return;
-    QDoubleSpinBox* preSpin = it.value().first;
-    QDoubleSpinBox* postSpin = it.value().second;
-    if (!preSpin || !postSpin) return;
-    const qint64 preMs = static_cast<qint64>(preSpin->value() * 1000.0);
-    const qint64 postMs = static_cast<qint64>(postSpin->value() * 1000.0);
-    tagSession_->applyDefaultsToUntrimmedTags(mainEvent, preMs, postMs);
+    updateFilterControlsForFormat();
 }
 
 void ExportDialog::updateSortOrderVisibility() {
+    const bool isXmlOnly = selectedOutputFormat() == OutputFormat::Xml;
     const bool allTeams = teamFilterCombo_
         && teamFilterCombo_->currentData().toString().isEmpty();
-    if (sortOrderLabel_) sortOrderLabel_->setVisible(allTeams);
-    if (sortOrderCombo_) sortOrderCombo_->setVisible(allTeams);
+    const bool showSortOrder = !isXmlOnly && allTeams;
+    if (sortOrderLabel_) sortOrderLabel_->setVisible(showSortOrder);
+    if (sortOrderCombo_) sortOrderCombo_->setVisible(showSortOrder);
+}
+
+void ExportDialog::updateFilterControlsForFormat() {
+    const bool isXmlOnly = selectedOutputFormat() == OutputFormat::Xml;
+    const bool filtersAffectCurrentFormat = !isXmlOnly;
+    const QString ignoredForXmlTooltip = isXmlOnly
+        ? AppLocale::trUi("export.xml_filters_ignored_tooltip")
+        : QString();
+
+    if (eventTypeCombo_) {
+        eventTypeCombo_->setEnabled(filtersAffectCurrentFormat);
+        eventTypeCombo_->setToolTip(ignoredForXmlTooltip);
+    }
+    if (teamFilterCombo_) {
+        teamFilterCombo_->setEnabled(filtersAffectCurrentFormat);
+        teamFilterCombo_->setToolTip(ignoredForXmlTooltip);
+    }
+    if (sortOrderLabel_) {
+        sortOrderLabel_->setEnabled(filtersAffectCurrentFormat);
+        sortOrderLabel_->setToolTip(ignoredForXmlTooltip);
+    }
+    if (sortOrderCombo_) {
+        sortOrderCombo_->setEnabled(filtersAffectCurrentFormat);
+        sortOrderCombo_->setToolTip(ignoredForXmlTooltip);
+    }
+
+    updateSortOrderVisibility();
 }
 
 void ExportDialog::updateClipCount() {
     if (!clipCountLabel_ || !tagSession_ || !eventTypeCombo_) return;
 
     const bool isXmlOnly = selectedOutputFormat() == OutputFormat::Xml;
+    if (isXmlOnly) {
+        clipCountLabel_->setText(
+            QStringLiteral("%1 %2")
+                .arg(tagSession_->tags().size())
+                .arg(AppLocale::trUi("export.xml_instances_label")));
+        if (reviewButton_) {
+            reviewButton_->setEnabled(!tagSession_->tags().isEmpty());
+        }
+        refreshOutputPathIfFollowingForm();
+        return;
+    }
+
     const QString canonicalEvent = eventTypeCombo_->currentData().toString();
     if (canonicalEvent.isEmpty()) {
         clipCountLabel_->setText(QString());
@@ -685,9 +682,8 @@ void ExportDialog::buildTrimDataFromSettings() {
     for (int i = 0; i < totalClips; ++i) {
         const auto& entry = matchingTags[i];
 
-        // Seed clip interval from the GameTag's stored startMs/endMs (single source of truth).
-        // TagSession::addTag already populated these from EventDefaults when the tag was created;
-        // ExportDialog's per-event-type overrides further mutate them via applyDefaultsToUntrimmedTags.
+        // Always use the persisted interval from TagSession. Manually trimmed tags keep their
+        // start/end even when default lead/lag times change later.
         qint64 clipStart = entry.tag.startMs;
         qint64 clipEnd = entry.tag.endMs;
         if (clipStart < 0) clipStart = 0;
@@ -714,6 +710,7 @@ void ExportDialog::buildTrimDataFromSettings() {
 }
 
 void ExportDialog::onBackToSettingsClicked() {
+    saveTrimForCurrentClip();
     stopPreviewPlayer();
     pagesStack_->setCurrentWidget(settingsPage_);
     updateTrimPageKeyboardShortcutsForCurrentPage();
@@ -883,7 +880,7 @@ void ExportDialog::showClipAtIndex(int index) {
     updateClipNavigation();
 }
 
-void ExportDialog::saveTrimForCurrentClip() {
+void ExportDialog::saveTrimForCurrentClip(bool userInitiatedTrim) {
     if (currentTrimIndex_ < 0 || currentTrimIndex_ >= trimData_.size()) return;
     if (clipTrimBar_) {
         const qint64 newStart = clipTrimBar_->inPointMs();
@@ -894,7 +891,9 @@ void ExportDialog::saveTrimForCurrentClip() {
         // Persist the trim back into TagSession so the XML exporter sees the same start/end as the
         // MP4 pipeline. Skips when the index is invalid (e.g. the clip was just discarded).
         if (tagSession_ && td.tagSessionIndex >= 0) {
-            tagSession_->setTagInterval(td.tagSessionIndex, newStart, newEnd);
+            tagSession_->setTagInterval(td.tagSessionIndex, newStart, newEnd, userInitiatedTrim);
+            td.tag.intervalManuallyEdited =
+                tagSession_->tags().at(td.tagSessionIndex).intervalManuallyEdited;
         }
     }
     if (includeNoteCheckBox_) {
@@ -998,11 +997,26 @@ QString ExportDialog::sanitizedExportFileNamePart(const QString& raw) const {
     return segment;
 }
 
+QString ExportDialog::suggestedXmlReportBaseName() const {
+    const QString homeSegment =
+        sanitizedExportFileNamePart(teamDisplayName(QStringLiteral("Home")));
+    const QString awaySegment =
+        sanitizedExportFileNamePart(teamDisplayName(QStringLiteral("Away")));
+    const QString reportSegment =
+        sanitizedExportFileNamePart(AppLocale::trUi("export.xml_report_filename_segment"));
+    return QStringLiteral("%1 vs %2 - %3")
+        .arg(homeSegment, awaySegment, reportSegment);
+}
+
 QString ExportDialog::suggestedExportBaseName() const {
     const QString homeSegment =
         sanitizedExportFileNamePart(teamDisplayName(QStringLiteral("Home")));
     const QString awaySegment =
         sanitizedExportFileNamePart(teamDisplayName(QStringLiteral("Away")));
+    if (selectedOutputFormat() == OutputFormat::Xml) {
+        return suggestedXmlReportBaseName();
+    }
+
     const QString canonicalEvent =
         eventTypeCombo_ ? eventTypeCombo_->currentData().toString() : QString();
     const QString eventSegment = canonicalEvent.isEmpty()
@@ -1042,9 +1056,17 @@ void ExportDialog::applySuggestedOutputPathFromForm() {
 void ExportDialog::refreshOutputPathIfFollowingForm() {
     if (!outputPathEdit_ || sourceVideoPath_.isEmpty()) return;
 
+    const bool isXmlOnly = selectedOutputFormat() == OutputFormat::Xml;
     const QString canonicalEvent =
         eventTypeCombo_ ? eventTypeCombo_->currentData().toString() : QString();
     const QString currentPath = outputPathEdit_->text();
+
+    if (isXmlOnly) {
+        if (currentPath.trimmed().isEmpty() || currentPath == lastAutoOutputPathSuggestion_) {
+            applySuggestedOutputPathFromForm();
+        }
+        return;
+    }
 
     if (canonicalEvent.isEmpty()) {
         if (currentPath.trimmed().isEmpty() || currentPath == lastAutoOutputPathSuggestion_) {
@@ -1069,17 +1091,38 @@ void ExportDialog::refreshOutputPathIfFollowingForm() {
 void ExportDialog::onExportClicked() {
     saveTrimForCurrentClip();
 
+    const OutputFormat format = selectedOutputFormat();
+    if (uploadToYouTubeCheckBox_ && uploadToYouTubeCheckBox_->isChecked()) {
+        if (format == OutputFormat::Xml) {
+            QMessageBox::warning(this,
+                AppLocale::trUi("export.title"),
+                AppLocale::trUi("export.youtube_requires_mp4"));
+            return;
+        }
+        if (!YouTubeConfig::isConfigured()) {
+            QMessageBox::warning(this,
+                AppLocale::trUi("export.title"),
+                YouTubeConfig::setupInstructions());
+            return;
+        }
+        if (!youtubeAuth_ || !youtubeAuth_->isAuthenticated()) {
+            QMessageBox::warning(this,
+                AppLocale::trUi("export.title"),
+                AppLocale::trUi("export.youtube_sign_in_required"));
+            return;
+        }
+    }
+
     const QString outputPath = outputPathEdit_->text().trimmed();
     if (outputPath.isEmpty()) {
         onBrowseOutputPath();
         if (outputPathEdit_->text().trimmed().isEmpty()) return;
     }
 
-    const OutputFormat format = selectedOutputFormat();
     const QString chosenPath = outputPathEdit_->text().trimmed();
 
     // Helper that picks/derives the .xml file path for the current export.
-    auto deriveXmlPath = [&chosenPath, format]() {
+    auto deriveXmlPath = [this, &chosenPath, format]() {
         QFileInfo info(chosenPath);
         const QString suffix = info.suffix().toLower();
         if (format == OutputFormat::Xml) {
@@ -1088,9 +1131,10 @@ void ExportDialog::onExportClicked() {
             return QDir(info.absolutePath())
                 .filePath(info.completeBaseName() + QStringLiteral(".xml"));
         }
-        // For Both, sit alongside the .mp4.
+        // For Both, the XML report contains the full session, so use a session-level name
+        // alongside the filtered MP4 compilation.
         return QDir(info.absolutePath())
-            .filePath(info.completeBaseName() + QStringLiteral(".xml"));
+            .filePath(suggestedXmlReportBaseName() + QStringLiteral(".xml"));
     };
 
     // XML-only path: skip the entire ffmpeg pipeline and just serialize the session.
@@ -1234,6 +1278,7 @@ void ExportDialog::onExportClicked() {
             this, &ExportDialog::onExportFinished);
 
     stopPreviewPlayer();
+    youtubeUploadPending_ = uploadToYouTubeCheckBox_ && uploadToYouTubeCheckBox_->isChecked();
     setExporting(true);
     exporter_->startExport();
 }
@@ -1242,6 +1287,10 @@ void ExportDialog::onCancelExportClicked() {
     if (exporter_) {
         exporter_->cancelExport();
     }
+    if (youtubeUploader_) {
+        youtubeUploader_->cancelUpload();
+    }
+    youtubeUploadPending_ = false;
     setExporting(false);
 }
 
@@ -1260,20 +1309,10 @@ void ExportDialog::onExportProgress(int currentClip, int totalClips) {
 }
 
 void ExportDialog::onExportFinished(bool success, const QString& message) {
-    setExporting(false);
+    if (!success) {
+        youtubeUploadPending_ = false;
+        setExporting(false);
 
-    if (success) {
-        if (progressBar_) {
-            progressBar_->setValue(progressBar_->maximum());
-        }
-        if (progressLabel_) {
-            progressLabel_->setText(AppLocale::trUi("export.done"));
-            progressLabel_->show();
-        }
-        QMessageBox::information(this,
-            AppLocale::trUi("export.title"),
-            AppLocale::trUi("export.success"));
-    } else {
         if (progressLabel_) progressLabel_->hide();
         if (progressBar_) {
             progressBar_->setValue(0);
@@ -1284,7 +1323,26 @@ void ExportDialog::onExportFinished(bool success, const QString& message) {
                 AppLocale::trUi("export.title"),
                 message);
         }
+        return;
     }
+
+    if (progressBar_) {
+        progressBar_->setValue(progressBar_->maximum());
+    }
+    if (progressLabel_) {
+        progressLabel_->setText(AppLocale::trUi("export.done"));
+        progressLabel_->show();
+    }
+
+    if (youtubeUploadPending_) {
+        startYouTubeUpload(outputPathEdit_->text().trimmed());
+        return;
+    }
+
+    setExporting(false);
+    QMessageBox::information(this,
+        AppLocale::trUi("export.title"),
+        AppLocale::trUi("export.success"));
 }
 
 void ExportDialog::setExporting(bool exporting) {
@@ -1402,4 +1460,203 @@ bool ExportDialog::eventFilter(QObject* watched, QEvent* event) {
     }
 
     return false;
+}
+
+// ---------------------------------------------------------------------------
+// YouTube upload
+// ---------------------------------------------------------------------------
+
+void ExportDialog::updateYouTubeSection() {
+    const bool configured = YouTubeConfig::isConfigured();
+    const bool authenticated = youtubeAuth_ && youtubeAuth_->isAuthenticated();
+    const bool wantsUpload = uploadToYouTubeCheckBox_ && uploadToYouTubeCheckBox_->isChecked();
+    const bool mp4Capable = selectedOutputFormat() != OutputFormat::Xml;
+
+    if (uploadToYouTubeCheckBox_) {
+        uploadToYouTubeCheckBox_->setEnabled(configured && mp4Capable);
+        if (!mp4Capable && uploadToYouTubeCheckBox_->isChecked()) {
+            uploadToYouTubeCheckBox_->setChecked(false);
+        }
+    }
+
+    if (youtubeStatusLabel_) {
+        if (!configured) {
+            youtubeStatusLabel_->setText(AppLocale::trUi("export.youtube_not_configured"));
+        } else if (authenticated) {
+            youtubeStatusLabel_->setText(
+                AppLocale::trUi("export.youtube_connected")
+                    .arg(youtubeAuth_->channelTitle()));
+        } else {
+            youtubeStatusLabel_->setText(AppLocale::trUi("export.youtube_not_connected"));
+        }
+    }
+
+    if (youtubePlaylistLabel_) {
+        const QString playlistTitle = YouTubeUploader::matchPlaylistTitle(tagSession_);
+        youtubePlaylistLabel_->setText(
+            AppLocale::trUi("export.youtube_playlist_target").arg(playlistTitle));
+        youtubePlaylistLabel_->setVisible(wantsUpload || authenticated);
+    }
+
+    if (youtubeConnectButton_) {
+        youtubeConnectButton_->setEnabled(configured && !authenticated);
+    }
+    if (youtubeDisconnectButton_) {
+        youtubeDisconnectButton_->setEnabled(authenticated);
+    }
+}
+
+void ExportDialog::onYouTubeConnectClicked() {
+    if (!YouTubeConfig::isConfigured()) {
+        QMessageBox::warning(this,
+            AppLocale::trUi("export.title"),
+            YouTubeConfig::setupInstructions());
+        return;
+    }
+    if (youtubeAuth_) {
+        youtubeAuth_->startSignIn();
+    }
+}
+
+void ExportDialog::onYouTubeDisconnectClicked() {
+    if (youtubeAuth_) {
+        youtubeAuth_->signOut();
+    }
+}
+
+void ExportDialog::onYouTubeAuthStateChanged() {
+    updateYouTubeSection();
+}
+
+void ExportDialog::onYouTubeAuthError(const QString& message) {
+    QMessageBox::warning(this, AppLocale::trUi("export.title"), message);
+}
+
+YouTubeUploadMetadata ExportDialog::buildYouTubeUploadMetadata() const {
+    YouTubeUploadMetadata metadata;
+    const QFileInfo outputInfo(outputPathEdit_ ? outputPathEdit_->text().trimmed() : QString());
+    metadata.title = outputInfo.completeBaseName().isEmpty()
+        ? suggestedExportBaseName()
+        : outputInfo.completeBaseName();
+
+    QStringList descriptionLines;
+    if (tagSession_) {
+        if (!tagSession_->competitionName().isEmpty()) {
+            descriptionLines.append(
+                QStringLiteral("%1: %2")
+                    .arg(AppLocale::trUi("setup.competition"), tagSession_->competitionName()));
+        }
+        if (tagSession_->gameDate().isValid()) {
+            descriptionLines.append(
+                QStringLiteral("%1: %2")
+                    .arg(AppLocale::trUi("setup.date"), tagSession_->gameDate().toString(Qt::ISODate)));
+        }
+        descriptionLines.append(
+            QStringLiteral("%1 vs %2")
+                .arg(teamDisplayName(QStringLiteral("Home")), teamDisplayName(QStringLiteral("Away"))));
+    }
+    if (eventTypeCombo_) {
+        const QString canonicalEvent = eventTypeCombo_->currentData().toString();
+        if (!canonicalEvent.isEmpty()) {
+            descriptionLines.append(
+                QStringLiteral("%1: %2")
+                    .arg(AppLocale::trUi("export.event_type"), AppLocale::trEvent(canonicalEvent)));
+        }
+    }
+    descriptionLines.append(AppLocale::trUi("export.youtube_description_footer"));
+    metadata.description = descriptionLines.join(QStringLiteral("\n"));
+    metadata.privacyStatus = QStringLiteral("unlisted");
+    return metadata;
+}
+
+void ExportDialog::startYouTubeUpload(const QString& exportedVideoPath) {
+    if (!youtubeUploader_ || !tagSession_) {
+        youtubeUploadPending_ = false;
+        setExporting(false);
+        QMessageBox::critical(this,
+            AppLocale::trUi("export.title"),
+            AppLocale::trUi("export.youtube_upload_failed"));
+        return;
+    }
+
+    if (progressLabel_) {
+        progressLabel_->setText(AppLocale::trUi("export.youtube_resolving_playlist"));
+        progressLabel_->show();
+    }
+    if (progressBar_) {
+        progressBar_->setRange(0, 100);
+        progressBar_->setValue(0);
+        progressBar_->show();
+    }
+
+    youtubeUploader_->resolvePlaylistForMatch(tagSession_,
+        [this, exportedVideoPath](const QString& playlistId, const QString& error) {
+            if (playlistId.isEmpty()) {
+                youtubeUploadPending_ = false;
+                setExporting(false);
+                QMessageBox::critical(this,
+                    AppLocale::trUi("export.title"),
+                    error.isEmpty() ? AppLocale::trUi("export.youtube_upload_failed") : error);
+                return;
+            }
+
+            if (progressLabel_) {
+                progressLabel_->setText(AppLocale::trUi("export.youtube_uploading"));
+            }
+
+            youtubeUploader_->uploadVideo(exportedVideoPath,
+                                          buildYouTubeUploadMetadata(),
+                                          playlistId);
+        });
+}
+
+void ExportDialog::onYouTubeUploadProgress(int percent) {
+    if (progressBar_) {
+        progressBar_->setValue(percent);
+    }
+}
+
+void ExportDialog::onYouTubeUploadFinished(bool success,
+                                           const QString& message,
+                                           const QString& videoUrl) {
+    youtubeUploadPending_ = false;
+    setExporting(false);
+
+    if (success) {
+        if (progressBar_) {
+            progressBar_->setValue(100);
+        }
+        if (progressLabel_) {
+            progressLabel_->setText(AppLocale::trUi("export.youtube_upload_done"));
+        }
+
+        const QString successText = videoUrl.isEmpty()
+            ? AppLocale::trUi("export.youtube_upload_success")
+            : AppLocale::trUi("export.youtube_upload_success_with_link").arg(videoUrl);
+        QMessageBox informationBox(QMessageBox::Information,
+                                   AppLocale::trUi("export.title"),
+                                   successText,
+                                   QMessageBox::Ok,
+                                   this);
+        QPushButton* openVideoButton = nullptr;
+        if (!videoUrl.isEmpty()) {
+            openVideoButton = informationBox.addButton(
+                AppLocale::trUi("export.youtube_open_video"), QMessageBox::AcceptRole);
+        }
+        informationBox.exec();
+        if (openVideoButton && informationBox.clickedButton() == openVideoButton) {
+            QDesktopServices::openUrl(QUrl(videoUrl));
+        }
+        accept();
+        return;
+    }
+
+    if (progressLabel_) progressLabel_->hide();
+    if (progressBar_) {
+        progressBar_->setValue(0);
+        progressBar_->hide();
+    }
+    QMessageBox::critical(this,
+        AppLocale::trUi("export.title"),
+        message.isEmpty() ? AppLocale::trUi("export.youtube_upload_failed") : message);
 }
