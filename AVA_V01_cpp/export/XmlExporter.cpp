@@ -56,6 +56,29 @@ QString secondsString(qint64 ms) {
   return QString::number(seconds, 'f', 3);
 }
 
+/// Clip interval written to <start>/<end>: current EventDefaults lead/lag around \p positionMs,
+/// unless the tag was manually trimmed or is a game-time span (quarters, Inicio, TM).
+QPair<qint64, qint64> exportIntervalFor(const TagSession::GameTag& tag) {
+  auto clampInterval = [](qint64 startMs, qint64 endMs) {
+    if (startMs < 0) startMs = 0;
+    if (endMs < startMs) endMs = startMs;
+    return QPair<qint64, qint64>{startMs, endMs};
+  };
+
+  if (tag.intervalManuallyEdited) {
+    return clampInterval(tag.startMs, tag.endMs);
+  }
+
+  if (EventDefaults::isTimeControlEvent(tag.mainEvent)) {
+    return clampInterval(tag.startMs, tag.endMs);
+  }
+
+  const EventDefaults::EventDuration duration = EventDefaults::defaultFor(tag.mainEvent);
+  qint64 startMs = tag.positionMs - duration.preMs;
+  qint64 endMs = tag.positionMs + duration.postMs;
+  return clampInterval(startMs, endMs);
+}
+
 QColor parseHexColor(const QString& hex, const QColor& fallback) {
   if (hex.trimmed().isEmpty()) return fallback;
   QString cleaned = hex.trimmed();
@@ -77,10 +100,75 @@ struct EmittedInstance {
   qint64 startMs;
   qint64 endMs;
   QString code;
-  QString period;        // empty = no QUARTOS label
-  QString followUpEvent; // empty = no FOLLOW_UP label
+  QString period; // empty = no QUARTOS label
   bool includeMatchLabels = true;
 };
+
+/// True when a follow-up path records a scored goal (segment "Goal", not "No Goal").
+bool followUpPathContainsScoredGoal(const QString& followUpEvent) {
+  if (followUpEvent.trimmed().isEmpty()) return false;
+  const QStringList segments =
+      followUpEvent.split(QStringLiteral(" → "), Qt::KeepEmptyParts);
+  for (const QString& segment : segments) {
+    if (segment.trimmed() == QStringLiteral("Goal")) return true;
+  }
+  return false;
+}
+
+/// True when the session already has an explicit Goal tag for the same team tied to \p source
+/// (overlapping clip or goal confirmation shortly after the originating tag).
+bool hasExplicitGoalTagForTeam(const QVector<TagSession::GameTag>& tags,
+                               const TagSession::GameTag& source) {
+  if (source.team.isEmpty()) return false;
+  const QPair<qint64, qint64> sourceInterval = exportIntervalFor(source);
+  constexpr qint64 kGoalConfirmWindowAfterOriginMs = 60000;
+  for (const auto& tag : tags) {
+    if (tag.mainEvent != QStringLiteral("Goal")) continue;
+    if (tag.team != source.team) continue;
+    const QPair<qint64, qint64> goalInterval = exportIntervalFor(tag);
+    if (goalInterval.first <= sourceInterval.second &&
+        goalInterval.second >= sourceInterval.first) {
+      return true;
+    }
+    if (tag.positionMs >= source.positionMs &&
+        tag.positionMs - source.positionMs <= kGoalConfirmWindowAfterOriginMs) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// Adds synthetic Goal tags when a scored goal is implied by follow-up but never tagged as Goal.
+QVector<TagSession::GameTag> tagsForExport(const QVector<TagSession::GameTag>& sortedTags) {
+  QVector<TagSession::GameTag> expanded = sortedTags;
+  expanded.reserve(sortedTags.size() + 8);
+  for (const auto& tag : sortedTags) {
+    if (tag.mainEvent == QStringLiteral("Goal")) continue;
+    if (!followUpPathContainsScoredGoal(tag.followUpEvent)) continue;
+    if (hasExplicitGoalTagForTeam(sortedTags, tag)) continue;
+
+    TagSession::GameTag goalTag = tag;
+    goalTag.mainEvent = QStringLiteral("Goal");
+    goalTag.followUpEvent.clear();
+    // Use Goal lead/lag from EventDefaults unless the originating clip was manually trimmed.
+    if (!tag.intervalManuallyEdited) {
+      goalTag.intervalManuallyEdited = false;
+    }
+    expanded.append(goalTag);
+  }
+
+  std::stable_sort(expanded.begin(), expanded.end(),
+                   [](const TagSession::GameTag& a, const TagSession::GameTag& b) {
+                     if (a.startMs != b.startMs) return a.startMs < b.startMs;
+                     if (a.positionMs != b.positionMs) return a.positionMs < b.positionMs;
+                     // Emit the originating event before the derived Goal at the same timestamp.
+                     const bool aIsGoal = a.mainEvent == QStringLiteral("Goal");
+                     const bool bIsGoal = b.mainEvent == QStringLiteral("Goal");
+                     if (aIsGoal != bIsGoal) return aIsGoal;
+                     return false;
+                   });
+  return expanded;
+}
 
 /// Returns the running goal counts (home, away) for goals tagged at or before \p positionMs.
 QPair<int, int> runningScoreAt(const QVector<TagSession::GameTag>& tags, qint64 positionMs) {
@@ -100,16 +188,18 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
                                              const QString& homeAbbrev,
                                              const QString& awayAbbrev) {
   QVector<EmittedInstance> result;
+  const QPair<qint64, qint64> interval = exportIntervalFor(tag);
+  const qint64 exportStartMs = interval.first;
+  const qint64 exportEndMs = interval.second;
 
   // Neutral / pass-through code (Q1..Q4, Inicio, TM): one <instance>, no team affiliation.
   const QString neutralCode = neutralPassThroughCode(tag.mainEvent);
   if (!neutralCode.isEmpty()) {
     EmittedInstance instance;
-    instance.startMs = tag.startMs;
-    instance.endMs = tag.endMs;
+    instance.startMs = exportStartMs;
+    instance.endMs = exportEndMs;
     instance.code = neutralCode;
     instance.period = tag.period;
-    instance.followUpEvent = tag.followUpEvent;
     // Quarter / start-anchor instances do not carry the per-event metadata labels in the
     // reference (see <ID>1 Q1, <ID>3 Inicio, <ID>13 TM examples), so suppress them.
     instance.includeMatchLabels = false;
@@ -131,29 +221,26 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
 
   if (shortCode.isEmpty() || !hasAbbrevs || taggedAbbrev.isEmpty()) {
     EmittedInstance instance;
-    instance.startMs = tag.startMs;
-    instance.endMs = tag.endMs;
+    instance.startMs = exportStartMs;
+    instance.endMs = exportEndMs;
     instance.code = tag.mainEvent;
     instance.period = tag.period;
-    instance.followUpEvent = tag.followUpEvent;
     result.append(instance);
     return result;
   }
 
   EmittedInstance positive;
-  positive.startMs = tag.startMs;
-  positive.endMs = tag.endMs;
+  positive.startMs = exportStartMs;
+  positive.endMs = exportEndMs;
   positive.code = QStringLiteral("%1 %2+").arg(taggedAbbrev, shortCode);
   positive.period = tag.period;
-  positive.followUpEvent = tag.followUpEvent;
   result.append(positive);
 
   EmittedInstance negative;
-  negative.startMs = tag.startMs;
-  negative.endMs = tag.endMs;
+  negative.startMs = exportStartMs;
+  negative.endMs = exportEndMs;
   negative.code = QStringLiteral("%1 %2-").arg(opposingAbbrev, shortCode);
   negative.period = tag.period;
-  negative.followUpEvent = tag.followUpEvent;
   result.append(negative);
 
   return result;
@@ -225,6 +312,8 @@ bool writeAllInstances(const TagSession* session,
                      return a.positionMs < b.positionMs;
                    });
 
+  const QVector<TagSession::GameTag> exportTags = tagsForExport(sortedTags);
+
   const QString homeAbbrev = session->homeAbbrev();
   const QString awayAbbrev = session->awayAbbrev();
   const QString homeName = session->homeTeamName();
@@ -258,11 +347,11 @@ bool writeAllInstances(const TagSession* session,
   QStringList emittedCodesOrder;
 
   int nextInstanceId = 1;
-  for (const auto& tag : sortedTags) {
+  for (const auto& tag : exportTags) {
     const QVector<EmittedInstance> instances = emittedInstancesFor(tag, homeAbbrev, awayAbbrev);
     if (instances.isEmpty()) continue;
 
-    const QPair<int, int> score = runningScoreAt(sortedTags, tag.positionMs);
+    const QPair<int, int> score = runningScoreAt(exportTags, tag.positionMs);
     const QString resultadoLabel =
         (homeAbbrev.isEmpty() && awayAbbrev.isEmpty())
             ? QString()
@@ -305,12 +394,6 @@ bool writeAllInstances(const TagSession* session,
           writer.writeStartElement(QStringLiteral("label"));
           writer.writeTextElement(QStringLiteral("group"), QStringLiteral("ANO"));
           writer.writeTextElement(QStringLiteral("text"), QString::number(gameYear));
-          writer.writeEndElement();
-        }
-        if (!instance.followUpEvent.isEmpty()) {
-          writer.writeStartElement(QStringLiteral("label"));
-          writer.writeTextElement(QStringLiteral("group"), QStringLiteral("FOLLOW_UP"));
-          writer.writeTextElement(QStringLiteral("text"), instance.followUpEvent);
           writer.writeEndElement();
         }
       }
