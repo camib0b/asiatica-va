@@ -12,6 +12,7 @@ class QComboBox;
 class QLabel;
 class QPushButton;
 class QTableWidget;
+class QTableWidgetItem;
 
 class XmlEventMappingDialog final : public QDialog {
   Q_OBJECT
@@ -44,7 +45,7 @@ private:
     int count = 0;
     QComboBox* eventCombo = nullptr;
     QComboBox* teamCombo = nullptr;
-    QComboBox* actionCombo = nullptr;
+    QTableWidgetItem* importItem = nullptr;
     bool autoMapped = false;
   };
 
@@ -58,6 +59,10 @@ private:
   void buildUi();
   void populateRows();
   void applyAutoMappings();
+  void configureMappingTable();
+  void updateRowImportState(int row);
+  bool isRowImportEnabled(int row) const;
+  void setRowImportEnabled(int row, bool enabled);
   static ParsedTeamCode parseTeamCodePattern(const QString& code);
   QString teamForAbbrev(const QString& abbrev) const;
   QStringList eventChoices() const;
@@ -77,6 +82,8 @@ private:
   QLabel* titleLabel_ = nullptr;
   QLabel* instructionsLabel_ = nullptr;
   QLabel* abbrevHeaderLabel_ = nullptr;
+  QLabel* homeAbbrevLabel_ = nullptr;
+  QLabel* awayAbbrevLabel_ = nullptr;
   QComboBox* xmlHomeAbbrevCombo_ = nullptr;
   QComboBox* xmlAwayAbbrevCombo_ = nullptr;
   QTableWidget* mappingTable_ = nullptr;

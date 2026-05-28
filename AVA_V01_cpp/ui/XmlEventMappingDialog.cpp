@@ -6,15 +6,18 @@
 #include "../style/StyleProps.h"
 
 #include <QAbstractItemView>
+#include <QColor>
 #include <QComboBox>
-#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QSet>
+#include <QSignalBlocker>
+#include <QSizePolicy>
 #include <QTableWidget>
+#include <QTableWidgetItem>
 #include <QVBoxLayout>
 
 namespace {
@@ -23,9 +26,47 @@ constexpr int kColCode = 0;
 constexpr int kColCount = 1;
 constexpr int kColEvent = 2;
 constexpr int kColTeam = 3;
-constexpr int kColAction = 4;
+constexpr int kColImport = 4;
 
-QString skipChoiceValue() { return QStringLiteral("__skip__"); }
+const QColor kActiveRowBgEven(0xFFFFFF);
+const QColor kActiveRowBgOdd(0xFAFAFA);
+const QColor kInactiveRowBg(0xF4F4F5);
+const QColor kActiveText(0x09090B);
+const QColor kInactiveText(0xA1A1AA);
+
+QComboBox* makeAbbrevComboWidget(QWidget* parent) {
+  auto* combo = new QComboBox(parent);
+  Style::setVariant(combo, "abbrev");
+  combo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+  combo->setMaximumWidth(72);
+  combo->setMinimumWidth(56);
+  return combo;
+}
+
+QComboBox* makeTableComboWidget(QWidget* parent) {
+  auto* combo = new QComboBox(parent);
+  Style::setVariant(combo, "compact");
+  combo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  combo->setFixedHeight(28);
+  return combo;
+}
+
+void embedTableCombo(QTableWidget* table, int row, int column, QComboBox* combo) {
+  auto* cellHost = new QWidget(table);
+  auto* cellLayout = new QHBoxLayout(cellHost);
+  cellLayout->setContentsMargins(4, 2, 4, 2);
+  cellLayout->setSpacing(0);
+  cellLayout->addWidget(combo);
+  table->setCellWidget(row, column, cellHost);
+}
+
+QTableWidgetItem* makeImportCheckItem() {
+  auto* item = new QTableWidgetItem();
+  item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable);
+  item->setCheckState(Qt::Checked);
+  item->setTextAlignment(Qt::AlignCenter);
+  return item;
+}
 
 } // namespace
 
@@ -39,8 +80,9 @@ XmlEventMappingDialog::XmlEventMappingDialog(const QVector<XmlImporter::ParsedIn
     sessionAwayAbbrev_ = session_->awayAbbrev();
   }
   setWindowTitle(AppLocale::trUi("xml_import.mapping_title"));
-  setMinimumSize(720, 480);
-  resize(800, 520);
+  setObjectName(QStringLiteral("XmlEventMappingDialog"));
+  setMinimumSize(760, 640);
+  resize(820, 780);
   buildUi();
   populateRows();
   applyAutoMappings();
@@ -59,23 +101,29 @@ void XmlEventMappingDialog::buildUi() {
   instructionsLabel_->setWordWrap(true);
   layout->addWidget(instructionsLabel_);
 
-  auto* abbrevGrid = new QGridLayout();
   abbrevHeaderLabel_ = new QLabel(this);
-  xmlHomeAbbrevCombo_ = new QComboBox(this);
-  xmlAwayAbbrevCombo_ = new QComboBox(this);
-  abbrevGrid->addWidget(abbrevHeaderLabel_, 0, 0, 1, 2);
-  abbrevGrid->addWidget(new QLabel(AppLocale::trUi("xml_import.mapping_home_abbrev"), this), 1, 0);
-  abbrevGrid->addWidget(xmlHomeAbbrevCombo_, 1, 1);
-  abbrevGrid->addWidget(new QLabel(AppLocale::trUi("xml_import.mapping_away_abbrev"), this), 2, 0);
-  abbrevGrid->addWidget(xmlAwayAbbrevCombo_, 2, 1);
-  layout->addLayout(abbrevGrid);
+  layout->addWidget(abbrevHeaderLabel_);
+
+  auto* abbrevRow = new QHBoxLayout();
+  abbrevRow->setSpacing(8);
+  homeAbbrevLabel_ = new QLabel(this);
+  xmlHomeAbbrevCombo_ = makeAbbrevComboWidget(this);
+  awayAbbrevLabel_ = new QLabel(this);
+  xmlAwayAbbrevCombo_ = makeAbbrevComboWidget(this);
+  abbrevRow->addWidget(homeAbbrevLabel_);
+  abbrevRow->addWidget(xmlHomeAbbrevCombo_);
+  abbrevRow->addSpacing(20);
+  abbrevRow->addWidget(awayAbbrevLabel_);
+  abbrevRow->addWidget(xmlAwayAbbrevCombo_);
+  abbrevRow->addStretch();
+  layout->addLayout(abbrevRow);
 
   mappingTable_ = new QTableWidget(this);
+  mappingTable_->setObjectName(QStringLiteral("XmlEventMappingTable"));
   mappingTable_->setColumnCount(5);
-  mappingTable_->horizontalHeader()->setStretchLastSection(true);
-  mappingTable_->horizontalHeader()->setSectionResizeMode(kColCode, QHeaderView::Stretch);
   mappingTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
   mappingTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+  mappingTable_->setAlternatingRowColors(false);
   layout->addWidget(mappingTable_, 1);
 
   auto* buttonRow = new QHBoxLayout();
@@ -99,6 +147,11 @@ void XmlEventMappingDialog::buildUi() {
           [this](const QString&) {
             onAbbrevMappingChanged();
             applyAutoMappings();
+          });
+  connect(mappingTable_, &QTableWidget::itemChanged, this,
+          [this](QTableWidgetItem* item) {
+            if (!item || item->column() != kColImport) return;
+            updateRowImportState(item->row());
           });
 }
 
@@ -156,27 +209,81 @@ void XmlEventMappingDialog::populateRows() {
     mappingTable_->setItem(row, kColCode, codeItem);
     mappingTable_->setItem(row, kColCount, new QTableWidgetItem(QString::number(mappingRow.count)));
 
-    mappingRow.eventCombo = new QComboBox(mappingTable_);
+    mappingRow.eventCombo = makeTableComboWidget(mappingTable_);
     mappingRow.eventCombo->addItems(events);
-    mappingTable_->setCellWidget(row, kColEvent, mappingRow.eventCombo);
+    embedTableCombo(mappingTable_, row, kColEvent, mappingRow.eventCombo);
 
-    mappingRow.teamCombo = new QComboBox(mappingTable_);
+    mappingRow.teamCombo = makeTableComboWidget(mappingTable_);
     mappingRow.teamCombo->addItem(AppLocale::trUi("xml_import.mapping_team_none"), QString());
     mappingRow.teamCombo->addItem(AppLocale::trUi("export.team_home_default"), QStringLiteral("Home"));
     mappingRow.teamCombo->addItem(AppLocale::trUi("export.team_away_default"), QStringLiteral("Away"));
-    mappingTable_->setCellWidget(row, kColTeam, mappingRow.teamCombo);
+    embedTableCombo(mappingTable_, row, kColTeam, mappingRow.teamCombo);
 
-    mappingRow.actionCombo = new QComboBox(mappingTable_);
-    mappingRow.actionCombo->addItem(AppLocale::trUi("xml_import.mapping_action_import"),
-                                    QStringLiteral("import"));
-    mappingRow.actionCombo->addItem(AppLocale::trUi("xml_import.mapping_action_skip"),
-                                    skipChoiceValue());
-    mappingTable_->setCellWidget(row, kColAction, mappingRow.actionCombo);
+    mappingRow.importItem = makeImportCheckItem();
+    mappingTable_->setItem(row, kColImport, mappingRow.importItem);
 
     rows_.append(mappingRow);
   }
 
+  configureMappingTable();
   onAbbrevMappingChanged();
+}
+
+void XmlEventMappingDialog::configureMappingTable() {
+  if (!mappingTable_) return;
+
+  mappingTable_->verticalHeader()->setVisible(false);
+  mappingTable_->verticalHeader()->setDefaultSectionSize(34);
+  mappingTable_->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
+
+  QHeaderView* header = mappingTable_->horizontalHeader();
+  header->setStretchLastSection(false);
+  header->setSectionResizeMode(kColCode, QHeaderView::Stretch);
+  header->setSectionResizeMode(kColEvent, QHeaderView::Stretch);
+  header->setSectionResizeMode(kColCount, QHeaderView::ResizeToContents);
+  header->setSectionResizeMode(kColTeam, QHeaderView::ResizeToContents);
+  header->setSectionResizeMode(kColImport, QHeaderView::Fixed);
+  mappingTable_->setColumnWidth(kColImport, 56);
+  header->setMinimumSectionSize(72);
+}
+
+bool XmlEventMappingDialog::isRowImportEnabled(int row) const {
+  if (row < 0 || row >= rows_.size()) return false;
+  const QTableWidgetItem* importItem = rows_.at(row).importItem;
+  return importItem && importItem->checkState() == Qt::Checked;
+}
+
+void XmlEventMappingDialog::setRowImportEnabled(int row, bool enabled) {
+  if (row < 0 || row >= rows_.size()) return;
+  MappingRow& mappingRow = rows_[row];
+  if (!mappingRow.importItem) return;
+
+  QSignalBlocker blocker(mappingTable_);
+  mappingRow.importItem->setCheckState(enabled ? Qt::Checked : Qt::Unchecked);
+  updateRowImportState(row);
+}
+
+void XmlEventMappingDialog::updateRowImportState(int row) {
+  if (!mappingTable_ || row < 0 || row >= rows_.size()) return;
+
+  const bool importing = isRowImportEnabled(row);
+  const QColor rowBackground = importing
+                                   ? (row % 2 == 0 ? kActiveRowBgEven : kActiveRowBgOdd)
+                                   : kInactiveRowBg;
+  const QColor rowForeground = importing ? kActiveText : kInactiveText;
+
+  for (int column = 0; column < mappingTable_->columnCount(); ++column) {
+    if (QTableWidgetItem* item = mappingTable_->item(row, column)) {
+      item->setBackground(rowBackground);
+      if (column != kColImport) {
+        item->setForeground(rowForeground);
+      }
+    }
+  }
+
+  MappingRow& mappingRow = rows_[row];
+  if (mappingRow.eventCombo) mappingRow.eventCombo->setEnabled(importing);
+  if (mappingRow.teamCombo) mappingRow.teamCombo->setEnabled(importing);
 }
 
 QStringList XmlEventMappingDialog::eventChoices() const {
@@ -231,18 +338,20 @@ void XmlEventMappingDialog::applyAutoMappings() {
     }
   }
 
+  QSignalBlocker blocker(mappingTable_);
   for (int i = 0; i < rows_.size(); ++i) {
     MappingRow& row = rows_[i];
-    if (!row.eventCombo || !row.teamCombo || !row.actionCombo) continue;
+    if (!row.eventCombo || !row.teamCombo || !row.importItem) continue;
 
     const QString code = row.xmlCode;
+    bool importEnabled = true;
 
     if (EventDefaults::isTimeControlEvent(code)) {
       const int eventIndex = row.eventCombo->findText(code);
       if (eventIndex >= 0) row.eventCombo->setCurrentIndex(eventIndex);
       row.teamCombo->setCurrentIndex(0);
-      row.actionCombo->setCurrentIndex(0);
       row.autoMapped = true;
+      setRowImportEnabled(i, true);
       continue;
     }
 
@@ -258,8 +367,9 @@ void XmlEventMappingDialog::applyAutoMappings() {
         const QString positiveCode =
             QStringLiteral("%1 %2+").arg(parsed.abbrev, parsed.shortCode);
         if (positiveCodes.contains(positiveCode)) {
-          row.actionCombo->setCurrentIndex(1);
+          importEnabled = false;
           row.autoMapped = true;
+          setRowImportEnabled(i, importEnabled);
           continue;
         }
       }
@@ -269,14 +379,15 @@ void XmlEventMappingDialog::applyAutoMappings() {
         if (!team.isEmpty()) {
           const int teamIndex = row.teamCombo->findData(team);
           if (teamIndex >= 0) row.teamCombo->setCurrentIndex(teamIndex);
-          row.actionCombo->setCurrentIndex(0);
           row.autoMapped = true;
+          setRowImportEnabled(i, true);
           continue;
         }
       }
     }
 
     row.autoMapped = false;
+    setRowImportEnabled(i, importEnabled);
   }
 }
 
@@ -284,8 +395,7 @@ XmlEventMappingDialog::CodeMapping XmlEventMappingDialog::mappingForRow(
     const MappingRow& row) const {
   CodeMapping mapping;
   mapping.xmlCode = row.xmlCode;
-  if (row.actionCombo &&
-      row.actionCombo->currentData().toString() == skipChoiceValue()) {
+  if (!row.importItem || row.importItem->checkState() != Qt::Checked) {
     mapping.skip = true;
     return mapping;
   }
@@ -428,6 +538,12 @@ void XmlEventMappingDialog::applyUiStrings() {
   titleLabel_->setText(AppLocale::trUi("xml_import.mapping_title"));
   instructionsLabel_->setText(AppLocale::trUi("xml_import.mapping_instructions"));
   abbrevHeaderLabel_->setText(AppLocale::trUi("xml_import.mapping_abbrev_header"));
+  if (homeAbbrevLabel_) {
+    homeAbbrevLabel_->setText(AppLocale::trUi("xml_import.mapping_home_abbrev"));
+  }
+  if (awayAbbrevLabel_) {
+    awayAbbrevLabel_->setText(AppLocale::trUi("xml_import.mapping_away_abbrev"));
+  }
   importButton_->setText(AppLocale::trUi("xml_import.import"));
   cancelButton_->setText(AppLocale::trUi("xml_import.cancel"));
 
@@ -436,6 +552,6 @@ void XmlEventMappingDialog::applyUiStrings() {
       AppLocale::trUi("xml_import.mapping_col_count"),
       AppLocale::trUi("xml_import.mapping_col_event"),
       AppLocale::trUi("xml_import.mapping_col_team"),
-      AppLocale::trUi("xml_import.mapping_col_action"),
+      AppLocale::trUi("xml_import.mapping_col_import"),
   });
 }

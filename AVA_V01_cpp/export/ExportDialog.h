@@ -35,6 +35,7 @@ public:
                           const QString& sourceVideoPath,
                           qint64 videoDurationMs,
                           const QString& defaultOutputDirectoryPath = QString(),
+                          const QString& previewVideoPath = QString(),
                           QWidget* parent = nullptr);
     ~ExportDialog() override;
 
@@ -121,6 +122,7 @@ private:
 
     TagSession* tagSession_;
     QString sourceVideoPath_;
+    QString previewVideoPath_;
     QString defaultOutputDirectoryPath_;
     qint64 videoDurationMs_;
 

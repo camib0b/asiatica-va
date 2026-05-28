@@ -16,7 +16,6 @@
 #include <QSettings>
 #include <QTcpServer>
 #include <QTcpSocket>
-#include <QTimer>
 #include <QUrl>
 #include <QUrlQuery>
 
@@ -32,6 +31,8 @@ constexpr char kChannelIdKey[] = "channelId";
 constexpr char kAuthEndpoint[] = "https://accounts.google.com/o/oauth2/v2/auth";
 constexpr char kTokenEndpoint[] = "https://oauth2.googleapis.com/token";
 constexpr char kChannelEndpoint[] = "https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true";
+
+constexpr quint16 kPreferredOAuthRedirectPort = 8080;
 
 QString base64UrlEncode(const QByteArray& input) {
     return QString::fromLatin1(input.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
@@ -54,6 +55,106 @@ QString oauthScopes() {
     return QStringLiteral(
         "https://www.googleapis.com/auth/youtube.upload "
         "https://www.googleapis.com/auth/youtube");
+}
+
+QString loopbackRedirectUri(quint16 port) {
+    // Google loopback examples use no trailing slash: http://127.0.0.1:PORT
+    return QStringLiteral("http://127.0.0.1:%1").arg(port);
+}
+
+bool listenOnLoopback(QTcpServer* server, quint16& boundPort) {
+    const QHostAddress loopbackAddress(QStringLiteral("127.0.0.1"));
+    if (server->listen(loopbackAddress, kPreferredOAuthRedirectPort)) {
+        boundPort = kPreferredOAuthRedirectPort;
+        return true;
+    }
+    if (server->listen(loopbackAddress, 0)) {
+        boundPort = server->serverPort();
+        return true;
+    }
+    return false;
+}
+
+QString googleOAuthTroubleshootingHint() {
+    return QStringLiteral(
+        "\n\nCheck in Google Cloud Console:\n"
+        "1. OAuth client type is Desktop app (not Web application).\n"
+        "2. If using Web application, add this Authorized redirect URI:\n"
+        "   http://127.0.0.1:8080\n"
+        "3. OAuth consent screen includes YouTube scopes.\n"
+        "4. Your Google account is listed as a Test user (while app is in Testing).");
+}
+
+QString formatGoogleOAuthError(const QString& errorCode, const QString& errorDescription) {
+    QString message = errorDescription.trimmed();
+    if (message.isEmpty()) {
+        message = errorCode.trimmed();
+    }
+    if (message.isEmpty()) {
+        message = QStringLiteral("Google sign-in failed.");
+    }
+
+    if (errorCode == QStringLiteral("redirect_uri_mismatch")) {
+        message = QStringLiteral(
+            "Google rejected the redirect URI (redirect_uri_mismatch).\n\n"
+            "AVA uses http://127.0.0.1:8080 for sign-in.\n"
+            "Your OAuth client must be type Desktop app, or if Web application,\n"
+            "add http://127.0.0.1:8080 to Authorized redirect URIs.");
+    } else if (errorCode == QStringLiteral("access_denied")) {
+        message = QStringLiteral(
+            "Google sign-in was denied. If the app is in Testing mode, add your Google "
+            "account under OAuth consent screen → Test users.");
+    } else if (errorCode == QStringLiteral("org_internal")) {
+        message = QStringLiteral(
+            "This Google Cloud project is configured as Internal (organization-only).\n\n"
+            "Personal Gmail accounts cannot sign in. In Google Cloud Console go to:\n"
+            "APIs & Services → OAuth consent screen\n\n"
+            "• Change User type to External, or\n"
+            "• Sign in with a Google Workspace account from the same organization.\n\n"
+            "If you switch to External while in Testing, add your Gmail address under "
+            "Test users.");
+    } else if (errorCode == QStringLiteral("invalid_scope")) {
+        message = QStringLiteral(
+            "YouTube scopes are not enabled on the OAuth consent screen. Add "
+            "youtube.upload and youtube scopes in Google Cloud Console.");
+    }
+
+    return message + googleOAuthTroubleshootingHint();
+}
+
+QString parseHttpRequestQuery(const QString& requestLine, QUrlQuery* queryOut) {
+    const int methodEnd = requestLine.indexOf(' ');
+    if (methodEnd < 0) {
+        return QString();
+    }
+    const int pathEnd = requestLine.indexOf(' ', methodEnd + 1);
+    const QString pathAndQuery = pathEnd > methodEnd
+        ? requestLine.mid(methodEnd + 1, pathEnd - methodEnd - 1)
+        : requestLine.mid(methodEnd + 1);
+    const int queryStart = pathAndQuery.indexOf('?');
+    if (queryStart < 0) {
+        return QString();
+    }
+
+    QUrlQuery query(pathAndQuery.mid(queryStart + 1));
+    if (queryOut) {
+        *queryOut = query;
+    }
+    return query.queryItemValue(QStringLiteral("code"));
+}
+
+QString parseTokenEndpointError(const QByteArray& responseBody, const QString& networkError) {
+    const QJsonObject object = QJsonDocument::fromJson(responseBody).object();
+    const QString errorCode = object.value(QStringLiteral("error")).toString();
+    const QString errorDescription = object.value(QStringLiteral("error_description")).toString();
+    if (!errorCode.isEmpty() || !errorDescription.isEmpty()) {
+        return formatGoogleOAuthError(errorCode, errorDescription);
+    }
+    if (!networkError.isEmpty()) {
+        return QStringLiteral("YouTube token exchange failed: %1").arg(networkError)
+            + googleOAuthTroubleshootingHint();
+    }
+    return QStringLiteral("YouTube token exchange failed.") + googleOAuthTroubleshootingHint();
 }
 
 } // namespace
@@ -98,15 +199,14 @@ void YouTubeAuthManager::startSignIn() {
     }
 
     auto* redirectServer = new QTcpServer(this);
-    if (!redirectServer->listen(QHostAddress::LocalHost)) {
-        emit authError(QStringLiteral("Could not start local OAuth redirect server."));
+    quint16 redirectPort = 0;
+    if (!listenOnLoopback(redirectServer, redirectPort)) {
+        emit authError(QStringLiteral("Could not start local OAuth redirect server on 127.0.0.1."));
         redirectServer->deleteLater();
         return;
     }
 
-    const quint16 redirectPort = redirectServer->serverPort();
-    const QString redirectUri =
-        QStringLiteral("http://127.0.0.1:%1/").arg(redirectPort);
+    const QString redirectUri = loopbackRedirectUri(redirectPort);
     const QString codeVerifier = generateCodeVerifier();
     const QString codeChallenge = codeChallengeForVerifier(codeVerifier);
 
@@ -122,23 +222,25 @@ void YouTubeAuthManager::startSignIn() {
     query.addQueryItem(QStringLiteral("code_challenge_method"), QStringLiteral("S256"));
     authorizationUrl.setQuery(query);
 
-    connect(redirectServer, &QTcpServer::newConnection, this, [this, redirectServer, codeVerifier, redirectUri]() {
+    connect(redirectServer, &QTcpServer::newConnection, this,
+            [this, redirectServer, codeVerifier, redirectUri]() {
         QTcpSocket* socket = redirectServer->nextPendingConnection();
         if (!socket) {
             return;
         }
 
-        connect(socket, &QTcpSocket::readyRead, this, [this, socket, redirectServer, codeVerifier, redirectUri]() {
+        connect(socket, &QTcpSocket::readyRead, this,
+                [this, socket, redirectServer, codeVerifier, redirectUri]() {
             const QByteArray requestData = socket->readAll();
             const QString requestText = QString::fromUtf8(requestData);
             const int firstLineEnd = requestText.indexOf('\n');
-            const QString requestLine = firstLineEnd >= 0 ? requestText.left(firstLineEnd) : requestText;
-            const int queryStart = requestLine.indexOf('?');
-            QString authorizationCode;
-            if (queryStart >= 0) {
-                const QUrl requestUrl(QStringLiteral("http://127.0.0.1") + requestLine.mid(queryStart));
-                authorizationCode = QUrlQuery(requestUrl).queryItemValue(QStringLiteral("code"));
-            }
+            const QString requestLine = firstLineEnd >= 0 ? requestText.left(firstLineEnd).trimmed() : requestText;
+
+            QUrlQuery callbackQuery;
+            const QString authorizationCode = parseHttpRequestQuery(requestLine, &callbackQuery);
+            const QString errorCode = callbackQuery.queryItemValue(QStringLiteral("error"));
+            const QString errorDescription =
+                callbackQuery.queryItemValue(QStringLiteral("error_description"));
 
             const QByteArray responseBody =
                 "<html><body><h2>YouTube authorization complete.</h2>"
@@ -154,8 +256,14 @@ void YouTubeAuthManager::startSignIn() {
             redirectServer->close();
             redirectServer->deleteLater();
 
+            if (!errorCode.isEmpty()) {
+                emit authError(formatGoogleOAuthError(errorCode, errorDescription));
+                return;
+            }
+
             if (authorizationCode.isEmpty()) {
-                emit authError(QStringLiteral("YouTube authorization was cancelled or failed."));
+                emit authError(QStringLiteral("YouTube authorization was cancelled or failed.")
+                               + googleOAuthTroubleshootingHint());
                 return;
             }
 
@@ -198,8 +306,8 @@ void YouTubeAuthManager::exchangeAuthorizationCode(const QString& authorizationC
     QNetworkReply* reply = networkManager->post(request, body.toString(QUrl::FullyEncoded).toUtf8());
     connect(reply, &QNetworkReply::finished, this, [this, reply, networkManager]() {
         const QByteArray responseBody = reply->readAll();
-        if (reply->error() != QNetworkReply::NoError) {
-            emit authError(QStringLiteral("YouTube token exchange failed: %1").arg(reply->errorString()));
+        if (reply->error() != QNetworkReply::NoError || responseBody.contains("\"error\"")) {
+            emit authError(parseTokenEndpointError(responseBody, reply->errorString()));
             reply->deleteLater();
             networkManager->deleteLater();
             return;
@@ -242,8 +350,8 @@ void YouTubeAuthManager::refreshAccessToken(
     QNetworkReply* reply = networkManager->post(request, body.toString(QUrl::FullyEncoded).toUtf8());
     connect(reply, &QNetworkReply::finished, this, [this, reply, networkManager, callback]() {
         const QByteArray responseBody = reply->readAll();
-        if (reply->error() != QNetworkReply::NoError) {
-            callback(QString(), QStringLiteral("YouTube token refresh failed: %1").arg(reply->errorString()));
+        if (reply->error() != QNetworkReply::NoError || responseBody.contains("\"error\"")) {
+            callback(QString(), parseTokenEndpointError(responseBody, reply->errorString()));
             reply->deleteLater();
             networkManager->deleteLater();
             return;

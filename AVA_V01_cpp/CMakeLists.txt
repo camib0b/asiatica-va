@@ -34,6 +34,7 @@ qt_add_executable(AVA
   export/ClipTrimBar.cpp
   export/ExportDialog.cpp
   export/VideoConcatenator.cpp
+  export/PlaybackVideoPreparer.cpp
   export/XmlExporter.cpp
   export/XmlImporter.cpp
   export/YouTubeConfig.cpp

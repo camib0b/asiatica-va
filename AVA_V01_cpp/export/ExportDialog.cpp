@@ -54,10 +54,12 @@ ExportDialog::ExportDialog(TagSession* session,
                            const QString& sourceVideoPath,
                            qint64 videoDurationMs,
                            const QString& defaultOutputDirectoryPath,
+                           const QString& previewVideoPath,
                            QWidget* parent)
     : QDialog(parent)
     , tagSession_(session)
     , sourceVideoPath_(sourceVideoPath)
+    , previewVideoPath_(previewVideoPath.isEmpty() ? sourceVideoPath : previewVideoPath)
     , defaultOutputDirectoryPath_(defaultOutputDirectoryPath)
     , videoDurationMs_(videoDurationMs)
 {
@@ -728,7 +730,7 @@ void ExportDialog::ensurePreviewPlayer() {
     previewPlayer_ = new QMediaPlayer(this);
     previewPlayer_->setAudioOutput(previewAudioOutput_);
     previewPlayer_->setVideoOutput(previewVideoWidget_);
-    previewPlayer_->setSource(QUrl::fromLocalFile(sourceVideoPath_));
+    previewPlayer_->setSource(QUrl::fromLocalFile(previewVideoPath_));
 
     connect(previewPlayer_, &QMediaPlayer::positionChanged,
             this, &ExportDialog::onPreviewPositionChanged);

@@ -113,6 +113,7 @@ private:
   TagSession::GameTag currentTagContext() const;
 
   void cleanupConcatenatedVideo();
+  void cleanupPlaybackPrepVideo();
   void cleanupPendingConcatenation();
 
   /// Whether Space and playback-speed keys should control the main video player (same rules for all).
@@ -192,8 +193,10 @@ private:
   QString contextSituation_;
 
   QString sourceVideoPath_;
+  QString playbackVideoPath_;
   QString exportDefaultDirectoryPath_;
   QTemporaryDir* concatenatedVideoTempDir_ = nullptr;
+  QTemporaryDir* playbackPrepTempDir_ = nullptr;
   VideoConcatenator* pendingConcatenator_ = nullptr;
 
   QList<int> preservedTaggingVideoTagsSplitterSizes_;

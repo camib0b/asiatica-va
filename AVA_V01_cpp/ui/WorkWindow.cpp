@@ -11,6 +11,7 @@
 #include "../i18n/LocaleNotifier.h"
 #include "../export/ExportDialog.h"
 #include "../export/VideoConcatenator.h"
+#include "../export/PlaybackVideoPreparer.h"
 #include "../export/XmlImporter.h"
 #include "XmlSyncDialog.h"
 #include "XmlEventMappingDialog.h"
@@ -168,6 +169,7 @@ WorkWindow::WorkWindow(QWidget* parent) : QWidget(parent) {
 WorkWindow::~WorkWindow() {
     cleanupPendingConcatenation();
     cleanupConcatenatedVideo();
+    cleanupPlaybackPrepVideo();
 }
 
 bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(QWidget* focusWidget) const {
@@ -215,6 +217,13 @@ void WorkWindow::cleanupConcatenatedVideo() {
     if (concatenatedVideoTempDir_) {
         delete concatenatedVideoTempDir_;
         concatenatedVideoTempDir_ = nullptr;
+    }
+}
+
+void WorkWindow::cleanupPlaybackPrepVideo() {
+    if (playbackPrepTempDir_) {
+        delete playbackPrepTempDir_;
+        playbackPrepTempDir_ = nullptr;
     }
 }
 
@@ -1100,6 +1109,7 @@ void WorkWindow::onNextQuarterRequested() {
 void WorkWindow::onTeamSetupCancelled() {
     cleanupPendingConcatenation();
     cleanupConcatenatedVideo();
+    cleanupPlaybackPrepVideo();
     exportDefaultDirectoryPath_.clear();
     emit videoClosed();
 }
@@ -1107,7 +1117,42 @@ void WorkWindow::onTeamSetupCancelled() {
 void WorkWindow::loadVideoFromFile(const QString& filePath) {
     if (filePath.isEmpty()) return;
 
+    QString playbackPath = filePath;
+    cleanupPlaybackPrepVideo();
+
+    if (PlaybackVideoPreparer::needsPreparation(filePath)) {
+        auto* tempDir = new QTemporaryDir();
+        if (!tempDir->isValid()) {
+            delete tempDir;
+            QMessageBox::warning(this,
+                                 AppLocale::trUi("app.title"),
+                                 AppLocale::trUi("playback_prep.error_failed"));
+            emit videoClosed();
+            return;
+        }
+
+        auto* preparer = new PlaybackVideoPreparer(this);
+        preparer->startPreparation(filePath, tempDir->path());
+        const bool prepOk = preparer->waitWithProgress(this);
+        const QString errorMsg = preparer->errorMessage();
+        const QString preparedPath = preparer->outputPath();
+        delete preparer;
+
+        if (!prepOk) {
+            delete tempDir;
+            if (!errorMsg.isEmpty()) {
+                QMessageBox::warning(this, AppLocale::trUi("app.title"), errorMsg);
+            }
+            emit videoClosed();
+            return;
+        }
+
+        playbackPrepTempDir_ = tempDir;
+        playbackPath = preparedPath;
+    }
+
     sourceVideoPath_ = filePath;
+    playbackVideoPath_ = playbackPath;
     hasPreservedTaggingUiState_ = false;
     preservedTaggingVideoTagsSplitterSizes_.clear();
 
@@ -1119,7 +1164,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     if (tagsTable_) tagsTable_->setRowCount(0);
 
     if (videoPlayer_) {
-        videoPlayer_->loadVideoFromFile(filePath);
+        videoPlayer_->loadVideoFromFile(playbackPath);
         videoPlayer_->setControlsVisible(true);
     }
 
@@ -1163,6 +1208,7 @@ void WorkWindow::onReplaceVideo() {
     if (filePaths.size() == 1) {
         cleanupPendingConcatenation();
         cleanupConcatenatedVideo();
+        cleanupPlaybackPrepVideo();
         setExportDefaultDirectoryFromVideoPath(filePaths.first());
         loadVideoFromFile(filePaths.first());
         return;
@@ -1226,6 +1272,7 @@ void WorkWindow::onDiscardVideo() {
     if (statsWindow_) statsWindow_->hide();
 
     cleanupConcatenatedVideo();
+    cleanupPlaybackPrepVideo();
     exportDefaultDirectoryPath_.clear();
     emit videoClosed();
     refreshPlaybackShortcutFocusGate();
@@ -1236,7 +1283,7 @@ void WorkWindow::onExportClips() {
 
     const qint64 duration = videoPlayer_ ? videoPlayer_->durationMs() : 0;
     auto* dialog = new ExportDialog(tagSession_, sourceVideoPath_, duration,
-                                    exportDefaultDirectoryPath_, this);
+                                    exportDefaultDirectoryPath_, playbackVideoPath_, this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModal(true);
     if (videoPlayer_) {
