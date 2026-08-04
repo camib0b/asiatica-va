@@ -1013,7 +1013,7 @@ CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.o: \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout \
   /opt/homebrew/lib/QtGui.framework/Headers/QAction \
-  /opt/homebrew/lib/QtGui.framework/Headers/QKeySequence \
+  /opt/homebrew/lib/QtGui.framework/Headers/QFontMetrics \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QApplication \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qapplication.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qcoreapplication.h \
@@ -1028,4 +1028,5 @@ CMakeFiles/AVA.dir/ui/WelcomeWindow.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/qinputmethod.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qlocale.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qguiapplication_platform.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QDebug
+  /opt/homebrew/lib/QtCore.framework/Headers/QDebug \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QSizePolicy

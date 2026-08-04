@@ -371,6 +371,30 @@ export/ExportDialog.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/ExportDialog.cpp.s
 .PHONY : export/ExportDialog.cpp.s
 
+export/PlaybackVideoPreparer.o: export/PlaybackVideoPreparer.cpp.o
+.PHONY : export/PlaybackVideoPreparer.o
+
+# target to build an object file
+export/PlaybackVideoPreparer.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/PlaybackVideoPreparer.cpp.o
+.PHONY : export/PlaybackVideoPreparer.cpp.o
+
+export/PlaybackVideoPreparer.i: export/PlaybackVideoPreparer.cpp.i
+.PHONY : export/PlaybackVideoPreparer.i
+
+# target to preprocess a source file
+export/PlaybackVideoPreparer.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/PlaybackVideoPreparer.cpp.i
+.PHONY : export/PlaybackVideoPreparer.cpp.i
+
+export/PlaybackVideoPreparer.s: export/PlaybackVideoPreparer.cpp.s
+.PHONY : export/PlaybackVideoPreparer.s
+
+# target to generate assembly for a file
+export/PlaybackVideoPreparer.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/PlaybackVideoPreparer.cpp.s
+.PHONY : export/PlaybackVideoPreparer.cpp.s
+
 export/VideoConcatenator.o: export/VideoConcatenator.cpp.o
 .PHONY : export/VideoConcatenator.o
 
@@ -418,6 +442,102 @@ export/XmlExporter.s: export/XmlExporter.cpp.s
 export/XmlExporter.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/XmlExporter.cpp.s
 .PHONY : export/XmlExporter.cpp.s
+
+export/XmlImporter.o: export/XmlImporter.cpp.o
+.PHONY : export/XmlImporter.o
+
+# target to build an object file
+export/XmlImporter.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/XmlImporter.cpp.o
+.PHONY : export/XmlImporter.cpp.o
+
+export/XmlImporter.i: export/XmlImporter.cpp.i
+.PHONY : export/XmlImporter.i
+
+# target to preprocess a source file
+export/XmlImporter.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/XmlImporter.cpp.i
+.PHONY : export/XmlImporter.cpp.i
+
+export/XmlImporter.s: export/XmlImporter.cpp.s
+.PHONY : export/XmlImporter.s
+
+# target to generate assembly for a file
+export/XmlImporter.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/XmlImporter.cpp.s
+.PHONY : export/XmlImporter.cpp.s
+
+export/YouTubeAuthManager.o: export/YouTubeAuthManager.cpp.o
+.PHONY : export/YouTubeAuthManager.o
+
+# target to build an object file
+export/YouTubeAuthManager.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/YouTubeAuthManager.cpp.o
+.PHONY : export/YouTubeAuthManager.cpp.o
+
+export/YouTubeAuthManager.i: export/YouTubeAuthManager.cpp.i
+.PHONY : export/YouTubeAuthManager.i
+
+# target to preprocess a source file
+export/YouTubeAuthManager.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/YouTubeAuthManager.cpp.i
+.PHONY : export/YouTubeAuthManager.cpp.i
+
+export/YouTubeAuthManager.s: export/YouTubeAuthManager.cpp.s
+.PHONY : export/YouTubeAuthManager.s
+
+# target to generate assembly for a file
+export/YouTubeAuthManager.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/YouTubeAuthManager.cpp.s
+.PHONY : export/YouTubeAuthManager.cpp.s
+
+export/YouTubeConfig.o: export/YouTubeConfig.cpp.o
+.PHONY : export/YouTubeConfig.o
+
+# target to build an object file
+export/YouTubeConfig.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/YouTubeConfig.cpp.o
+.PHONY : export/YouTubeConfig.cpp.o
+
+export/YouTubeConfig.i: export/YouTubeConfig.cpp.i
+.PHONY : export/YouTubeConfig.i
+
+# target to preprocess a source file
+export/YouTubeConfig.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/YouTubeConfig.cpp.i
+.PHONY : export/YouTubeConfig.cpp.i
+
+export/YouTubeConfig.s: export/YouTubeConfig.cpp.s
+.PHONY : export/YouTubeConfig.s
+
+# target to generate assembly for a file
+export/YouTubeConfig.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/YouTubeConfig.cpp.s
+.PHONY : export/YouTubeConfig.cpp.s
+
+export/YouTubeUploader.o: export/YouTubeUploader.cpp.o
+.PHONY : export/YouTubeUploader.o
+
+# target to build an object file
+export/YouTubeUploader.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/YouTubeUploader.cpp.o
+.PHONY : export/YouTubeUploader.cpp.o
+
+export/YouTubeUploader.i: export/YouTubeUploader.cpp.i
+.PHONY : export/YouTubeUploader.i
+
+# target to preprocess a source file
+export/YouTubeUploader.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/YouTubeUploader.cpp.i
+.PHONY : export/YouTubeUploader.cpp.i
+
+export/YouTubeUploader.s: export/YouTubeUploader.cpp.s
+.PHONY : export/YouTubeUploader.s
+
+# target to generate assembly for a file
+export/YouTubeUploader.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/export/YouTubeUploader.cpp.s
+.PHONY : export/YouTubeUploader.cpp.s
 
 i18n/AppLocale.o: i18n/AppLocale.cpp.o
 .PHONY : i18n/AppLocale.o
@@ -539,6 +659,30 @@ main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/main.cpp.s
 .PHONY : main.cpp.s
 
+state/EventCodeMap.o: state/EventCodeMap.cpp.o
+.PHONY : state/EventCodeMap.o
+
+# target to build an object file
+state/EventCodeMap.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/state/EventCodeMap.cpp.o
+.PHONY : state/EventCodeMap.cpp.o
+
+state/EventCodeMap.i: state/EventCodeMap.cpp.i
+.PHONY : state/EventCodeMap.i
+
+# target to preprocess a source file
+state/EventCodeMap.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/state/EventCodeMap.cpp.i
+.PHONY : state/EventCodeMap.cpp.i
+
+state/EventCodeMap.s: state/EventCodeMap.cpp.s
+.PHONY : state/EventCodeMap.s
+
+# target to generate assembly for a file
+state/EventCodeMap.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/state/EventCodeMap.cpp.s
+.PHONY : state/EventCodeMap.cpp.s
+
 state/EventDefaults.o: state/EventDefaults.cpp.o
 .PHONY : state/EventDefaults.o
 
@@ -610,6 +754,30 @@ style/theme.s: style/theme.cpp.s
 style/theme.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/style/theme.cpp.s
 .PHONY : style/theme.cpp.s
+
+ui/ClipDurationSettingsDialog.o: ui/ClipDurationSettingsDialog.cpp.o
+.PHONY : ui/ClipDurationSettingsDialog.o
+
+# target to build an object file
+ui/ClipDurationSettingsDialog.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/ClipDurationSettingsDialog.cpp.o
+.PHONY : ui/ClipDurationSettingsDialog.cpp.o
+
+ui/ClipDurationSettingsDialog.i: ui/ClipDurationSettingsDialog.cpp.i
+.PHONY : ui/ClipDurationSettingsDialog.i
+
+# target to preprocess a source file
+ui/ClipDurationSettingsDialog.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/ClipDurationSettingsDialog.cpp.i
+.PHONY : ui/ClipDurationSettingsDialog.cpp.i
+
+ui/ClipDurationSettingsDialog.s: ui/ClipDurationSettingsDialog.cpp.s
+.PHONY : ui/ClipDurationSettingsDialog.s
+
+# target to generate assembly for a file
+ui/ClipDurationSettingsDialog.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/ClipDurationSettingsDialog.cpp.s
+.PHONY : ui/ClipDurationSettingsDialog.cpp.s
 
 ui/GameSetupWindow.o: ui/GameSetupWindow.cpp.o
 .PHONY : ui/GameSetupWindow.o
@@ -731,6 +899,54 @@ ui/WorkWindow.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/WorkWindow.cpp.s
 .PHONY : ui/WorkWindow.cpp.s
 
+ui/XmlEventMappingDialog.o: ui/XmlEventMappingDialog.cpp.o
+.PHONY : ui/XmlEventMappingDialog.o
+
+# target to build an object file
+ui/XmlEventMappingDialog.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/XmlEventMappingDialog.cpp.o
+.PHONY : ui/XmlEventMappingDialog.cpp.o
+
+ui/XmlEventMappingDialog.i: ui/XmlEventMappingDialog.cpp.i
+.PHONY : ui/XmlEventMappingDialog.i
+
+# target to preprocess a source file
+ui/XmlEventMappingDialog.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/XmlEventMappingDialog.cpp.i
+.PHONY : ui/XmlEventMappingDialog.cpp.i
+
+ui/XmlEventMappingDialog.s: ui/XmlEventMappingDialog.cpp.s
+.PHONY : ui/XmlEventMappingDialog.s
+
+# target to generate assembly for a file
+ui/XmlEventMappingDialog.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/XmlEventMappingDialog.cpp.s
+.PHONY : ui/XmlEventMappingDialog.cpp.s
+
+ui/XmlSyncDialog.o: ui/XmlSyncDialog.cpp.o
+.PHONY : ui/XmlSyncDialog.o
+
+# target to build an object file
+ui/XmlSyncDialog.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/XmlSyncDialog.cpp.o
+.PHONY : ui/XmlSyncDialog.cpp.o
+
+ui/XmlSyncDialog.i: ui/XmlSyncDialog.cpp.i
+.PHONY : ui/XmlSyncDialog.i
+
+# target to preprocess a source file
+ui/XmlSyncDialog.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/XmlSyncDialog.cpp.i
+.PHONY : ui/XmlSyncDialog.cpp.i
+
+ui/XmlSyncDialog.s: ui/XmlSyncDialog.cpp.s
+.PHONY : ui/XmlSyncDialog.s
+
+# target to generate assembly for a file
+ui/XmlSyncDialog.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/AVA.dir/build.make CMakeFiles/AVA.dir/ui/XmlSyncDialog.cpp.s
+.PHONY : ui/XmlSyncDialog.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -769,12 +985,27 @@ help:
 	@echo "... export/ExportDialog.o"
 	@echo "... export/ExportDialog.i"
 	@echo "... export/ExportDialog.s"
+	@echo "... export/PlaybackVideoPreparer.o"
+	@echo "... export/PlaybackVideoPreparer.i"
+	@echo "... export/PlaybackVideoPreparer.s"
 	@echo "... export/VideoConcatenator.o"
 	@echo "... export/VideoConcatenator.i"
 	@echo "... export/VideoConcatenator.s"
 	@echo "... export/XmlExporter.o"
 	@echo "... export/XmlExporter.i"
 	@echo "... export/XmlExporter.s"
+	@echo "... export/XmlImporter.o"
+	@echo "... export/XmlImporter.i"
+	@echo "... export/XmlImporter.s"
+	@echo "... export/YouTubeAuthManager.o"
+	@echo "... export/YouTubeAuthManager.i"
+	@echo "... export/YouTubeAuthManager.s"
+	@echo "... export/YouTubeConfig.o"
+	@echo "... export/YouTubeConfig.i"
+	@echo "... export/YouTubeConfig.s"
+	@echo "... export/YouTubeUploader.o"
+	@echo "... export/YouTubeUploader.i"
+	@echo "... export/YouTubeUploader.s"
 	@echo "... i18n/AppLocale.o"
 	@echo "... i18n/AppLocale.i"
 	@echo "... i18n/AppLocale.s"
@@ -790,6 +1021,9 @@ help:
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
+	@echo "... state/EventCodeMap.o"
+	@echo "... state/EventCodeMap.i"
+	@echo "... state/EventCodeMap.s"
 	@echo "... state/EventDefaults.o"
 	@echo "... state/EventDefaults.i"
 	@echo "... state/EventDefaults.s"
@@ -799,6 +1033,9 @@ help:
 	@echo "... style/theme.o"
 	@echo "... style/theme.i"
 	@echo "... style/theme.s"
+	@echo "... ui/ClipDurationSettingsDialog.o"
+	@echo "... ui/ClipDurationSettingsDialog.i"
+	@echo "... ui/ClipDurationSettingsDialog.s"
 	@echo "... ui/GameSetupWindow.o"
 	@echo "... ui/GameSetupWindow.i"
 	@echo "... ui/GameSetupWindow.s"
@@ -814,6 +1051,12 @@ help:
 	@echo "... ui/WorkWindow.o"
 	@echo "... ui/WorkWindow.i"
 	@echo "... ui/WorkWindow.s"
+	@echo "... ui/XmlEventMappingDialog.o"
+	@echo "... ui/XmlEventMappingDialog.i"
+	@echo "... ui/XmlEventMappingDialog.s"
+	@echo "... ui/XmlSyncDialog.o"
+	@echo "... ui/XmlSyncDialog.i"
+	@echo "... ui/XmlSyncDialog.s"
 .PHONY : help
 
 

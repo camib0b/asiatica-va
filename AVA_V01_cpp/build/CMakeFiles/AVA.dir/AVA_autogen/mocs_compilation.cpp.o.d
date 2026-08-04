@@ -996,6 +996,14 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/QHash \
   /opt/homebrew/lib/QtCore.framework/Headers/QVector \
   /opt/homebrew/lib/QtCore.framework/Headers/qvector.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/../../../components/../state/TagSession.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QDate \
+  /opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qcalendar.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/qlocale.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QObject \
+  /opt/homebrew/lib/QtCore.framework/Headers/QString \
+  /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
   /opt/homebrew/lib/QtCore.framework/Headers/qtmochelpers.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qtmocconstants.h \
   /opt/homebrew/lib/QtCore.framework/Headers/q20algorithm.h \
@@ -1003,7 +1011,6 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/../../../components/TimelineBar.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer \
   /opt/homebrew/lib/QtCore.framework/Headers/qelapsedtimer.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/moc_VideoControlsBar.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/../../../components/VideoControlsBar.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/XDQFSXMG3O/moc_VideoPlayer.cpp \
@@ -1018,30 +1025,31 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /opt/homebrew/lib/QtMultimedia.framework/Headers/qaudio.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/moc_ClipExporter.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/../../../export/ClipExporter.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QObject \
   /opt/homebrew/lib/QtCore.framework/Headers/QProcess \
   /opt/homebrew/lib/QtCore.framework/Headers/qprocess.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qiodevice.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QString \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/moc_ClipTrimBar.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/../../../export/ClipTrimBar.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/moc_ExportDialog.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/../../../export/ExportDialog.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QDialog \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QPair \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QDate \
-  /opt/homebrew/lib/QtCore.framework/Headers/qdatetime.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qcalendar.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/qlocale.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/../../../export/YouTubeUploader.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/moc_PlaybackVideoPreparer.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/../../../export/PlaybackVideoPreparer.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/moc_VideoConcatenator.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/../../../export/VideoConcatenator.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/moc_YouTubeAuthManager.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/../../../export/YouTubeAuthManager.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/CV7R3MSKRA/moc_YouTubeUploader.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/O3VI4VFR3H/moc_LocaleNotifier.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/O3VI4VFR3H/../../../i18n/LocaleNotifier.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/EO7GX2X5BD/moc_TagSession.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/EO7GX2X5BD/../../../state/TagSession.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/moc_ClipDurationSettingsDialog.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/../../../ui/ClipDurationSettingsDialog.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/moc_GameSetupWindow.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/../../../ui/GameSetupWindow.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/moc_MainWindow.cpp \
@@ -1057,4 +1065,9 @@ CMakeFiles/AVA.dir/AVA_autogen/mocs_compilation.cpp.o: \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/moc_WorkWindow.cpp \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/../../../ui/WorkWindow.h \
   /opt/homebrew/lib/QtGui.framework/Headers/QBrush \
-  /opt/homebrew/lib/QtCore.framework/Headers/QSet
+  /opt/homebrew/lib/QtCore.framework/Headers/QSet \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/moc_XmlEventMappingDialog.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/../../../ui/XmlEventMappingDialog.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/../../../ui/../export/XmlImporter.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/moc_XmlSyncDialog.cpp \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/UYX5XTB5RZ/../../../ui/XmlSyncDialog.h

@@ -62,6 +62,14 @@ template <> constexpr inline auto ExportDialog::qt_create_metaobjectdata<qt_meta
         "onExportFinished",
         "success",
         "message",
+        "onYouTubeConnectClicked",
+        "onYouTubeDisconnectClicked",
+        "onYouTubeAuthStateChanged",
+        "onYouTubeAuthError",
+        "onYouTubeUploadProgress",
+        "percent",
+        "onYouTubeUploadFinished",
+        "videoUrl",
         "onPreviewSlowerClicked",
         "onPreviewFasterClicked",
         "onPreviewResetSpeedClicked"
@@ -114,12 +122,30 @@ template <> constexpr inline auto ExportDialog::qt_create_metaobjectdata<qt_meta
         QtMocHelpers::SlotData<void(bool, const QString &)>(21, 2, QMC::AccessPrivate, QMetaType::Void, {{
             { QMetaType::Bool, 22 }, { QMetaType::QString, 23 },
         }}),
-        // Slot 'onPreviewSlowerClicked'
+        // Slot 'onYouTubeConnectClicked'
         QtMocHelpers::SlotData<void()>(24, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onPreviewFasterClicked'
+        // Slot 'onYouTubeDisconnectClicked'
         QtMocHelpers::SlotData<void()>(25, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'onPreviewResetSpeedClicked'
+        // Slot 'onYouTubeAuthStateChanged'
         QtMocHelpers::SlotData<void()>(26, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onYouTubeAuthError'
+        QtMocHelpers::SlotData<void(const QString &)>(27, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::QString, 23 },
+        }}),
+        // Slot 'onYouTubeUploadProgress'
+        QtMocHelpers::SlotData<void(int)>(28, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 29 },
+        }}),
+        // Slot 'onYouTubeUploadFinished'
+        QtMocHelpers::SlotData<void(bool, const QString &, const QString &)>(30, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Bool, 22 }, { QMetaType::QString, 23 }, { QMetaType::QString, 31 },
+        }}),
+        // Slot 'onPreviewSlowerClicked'
+        QtMocHelpers::SlotData<void()>(32, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onPreviewFasterClicked'
+        QtMocHelpers::SlotData<void()>(33, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onPreviewResetSpeedClicked'
+        QtMocHelpers::SlotData<void()>(34, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -159,9 +185,15 @@ void ExportDialog::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id
         case 13: _t->onCancelExportClicked(); break;
         case 14: _t->onExportProgress((*reinterpret_cast<std::add_pointer_t<int>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<int>>(_a[2]))); break;
         case 15: _t->onExportFinished((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[2]))); break;
-        case 16: _t->onPreviewSlowerClicked(); break;
-        case 17: _t->onPreviewFasterClicked(); break;
-        case 18: _t->onPreviewResetSpeedClicked(); break;
+        case 16: _t->onYouTubeConnectClicked(); break;
+        case 17: _t->onYouTubeDisconnectClicked(); break;
+        case 18: _t->onYouTubeAuthStateChanged(); break;
+        case 19: _t->onYouTubeAuthError((*reinterpret_cast<std::add_pointer_t<QString>>(_a[1]))); break;
+        case 20: _t->onYouTubeUploadProgress((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
+        case 21: _t->onYouTubeUploadFinished((*reinterpret_cast<std::add_pointer_t<bool>>(_a[1])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[2])),(*reinterpret_cast<std::add_pointer_t<QString>>(_a[3]))); break;
+        case 22: _t->onPreviewSlowerClicked(); break;
+        case 23: _t->onPreviewFasterClicked(); break;
+        case 24: _t->onPreviewResetSpeedClicked(); break;
         default: ;
         }
     }
@@ -186,14 +218,14 @@ int ExportDialog::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 19)
+        if (_id < 25)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 19;
+        _id -= 25;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 19)
+        if (_id < 25)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 19;
+        _id -= 25;
     }
     return _id;
 }

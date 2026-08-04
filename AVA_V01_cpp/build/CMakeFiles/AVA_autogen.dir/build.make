@@ -72,7 +72,7 @@ AVA_autogen/timestamp: /opt/homebrew/share/qt/libexec/moc
 AVA_autogen/timestamp: /opt/homebrew/share/qt/libexec/uic
 AVA_autogen/timestamp: CMakeFiles/AVA_autogen.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Automatic MOC and UIC for target AVA"
-	/opt/homebrew/bin/cmake -E cmake_autogen /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles/AVA_autogen.dir/AutogenInfo.json ""
+	/opt/homebrew/bin/cmake -E cmake_autogen /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/CMakeFiles/AVA_autogen.dir/AutogenInfo.json Debug
 	/opt/homebrew/bin/cmake -E touch /Users/cam/dev/asiatica-va/AVA_V01_cpp/build/AVA_autogen/timestamp
 
 CMakeFiles/AVA_autogen.dir/codegen:

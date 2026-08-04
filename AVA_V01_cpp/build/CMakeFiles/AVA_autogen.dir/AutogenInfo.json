@@ -487,6 +487,12 @@
 			null
 		],
 		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/PlaybackVideoPreparer.h",
+			"MU",
+			"CV7R3MSKRA/moc_PlaybackVideoPreparer.cpp",
+			null
+		],
+		[
 			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.h",
 			"MU",
 			"CV7R3MSKRA/moc_VideoConcatenator.cpp",
@@ -496,6 +502,30 @@
 			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.h",
 			"MU",
 			"CV7R3MSKRA/moc_XmlExporter.cpp",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlImporter.h",
+			"MU",
+			"CV7R3MSKRA/moc_XmlImporter.cpp",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/YouTubeAuthManager.h",
+			"MU",
+			"CV7R3MSKRA/moc_YouTubeAuthManager.cpp",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/YouTubeConfig.h",
+			"MU",
+			"CV7R3MSKRA/moc_YouTubeConfig.cpp",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/YouTubeUploader.h",
+			"MU",
+			"CV7R3MSKRA/moc_YouTubeUploader.cpp",
 			null
 		],
 		[
@@ -523,6 +553,12 @@
 			null
 		],
 		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventCodeMap.h",
+			"MU",
+			"EO7GX2X5BD/moc_EventCodeMap.cpp",
+			null
+		],
+		[
 			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.h",
 			"MU",
 			"EO7GX2X5BD/moc_EventDefaults.cpp",
@@ -538,6 +574,12 @@
 			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/style/theme.h",
 			"MU",
 			"HI6LWCXMXM/moc_theme.cpp",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/ClipDurationSettingsDialog.h",
+			"MU",
+			"UYX5XTB5RZ/moc_ClipDurationSettingsDialog.cpp",
 			null
 		],
 		[
@@ -569,6 +611,18 @@
 			"MU",
 			"UYX5XTB5RZ/moc_WorkWindow.cpp",
 			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/XmlEventMappingDialog.h",
+			"MU",
+			"UYX5XTB5RZ/moc_XmlEventMappingDialog.cpp",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/XmlSyncDialog.h",
+			"MU",
+			"UYX5XTB5RZ/moc_XmlSyncDialog.cpp",
+			null
 		]
 	],
 	"HEADER_EXTENSIONS" : [ "h", "hh", "h++", "hm", "hpp", "hxx", "in", "txx" ],
@@ -581,7 +635,6 @@
 		"QT_MULTIMEDIAWIDGETS_LIB",
 		"QT_MULTIMEDIA_LIB",
 		"QT_NETWORK_LIB",
-		"QT_NO_DEBUG",
 		"QT_WIDGETS_LIB"
 	],
 	"MOC_DEPEND_FILTERS" : 
@@ -690,12 +743,37 @@
 			null
 		],
 		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/PlaybackVideoPreparer.cpp",
+			"MU",
+			null
+		],
+		[
 			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp",
 			"MU",
 			null
 		],
 		[
 			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlImporter.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/YouTubeAuthManager.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/YouTubeConfig.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/export/YouTubeUploader.cpp",
 			"MU",
 			null
 		],
@@ -721,6 +799,11 @@
 		],
 		[ "/Users/cam/dev/asiatica-va/AVA_V01_cpp/main.cpp", "MU", null ],
 		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventCodeMap.cpp",
+			"MU",
+			null
+		],
+		[
 			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.cpp",
 			"MU",
 			null
@@ -731,6 +814,11 @@
 			null
 		],
 		[ "/Users/cam/dev/asiatica-va/AVA_V01_cpp/style/theme.cpp", "MU", null ],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/ClipDurationSettingsDialog.cpp",
+			"MU",
+			null
+		],
 		[
 			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.cpp",
 			"MU",
@@ -753,6 +841,16 @@
 		],
 		[
 			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/XmlEventMappingDialog.cpp",
+			"MU",
+			null
+		],
+		[
+			"/Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/XmlSyncDialog.cpp",
 			"MU",
 			null
 		]

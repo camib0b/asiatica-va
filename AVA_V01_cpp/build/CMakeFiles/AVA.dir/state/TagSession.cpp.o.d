@@ -959,4 +959,5 @@ CMakeFiles/AVA.dir/state/TagSession.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/QVector \
   /opt/homebrew/lib/QtCore.framework/Headers/qvector.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QtGlobal \
-  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.h
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.h \
+  /opt/homebrew/lib/QtCore.framework/Headers/QStringList

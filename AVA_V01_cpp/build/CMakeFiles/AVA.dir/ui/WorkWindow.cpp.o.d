@@ -1004,6 +1004,9 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtCore.framework/Headers/QObject \
   /opt/homebrew/lib/QtCore.framework/Headers/QVector \
   /opt/homebrew/lib/QtCore.framework/Headers/qvector.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/ClipDurationSettingsDialog.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QDialog \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../style/StyleProps.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QStyle \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qstyle.h \
@@ -1019,21 +1022,24 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtMultimedia.framework/Headers/qaudio.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../components/GameControls.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QStringList \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../components/../state/TagSession.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../state/EventDefaults.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/StatsWindow.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../i18n/AppLocale.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../i18n/LocaleNotifier.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../export/ExportDialog.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QDialog \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qdialog.h \
-  /opt/homebrew/lib/QtCore.framework/Headers/QPair \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../export/YouTubeUploader.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../export/VideoConcatenator.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QProcess \
   /opt/homebrew/lib/QtCore.framework/Headers/qprocess.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qiodevice.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../export/PlaybackVideoPreparer.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/../export/XmlImporter.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/XmlSyncDialog.h \
+  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/XmlEventMappingDialog.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/VideoControlsBar.h \
   /Users/cam/dev/asiatica-va/AVA_V01_cpp/components/TimelineBar.h \
   /opt/homebrew/lib/QtCore.framework/Headers/QElapsedTimer \
@@ -1049,19 +1055,8 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /opt/homebrew/lib/QtGui.framework/Headers/qtextformat.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qpen.h \
   /opt/homebrew/lib/QtGui.framework/Headers/qtextoption.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QMessageBox \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qmessagebox.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qdialogbuttonbox.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QStackedWidget \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qstackedwidget.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qlayout.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qlayoutitem.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout \
-  /opt/homebrew/lib/QtCore.framework/Headers/QTemporaryDir \
-  /opt/homebrew/lib/QtCore.framework/Headers/qtemporarydir.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QFileDialog \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qfiledialog.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qdir.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qdirlisting.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qfiledevice.h \
@@ -1101,9 +1096,24 @@ CMakeFiles/AVA.dir/ui/WorkWindow.cpp.o: \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__filesystem/u8path.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qfileinfo.h \
   /opt/homebrew/lib/QtCore.framework/Headers/qtimezone.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QMessageBox \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qmessagebox.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qdialogbuttonbox.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QPushButton \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qpushbutton.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractbutton.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QStackedWidget \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qstackedwidget.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QVBoxLayout \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qboxlayout.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qlayout.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qlayoutitem.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/qgridlayout.h \
+  /opt/homebrew/lib/QtWidgets.framework/Headers/QHBoxLayout \
+  /opt/homebrew/lib/QtCore.framework/Headers/QTemporaryDir \
+  /opt/homebrew/lib/QtCore.framework/Headers/qtemporarydir.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QToolButton \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qtoolbutton.h \
-  /opt/homebrew/lib/QtWidgets.framework/Headers/qabstractbutton.h \
   /opt/homebrew/lib/QtWidgets.framework/Headers/QMenu \
   /opt/homebrew/lib/QtWidgets.framework/Headers/qmenu.h \
   /opt/homebrew/lib/QtMultimediaWidgets.framework/Headers/QVideoWidget \

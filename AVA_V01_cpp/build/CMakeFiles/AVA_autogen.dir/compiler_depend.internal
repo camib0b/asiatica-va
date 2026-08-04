@@ -766,10 +766,20 @@
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ClipTrimBar.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ExportDialog.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/ExportDialog.h
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/PlaybackVideoPreparer.cpp
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/PlaybackVideoPreparer.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/VideoConcatenator.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlExporter.h
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlImporter.cpp
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/XmlImporter.h
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/YouTubeAuthManager.cpp
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/YouTubeAuthManager.h
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/YouTubeConfig.cpp
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/YouTubeConfig.h
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/YouTubeUploader.cpp
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/export/YouTubeUploader.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/AppLocale.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/i18n/LocaleNotifier.cpp
@@ -779,12 +789,16 @@
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/SystemPowerNotifier.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/macos/SystemPowerNotifier.mm
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/main.cpp
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventCodeMap.cpp
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventCodeMap.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/EventDefaults.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/state/TagSession.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/style/theme.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/style/theme.h
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/ClipDurationSettingsDialog.cpp
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/ClipDurationSettingsDialog.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/GameSetupWindow.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/MainWindow.cpp
@@ -795,12 +809,15 @@
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WelcomeWindow.h
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.cpp
  /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/WorkWindow.h
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/XmlEventMappingDialog.cpp
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/XmlEventMappingDialog.h
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/XmlSyncDialog.cpp
+ /Users/cam/dev/asiatica-va/AVA_V01_cpp/ui/XmlSyncDialog.h
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QDate
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QElapsedTimer
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QHash
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QList
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QObject
- /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QPair
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QProcess
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QSet
  /opt/homebrew/Cellar/qtbase/6.10.2/lib/QtCore.framework/Versions/A/Headers/QString

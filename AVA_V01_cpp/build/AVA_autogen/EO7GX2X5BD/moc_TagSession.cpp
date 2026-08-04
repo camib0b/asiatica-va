@@ -44,6 +44,7 @@ template <> constexpr inline auto TagSession::qt_create_metaobjectdata<qt_meta_t
         "tagAdded",
         "TagSession::GameTag",
         "tag",
+        "tagsImported",
         "tagNoteChanged",
         "index",
         "tagIntervalChanged",
@@ -57,16 +58,18 @@ template <> constexpr inline auto TagSession::qt_create_metaobjectdata<qt_meta_t
         QtMocHelpers::SignalData<void(const TagSession::GameTag &)>(3, 2, QMC::AccessPublic, QMetaType::Void, {{
             { 0x80000000 | 4, 5 },
         }}),
+        // Signal 'tagsImported'
+        QtMocHelpers::SignalData<void()>(6, 2, QMC::AccessPublic, QMetaType::Void),
         // Signal 'tagNoteChanged'
-        QtMocHelpers::SignalData<void(int)>(6, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::Int, 7 },
+        QtMocHelpers::SignalData<void(int)>(7, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Int, 8 },
         }}),
         // Signal 'tagIntervalChanged'
-        QtMocHelpers::SignalData<void(int)>(8, 2, QMC::AccessPublic, QMetaType::Void, {{
-            { QMetaType::Int, 7 },
+        QtMocHelpers::SignalData<void(int)>(9, 2, QMC::AccessPublic, QMetaType::Void, {{
+            { QMetaType::Int, 8 },
         }}),
         // Signal 'statsChanged'
-        QtMocHelpers::SignalData<void()>(9, 2, QMC::AccessPublic, QMetaType::Void),
+        QtMocHelpers::SignalData<void()>(10, 2, QMC::AccessPublic, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -92,9 +95,10 @@ void TagSession::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         switch (_id) {
         case 0: _t->cleared(); break;
         case 1: _t->tagAdded((*reinterpret_cast<std::add_pointer_t<TagSession::GameTag>>(_a[1]))); break;
-        case 2: _t->tagNoteChanged((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
-        case 3: _t->tagIntervalChanged((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
-        case 4: _t->statsChanged(); break;
+        case 2: _t->tagsImported(); break;
+        case 3: _t->tagNoteChanged((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
+        case 4: _t->tagIntervalChanged((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
+        case 5: _t->statsChanged(); break;
         default: ;
         }
     }
@@ -103,11 +107,13 @@ void TagSession::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
             return;
         if (QtMocHelpers::indexOfMethod<void (TagSession::*)(const TagSession::GameTag & )>(_a, &TagSession::tagAdded, 1))
             return;
-        if (QtMocHelpers::indexOfMethod<void (TagSession::*)(int )>(_a, &TagSession::tagNoteChanged, 2))
+        if (QtMocHelpers::indexOfMethod<void (TagSession::*)()>(_a, &TagSession::tagsImported, 2))
             return;
-        if (QtMocHelpers::indexOfMethod<void (TagSession::*)(int )>(_a, &TagSession::tagIntervalChanged, 3))
+        if (QtMocHelpers::indexOfMethod<void (TagSession::*)(int )>(_a, &TagSession::tagNoteChanged, 3))
             return;
-        if (QtMocHelpers::indexOfMethod<void (TagSession::*)()>(_a, &TagSession::statsChanged, 4))
+        if (QtMocHelpers::indexOfMethod<void (TagSession::*)(int )>(_a, &TagSession::tagIntervalChanged, 4))
+            return;
+        if (QtMocHelpers::indexOfMethod<void (TagSession::*)()>(_a, &TagSession::statsChanged, 5))
             return;
     }
 }
@@ -131,14 +137,14 @@ int TagSession::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 5)
+        if (_id < 6)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 5;
+        _id -= 6;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 5)
+        if (_id < 6)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 5;
+        _id -= 6;
     }
     return _id;
 }
@@ -156,20 +162,26 @@ void TagSession::tagAdded(const TagSession::GameTag & _t1)
 }
 
 // SIGNAL 2
-void TagSession::tagNoteChanged(int _t1)
+void TagSession::tagsImported()
 {
-    QMetaObject::activate<void>(this, &staticMetaObject, 2, nullptr, _t1);
+    QMetaObject::activate(this, &staticMetaObject, 2, nullptr);
 }
 
 // SIGNAL 3
-void TagSession::tagIntervalChanged(int _t1)
+void TagSession::tagNoteChanged(int _t1)
 {
     QMetaObject::activate<void>(this, &staticMetaObject, 3, nullptr, _t1);
 }
 
 // SIGNAL 4
+void TagSession::tagIntervalChanged(int _t1)
+{
+    QMetaObject::activate<void>(this, &staticMetaObject, 4, nullptr, _t1);
+}
+
+// SIGNAL 5
 void TagSession::statsChanged()
 {
-    QMetaObject::activate(this, &staticMetaObject, 4, nullptr);
+    QMetaObject::activate(this, &staticMetaObject, 5, nullptr);
 }
 QT_WARNING_POP
