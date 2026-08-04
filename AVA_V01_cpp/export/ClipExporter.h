@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QProcess>
+#include <QSize>
 #include <QString>
 #include <QStringList>
 #include <QVector>
@@ -47,6 +48,9 @@ public:
 
     bool isRunning() const;
     static QString findFfmpeg();
+    static QString findFfprobe();
+    static QSize probeVideoDisplaySize(const QString& videoPath);
+    static qreal computeOverlayScale(const QSize& videoSize);
 
 signals:
     void progressChanged(int currentClip, int totalClips);
@@ -62,10 +66,15 @@ private:
     void cleanup();
     static QString generateOverlayImage(const QString& primaryText,
                                         const QString& secondaryText,
-                                        const QString& outputPath);
+                                        const QString& outputPath,
+                                        qreal overlayScale,
+                                        int maxImageWidth);
     static QString generateScoreboardImage(const ScoreboardOverlay& data,
-                                           const QString& outputPath);
-    static QString generateBrandingImage(const QString& outputPath);
+                                           const QString& outputPath,
+                                           qreal overlayScale,
+                                           int maxImageWidth);
+    static QString generateBrandingImage(const QString& outputPath,
+                                         qreal overlayScale);
 
     QString sourceVideoPath_;
     QString outputPath_;
@@ -78,4 +87,6 @@ private:
     QStringList tempClipPaths_;
     QString ffmpegPath_;
     QString brandingImagePath_;
+    QSize sourceVideoSize_;
+    qreal overlayScale_ = 1.0;
 };
