@@ -27,6 +27,14 @@ constexpr qreal kMinimumOverlayScale = 0.5;
 constexpr qreal kMaximumOverlayScale = 3.0;
 constexpr qreal kMaximumOverlayWidthFraction = 0.9;
 
+// YouTube's standard 16:9 player paints chrome over the video itself:
+// - Bottom ~8% covers the progress bar and transport controls.
+// - Top ~8–10% covers the title / share / watch-later bar when visible (hover, pause, start).
+// Keep our overlays clear of those bands so they stay readable on YouTube.
+// Refs: title-safe guidance for YouTube player UI (bottom ~8%); classic 10% title-safe margins.
+constexpr qreal kYouTubeTopSafeFraction = 0.10;
+constexpr qreal kYouTubeBottomSafeFraction = 0.12;
+
 class OverlayScaler {
 public:
     explicit OverlayScaler(qreal factor) : factor_(factor) {}
@@ -381,9 +389,15 @@ void ClipExporter::processNextClip() {
     }
 
     const OverlayScaler scaler(overlayScale_);
+    // Horizontal insets stay design-scaled; vertical insets use frame-height
+    // fractions so they track YouTube's chrome regardless of resolution.
     const int bottomOverlayLeftMargin = scaler.pixels(24);
-    const int bottomOverlayBottomMargin = scaler.pixels(72);
     const int cornerMargin = scaler.pixels(16);
+    const QString topSafeY =
+        QStringLiteral("main_h*%1").arg(kYouTubeTopSafeFraction, 0, 'f', 3);
+    const QString bottomSafeY =
+        QStringLiteral("main_h-overlay_h-main_h*%1")
+            .arg(kYouTubeBottomSafeFraction, 0, 'f', 3);
 
     QStringList arguments;
     arguments << QStringLiteral("-y")
@@ -409,19 +423,19 @@ void ClipExporter::processNextClip() {
     QString filterComplex;
     if (includeBottomOverlay) {
         filterComplex += QStringLiteral(
-            "[0:v][1:v]overlay=%1:main_h-overlay_h-%2[ov];"
+            "[0:v][1:v]overlay=%1:%2[ov];"
             "[ov][%3:v]overlay=main_w-overlay_w-%4:%5")
             .arg(bottomOverlayLeftMargin)
-            .arg(bottomOverlayBottomMargin)
+            .arg(bottomSafeY)
             .arg(brandingInput)
             .arg(cornerMargin)
-            .arg(cornerMargin);
+            .arg(topSafeY);
     } else {
         filterComplex += QStringLiteral(
             "[0:v][%1:v]overlay=main_w-overlay_w-%2:%3")
             .arg(brandingInput)
             .arg(cornerMargin)
-            .arg(cornerMargin);
+            .arg(topSafeY);
     }
 
     if (scoreboardCount == 0) {
@@ -430,7 +444,7 @@ void ClipExporter::processNextClip() {
         filterComplex += QStringLiteral("[br];[br][%1:v]overlay=%2:%3[v]")
             .arg(firstScoreboardInput)
             .arg(cornerMargin)
-            .arg(cornerMargin);
+            .arg(topSafeY);
     } else {
         filterComplex += QStringLiteral("[br]");
 
@@ -469,7 +483,7 @@ void ClipExporter::processNextClip() {
                 .arg(inputLabel)
                 .arg(inputIndex)
                 .arg(cornerMargin)
-                .arg(cornerMargin)
+                .arg(topSafeY)
                 .arg(enableExpr)
                 .arg(outputLabel);
         }
