@@ -8,9 +8,10 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QAction>
-#include <QKeySequence>
+#include <QFontMetrics>
 #include <QApplication>
 #include <QDebug>
+#include <QSizePolicy>
 
 
 WelcomeWindow::WelcomeWindow(QWidget* parent) : QWidget(parent) {
@@ -20,12 +21,31 @@ WelcomeWindow::WelcomeWindow(QWidget* parent) : QWidget(parent) {
     wireSignals();
     buildKeyboardShortcuts();
     applyUiStrings();
-    setMinimumSize(250, 250);
+    setMinimumSize(320, 250);
 }
+
+namespace {
+
+int welcomeImportButtonMinimumWidth(const QPushButton* button) {
+    if (!button) return 0;
+
+    const QFontMetrics metrics(button->font());
+    const int textWidth =
+        metrics.boundingRect(0, 0, 0, 0, Qt::TextShowMnemonic, button->text()).width();
+    // Stylesheet padding is not included in QPushButton::sizeHint().
+    constexpr int horizontalPaddingPx = 48; // lg size: 24px left + 24px right
+    constexpr int focusBorderSlackPx = 4;   // 2px focus ring vs 1px normal border
+    return textWidth + horizontalPaddingPx + focusBorderSlackPx;
+}
+
+} // namespace
 
 void WelcomeWindow::applyUiStrings() {
     if (titleLabel_) titleLabel_->setText(QStringLiteral("ava"));
-    if (importButton_) importButton_->setText(AppLocale::trUi("welcome.import"));
+    if (importButton_) {
+        importButton_->setText(AppLocale::trUi("welcome.import"));
+        importButton_->setMinimumWidth(welcomeImportButtonMinimumWidth(importButton_));
+    }
 }
 
 void WelcomeWindow::buildUi() {
@@ -53,7 +73,7 @@ void WelcomeWindow::buildUi() {
     importButton_->setCursor(Qt::PointingHandCursor);
     Style::setVariant(importButton_, "welcomeImport");
     Style::setSize(importButton_, "lg");
-    importButton_->setMaximumWidth(400);
+    importButton_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
     importButton_->setFocusPolicy(Qt::TabFocus); // Allow keyboard focus but don't auto-focus on window open
 
     // Add widgets vertically, centered

@@ -7,11 +7,11 @@
 
 #include "AppLocale.h"
 #include "TagSession.h"
+#include "YouTubeUploader.h"
 
 class QAudioOutput;
 class QCheckBox;
 class QComboBox;
-class QDoubleSpinBox;
 class QEvent;
 class QLabel;
 class QLineEdit;
@@ -24,6 +24,8 @@ class QVideoWidget;
 class ClipExporter;
 class ClipTrimBar;
 class VideoControlsBar;
+class YouTubeAuthManager;
+class YouTubeUploader;
 
 class ExportDialog final : public QDialog {
     Q_OBJECT
@@ -32,12 +34,21 @@ public:
     explicit ExportDialog(TagSession* session,
                           const QString& sourceVideoPath,
                           qint64 videoDurationMs,
+                          const QString& defaultOutputDirectoryPath = QString(),
+                          const QString& previewVideoPath = QString(),
                           QWidget* parent = nullptr);
     ~ExportDialog() override;
+
+    enum class OutputFormat {
+        Mp4 = 0,
+        Xml = 1,
+        Both = 2,
+    };
 
 private slots:
     void onEventTypeChanged(int index);
     void onTeamFilterChanged(int index);
+    void onOutputFormatChanged(int index);
     void onBrowseOutputPath();
     void onReviewClipsClicked();
     void onBackToSettingsClicked();
@@ -52,6 +63,13 @@ private slots:
     void onExportProgress(int currentClip, int totalClips);
     void onExportFinished(bool success, const QString& message);
 
+    void onYouTubeConnectClicked();
+    void onYouTubeDisconnectClicked();
+    void onYouTubeAuthStateChanged();
+    void onYouTubeAuthError(const QString& message);
+    void onYouTubeUploadProgress(int percent);
+    void onYouTubeUploadFinished(bool success, const QString& message, const QString& videoUrl);
+
     void onPreviewSlowerClicked();
     void onPreviewFasterClicked();
     void onPreviewResetSpeedClicked();
@@ -62,6 +80,7 @@ protected:
 private:
     struct ClipTrimData {
         TagSession::GameTag tag;
+        int tagSessionIndex = -1;
         qint64 startMs;
         qint64 endMs;
         QString overlayText;
@@ -74,10 +93,13 @@ private:
     void populateEventTypes();
     void updateClipCount();
     void updateSortOrderVisibility();
+    void updateFilterControlsForFormat();
     void setExporting(bool exporting);
+    void updatePathFieldForFormat();
+    OutputFormat selectedOutputFormat() const;
 
     void buildTrimDataFromSettings();
-    void saveTrimForCurrentClip();
+    void saveTrimForCurrentClip(bool userInitiatedTrim = false);
     void showClipAtIndex(int index);
     void updateClipNavigation();
     void ensurePreviewPlayer();
@@ -89,13 +111,19 @@ private:
     void regenerateOverlayTexts();
     QString teamDisplayName(const QString& teamKey) const;
     QString sanitizedExportFileNamePart(const QString& raw) const;
+    QString suggestedXmlReportBaseName() const;
     QString suggestedExportBaseName() const;
     QString defaultExportSuggestedFilePath() const;
     void applySuggestedOutputPathFromForm();
     void refreshOutputPathIfFollowingForm();
+    void updateYouTubeSection();
+    void startYouTubeUpload(const QString& exportedVideoPath);
+    YouTubeUploadMetadata buildYouTubeUploadMetadata() const;
 
     TagSession* tagSession_;
     QString sourceVideoPath_;
+    QString previewVideoPath_;
+    QString defaultOutputDirectoryPath_;
     qint64 videoDurationMs_;
 
     // Pages
@@ -106,18 +134,29 @@ private:
     // Settings page widgets
     QComboBox* eventTypeCombo_ = nullptr;
     QComboBox* teamFilterCombo_ = nullptr;
+    QComboBox* outputFormatCombo_ = nullptr;
     QLabel* sortOrderLabel_ = nullptr;
     QComboBox* sortOrderCombo_ = nullptr;
     QComboBox* exportLanguageCombo_ = nullptr;
     QCheckBox* includeBottomOverlayCheckBox_ = nullptr;
     QCheckBox* includeScoreboardOverlayCheckBox_ = nullptr;
+    QCheckBox* includeAudioTrackCheckBox_ = nullptr;
+    QCheckBox* includeAvaOverlayCheckBox_ = nullptr;
     QLabel* clipCountLabel_ = nullptr;
-    QDoubleSpinBox* beforePaddingSpin_ = nullptr;
-    QDoubleSpinBox* afterPaddingSpin_ = nullptr;
     QLineEdit* outputPathEdit_ = nullptr;
     QPushButton* browseButton_ = nullptr;
     QPushButton* reviewButton_ = nullptr;
     QPushButton* settingsCloseButton_ = nullptr;
+
+    // YouTube upload
+    QCheckBox* uploadToYouTubeCheckBox_ = nullptr;
+    QLabel* youtubeStatusLabel_ = nullptr;
+    QLabel* youtubePlaylistLabel_ = nullptr;
+    QPushButton* youtubeConnectButton_ = nullptr;
+    QPushButton* youtubeDisconnectButton_ = nullptr;
+    YouTubeAuthManager* youtubeAuth_ = nullptr;
+    YouTubeUploader* youtubeUploader_ = nullptr;
+    bool youtubeUploadPending_ = false;
 
     // Trim page widgets
     QLabel* clipNavigationLabel_ = nullptr;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QDate>
 #include <QWidget>
 #include <QtGlobal>
 #include <QString>
@@ -27,7 +28,6 @@ class VideoPlayer;
 class GameControls;
 class GameSetupWindow;
 class StatsWindow;
-class Scoreboard;
 
 #include "../state/TagSession.h"
 
@@ -43,6 +43,7 @@ public:
   void loadVideoFromFile(const QString& filePath);
   void showTeamSetupForVideo(const QString& filePath);
   void setTagSession(TagSession* session);
+  void setExportDefaultDirectoryFromVideoPath(const QString& videoPath);
   void setConcatenatedVideoTempDir(QTemporaryDir* dir);
   void setPendingConcatenation(VideoConcatenator* concatenator);
   Mode mode() const { return mode_; }
@@ -70,9 +71,17 @@ private slots:
   void saveNoteDebounceFired();
   void onTeamSetupConfirmed(const QString& filePath,
                             const QString& homeName, const QString& awayName,
-                            const QString& homeColor, const QString& awayColor);
+                            const QString& homeColor, const QString& awayColor,
+                            const QString& competitionName,
+                            const QDate& gameDate,
+                            const QString& homeAbbrev,
+                            const QString& awayAbbrev);
   void onTeamSetupCancelled();
+  void onGameStartRequested();
+  void onNextQuarterRequested();
   void onExportClips();
+  void onClipDurationSettings();
+  void onImportXml();
   void onApplicationLanguageChanged();
 
 private:
@@ -104,6 +113,7 @@ private:
   TagSession::GameTag currentTagContext() const;
 
   void cleanupConcatenatedVideo();
+  void cleanupPlaybackPrepVideo();
   void cleanupPendingConcatenation();
 
   /// Whether Space and playback-speed keys should control the main video player (same rules for all).
@@ -139,12 +149,13 @@ private:
   QAction* replaceVideoAction_ = nullptr;
   QAction* discardVideoAction_ = nullptr;
   QAction* exportClipsAction_ = nullptr;
+  QAction* importXmlAction_ = nullptr;
+  QAction* clipDurationSettingsAction_ = nullptr;
   QAction* statsOverlayAction_ = nullptr;
 
   // UI:
   VideoPlayer* videoPlayer_ = nullptr;
   GameControls* gameControls_ = nullptr;
-  Scoreboard* scoreboard_ = nullptr;
   StatsWindow* statsWindow_ = nullptr;
   QPlainTextEdit* notesEdit_ = nullptr;
   QDialog* statsOverlayDialog_ = nullptr;
@@ -182,7 +193,10 @@ private:
   QString contextSituation_;
 
   QString sourceVideoPath_;
+  QString playbackVideoPath_;
+  QString exportDefaultDirectoryPath_;
   QTemporaryDir* concatenatedVideoTempDir_ = nullptr;
+  QTemporaryDir* playbackPrepTempDir_ = nullptr;
   VideoConcatenator* pendingConcatenator_ = nullptr;
 
   QList<int> preservedTaggingVideoTagsSplitterSizes_;

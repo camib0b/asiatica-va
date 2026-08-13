@@ -1,8 +1,9 @@
 #include "WorkWindow.h"
+#include "ClipDurationSettingsDialog.h"
 #include "../style/StyleProps.h"
 #include "../components/VideoPlayer.h"
 #include "../components/GameControls.h"
-#include "../components/Scoreboard.h"
+#include "../state/EventDefaults.h"
 #include "../state/TagSession.h"
 #include "StatsWindow.h"
 #include "GameSetupWindow.h"
@@ -10,13 +11,19 @@
 #include "../i18n/LocaleNotifier.h"
 #include "../export/ExportDialog.h"
 #include "../export/VideoConcatenator.h"
+#include "../export/PlaybackVideoPreparer.h"
+#include "../export/XmlImporter.h"
+#include "XmlSyncDialog.h"
+#include "XmlEventMappingDialog.h"
 
 #include "VideoControlsBar.h"
 #include "TimelineBar.h"
 
 #include <QLabel>
 #include <QLineEdit>
+#include <QFileDialog>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QStackedWidget>
 #include <QWidget>
 #include <QVBoxLayout>
@@ -38,6 +45,7 @@
 #include <QIcon>
 #include <QFrame>
 #include <QBoxLayout>
+#include <QFileInfo>
 #include <QTimer>
 #include <QDialog>
 #include <QFont>
@@ -161,6 +169,7 @@ WorkWindow::WorkWindow(QWidget* parent) : QWidget(parent) {
 WorkWindow::~WorkWindow() {
     cleanupPendingConcatenation();
     cleanupConcatenatedVideo();
+    cleanupPlaybackPrepVideo();
 }
 
 bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(QWidget* focusWidget) const {
@@ -191,6 +200,14 @@ void WorkWindow::setConcatenatedVideoTempDir(QTemporaryDir* dir) {
     concatenatedVideoTempDir_ = dir;
 }
 
+void WorkWindow::setExportDefaultDirectoryFromVideoPath(const QString& videoPath) {
+    exportDefaultDirectoryPath_.clear();
+    if (videoPath.trimmed().isEmpty()) return;
+
+    const QFileInfo videoInfo(videoPath);
+    exportDefaultDirectoryPath_ = videoInfo.absolutePath();
+}
+
 void WorkWindow::setPendingConcatenation(VideoConcatenator* concatenator) {
     cleanupPendingConcatenation();
     pendingConcatenator_ = concatenator;
@@ -200,6 +217,13 @@ void WorkWindow::cleanupConcatenatedVideo() {
     if (concatenatedVideoTempDir_) {
         delete concatenatedVideoTempDir_;
         concatenatedVideoTempDir_ = nullptr;
+    }
+}
+
+void WorkWindow::cleanupPlaybackPrepVideo() {
+    if (playbackPrepTempDir_) {
+        delete playbackPrepTempDir_;
+        playbackPrepTempDir_ = nullptr;
     }
 }
 
@@ -221,6 +245,10 @@ void WorkWindow::applyUiStrings() {
     if (replaceVideoAction_) replaceVideoAction_->setText(AppLocale::trUi("menu.replace_video"));
     if (discardVideoAction_) discardVideoAction_->setText(AppLocale::trUi("menu.close_video"));
     if (exportClipsAction_) exportClipsAction_->setText(AppLocale::trUi("menu.export_clips"));
+    if (importXmlAction_) importXmlAction_->setText(AppLocale::trUi("menu.import_xml"));
+    if (clipDurationSettingsAction_) {
+        clipDurationSettingsAction_->setText(AppLocale::trUi("menu.clip_durations"));
+    }
     if (tagsHeaderLabel_) tagsHeaderLabel_->setText(AppLocale::trUi("tags.header"));
     if (tagsFilterButton_) tagsFilterButton_->setText(AppLocale::trUi("tags.filter"));
     if (tagsRemoveFiltersButton_) tagsRemoveFiltersButton_->setText(AppLocale::trUi("tags.remove_filters"));
@@ -256,7 +284,6 @@ void WorkWindow::setTagSession(TagSession* session) {
     tagSession_ = session;
     if (statsWindow_) statsWindow_->setTagSession(tagSession_);
     if (statsOverlay_) statsOverlay_->setTagSession(tagSession_);
-    if (scoreboard_) scoreboard_->setTagSession(tagSession_);
 
     rebuildFilterMenu();
     rebuildTagsList();
@@ -286,6 +313,26 @@ void WorkWindow::setTagSession(TagSession* session) {
         rebuildFilterMenu();
         rebuildTagsList();
         flashNewTagRow();
+    });
+    connect(tagSession_, &TagSession::tagsImported, this, [this]() {
+        rebuildFilterMenu();
+        rebuildTagsList();
+        if (gameControls_) {
+            gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
+                                            tagSession_->currentQuarterIndex());
+        }
+        if (tagSession_->currentQuarterIndex() >= 0) {
+            static const QString kQuarterCodes[4] = {
+                QString::fromLatin1(EventDefaults::TimeCodes::kQuarter1),
+                QString::fromLatin1(EventDefaults::TimeCodes::kQuarter2),
+                QString::fromLatin1(EventDefaults::TimeCodes::kQuarter3),
+                QString::fromLatin1(EventDefaults::TimeCodes::kQuarter4),
+            };
+            const int quarterIndex = tagSession_->currentQuarterIndex();
+            if (quarterIndex >= 0 && quarterIndex < 4) {
+                contextPeriod_ = kQuarterCodes[quarterIndex];
+            }
+        }
     });
     connect(tagSession_, &TagSession::tagNoteChanged, this, [this](int) { loadNoteForSelectedTag(); });
 }
@@ -385,6 +432,8 @@ void WorkWindow::buildUi() {
     replaceVideoAction_ = videoMenu_->addAction(QString());
     discardVideoAction_ = videoMenu_->addAction(QString());
     videoMenu_->addSeparator();
+    importXmlAction_ = videoMenu_->addAction(QString());
+    clipDurationSettingsAction_ = videoMenu_->addAction(QString());
     exportClipsAction_ = videoMenu_->addAction(QString());
     videoMenuButton_->setMenu(videoMenu_);
     videoControlsLayout->addWidget(videoMenuButton_, 0, Qt::AlignRight | Qt::AlignVCenter);
@@ -523,7 +572,6 @@ void WorkWindow::buildUi() {
         QStringLiteral("#TaggingVideoTagsSplitter { background-color: #FFFFFF; }"));
 
     gameControls_ = new GameControls(this);
-    scoreboard_ = new Scoreboard(this);
     statsWindow_ = new StatsWindow(this);
     statsWindow_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     statsWindow_->setMinimumHeight(180);
@@ -563,7 +611,6 @@ void WorkWindow::buildUi() {
 
     if (videoPlayer_) videoPlayer_->setControlsVisible(false);
     if (gameControls_) gameControls_->hide();
-    if (scoreboard_) scoreboard_->hide();
     if (statsWindow_) statsWindow_->hide();
     if (tagsHeaderRow_) tagsHeaderRow_->hide();
     if (tagsTable_) tagsTable_->hide();
@@ -582,7 +629,6 @@ void WorkWindow::applyTaggingLayout() {
     }
     detachWidgetFromParent(tagsSection_);
     detachWidgetFromParent(gameControls_);
-    detachWidgetFromParent(scoreboard_);
     detachWidgetFromParent(analyzingTagsControlsSplitter_);
     detachWidgetFromParent(statsWindow_);
     if (notesEdit_) detachWidgetFromParent(notesEdit_);
@@ -610,7 +656,6 @@ void WorkWindow::applyTaggingLayout() {
         gameControls_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     }
     rightLayout->addWidget(gameControls_, 1);
-    rightLayout->addWidget(scoreboard_, 0);
 
     while (QLayoutItem* item = contentLayout_->takeAt(0)) {
         delete item;  // widget stays in tree; do not setParent(nullptr)
@@ -642,7 +687,6 @@ void WorkWindow::applyTaggingLayout() {
     if (notesEdit_) notesEdit_->hide();
 
     if (gameControls_) gameControls_->show();
-    if (scoreboard_) scoreboard_->show();
 
     if (taggingVideoTagsSplitter_) {
         taggingVideoTagsSplitter_->show();
@@ -680,12 +724,9 @@ void WorkWindow::applyAnalyzingLayout() {
     detachWidgetFromParent(vw);
     detachWidgetFromParent(tagsSection_);
     detachWidgetFromParent(gameControls_);
-    detachWidgetFromParent(scoreboard_);
     detachWidgetFromParent(statsWindow_);
     if (notesEdit_) detachWidgetFromParent(notesEdit_);
     detachWidgetFromParent(timeline);
-    if (scoreboard_) scoreboard_->hide();
-
     if (videoTimelineRow_) videoTimelineRow_->hide();
 
     while (analyzingTagsControlsSplitter_->count() > 0) {
@@ -831,6 +872,9 @@ void WorkWindow::wireSignals() {
     connect(videoPlayer_, &VideoPlayer::videoClosed, this, &WorkWindow::videoClosed);
 
     connect(exportClipsAction_, &QAction::triggered, this, &WorkWindow::onExportClips);
+    connect(importXmlAction_, &QAction::triggered, this, &WorkWindow::onImportXml);
+    connect(clipDurationSettingsAction_, &QAction::triggered, this,
+            &WorkWindow::onClipDurationSettings);
 
     // GameControls -> capture timestamp and store tags
     connect(gameControls_, &GameControls::mainEventPressed, this, [this](const QString& mainEvent) {
@@ -843,6 +887,13 @@ void WorkWindow::wireSignals() {
     connect(gameControls_, &GameControls::teamSideSelected, this, [this](bool isHome) {
         contextTeam_ = isHome ? QStringLiteral("Home") : QStringLiteral("Away");
     });
+
+    if (gameControls_) {
+        connect(gameControls_, &GameControls::gameStartRequested, this,
+                &WorkWindow::onGameStartRequested);
+        connect(gameControls_, &GameControls::nextQuarterRequested, this,
+                &WorkWindow::onNextQuarterRequested);
+    }
 
     connect(gameControls_, &GameControls::gameEventMarked, this, [this](const QString& mainEvent, const QString& followUpEvent) {
         if (!videoPlayer_) return;
@@ -857,6 +908,14 @@ void WorkWindow::wireSignals() {
         pendingTimestampMs_ = 0;
 
         if (tagSession_) {
+            // Refresh the period context from GameControls so every newly tagged event lands in the
+            // correct quarter even if the user has not interacted with WorkWindow in between.
+            if (gameControls_) {
+                const QString currentPeriod = gameControls_->currentPeriodName();
+                if (!currentPeriod.isEmpty()) {
+                    contextPeriod_ = currentPeriod;
+                }
+            }
             TagSession::GameTag tag;
             tag.mainEvent = mainEvent;
             tag.followUpEvent = followUpEvent;
@@ -873,6 +932,7 @@ void WorkWindow::wireSignals() {
             } else {
                 tag.team = ctx.team;
             }
+            // tag.startMs / tag.endMs left at 0 so TagSession::addTag seeds them from EventDefaults.
             tagSession_->addTag(tag);
         }
     });
@@ -916,7 +976,7 @@ void WorkWindow::wireSignals() {
     noteDebounceTimer_->setSingleShot(true);
     connect(noteDebounceTimer_, &QTimer::timeout, this, &WorkWindow::saveNoteDebounceFired);
 
-    // Debounce playhead-driven table scans: scoreboard is O(log n), but row highlighting is O(rows).
+    // Debounce playhead-driven table scans: row highlighting is O(rows).
     playheadSideEffectsDebounceTimer_ = new QTimer(this);
     playheadSideEffectsDebounceTimer_->setSingleShot(true);
     playheadSideEffectsDebounceTimer_->setInterval(200);
@@ -953,6 +1013,7 @@ void WorkWindow::showTeamSetupForVideo(const QString& filePath) {
     if (!gameSetupWidget_ || !contentStack_) return;
     gameSetupWidget_->setVideoPath(filePath);
     gameSetupWidget_->setTeamDefaults(QString(), QString(), QString(), QString());
+    gameSetupWidget_->setMetadataDefaults(QString(), QDate::currentDate(), QString(), QString());
     contentStack_->setCurrentIndex(0);
     gameSetupWidget_->setInitialFocus();
     refreshPlaybackShortcutFocusGate();
@@ -960,7 +1021,11 @@ void WorkWindow::showTeamSetupForVideo(const QString& filePath) {
 
 void WorkWindow::onTeamSetupConfirmed(const QString& filePath,
                                        const QString& homeName, const QString& awayName,
-                                       const QString& homeColor, const QString& awayColor) {
+                                       const QString& homeColor, const QString& awayColor,
+                                       const QString& competitionName,
+                                       const QDate& gameDate,
+                                       const QString& homeAbbrev,
+                                       const QString& awayAbbrev) {
     if (pendingConcatenator_) {
         const bool concatOk = pendingConcatenator_->waitWithProgress(this);
         if (!concatOk) {
@@ -977,21 +1042,117 @@ void WorkWindow::onTeamSetupConfirmed(const QString& filePath,
         pendingConcatenator_ = nullptr;
     }
 
-    if (tagSession_) tagSession_->setGameTeams(homeName, awayName, homeColor, awayColor);
+    if (tagSession_) {
+        tagSession_->setGameTeams(homeName, awayName, homeColor, awayColor);
+        tagSession_->setGameMetadata(competitionName, gameDate, homeAbbrev, awayAbbrev);
+    }
     if (contentStack_) contentStack_->setCurrentIndex(1);
     loadVideoFromFile(filePath);
+}
+
+void WorkWindow::onGameStartRequested() {
+    if (!videoPlayer_ || !tagSession_) return;
+    const qint64 anchorMs = videoPlayer_->currentPositionMs();
+    tagSession_->setGameStartAnchor(anchorMs);
+    tagSession_->setCurrentQuarter(0, anchorMs);
+    contextPeriod_ = QStringLiteral("Q1");
+
+    // Insert the start-anchor instance: a 2-second window starting at the anchor moment.
+    TagSession::GameTag anchorTag;
+    anchorTag.mainEvent = QString::fromLatin1(EventDefaults::TimeCodes::kStartAnchor);
+    anchorTag.positionMs = anchorMs;
+    anchorTag.startMs = anchorMs;
+    anchorTag.endMs = anchorMs + 2000;
+    anchorTag.period = QStringLiteral("Q1");
+    anchorTag.intervalManuallyEdited = true; // anchor span is fixed; default-table changes must not move it
+    tagSession_->addTag(anchorTag);
+}
+
+void WorkWindow::onNextQuarterRequested() {
+    if (!videoPlayer_ || !tagSession_) return;
+    if (tagSession_->currentQuarterIndex() < 0) return;
+
+    const int closingIndex = tagSession_->currentQuarterIndex();
+    const qint64 quarterStartMs = tagSession_->currentQuarterStartMs();
+    const qint64 nowMs = videoPlayer_->currentPositionMs();
+    const qint64 endMs = nowMs >= quarterStartMs ? nowMs : quarterStartMs;
+
+    static const QString kQuarterCodes[4] = {
+        QString::fromLatin1(EventDefaults::TimeCodes::kQuarter1),
+        QString::fromLatin1(EventDefaults::TimeCodes::kQuarter2),
+        QString::fromLatin1(EventDefaults::TimeCodes::kQuarter3),
+        QString::fromLatin1(EventDefaults::TimeCodes::kQuarter4),
+    };
+
+    if (closingIndex < 0 || closingIndex > 3) return;
+
+    TagSession::GameTag quarterTag;
+    quarterTag.mainEvent = kQuarterCodes[closingIndex];
+    quarterTag.positionMs = quarterStartMs;
+    quarterTag.startMs = quarterStartMs;
+    quarterTag.endMs = endMs;
+    quarterTag.period = kQuarterCodes[closingIndex];
+    quarterTag.intervalManuallyEdited = true; // quarter span is anchored to user clicks
+    tagSession_->addTag(quarterTag);
+
+    const int nextIndex = closingIndex + 1;
+    if (nextIndex >= 4) {
+        tagSession_->clearCurrentQuarter();
+        tagSession_->setQuarterPhase(TagSession::QuarterPhase::GameEnded);
+        contextPeriod_.clear();
+    } else {
+        tagSession_->setCurrentQuarter(nextIndex, nowMs);
+        contextPeriod_ = kQuarterCodes[nextIndex];
+    }
 }
 
 void WorkWindow::onTeamSetupCancelled() {
     cleanupPendingConcatenation();
     cleanupConcatenatedVideo();
+    cleanupPlaybackPrepVideo();
+    exportDefaultDirectoryPath_.clear();
     emit videoClosed();
 }
 
 void WorkWindow::loadVideoFromFile(const QString& filePath) {
     if (filePath.isEmpty()) return;
 
+    QString playbackPath = filePath;
+    cleanupPlaybackPrepVideo();
+
+    if (PlaybackVideoPreparer::needsPreparation(filePath)) {
+        auto* tempDir = new QTemporaryDir();
+        if (!tempDir->isValid()) {
+            delete tempDir;
+            QMessageBox::warning(this,
+                                 AppLocale::trUi("app.title"),
+                                 AppLocale::trUi("playback_prep.error_failed"));
+            emit videoClosed();
+            return;
+        }
+
+        auto* preparer = new PlaybackVideoPreparer(this);
+        preparer->startPreparation(filePath, tempDir->path());
+        const bool prepOk = preparer->waitWithProgress(this);
+        const QString errorMsg = preparer->errorMessage();
+        const QString preparedPath = preparer->outputPath();
+        delete preparer;
+
+        if (!prepOk) {
+            delete tempDir;
+            if (!errorMsg.isEmpty()) {
+                QMessageBox::warning(this, AppLocale::trUi("app.title"), errorMsg);
+            }
+            emit videoClosed();
+            return;
+        }
+
+        playbackPrepTempDir_ = tempDir;
+        playbackPath = preparedPath;
+    }
+
     sourceVideoPath_ = filePath;
+    playbackVideoPath_ = playbackPath;
     hasPreservedTaggingUiState_ = false;
     preservedTaggingVideoTagsSplitterSizes_.clear();
 
@@ -999,24 +1160,22 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     hasPendingTag_ = false;
     pendingMainEvent_.clear();
     pendingTimestampMs_ = 0;
+    contextPeriod_.clear();
     if (tagsTable_) tagsTable_->setRowCount(0);
 
     if (videoPlayer_) {
-        videoPlayer_->loadVideoFromFile(filePath);
+        videoPlayer_->loadVideoFromFile(playbackPath);
         videoPlayer_->setControlsVisible(true);
     }
-    
+
     if (gameControls_) {
+        gameControls_->resetGameTimeState();
         gameControls_->show();
         if (tagSession_) {
             gameControls_->setSessionTeamNames(tagSession_->homeTeamName(), tagSession_->awayTeamName());
             gameControls_->setInitialTeamSide(true);
         }
         contextTeam_ = "Home";
-    }
-    if (scoreboard_) {
-        scoreboard_->setTagSession(tagSession_);
-        scoreboard_->show();
     }
     if (modeTaggingBtn_) modeTaggingBtn_->show();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->show();
@@ -1049,12 +1208,15 @@ void WorkWindow::onReplaceVideo() {
     if (filePaths.size() == 1) {
         cleanupPendingConcatenation();
         cleanupConcatenatedVideo();
+        cleanupPlaybackPrepVideo();
+        setExportDefaultDirectoryFromVideoPath(filePaths.first());
         loadVideoFromFile(filePaths.first());
         return;
     }
 
     filePaths.sort(Qt::CaseInsensitive);
     if (!VideoConcatenator::showFileOrderDialog(filePaths, this)) return;
+    setExportDefaultDirectoryFromVideoPath(filePaths.first());
 
     auto* tempDir = new QTemporaryDir();
     if (!tempDir->isValid()) {
@@ -1092,8 +1254,10 @@ void WorkWindow::onDiscardVideo() {
     preservedTaggingVideoTagsSplitterSizes_.clear();
 
     if (videoPlayer_) videoPlayer_->setControlsVisible(false);
-    if (gameControls_) gameControls_->hide();
-    if (scoreboard_) scoreboard_->hide();
+    if (gameControls_) {
+        gameControls_->resetGameTimeState();
+        gameControls_->hide();
+    }
     if (modeTaggingBtn_) modeTaggingBtn_->hide();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->hide();
 
@@ -1101,12 +1265,15 @@ void WorkWindow::onDiscardVideo() {
     hasPendingTag_ = false;
     pendingMainEvent_.clear();
     pendingTimestampMs_ = 0;
+    contextPeriod_.clear();
     if (tagsTable_) tagsTable_->setRowCount(0);
     if (tagsHeaderRow_) tagsHeaderRow_->hide();
     if (tagsTable_) tagsTable_->hide();
     if (statsWindow_) statsWindow_->hide();
 
     cleanupConcatenatedVideo();
+    cleanupPlaybackPrepVideo();
+    exportDefaultDirectoryPath_.clear();
     emit videoClosed();
     refreshPlaybackShortcutFocusGate();
 }
@@ -1115,7 +1282,8 @@ void WorkWindow::onExportClips() {
     if (!tagSession_ || tagSession_->tags().isEmpty() || sourceVideoPath_.isEmpty()) return;
 
     const qint64 duration = videoPlayer_ ? videoPlayer_->durationMs() : 0;
-    auto* dialog = new ExportDialog(tagSession_, sourceVideoPath_, duration, this);
+    auto* dialog = new ExportDialog(tagSession_, sourceVideoPath_, duration,
+                                    exportDefaultDirectoryPath_, playbackVideoPath_, this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModal(true);
     if (videoPlayer_) {
@@ -1127,6 +1295,97 @@ void WorkWindow::onExportClips() {
         }
     });
     dialog->show();
+}
+
+void WorkWindow::onClipDurationSettings() {
+    auto* dialog = new ClipDurationSettingsDialog(tagSession_, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModal(true);
+    connect(&LocaleNotifier::instance(), &LocaleNotifier::languageChanged, dialog,
+            &ClipDurationSettingsDialog::applyUiStrings);
+    dialog->show();
+}
+
+void WorkWindow::onImportXml() {
+    if (!tagSession_ || !videoPlayer_ || sourceVideoPath_.isEmpty()) return;
+
+    const QString filePath = QFileDialog::getOpenFileName(
+        this,
+        AppLocale::trUi("xml_import.select_file"),
+        exportDefaultDirectoryPath_.isEmpty() ? QString() : exportDefaultDirectoryPath_,
+        AppLocale::trUi("file.xml_filter"));
+    if (filePath.isEmpty()) return;
+
+    QVector<XmlImporter::ParsedInstance> instances;
+    QString parseError;
+    if (!XmlImporter::parse(filePath, &instances, &parseError)) {
+        QMessageBox::warning(this, AppLocale::trUi("xml_import.title"), parseError);
+        return;
+    }
+
+    TagSession::ImportMode importMode = TagSession::ImportMode::Replace;
+    if (!tagSession_->tags().isEmpty()) {
+        QMessageBox conflictBox(this);
+        conflictBox.setWindowTitle(AppLocale::trUi("xml_import.conflict_title"));
+        conflictBox.setText(AppLocale::trUi("xml_import.conflict_message"));
+        QPushButton* replaceButton =
+            conflictBox.addButton(AppLocale::trUi("xml_import.conflict_replace"),
+                                  QMessageBox::AcceptRole);
+        QPushButton* mergeButton =
+            conflictBox.addButton(AppLocale::trUi("xml_import.conflict_merge"),
+                                  QMessageBox::AcceptRole);
+        conflictBox.addButton(AppLocale::trUi("xml_import.cancel"), QMessageBox::RejectRole);
+        conflictBox.setDefaultButton(replaceButton);
+        conflictBox.exec();
+        if (conflictBox.clickedButton() == replaceButton) {
+            importMode = TagSession::ImportMode::Replace;
+        } else if (conflictBox.clickedButton() == mergeButton) {
+            importMode = TagSession::ImportMode::Merge;
+        } else {
+            return;
+        }
+    }
+
+    bool anchorUsedFallback = false;
+    const XmlImporter::ParsedInstance anchorInstance =
+        XmlImporter::syncAnchorInstance(instances, &anchorUsedFallback);
+
+    XmlSyncDialog syncDialog(videoPlayer_, anchorInstance, instances, anchorUsedFallback, this);
+    syncDialog.setModal(true);
+    if (videoPlayer_) {
+        videoPlayer_->setPlaybackKeyboardShortcutsEnabled(false);
+    }
+    const int syncResult = syncDialog.exec();
+    if (videoPlayer_) {
+        videoPlayer_->setPlaybackKeyboardShortcutsEnabled(true);
+    }
+    if (syncResult != QDialog::Accepted) return;
+
+    const qint64 offsetMs = syncDialog.offsetMs();
+
+    XmlEventMappingDialog mappingDialog(instances, offsetMs, tagSession_, this);
+    mappingDialog.setModal(true);
+    if (mappingDialog.exec() != QDialog::Accepted) return;
+
+    const QVector<TagSession::GameTag> importedTags = mappingDialog.buildGameTags();
+    if (importedTags.isEmpty()) {
+        QMessageBox::information(this, AppLocale::trUi("xml_import.title"),
+                                 AppLocale::trUi("xml_import.mapping_none_selected"));
+        return;
+    }
+
+    const qint64 videoDurationMs = videoPlayer_->durationMs();
+    const TagSession::ImportResult result =
+        tagSession_->importTags(importedTags, importMode, videoDurationMs);
+
+    const int dialogSkipped = mappingDialog.skippedInstanceCount();
+    QMessageBox::information(
+        this,
+        AppLocale::trUi("xml_import.title"),
+        AppLocale::trUi("xml_import.complete_summary")
+            .arg(result.importedCount)
+            .arg(dialogSkipped)
+            .arg(result.clampedCount));
 }
 
 void WorkWindow::onModeToggled() {
@@ -1318,7 +1577,6 @@ void WorkWindow::clearNewTagFlash() {
 
 void WorkWindow::onPlayheadPositionChanged(qint64 positionMs) {
     updateTagPlayheadHighlight(positionMs);
-    if (scoreboard_) scoreboard_->setCurrentTimestampMs(positionMs);
 }
 
 void WorkWindow::updateTagPlayheadHighlight(qint64 positionMs) {

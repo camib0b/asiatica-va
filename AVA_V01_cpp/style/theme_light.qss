@@ -480,6 +480,45 @@ QComboBox QAbstractItemView::item:selected {
   color: #09090b;
 }
 
+QComboBox[variant="compact"] {
+  min-height: 24px;
+  max-height: 28px;
+  padding: 2px 8px;
+  font-size: 13px;
+}
+
+QComboBox[variant="compact"]::drop-down {
+  width: 20px;
+  padding-right: 4px;
+}
+
+QComboBox[variant="abbrev"] {
+  min-height: 28px;
+  max-height: 32px;
+  min-width: 56px;
+  max-width: 72px;
+  padding: 2px 6px;
+  font-size: 13px;
+}
+
+QComboBox[variant="abbrev"]::drop-down {
+  width: 18px;
+  padding-right: 4px;
+}
+
+QDialog#XmlEventMappingDialog QTableWidget::item {
+  padding: 2px 6px;
+}
+
+QDialog#XmlEventMappingDialog QTableWidget::item:selected {
+  background: #e4e4e7;
+  color: #09090b;
+}
+
+QDialog#XmlEventMappingDialog QHeaderView::section {
+  padding: 6px 6px;
+}
+
 /* =========================
    SpinBox / DoubleSpinBox
 ========================= */
@@ -789,38 +828,6 @@ QWidget#VideoControlsBarSlim QPushButton {
 
 QWidget#VideoControlsBarSlim QLabel {
   font-size: 12px;
-}
-
-/* =========================
-   Scoreboard
-========================= */
-
-QWidget#Scoreboard {
-  background: #18181b;
-  border-radius: 6px;
-  min-height: 48px;
-  max-height: 64px;
-}
-
-QWidget#Scoreboard QLabel[role="scoreboardTeamName"] {
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 11px;
-  font-weight: 600;
-  background: transparent;
-}
-
-QWidget#Scoreboard QLabel[role="scoreboardScore"] {
-  color: #FFFFFF;
-  font-size: 26px;
-  font-weight: 700;
-  background: transparent;
-}
-
-QWidget#Scoreboard QLabel[role="scoreboardSeparator"] {
-  color: rgba(255, 255, 255, 0.25);
-  font-size: 18px;
-  font-weight: 400;
-  background: transparent;
 }
 
 /* Compact game controls in tagging right column */

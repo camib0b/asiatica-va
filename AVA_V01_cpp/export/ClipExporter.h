@@ -17,6 +17,8 @@ struct ScoreboardOverlay {
     int awayGoals = 0;
     QString homeColorHex;
     QString awayColorHex;
+    /// Empty when period cannot be determined (no quarter square in exported frame).
+    QString periodLabel;
 };
 
 struct TimedScoreboard {
@@ -42,6 +44,8 @@ public:
     void setSourceVideo(const QString& path);
     void setOutputPath(const QString& path);
     void setClips(const QVector<ClipSegment>& clips);
+    void setIncludeAudioTrack(bool includeAudioTrack);
+    void setIncludeBrandingOverlay(bool includeBrandingOverlay);
 
     void startExport();
     void cancelExport();
@@ -89,4 +93,6 @@ private:
     QString brandingImagePath_;
     QSize sourceVideoSize_;
     qreal overlayScale_ = 1.0;
+    bool includeAudioTrack_ = true;
+    bool includeBrandingOverlay_ = true;
 };

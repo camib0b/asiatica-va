@@ -292,6 +292,12 @@ qreal ClipExporter::computeOverlayScale(const QSize& videoSize) {
 void ClipExporter::setSourceVideo(const QString& path) { sourceVideoPath_ = path; }
 void ClipExporter::setOutputPath(const QString& path) { outputPath_ = path; }
 void ClipExporter::setClips(const QVector<ClipSegment>& clips) { clips_ = clips; }
+void ClipExporter::setIncludeAudioTrack(bool includeAudioTrack) {
+    includeAudioTrack_ = includeAudioTrack;
+}
+void ClipExporter::setIncludeBrandingOverlay(bool includeBrandingOverlay) {
+    includeBrandingOverlay_ = includeBrandingOverlay;
+}
 
 bool ClipExporter::isRunning() const {
     return currentProcess_ && currentProcess_->state() != QProcess::NotRunning;
@@ -325,9 +331,11 @@ void ClipExporter::startExport() {
     sourceVideoSize_ = probeVideoDisplaySize(sourceVideoPath_);
     overlayScale_ = computeOverlayScale(sourceVideoSize_);
 
-    brandingImagePath_ = generateBrandingImage(
-        tempDir_->filePath(QStringLiteral("branding.png")),
-        overlayScale_);
+    if (includeBrandingOverlay_) {
+        brandingImagePath_ = generateBrandingImage(
+            tempDir_->filePath(QStringLiteral("branding.png")),
+            overlayScale_);
+    }
 
     processNextClip();
 }
@@ -409,50 +417,79 @@ void ClipExporter::processNextClip() {
                   << QStringLiteral("-i") << overlayImagePath;
     }
 
-    arguments << QStringLiteral("-loop") << QStringLiteral("1")
-              << QStringLiteral("-i") << brandingImagePath_;
+    if (includeBrandingOverlay_) {
+        arguments << QStringLiteral("-loop") << QStringLiteral("1")
+                  << QStringLiteral("-i") << brandingImagePath_;
+    }
 
     for (const QString& path : scoreboardImagePaths) {
         arguments << QStringLiteral("-loop") << QStringLiteral("1")
                   << QStringLiteral("-i") << path;
     }
 
-    const int brandingInput = includeBottomOverlay ? 2 : 1;
-    const int firstScoreboardInput = brandingInput + 1;
+    int nextInputIndex = 1;
+    int bottomOverlayInput = -1;
+    int brandingInput = -1;
+    int firstScoreboardInput = -1;
+
+    if (includeBottomOverlay) {
+        bottomOverlayInput = nextInputIndex++;
+    }
+    if (includeBrandingOverlay_) {
+        brandingInput = nextInputIndex++;
+    }
+    if (scoreboardCount > 0) {
+        firstScoreboardInput = nextInputIndex;
+    }
 
     QString filterComplex;
+    QString currentVideoLabel = QStringLiteral("0:v");
+    int stageCounter = 0;
+
+    auto appendOverlayStage = [&filterComplex, &currentVideoLabel, &stageCounter](
+                                  int inputIndex, const QString& overlayExpression) {
+        const QString nextLabel = QStringLiteral("ov%1").arg(stageCounter++);
+        if (!filterComplex.isEmpty()) {
+            filterComplex += QStringLiteral(";");
+        }
+        filterComplex += QStringLiteral("[%1][%2:v]overlay=%3[%4]")
+                             .arg(currentVideoLabel)
+                             .arg(inputIndex)
+                             .arg(overlayExpression)
+                             .arg(nextLabel);
+        currentVideoLabel = nextLabel;
+    };
+
     if (includeBottomOverlay) {
-        filterComplex += QStringLiteral(
-            "[0:v][1:v]overlay=%1:%2[ov];"
-            "[ov][%3:v]overlay=main_w-overlay_w-%4:%5")
-            .arg(bottomOverlayLeftMargin)
-            .arg(bottomSafeY)
-            .arg(brandingInput)
-            .arg(cornerMargin)
-            .arg(topSafeY);
-    } else {
-        filterComplex += QStringLiteral(
-            "[0:v][%1:v]overlay=main_w-overlay_w-%2:%3")
-            .arg(brandingInput)
-            .arg(cornerMargin)
-            .arg(topSafeY);
+        appendOverlayStage(bottomOverlayInput,
+                           QStringLiteral("%1:%2")
+                               .arg(bottomOverlayLeftMargin)
+                               .arg(bottomSafeY));
+    }
+    if (includeBrandingOverlay_) {
+        appendOverlayStage(brandingInput,
+                           QStringLiteral("main_w-overlay_w-%1:%2")
+                               .arg(cornerMargin)
+                               .arg(topSafeY));
     }
 
     if (scoreboardCount == 0) {
-        filterComplex += QStringLiteral("[v]");
+        if (!filterComplex.isEmpty()) {
+            filterComplex += QStringLiteral(";");
+        }
+        filterComplex += QStringLiteral("[%1]null[v]").arg(currentVideoLabel);
     } else if (scoreboardCount == 1) {
-        filterComplex += QStringLiteral("[br];[br][%1:v]overlay=%2:%3[v]")
+        if (!filterComplex.isEmpty()) {
+            filterComplex += QStringLiteral(";");
+        }
+        filterComplex += QStringLiteral("[%1][%2:v]overlay=%3:%4[v]")
+            .arg(currentVideoLabel)
             .arg(firstScoreboardInput)
             .arg(cornerMargin)
             .arg(topSafeY);
     } else {
-        filterComplex += QStringLiteral("[br]");
-
         for (int s = 0; s < scoreboardCount; ++s) {
             const int inputIndex = firstScoreboardInput + s;
-            const QString inputLabel = (s == 0)
-                ? QStringLiteral("br")
-                : QStringLiteral("sb%1").arg(s - 1);
             const QString outputLabel = (s == scoreboardCount - 1)
                 ? QStringLiteral("v")
                 : QStringLiteral("sb%1").arg(s);
@@ -478,26 +515,33 @@ void ClipExporter::processNextClip() {
                     .arg(QString::number(nextOffset, 'f', 3));
             }
 
-            filterComplex += QStringLiteral(
-                ";[%1][%2:v]overlay=%3:%4:enable='%5'[%6]")
-                .arg(inputLabel)
+            if (!filterComplex.isEmpty()) {
+                filterComplex += QStringLiteral(";");
+            }
+            filterComplex += QStringLiteral("[%1][%2:v]overlay=%3:%4:enable='%5'[%6]")
+                .arg(currentVideoLabel)
                 .arg(inputIndex)
                 .arg(cornerMargin)
                 .arg(topSafeY)
                 .arg(enableExpr)
                 .arg(outputLabel);
+            currentVideoLabel = outputLabel;
         }
     }
 
     arguments << QStringLiteral("-filter_complex") << filterComplex
-              << QStringLiteral("-map") << QStringLiteral("[v]")
-              << QStringLiteral("-map") << QStringLiteral("0:a?")
-              << QStringLiteral("-t") << QString::number(durationSeconds, 'f', 3)
+              << QStringLiteral("-map") << QStringLiteral("[v]");
+    if (includeAudioTrack_) {
+        arguments << QStringLiteral("-map") << QStringLiteral("0:a?")
+                  << QStringLiteral("-c:a") << QStringLiteral("aac")
+                  << QStringLiteral("-b:a") << QStringLiteral("128k");
+    } else {
+        arguments << QStringLiteral("-an");
+    }
+    arguments << QStringLiteral("-t") << QString::number(durationSeconds, 'f', 3)
               << QStringLiteral("-c:v") << QStringLiteral("libx264")
               << QStringLiteral("-preset") << QStringLiteral("fast")
               << QStringLiteral("-crf") << QStringLiteral("23")
-              << QStringLiteral("-c:a") << QStringLiteral("aac")
-              << QStringLiteral("-b:a") << QStringLiteral("128k")
               << QStringLiteral("-movflags") << QStringLiteral("+faststart")
               << tempPath;
 
@@ -757,7 +801,40 @@ QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
                             layout.swatchRadius, layout.swatchRadius);
 
     painter.end();
-    image.save(outputPath, "PNG");
+
+    const QString quarterText = data.periodLabel.trimmed();
+    if (quarterText.isEmpty()) {
+        image.save(outputPath, "PNG");
+        return outputPath;
+    }
+
+    const int quarterGap = layout.scaler.pixels(10 * kScoreboardScale);
+    const int squareSide = layout.imageHeight;
+    const int compositeWidth = squareSide + quarterGap + layout.imageWidth;
+
+    QImage composite(compositeWidth, layout.imageHeight, QImage::Format_ARGB32_Premultiplied);
+    composite.fill(Qt::transparent);
+
+    QPainter compositePainter(&composite);
+    compositePainter.setRenderHint(QPainter::Antialiasing);
+    compositePainter.setRenderHint(QPainter::TextAntialiasing);
+
+    compositePainter.setPen(Qt::NoPen);
+    compositePainter.setBrush(QColor(15, 23, 42, kScoreboardBackgroundAlpha));
+    compositePainter.drawRoundedRect(0, 0, squareSide, squareSide,
+                                     layout.cornerRadius, layout.cornerRadius);
+
+    QFont quarterFont(QStringLiteral("Helvetica"));
+    quarterFont.setWeight(QFont::Bold);
+    quarterFont.setPixelSize(qMax(11, qRound(static_cast<double>(squareSide) * 0.34)));
+    compositePainter.setFont(quarterFont);
+    compositePainter.setPen(QColor(255, 255, 255));
+    compositePainter.drawText(QRect(0, 0, squareSide, squareSide), Qt::AlignCenter, quarterText);
+
+    compositePainter.drawImage(squareSide + quarterGap, 0, image);
+    compositePainter.end();
+
+    composite.save(outputPath, "PNG");
     return outputPath;
 }
 

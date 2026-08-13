@@ -75,6 +75,19 @@ private:
   void updateStallMonitorForPlaybackState(QMediaPlayer::PlaybackState state);
   void nudgePlaybackAfterBackendStall();
   void reloadCurrentMediaFromDisk();
+  /// Force the AVFoundation/QMediaPlayer pipeline to be rebuilt, restoring the supplied
+  /// position, playback rate, and playing state. Used by stall recovery and macOS sleep/wake recovery.
+  void reloadCurrentMediaFromDisk(qint64 resumePositionMs, double rate, bool resumePlaying);
+
+  // macOS sleep/wake recovery: AVFoundation tears down its decode/audio pipeline on system
+  // sleep and `QMediaPlayer` cannot recover on its own, so we capture state on will-sleep
+  // and force a clean source reload on did-wake.
+  void registerSystemPowerObservers();
+  void unregisterSystemPowerObservers();
+  void onSystemWillSleep();
+  void onSystemDidWake();
+  static void systemWillSleepCallback(void* context);
+  static void systemDidWakeCallback(void* context);
 
   QMediaPlayer* player_ = nullptr;
   QAudioOutput* audioOutput_ = nullptr;
@@ -103,4 +116,10 @@ private:
   qint64 lastStallCheckPositionMs_ = -1;
   int consecutivePlaybackStallTicks_ = 0;
   bool userRequestedPlaying_ = false;
+
+  // State snapshot captured on will-sleep so did-wake can restore it after rebuilding the pipeline.
+  bool sleepRecoveryPending_ = false;
+  bool sleepRecoveryWasPlaying_ = false;
+  qint64 sleepRecoveryPositionMs_ = 0;
+  double sleepRecoveryRate_ = 1.0;
 };

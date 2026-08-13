@@ -6,6 +6,8 @@
 #include <QHash>
 #include <QVector>
 
+#include "../state/TagSession.h"
+
 class QPushButton;
 class QLabel;
 class QGridLayout;
@@ -33,6 +35,16 @@ public:
   /// Canonical side for tagging: \c "Home", \c "Away", or empty if neither is selected.
   QString selectedTeamSideKey() const;
 
+  /// Resets the Start Game / Next Quarter UI back to the "no game started" state.
+  void resetGameTimeState();
+
+  /// Syncs Start/Next Quarter buttons with imported or restored session quarter state.
+  void restoreGamePhase(TagSession::QuarterPhase phase, int currentQuarterIndex);
+
+  /// Returns the canonical period name (\c "Q1".."Q4") of the quarter currently in progress,
+  /// or an empty string when no quarter is in progress.
+  QString currentPeriodName() const;
+
   void applyUiLanguage();
 
 signals:
@@ -40,12 +52,20 @@ signals:
   void gameEventMarked(const QString& mainEvent, const QString& followUpEvent = QString());
   /// Emitted when the user picks home or away on the top row (isHome true = home team).
   void teamSideSelected(bool isHome);
+  /// Emitted when the user clicks the Start Game button.
+  /// WorkWindow is expected to insert the start-anchor tag and start Q1.
+  void gameStartRequested();
+  /// Emitted when the user clicks the Next Quarter button.
+  /// WorkWindow is expected to close the current quarter and (if applicable) open the next one.
+  void nextQuarterRequested();
 
 private slots:
   void onHomeTeamButtonClicked();
   void onAwayTeamButtonClicked();
   void onMainButtonClicked();
   void onFollowUpButtonClicked();
+  void onStartGameButtonClicked();
+  void onNextQuarterButtonClicked();
 
 private:
   void buildUi();
@@ -71,6 +91,7 @@ private:
   QList<QPushButton*> focusableButtonsOrder() const;
   void focusNextInDirection(Qt::Key key);
   void applyTeamOnlyTabNavigation(bool forwardTab);
+  void updateGameTimeButtonsUi();
 
 protected:
   bool eventFilter(QObject* obj, QEvent* event) override;
@@ -89,9 +110,19 @@ protected:
     Away,
   };
 
+  enum class GamePhase {
+    NotStarted,        // Start Game enabled; Next Quarter disabled.
+    Q1, Q2, Q3, Q4,    // Quarter in progress.
+    Ended,             // All quarters closed; both buttons disabled.
+  };
+
   QGridLayout* mainGridLayout_ = nullptr;
   QHBoxLayout* followUpLayout_ = nullptr;
   QWidget* followUpContainer_ = nullptr;
+
+  QPushButton* startGameButton_ = nullptr;
+  QPushButton* nextQuarterButton_ = nullptr;
+  QLabel* quarterStatusLabel_ = nullptr;
 
   QPushButton* homeTeamButton_ = nullptr;
   QPushButton* awayTeamButton_ = nullptr;
@@ -126,6 +157,8 @@ protected:
   QAction* cardAction_ = nullptr;
   QAction* shootoutAction_ = nullptr;
   QAction* psAction_ = nullptr;
+  QAction* startGameAction_ = nullptr;
+  QAction* nextQuarterAction_ = nullptr;
   QList<QAction*> followUpNumberActions_;
   QAction* escapeAction_ = nullptr;
 
@@ -133,6 +166,7 @@ protected:
   QString currentFirstFollowUp_;
   QString currentSecondFollowUp_;
   FollowUpStage followUpStage_ = FollowUpStage::None;
+  GamePhase gamePhase_ = GamePhase::NotStarted;
   QPushButton* activeMainButton_ = nullptr;
   QList<QPushButton*> followUpButtons_;
   QHash<QPushButton*, QTimer*> flashTimers_;

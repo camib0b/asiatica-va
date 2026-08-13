@@ -74,12 +74,14 @@ void MainWindow::onVideoImportRequested() {
     if (filePaths.size() == 1) {
         workWindow_->setConcatenatedVideoTempDir(nullptr);
         workWindow_->setPendingConcatenation(nullptr);
+        workWindow_->setExportDefaultDirectoryFromVideoPath(filePaths.first());
         showWorkWindowWithSetup(filePaths.first());
         return;
     }
 
     filePaths.sort(Qt::CaseInsensitive);
     if (!VideoConcatenator::showFileOrderDialog(filePaths, this)) return;
+    workWindow_->setExportDefaultDirectoryFromVideoPath(filePaths.first());
 
     const QString ffmpegPath = ClipExporter::findFfmpeg();
     if (ffmpegPath.isEmpty()) {
