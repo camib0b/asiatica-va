@@ -1,5 +1,7 @@
 #include "ClipTrimBar.h"
 
+#include "../style/ThemeColors.h"
+
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPen>
@@ -104,7 +106,7 @@ void ClipTrimBar::paintEvent(QPaintEvent*) {
     const int outX = msToX(outPointMs_);
 
     // Selected range highlight
-    painter.setBrush(QColor(147, 197, 253, 50));
+    painter.setBrush(Style::ThemeColors::playheadHighlight(50));
     painter.drawRect(inX, 0, outX - inX, kTrackHeight);
 
     // Tag position marker (thin dashed line)

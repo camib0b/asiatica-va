@@ -2,6 +2,7 @@
 #include "ClipDurationSettingsDialog.h"
 #include "PresentationPanel.h"
 #include "../style/StyleProps.h"
+#include "../style/ThemeColors.h"
 #include "../components/VideoPlayer.h"
 #include "../components/GameControls.h"
 #include "../state/EventDefaults.h"
@@ -2094,8 +2095,6 @@ QString WorkWindow::displayTeamForTag(const TagSession::GameTag& tag) const {
 
 namespace {
 constexpr qint64 kPlayheadNearToleranceMs = 2000;
-const QColor kTagNearPlayheadColor(147, 197, 253); // light blue, lighter than selection
-const QColor kNewTagFlashColor(147, 197, 253);     // same light-blue for new-tag flash
 } // namespace
 
 void WorkWindow::flashNewTagRow() {
@@ -2108,7 +2107,7 @@ void WorkWindow::flashNewTagRow() {
         connect(newTagFlashTimer_, &QTimer::timeout, this, &WorkWindow::clearNewTagFlash);
     }
     newTagFlashRow_ = tagsTable_->rowCount() - 1;
-    setTagTableRowBackground(newTagFlashRow_, QBrush(kNewTagFlashColor));
+    setTagTableRowBackground(newTagFlashRow_, QBrush(Style::ThemeColors::playheadHighlight()));
     newTagFlashTimer_->start(500);
 }
 
@@ -2133,7 +2132,7 @@ void WorkWindow::updateTagPlayheadHighlight(qint64 positionMs) {
         const qint64 tagMs = keyItem->data(Qt::UserRole).toLongLong();
         const qint64 diff = (tagMs > positionMs) ? (tagMs - positionMs) : (positionMs - tagMs);
         if (diff <= kPlayheadNearToleranceMs) {
-            setTagTableRowBackground(row, QBrush(kTagNearPlayheadColor));
+            setTagTableRowBackground(row, QBrush(Style::ThemeColors::playheadHighlight()));
         } else {
             setTagTableRowBackground(row, QBrush());
         }

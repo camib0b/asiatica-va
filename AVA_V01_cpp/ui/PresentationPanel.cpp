@@ -4,6 +4,7 @@
 #include "../state/EventDefaults.h"
 #include "../state/TagSession.h"
 #include "../style/StyleProps.h"
+#include "../style/ThemeColors.h"
 
 #include <QAbstractItemView>
 #include <QAbstractSpinBox>
@@ -34,8 +35,6 @@ constexpr int kTagIndexRole = Qt::UserRole;
 constexpr double kMinLeadLagSeconds = 0.0;
 constexpr double kMaxLeadLagSeconds = 60.0;
 constexpr double kLeadLagStepSeconds = 0.5;
-
-const QColor kCurrentClipRowColor(147, 197, 253);  // same light blue as the tag-list highlight
 
 QString formatTimestampMs(qint64 positionMs) {
   if (positionMs < 0) positionMs = 0;
@@ -383,7 +382,8 @@ void PresentationPanel::rebuildRows() {
       instancesTable_->setItem(row, 2, eventItem);
 
       const bool isCurrentClip = visibleTag.tagSessionIndex == currentTagSessionIndex_;
-      const QBrush rowBrush = isCurrentClip ? QBrush(kCurrentClipRowColor) : QBrush();
+      const QBrush rowBrush =
+          isCurrentClip ? QBrush(Style::ThemeColors::playheadHighlight()) : QBrush();
       timeItem->setBackground(rowBrush);
       teamItem->setBackground(rowBrush);
       eventItem->setBackground(rowBrush);
