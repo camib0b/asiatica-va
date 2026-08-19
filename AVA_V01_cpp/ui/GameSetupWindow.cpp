@@ -1,10 +1,11 @@
 #include "GameSetupWindow.h"
-#include "../style/StyleProps.h"
-#include "../i18n/AppLocale.h"
 
-#include <QColor>
-#include <QColorDialog>
+#include "../components/TeamColorPicker.h"
+#include "../i18n/AppLocale.h"
+#include "../style/StyleProps.h"
+
 #include <QComboBox>
+#include <QColor>
 #include <QDate>
 #include <QDateEdit>
 #include <QHBoxLayout>
@@ -21,7 +22,8 @@ GameSetupWindow::GameSetupWindow(QWidget* parent) : QWidget(parent) {
   buildUi();
   wireSignals();
   applyUiStrings();
-  setMinimumSize(360, 420);
+  updateOptionalFieldAppearance();
+  setMinimumSize(480, 520);
 }
 
 void GameSetupWindow::setVideoPath(const QString& path) {
@@ -32,46 +34,44 @@ void GameSetupWindow::setTeamDefaults(const QString& homeName, const QString& aw
                                      const QString& homeColor, const QString& awayColor) {
   if (homeNameEdit_) homeNameEdit_->setText(homeName);
   if (awayNameEdit_) awayNameEdit_->setText(awayName);
-  if (homeColorEdit_) homeColorEdit_->setText(homeColor);
-  if (awayColorEdit_) awayColorEdit_->setText(awayColor);
+  if (homeColorPicker_) homeColorPicker_->setColor(homeColor);
+  if (awayColorPicker_) awayColorPicker_->setColor(awayColor);
 }
 
 void GameSetupWindow::setMetadataDefaults(const QString& competitionName,
                                           const QDate& gameDate,
                                           const QString& homeAbbrev,
                                           const QString& awayAbbrev) {
+  dateEditedByUser_ = false;
   if (competitionEdit_) competitionEdit_->setText(competitionName);
   if (gameDateEdit_) {
+    ignoreDateChange_ = true;
     gameDateEdit_->setDate(gameDate.isValid() ? gameDate : QDate::currentDate());
+    ignoreDateChange_ = false;
   }
   if (homeAbbrevEdit_) homeAbbrevEdit_->setText(homeAbbrev);
   if (awayAbbrevEdit_) awayAbbrevEdit_->setText(awayAbbrev);
+  updateOptionalFieldAppearance();
 }
 
 void GameSetupWindow::setInitialFocus() {
-  if (languageCombo_) languageCombo_->setFocus();
+  if (homeNameEdit_) homeNameEdit_->setFocus();
 }
 
 void GameSetupWindow::applyUiStrings() {
   if (titleLabel_) titleLabel_->setText(AppLocale::trUi("setup.title"));
   if (homeTeamLabel_) homeTeamLabel_->setText(AppLocale::trUi("setup.home_team"));
   if (awayTeamLabel_) awayTeamLabel_->setText(AppLocale::trUi("setup.away_team"));
-  if (homeColorLabel_) homeColorLabel_->setText(AppLocale::trUi("setup.home_color"));
-  if (awayColorLabel_) awayColorLabel_->setText(AppLocale::trUi("setup.away_color"));
-  if (homeAbbrevLabel_) homeAbbrevLabel_->setText(AppLocale::trUi("setup.home_abbrev"));
-  if (awayAbbrevLabel_) awayAbbrevLabel_->setText(AppLocale::trUi("setup.away_abbrev"));
+  if (optionalLabel_) optionalLabel_->setText(AppLocale::trUi("setup.optional"));
   if (competitionLabel_) competitionLabel_->setText(AppLocale::trUi("setup.competition"));
   if (dateLabel_) dateLabel_->setText(AppLocale::trUi("setup.date"));
-  if (languageLabel_) languageLabel_->setText(AppLocale::trUi("setup.lang_label"));
-  if (homeNameEdit_) homeNameEdit_->setPlaceholderText(AppLocale::trUi("setup.placeholder_team"));
-  if (awayNameEdit_) awayNameEdit_->setPlaceholderText(AppLocale::trUi("setup.placeholder_team"));
-  if (homeColorEdit_) homeColorEdit_->setPlaceholderText(AppLocale::trUi("setup.placeholder_hex"));
-  if (awayColorEdit_) awayColorEdit_->setPlaceholderText(AppLocale::trUi("setup.placeholder_hex"));
+  if (homeNameEdit_) homeNameEdit_->setPlaceholderText(AppLocale::trUi("setup.placeholder_home_team"));
+  if (awayNameEdit_) awayNameEdit_->setPlaceholderText(AppLocale::trUi("setup.placeholder_away_team"));
   if (homeAbbrevEdit_) homeAbbrevEdit_->setPlaceholderText(AppLocale::trUi("setup.placeholder_abbrev"));
   if (awayAbbrevEdit_) awayAbbrevEdit_->setPlaceholderText(AppLocale::trUi("setup.placeholder_abbrev"));
-  if (competitionEdit_) competitionEdit_->setPlaceholderText(AppLocale::trUi("setup.placeholder_competition"));
-  if (homeColorButton_) homeColorButton_->setText(AppLocale::trUi("setup.pick"));
-  if (awayColorButton_) awayColorButton_->setText(AppLocale::trUi("setup.pick"));
+  if (competitionEdit_) {
+    competitionEdit_->setPlaceholderText(AppLocale::trUi("setup.placeholder_competition"));
+  }
   if (backButton_) backButton_->setText(AppLocale::trUi("setup.back"));
   if (continueButton_) continueButton_->setText(AppLocale::trUi("setup.continue"));
   if (languageCombo_) {
@@ -80,6 +80,17 @@ void GameSetupWindow::applyUiStrings() {
     languageCombo_->setItemText(1, AppLocale::trUi("setup.lang_es"));
     languageCombo_->setCurrentIndex(AppLocale::currentLanguage() == AppLocale::Language::Spanish ? 1 : 0);
     languageCombo_->blockSignals(false);
+    const QString languageLabel = AppLocale::trUi("setup.lang_label");
+    languageCombo_->setToolTip(languageLabel);
+    languageCombo_->setAccessibleName(languageLabel);
+  }
+  if (homeColorPicker_) {
+    homeColorPicker_->setColorDialogTitle(AppLocale::trUi("dialog.pick_home_color"));
+    homeColorPicker_->applyUiStrings();
+  }
+  if (awayColorPicker_) {
+    awayColorPicker_->setColorDialogTitle(AppLocale::trUi("dialog.pick_away_color"));
+    awayColorPicker_->applyUiStrings();
   }
 }
 
@@ -119,137 +130,126 @@ void GameSetupWindow::onAwayNameEditingFinished() {
   }
 }
 
+void GameSetupWindow::onCompetitionTextChanged(const QString&) {
+  updateOptionalFieldAppearance();
+}
+
+void GameSetupWindow::onGameDateChanged(QDate) {
+  if (ignoreDateChange_) return;
+  dateEditedByUser_ = true;
+  updateOptionalFieldAppearance();
+}
+
+void GameSetupWindow::updateOptionalFieldAppearance() {
+  const bool competitionActive =
+      competitionEdit_ && !competitionEdit_->text().trimmed().isEmpty();
+  Style::setProp(competitionEdit_, "optionalState", competitionActive ? "active" : "stale");
+  Style::setProp(competitionLabel_, "optionalState", competitionActive ? "active" : "stale");
+
+  const char* dateState = dateEditedByUser_ ? "active" : "stale";
+  Style::setProp(gameDateEdit_, "optionalState", dateState);
+  Style::setProp(dateLabel_, "optionalState", dateState);
+}
+
 void GameSetupWindow::buildUi() {
   auto* outerLayout = new QVBoxLayout(this);
-  outerLayout->setContentsMargins(24, 24, 24, 24);
+  outerLayout->setContentsMargins(24, 16, 24, 24);
+  outerLayout->setSpacing(0);
+
+  auto* headerRow = new QHBoxLayout();
+  headerRow->setContentsMargins(0, 0, 0, 0);
+  languageCombo_ = new QComboBox(this);
+  languageCombo_->setObjectName(QStringLiteral("GameSetupLanguageCombo"));
+  languageCombo_->addItem(QString());
+  languageCombo_->addItem(QString());
+  languageCombo_->setMaximumWidth(140);
+  languageCombo_->setFocusPolicy(Qt::ClickFocus);
+  Style::setVariant(languageCombo_, "compact");
+  headerRow->addStretch(1);
+  headerRow->addWidget(languageCombo_, 0, Qt::AlignTop);
+  outerLayout->addLayout(headerRow);
+
   outerLayout->addStretch(1);
 
   auto* contentContainer = new QWidget(this);
+  contentContainer->setMinimumWidth(440);
+  contentContainer->setMaximumWidth(520);
   auto* layout = new QVBoxLayout(contentContainer);
   layout->setContentsMargins(0, 0, 0, 0);
-  layout->setSpacing(16);
+  layout->setSpacing(20);
 
   titleLabel_ = new QLabel(contentContainer);
   titleLabel_->setWordWrap(true);
   titleLabel_->setAlignment(Qt::AlignCenter);
   Style::setRole(titleLabel_, "h1");
+  layout->addWidget(titleLabel_, 0, Qt::AlignHCenter);
 
-  auto* formLayout = new QVBoxLayout();
-  formLayout->setSpacing(12);
+  auto addTeamGroup = [&](QLabel*& teamLabel, QLineEdit*& nameEdit, QLineEdit*& abbrevEdit,
+                          TeamColorPicker*& colorPicker, bool homeSide) {
+    auto* group = new QWidget(contentContainer);
+    auto* groupLayout = new QVBoxLayout(group);
+    groupLayout->setContentsMargins(0, 0, 0, 0);
+    groupLayout->setSpacing(8);
 
-  auto addLabelledRow = [&formLayout](QLabel* label, QWidget* widget) {
-    auto* row = new QHBoxLayout();
-    row->setContentsMargins(0, 0, 0, 0);
-    label->setMinimumWidth(110);
-    row->addWidget(label);
-    row->addWidget(widget, 1);
-    formLayout->addLayout(row);
+    teamLabel = new QLabel(group);
+    Style::setRole(teamLabel, "h3");
+    groupLayout->addWidget(teamLabel);
+
+    auto* fieldsRow = new QHBoxLayout();
+    fieldsRow->setContentsMargins(0, 0, 0, 0);
+    fieldsRow->setSpacing(8);
+
+    nameEdit = new QLineEdit(group);
+    abbrevEdit = new QLineEdit(group);
+    abbrevEdit->setMaxLength(3);
+    abbrevEdit->setMaximumWidth(80);
+    abbrevEdit->setMinimumWidth(64);
+
+    colorPicker = new TeamColorPicker(group);
+    colorPicker->setFallbackPreviewColor(homeSide ? QColor(Qt::blue) : QColor(Qt::red));
+
+    fieldsRow->addWidget(nameEdit, 1);
+    fieldsRow->addWidget(abbrevEdit, 0);
+    fieldsRow->addWidget(colorPicker, 0, Qt::AlignVCenter);
+    groupLayout->addLayout(fieldsRow);
+    layout->addWidget(group);
   };
 
-  // Language selector
-  auto* languageRow = new QHBoxLayout();
-  languageRow->setContentsMargins(0, 0, 0, 0);
-  languageRow->setSpacing(8);
-  languageLabel_ = new QLabel(contentContainer);
-  languageLabel_->setMinimumWidth(110);
-  Style::setRole(languageLabel_, "muted");
-  languageCombo_ = new QComboBox(contentContainer);
-  languageCombo_->addItem(QString());
-  languageCombo_->addItem(QString());
-  languageCombo_->setMaximumWidth(200);
-  languageRow->addWidget(languageLabel_, 0);
-  languageRow->addWidget(languageCombo_, 1);
-  languageRow->addStretch(1);
-  formLayout->addLayout(languageRow);
+  addTeamGroup(homeTeamLabel_, homeNameEdit_, homeAbbrevEdit_, homeColorPicker_, true);
+  addTeamGroup(awayTeamLabel_, awayNameEdit_, awayAbbrevEdit_, awayColorPicker_, false);
 
-  // Competition / tournament name
-  competitionLabel_ = new QLabel(contentContainer);
-  Style::setRole(competitionLabel_, "muted");
-  competitionEdit_ = new QLineEdit(contentContainer);
-  competitionEdit_->setMaximumWidth(280);
-  addLabelledRow(competitionLabel_, competitionEdit_);
+  optionalLabel_ = new QLabel(contentContainer);
+  Style::setRole(optionalLabel_, "faint");
+  layout->addWidget(optionalLabel_);
 
-  // Game date
-  dateLabel_ = new QLabel(contentContainer);
-  Style::setRole(dateLabel_, "muted");
-  gameDateEdit_ = new QDateEdit(QDate::currentDate(), contentContainer);
+  auto* optionalBlock = new QWidget(contentContainer);
+  optionalBlock->setObjectName(QStringLiteral("OptionalSetupFields"));
+  auto* optionalLayout = new QVBoxLayout(optionalBlock);
+  optionalLayout->setContentsMargins(0, 0, 0, 0);
+  optionalLayout->setSpacing(8);
+
+  auto addOptionalRow = [&](QLabel*& label, QWidget* field) {
+    auto* row = new QHBoxLayout();
+    row->setContentsMargins(0, 0, 0, 0);
+    row->setSpacing(8);
+    label = new QLabel(optionalBlock);
+    label->setMinimumWidth(96);
+    Style::setRole(label, "faint");
+    row->addWidget(label, 0);
+    row->addWidget(field, 1);
+    optionalLayout->addLayout(row);
+  };
+
+  competitionEdit_ = new QLineEdit(optionalBlock);
+  addOptionalRow(competitionLabel_, competitionEdit_);
+
+  gameDateEdit_ = new QDateEdit(QDate::currentDate(), optionalBlock);
   gameDateEdit_->setDisplayFormat(QStringLiteral("yyyy-MM-dd"));
   gameDateEdit_->setCalendarPopup(true);
-  gameDateEdit_->setMaximumWidth(200);
-  addLabelledRow(dateLabel_, gameDateEdit_);
+  gameDateEdit_->setMaximumWidth(180);
+  addOptionalRow(dateLabel_, gameDateEdit_);
 
-  // Home team name
-  homeTeamLabel_ = new QLabel(contentContainer);
-  Style::setRole(homeTeamLabel_, "muted");
-  homeNameEdit_ = new QLineEdit(contentContainer);
-  homeNameEdit_->setMaximumWidth(280);
-  addLabelledRow(homeTeamLabel_, homeNameEdit_);
-
-  // Home abbreviation
-  homeAbbrevLabel_ = new QLabel(contentContainer);
-  Style::setRole(homeAbbrevLabel_, "muted");
-  homeAbbrevEdit_ = new QLineEdit(contentContainer);
-  homeAbbrevEdit_->setMaxLength(3);
-  homeAbbrevEdit_->setMaximumWidth(120);
-  addLabelledRow(homeAbbrevLabel_, homeAbbrevEdit_);
-
-  // Home color
-  homeColorLabel_ = new QLabel(contentContainer);
-  Style::setRole(homeColorLabel_, "muted");
-  homeColorLabel_->setMinimumWidth(110);
-  auto* homeColorRow = new QWidget(contentContainer);
-  auto* homeColorRowLayout = new QHBoxLayout(homeColorRow);
-  homeColorRowLayout->setContentsMargins(0, 0, 0, 0);
-  homeColorRowLayout->setSpacing(8);
-  homeColorEdit_ = new QLineEdit(contentContainer);
-  homeColorEdit_->setMaximumWidth(120);
-  homeColorButton_ = new QPushButton(contentContainer);
-  homeColorButton_->setMinimumWidth(88);
-  homeColorRowLayout->addWidget(homeColorEdit_, 0);
-  homeColorRowLayout->addWidget(homeColorButton_, 0);
-  homeColorRow->setMaximumWidth(280);
-  auto* homeColorOuter = new QHBoxLayout();
-  homeColorOuter->addWidget(homeColorLabel_);
-  homeColorOuter->addWidget(homeColorRow, 1);
-  formLayout->addLayout(homeColorOuter);
-
-  // Away team name
-  awayTeamLabel_ = new QLabel(contentContainer);
-  Style::setRole(awayTeamLabel_, "muted");
-  awayNameEdit_ = new QLineEdit(contentContainer);
-  awayNameEdit_->setMaximumWidth(280);
-  addLabelledRow(awayTeamLabel_, awayNameEdit_);
-
-  // Away abbreviation
-  awayAbbrevLabel_ = new QLabel(contentContainer);
-  Style::setRole(awayAbbrevLabel_, "muted");
-  awayAbbrevEdit_ = new QLineEdit(contentContainer);
-  awayAbbrevEdit_->setMaxLength(3);
-  awayAbbrevEdit_->setMaximumWidth(120);
-  addLabelledRow(awayAbbrevLabel_, awayAbbrevEdit_);
-
-  // Away color
-  awayColorLabel_ = new QLabel(contentContainer);
-  Style::setRole(awayColorLabel_, "muted");
-  awayColorLabel_->setMinimumWidth(110);
-  auto* awayColorRow = new QWidget(contentContainer);
-  auto* awayColorRowLayout = new QHBoxLayout(awayColorRow);
-  awayColorRowLayout->setContentsMargins(0, 0, 0, 0);
-  awayColorRowLayout->setSpacing(8);
-  awayColorEdit_ = new QLineEdit(contentContainer);
-  awayColorEdit_->setMaximumWidth(120);
-  awayColorButton_ = new QPushButton(contentContainer);
-  awayColorButton_->setMinimumWidth(88);
-  awayColorRowLayout->addWidget(awayColorEdit_, 0);
-  awayColorRowLayout->addWidget(awayColorButton_, 0);
-  awayColorRow->setMaximumWidth(280);
-  auto* awayColorOuter = new QHBoxLayout();
-  awayColorOuter->addWidget(awayColorLabel_);
-  awayColorOuter->addWidget(awayColorRow, 1);
-  formLayout->addLayout(awayColorOuter);
-
-  layout->addWidget(titleLabel_, 0, Qt::AlignHCenter);
-  layout->addLayout(formLayout);
+  layout->addWidget(optionalBlock);
 
   auto* buttonRow = new QHBoxLayout();
   buttonRow->setSpacing(12);
@@ -273,34 +273,40 @@ void GameSetupWindow::buildUi() {
 
   outerLayout->addWidget(contentContainer, 0, Qt::AlignCenter);
   outerLayout->addStretch(1);
+
+  setTabOrder(homeNameEdit_, homeAbbrevEdit_);
+  setTabOrder(homeAbbrevEdit_, homeColorPicker_);
+  setTabOrder(homeColorPicker_, awayNameEdit_);
+  setTabOrder(awayNameEdit_, awayAbbrevEdit_);
+  setTabOrder(awayAbbrevEdit_, awayColorPicker_);
+  setTabOrder(awayColorPicker_, competitionEdit_);
+  setTabOrder(competitionEdit_, gameDateEdit_);
+  setTabOrder(gameDateEdit_, continueButton_);
+  setTabOrder(continueButton_, backButton_);
 }
 
 void GameSetupWindow::wireSignals() {
   connect(continueButton_, &QPushButton::clicked, this, &GameSetupWindow::onContinue);
   connect(backButton_, &QPushButton::clicked, this, &GameSetupWindow::onBack);
-  connect(homeColorButton_, &QPushButton::clicked, this, &GameSetupWindow::onHomeColorPick);
-  connect(awayColorButton_, &QPushButton::clicked, this, &GameSetupWindow::onAwayColorPick);
   connect(languageCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
           &GameSetupWindow::onLanguageComboChanged);
-  if (homeNameEdit_) {
-    connect(homeNameEdit_, &QLineEdit::editingFinished, this,
-            &GameSetupWindow::onHomeNameEditingFinished);
-  }
-  if (awayNameEdit_) {
-    connect(awayNameEdit_, &QLineEdit::editingFinished, this,
-            &GameSetupWindow::onAwayNameEditingFinished);
-  }
+  connect(homeNameEdit_, &QLineEdit::editingFinished, this,
+          &GameSetupWindow::onHomeNameEditingFinished);
+  connect(awayNameEdit_, &QLineEdit::editingFinished, this,
+          &GameSetupWindow::onAwayNameEditingFinished);
+  connect(competitionEdit_, &QLineEdit::textChanged, this,
+          &GameSetupWindow::onCompetitionTextChanged);
+  connect(gameDateEdit_, &QDateEdit::dateChanged, this, &GameSetupWindow::onGameDateChanged);
 }
 
 void GameSetupWindow::onContinue() {
   const QString homeName = homeNameEdit_ ? homeNameEdit_->text().trimmed() : QString();
   const QString awayName = awayNameEdit_ ? awayNameEdit_->text().trimmed() : QString();
-  const QString homeColor = homeColorEdit_ ? homeColorEdit_->text().trimmed() : QString();
-  const QString awayColor = awayColorEdit_ ? awayColorEdit_->text().trimmed() : QString();
+  const QString homeColor = homeColorPicker_ ? homeColorPicker_->color() : QString();
+  const QString awayColor = awayColorPicker_ ? awayColorPicker_->color() : QString();
   const QString competitionName = competitionEdit_ ? competitionEdit_->text().trimmed() : QString();
   const QDate gameDate = gameDateEdit_ ? gameDateEdit_->date() : QDate();
 
-  // Auto-derive abbreviations if user left them empty.
   QString homeAbbrev = homeAbbrevEdit_ ? homeAbbrevEdit_->text().trimmed().toUpper() : QString();
   QString awayAbbrev = awayAbbrevEdit_ ? awayAbbrevEdit_->text().trimmed().toUpper() : QString();
   if (homeAbbrev.isEmpty()) {
@@ -316,41 +322,4 @@ void GameSetupWindow::onContinue() {
 
 void GameSetupWindow::onBack() {
   emit cancelled();
-}
-
-void GameSetupWindow::onHomeColorPick() {
-  QColor current;
-  QString hex = homeColorEdit_ ? homeColorEdit_->text().trimmed() : QString();
-  if (!hex.isEmpty() && hex.startsWith('#')) {
-    current = QColor(hex);
-    if (!current.isValid()) current = QColor(Qt::blue);
-  } else {
-    current = QColor(Qt::blue);
-  }
-  QColor c = QColorDialog::getColor(current, this, AppLocale::trUi("dialog.pick_home_color"));
-  if (c.isValid() && homeColorEdit_) {
-    homeColorEdit_->setText(colorToHex(c));
-  }
-}
-
-void GameSetupWindow::onAwayColorPick() {
-  QColor current;
-  QString hex = awayColorEdit_ ? awayColorEdit_->text().trimmed() : QString();
-  if (!hex.isEmpty() && hex.startsWith('#')) {
-    current = QColor(hex);
-    if (!current.isValid()) current = QColor(Qt::red);
-  } else {
-    current = QColor(Qt::red);
-  }
-  QColor c = QColorDialog::getColor(current, this, AppLocale::trUi("dialog.pick_away_color"));
-  if (c.isValid() && awayColorEdit_) {
-    awayColorEdit_->setText(colorToHex(c));
-  }
-}
-
-QString GameSetupWindow::colorToHex(const QColor& c) {
-  return QString("#%1%2%3")
-      .arg(c.red(), 2, 16, QChar('0'))
-      .arg(c.green(), 2, 16, QChar('0'))
-      .arg(c.blue(), 2, 16, QChar('0'));
 }

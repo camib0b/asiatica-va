@@ -19,6 +19,7 @@ qt_add_executable(AVA
   ui/WelcomeWindow.cpp
   ui/GameSetupWindow.cpp
   ui/WorkWindow.cpp
+  components/TeamColorPicker.cpp
   ui/PresentationPanel.cpp
   ui/ClipDurationSettingsDialog.cpp
   ui/XmlSyncDialog.cpp

@@ -537,6 +537,31 @@ QSpinBox:focus, QDoubleSpinBox:focus {
   border: 1px solid #18181b;
 }
 
+QDateEdit {
+  background: #FFFFFF;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 14px;
+  color: #09090b;
+  min-height: 36px;
+}
+
+QDateEdit:focus {
+  border: 1px solid #18181b;
+}
+
+QDateEdit::drop-down {
+  border: none;
+  width: 20px;
+}
+
+QDateEdit::up-button, QDateEdit::down-button {
+  background: transparent;
+  border: none;
+  width: 16px;
+}
+
 QSpinBox::up-button, QDoubleSpinBox::up-button,
 QSpinBox::down-button, QDoubleSpinBox::down-button {
   background: transparent;
@@ -1028,4 +1053,81 @@ QMessageBox QLabel {
 
 QMessageBox QPushButton {
   min-width: 80px;
+}
+
+/* =========================
+   Game setup – language corner, optional fields, color picker
+========================= */
+
+QComboBox#GameSetupLanguageCombo {
+  color: #71717a;
+  background: transparent;
+  border: 1px solid transparent;
+  min-height: 28px;
+  max-height: 28px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+QComboBox#GameSetupLanguageCombo:hover {
+  border: 1px solid #e4e4e7;
+  background: #fafafa;
+  color: #09090b;
+}
+
+QComboBox#GameSetupLanguageCombo:focus {
+  border: 1px solid #d4d4d8;
+}
+
+QLabel[optionalState="stale"],
+QLabel[optionalState="active"] {
+  color: #a1a1aa;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+QLabel[optionalState="active"] {
+  color: #71717a;
+}
+
+QLineEdit[optionalState="stale"],
+QDateEdit[optionalState="stale"] {
+  background: #fafafa;
+  border: 1px dashed #d4d4d8;
+  color: #a1a1aa;
+  font-size: 12px;
+  padding: 5px 10px;
+  min-height: 28px;
+}
+
+QLineEdit[optionalState="stale"]:focus,
+QDateEdit[optionalState="stale"]:focus {
+  border: 1px dashed #a1a1aa;
+}
+
+QLineEdit[optionalState="active"],
+QDateEdit[optionalState="active"] {
+  background: #FFFFFF;
+  border: 1px solid #e4e4e7;
+  color: #09090b;
+  font-size: 12px;
+  padding: 5px 10px;
+  min-height: 28px;
+}
+
+QLineEdit[optionalState="active"]:focus,
+QDateEdit[optionalState="active"]:focus {
+  border: 1px solid #18181b;
+}
+
+QFrame#TeamColorPopup {
+  background: #FFFFFF;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+}
+
+QLineEdit#TeamColorHexEdit {
+  font-size: 12px;
+  padding: 6px 10px;
+  min-height: 28px;
 }
