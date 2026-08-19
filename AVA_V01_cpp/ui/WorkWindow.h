@@ -8,6 +8,7 @@
 #include <QHash>
 #include <QList>
 #include <QSet>
+#include <QVector>
 
 class QLabel;
 class QAction;
@@ -28,6 +29,12 @@ class VideoPlayer;
 class GameControls;
 class GameSetupWindow;
 class StatsWindow;
+class ClipTrimBar;
+class PresentationPanel;
+class PresentationQueue;
+class ExportJobManager;
+class ExportJobsBar;
+class YouTubeAuthManager;
 
 #include "../state/TagSession.h"
 
@@ -35,7 +42,7 @@ class WorkWindow final : public QWidget {
   Q_OBJECT
 
 public:
-  enum class Mode { Tagging, Analyzing };
+  enum class Mode { Tagging, Analyzing, Presenting };
 
   explicit WorkWindow(QWidget* parent = nullptr);
   ~WorkWindow() override;
@@ -79,19 +86,50 @@ private slots:
   void onTeamSetupCancelled();
   void onGameStartRequested();
   void onNextQuarterRequested();
-  void onExportClips();
   void onClipDurationSettings();
   void onImportXml();
   void onApplicationLanguageChanged();
 
+  // Presentation mode
+  void onPresentationSelectionChanged(const QVector<int>& tagSessionIndexes);
+  void onPresentationClipActivated(int tagSessionIndex);
+  void onPresentationCurrentClipChanged(int queueIndex);
+  void onPresentationQueueChanged();
+  void onPresentationClipIntervalChanged(int queueIndex);
+  void onPresentationLeadLagEdited(qint64 leadMs, qint64 lagMs);
+  void onPresentationApplyLeadLagToAll(qint64 leadMs, qint64 lagMs);
+  void onPresentationShowNotesToggled(bool enabled);
+  void onPresentationExportRequested();
+
+protected:
+  bool eventFilter(QObject* watched, QEvent* event) override;
+
 private:
   void buildUi();
+  void buildPresentationUi();
   void wireSignals();
   void applyUiStrings();
   void applyTaggingLayout();
   void applyAnalyzingLayout();
+  void applyPresentationLayout();
   void applyAnalyzingSplitterGeometry();
   void applyTaggingSplitterGeometry();
+  void applyPresentationSplitterGeometry();
+
+  /// Cycles Tagging → Analyzing → Presenting → Tagging (the M shortcut).
+  static Mode nextModeInCycle(Mode current);
+
+  // Presentation mode helpers
+  void showPresentationClip(int queueIndex, bool startPlaying);
+  void goToNextPresentationClip();
+  void goToPreviousPresentationClip();
+  void updatePresentationStage();
+  void configurePresentationClipBarForCurrentClip();
+  void savePresentationClipIntervalFromClipBar();
+  void updatePresentationPlayhead(qint64 positionMs);
+  void armPresentationAutoPause(qint64 clipEndMs);
+  void attachPresentationKeyboardShortcuts();
+  void detachPresentationKeyboardShortcuts();
   void captureTaggingModeUiStateForRestore();
   void restoreTaggingModeUiStateAfterLayout();
   void rebuildTagsList();
@@ -142,13 +180,35 @@ private:
   QVBoxLayout* contentLayout_ = nullptr;
   QToolButton* modeTaggingBtn_ = nullptr;
   QToolButton* modeAnalyzingBtn_ = nullptr;
+  QToolButton* modePresentingBtn_ = nullptr;
+
+  // Presentation mode
+  QSplitter* presentationSplitter_ = nullptr;
+  QWidget* presentationStageColumn_ = nullptr;
+  QWidget* presentationBanner_ = nullptr;
+  QLabel* presentationEventLabel_ = nullptr;
+  QLabel* presentationContextLabel_ = nullptr;
+  QLabel* presentationNoteLabel_ = nullptr;
+  ClipTrimBar* presentationClipBar_ = nullptr;
+  PresentationPanel* presentationPanel_ = nullptr;
+  PresentationQueue* presentationQueue_ = nullptr;
+  ExportJobManager* exportJobManager_ = nullptr;
+  ExportJobsBar* exportJobsBar_ = nullptr;
+  YouTubeAuthManager* youtubeAuthManager_ = nullptr;
+  bool presentationKeyboardShortcutsInstalled_ = false;
+  bool presentationAutoPauseArmed_ = false;
+  bool updatingPresentationClipBar_ = false;
+  /// False until the first clip of the queue has been played, so the very first Tab starts the
+  /// queue instead of skipping past its first clip.
+  bool presentationPlaybackStarted_ = false;
+  qint64 presentationAutoPauseAtMs_ = 0;
+  qint64 lastPresentationPlayheadMs_ = -1;
 
   // discard or swap video files:
   QToolButton* videoMenuButton_ = nullptr;
   QMenu* videoMenu_ = nullptr;
   QAction* replaceVideoAction_ = nullptr;
   QAction* discardVideoAction_ = nullptr;
-  QAction* exportClipsAction_ = nullptr;
   QAction* importXmlAction_ = nullptr;
   QAction* clipDurationSettingsAction_ = nullptr;
   QAction* statsOverlayAction_ = nullptr;

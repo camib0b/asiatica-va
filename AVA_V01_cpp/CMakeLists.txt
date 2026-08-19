@@ -19,12 +19,14 @@ qt_add_executable(AVA
   ui/WelcomeWindow.cpp
   ui/GameSetupWindow.cpp
   ui/WorkWindow.cpp
+  ui/PresentationPanel.cpp
   ui/ClipDurationSettingsDialog.cpp
   ui/XmlSyncDialog.cpp
   ui/XmlEventMappingDialog.cpp
   ui/StatsWindow.cpp
   state/EventDefaults.cpp
   state/EventCodeMap.cpp
+  state/PresentationQueue.cpp
   state/TagSession.cpp
   components/VideoControlsBar.cpp
   components/TimelineBar.cpp
@@ -32,7 +34,10 @@ qt_add_executable(AVA
   components/VideoPlayer.cpp
   export/ClipExporter.cpp
   export/ClipTrimBar.cpp
-  export/ExportDialog.cpp
+  export/ExportClipBuilder.cpp
+  export/ExportJobManager.cpp
+  export/ExportJobsBar.cpp
+  export/ExportSettingsDialog.cpp
   export/VideoConcatenator.cpp
   export/PlaybackVideoPreparer.cpp
   export/XmlExporter.cpp

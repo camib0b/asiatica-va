@@ -282,6 +282,24 @@ void VideoPlayer::togglePlayPauseWithControlFlash() {
     onTogglePlayPause();
 }
 
+bool VideoPlayer::isPlaying() const {
+    return player_ && player_->playbackState() == QMediaPlayer::PlayingState;
+}
+
+void VideoPlayer::playWithControlFlash() {
+    if (!player_) return;
+    if (player_->playbackState() == QMediaPlayer::PlayingState) return;
+    if (videoControlsBar_) videoControlsBar_->flashPlayButton();
+    onPlayClicked();
+}
+
+void VideoPlayer::pauseWithControlFlash() {
+    if (!player_) return;
+    if (player_->playbackState() != QMediaPlayer::PlayingState) return;
+    if (videoControlsBar_) videoControlsBar_->flashPauseButton();
+    onPauseClicked();
+}
+
 void VideoPlayer::playbackSlowerWithControlFlash() {
     if (videoControlsBar_) videoControlsBar_->flashSlowerButton();
     onSlowerClicked();

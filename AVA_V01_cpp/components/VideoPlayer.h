@@ -36,8 +36,14 @@ public:
     return mediaControlsEnabled_ && playbackKeyboardShortcutsEnabled_;
   }
 
+  bool isPlaying() const;
+
   /// Play/pause with the same visual feedback as the controls bar (used when shortcuts are handled outside this widget).
   void togglePlayPauseWithControlFlash();
+  /// Start / stop playback from outside with the same feedback as a controls-bar button press
+  /// (used by presentation mode when hopping between clips and when a clip reaches its lag end).
+  void playWithControlFlash();
+  void pauseWithControlFlash();
   void playbackSlowerWithControlFlash();
   void playbackFasterWithControlFlash();
   void playbackResetSpeedWithControlFlash();

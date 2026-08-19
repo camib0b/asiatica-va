@@ -644,20 +644,63 @@ QWidget#WorkModeToggleGroup {
 }
 
 QToolButton#WorkModeTaggingButton:checked,
-QToolButton#WorkModeAnalyzingButton:checked {
+QToolButton#WorkModeAnalyzingButton:checked,
+QToolButton#WorkModePresentingButton:checked {
   background: #FFFFFF;
   border: 1px solid #e4e4e7;
   color: #09090b;
   font-weight: 600;
 }
 QToolButton#WorkModeTaggingButton:checked:hover,
-QToolButton#WorkModeAnalyzingButton:checked:hover {
+QToolButton#WorkModeAnalyzingButton:checked:hover,
+QToolButton#WorkModePresentingButton:checked:hover {
   background: #FFFFFF;
   border-color: #d4d4d8;
 }
 QToolButton#WorkModeTaggingButton:!checked:hover,
-QToolButton#WorkModeAnalyzingButton:!checked:hover {
+QToolButton#WorkModeAnalyzingButton:!checked:hover,
+QToolButton#WorkModePresentingButton:!checked:hover {
   background: rgba(255, 255, 255, 0.55);
+}
+
+/* =========================
+   Presentation mode
+========================= */
+
+QSplitter#PresentationSplitter {
+  background-color: #FFFFFF;
+}
+
+QWidget#PresentationStageColumn {
+  background-color: #FFFFFF;
+}
+
+QWidget#PresentationBanner {
+  background-color: #09090b;
+  border-radius: 8px;
+}
+
+QLabel#PresentationEventLabel {
+  color: #FAFAFA;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+QLabel#PresentationContextLabel {
+  color: #d4d4d8;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+QLabel#PresentationNoteLabel {
+  color: #FDE68A;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+QWidget#ExportJobsBar {
+  background-color: #fafafa;
+  border-top: 1px solid #e4e4e7;
 }
 
 /* =========================
