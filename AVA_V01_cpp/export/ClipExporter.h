@@ -55,6 +55,7 @@ public:
     static QString findFfprobe();
     static QSize probeVideoDisplaySize(const QString& videoPath);
     static qreal computeOverlayScale(const QSize& videoSize);
+    static QSize cappedOutputSize(const QSize& sourceSize);
 
 signals:
     void progressChanged(int currentClip, int totalClips);
@@ -92,6 +93,7 @@ private:
     QString ffmpegPath_;
     QString brandingImagePath_;
     QSize sourceVideoSize_;
+    QSize outputVideoSize_;
     qreal overlayScale_ = 1.0;
     bool includeAudioTrack_ = true;
     bool includeBrandingOverlay_ = true;

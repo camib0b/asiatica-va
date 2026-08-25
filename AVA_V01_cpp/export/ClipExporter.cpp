@@ -23,9 +23,16 @@
 namespace {
 
 constexpr int kReferenceVideoHeight = 720;  // Overlay sizes below are authored for 720p.
+constexpr int kMaximumOutputWidth = 1920;
+constexpr int kMaximumOutputHeight = 1080;
 constexpr qreal kMinimumOverlayScale = 0.5;
 constexpr qreal kMaximumOverlayScale = 3.0;
 constexpr qreal kMaximumOverlayWidthFraction = 0.9;
+
+int evenDimension(int value) {
+    const int floored = qMax(2, value);
+    return floored - (floored % 2);
+}
 
 // YouTube's standard 16:9 player paints chrome over the video itself:
 // - Bottom ~8% covers the progress bar and transport controls.
@@ -289,6 +296,24 @@ qreal ClipExporter::computeOverlayScale(const QSize& videoSize) {
     return qBound(kMinimumOverlayScale, rawScale, kMaximumOverlayScale);
 }
 
+QSize ClipExporter::cappedOutputSize(const QSize& sourceSize) {
+    if (!sourceSize.isValid() || sourceSize.width() <= 0 || sourceSize.height() <= 0) {
+        return {};
+    }
+
+    const int sourceWidth = sourceSize.width();
+    const int sourceHeight = sourceSize.height();
+    const qreal widthScale =
+        static_cast<qreal>(kMaximumOutputWidth) / static_cast<qreal>(sourceWidth);
+    const qreal heightScale =
+        static_cast<qreal>(kMaximumOutputHeight) / static_cast<qreal>(sourceHeight);
+    const qreal fitScale = qMin(static_cast<qreal>(1.0), qMin(widthScale, heightScale));
+
+    const int outputWidth = evenDimension(static_cast<int>(sourceWidth * fitScale));
+    const int outputHeight = evenDimension(static_cast<int>(sourceHeight * fitScale));
+    return QSize(outputWidth, outputHeight);
+}
+
 void ClipExporter::setSourceVideo(const QString& path) { sourceVideoPath_ = path; }
 void ClipExporter::setOutputPath(const QString& path) { outputPath_ = path; }
 void ClipExporter::setClips(const QVector<ClipSegment>& clips) { clips_ = clips; }
@@ -329,7 +354,8 @@ void ClipExporter::startExport() {
     }
 
     sourceVideoSize_ = probeVideoDisplaySize(sourceVideoPath_);
-    overlayScale_ = computeOverlayScale(sourceVideoSize_);
+    outputVideoSize_ = cappedOutputSize(sourceVideoSize_);
+    overlayScale_ = computeOverlayScale(outputVideoSize_);
 
     if (includeBrandingOverlay_) {
         brandingImagePath_ = generateBrandingImage(
@@ -369,8 +395,8 @@ void ClipExporter::processNextClip() {
     const QString tempPath = tempDir_->filePath(
         QStringLiteral("clip_%1.mp4").arg(currentClipIndex_, 4, 10, QChar('0')));
 
-    const int maxImageWidth = sourceVideoSize_.isValid()
-        ? qRound(sourceVideoSize_.width() * kMaximumOverlayWidthFraction)
+    const int maxImageWidth = outputVideoSize_.isValid()
+        ? qRound(outputVideoSize_.width() * kMaximumOverlayWidthFraction)
         : 0;
 
     const bool includeBottomOverlay =
@@ -442,8 +468,11 @@ void ClipExporter::processNextClip() {
         firstScoreboardInput = nextInputIndex;
     }
 
-    QString filterComplex;
-    QString currentVideoLabel = QStringLiteral("0:v");
+    QString filterComplex = QStringLiteral(
+        "[0:v]scale=%1:%2:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1[scaled]")
+                                .arg(kMaximumOutputWidth)
+                                .arg(kMaximumOutputHeight);
+    QString currentVideoLabel = QStringLiteral("scaled");
     int stageCounter = 0;
 
     auto appendOverlayStage = [&filterComplex, &currentVideoLabel, &stageCounter](
@@ -542,6 +571,7 @@ void ClipExporter::processNextClip() {
               << QStringLiteral("-c:v") << QStringLiteral("libx264")
               << QStringLiteral("-preset") << QStringLiteral("fast")
               << QStringLiteral("-crf") << QStringLiteral("23")
+              << QStringLiteral("-pix_fmt") << QStringLiteral("yuv420p")
               << QStringLiteral("-movflags") << QStringLiteral("+faststart")
               << tempPath;
 
