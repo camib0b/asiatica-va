@@ -1,0 +1,2 @@
+LICENSE_SIGNING_SECRET=ava-dev-signing-secret-not-for-production
+ADMIN_SECRET=change-me-admin-secret

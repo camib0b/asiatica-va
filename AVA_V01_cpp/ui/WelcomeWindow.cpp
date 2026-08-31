@@ -1,6 +1,8 @@
 #include "WelcomeWindow.h"
 #include "../style/StyleProps.h"
 #include "../i18n/AppLocale.h"
+#include "../license/LicenseManager.h"
+#include "../license/LicenseTypes.h"
 
 #include <QLabel>
 #include <QPushButton>
@@ -10,6 +12,7 @@
 #include <QAction>
 #include <QFontMetrics>
 #include <QApplication>
+#include <QDateTime>
 #include <QDebug>
 #include <QSizePolicy>
 
@@ -46,6 +49,21 @@ void WelcomeWindow::applyUiStrings() {
         importButton_->setText(AppLocale::trUi("welcome.import"));
         importButton_->setMinimumWidth(welcomeImportButtonMinimumWidth(importButton_));
     }
+    if (enterLicenseButton_) {
+        enterLicenseButton_->setText(AppLocale::trUi("license.enter_key"));
+    }
+    if (licenseStatusLabel_) {
+        const LicenseUiStatus status = LicenseManager::instance().uiStatus();
+        if (status.entitled && status.kind == QLatin1String("trial")) {
+            licenseStatusLabel_->setText(AppLocale::trUi("license.status.trial").arg(status.daysRemaining));
+        } else if (status.entitled && status.kind == QLatin1String("paid") && status.expiresAt > 0) {
+            const QString dateText =
+                QDateTime::fromSecsSinceEpoch(status.expiresAt, Qt::UTC).date().toString(Qt::ISODate);
+            licenseStatusLabel_->setText(AppLocale::trUi("license.status.paid").arg(dateText));
+        } else {
+            licenseStatusLabel_->clear();
+        }
+    }
 }
 
 void WelcomeWindow::buildUi() {
@@ -76,9 +94,20 @@ void WelcomeWindow::buildUi() {
     importButton_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
     importButton_->setFocusPolicy(Qt::TabFocus); // Allow keyboard focus but don't auto-focus on window open
 
+    licenseStatusLabel_ = new QLabel(contentContainer);
+    licenseStatusLabel_->setAlignment(Qt::AlignCenter);
+    Style::setRole(licenseStatusLabel_, "muted");
+
+    enterLicenseButton_ = new QPushButton(contentContainer);
+    enterLicenseButton_->setCursor(Qt::PointingHandCursor);
+    enterLicenseButton_->setFlat(true);
+    enterLicenseButton_->setFocusPolicy(Qt::TabFocus);
+
     // Add widgets vertically, centered
     layout->addWidget(titleLabel_, 0, Qt::AlignHCenter);
     layout->addWidget(importButton_, 0, Qt::AlignHCenter);
+    layout->addWidget(licenseStatusLabel_, 0, Qt::AlignHCenter);
+    layout->addWidget(enterLicenseButton_, 0, Qt::AlignHCenter);
 
     // Center content container in outer layout
     outerLayout->addWidget(contentContainer, 0, Qt::AlignCenter);
@@ -87,6 +116,7 @@ void WelcomeWindow::buildUi() {
 
 void WelcomeWindow::wireSignals() {
     connect(importButton_, &QPushButton::clicked, this, &WelcomeWindow::videoImportRequested);
+    connect(enterLicenseButton_, &QPushButton::clicked, this, &WelcomeWindow::enterLicenseRequested);
 }
 
 void WelcomeWindow::buildKeyboardShortcuts() {

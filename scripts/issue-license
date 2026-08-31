@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+"""Issue a signed AVA license key.
+
+Camila runs this on her laptop. The HMAC secret must match the secret compiled
+into AVA (AVA_LICENSE_SIGNING_SECRET) and the Worker LICENSE_SIGNING_SECRET.
+
+Examples:
+  ./scripts/issue-license --email coach@club.cl --days 365
+  ./scripts/issue-license --email coach@club.cl --days 365 --out coach.ava-license
+  ./scripts/issue-license --self-test
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import hashlib
+import hmac
+import json
+import os
+import secrets
+import sys
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+DEFAULT_DEV_SECRET = "ava-dev-signing-secret-not-for-production"
+KNOWN_VECTOR_PAYLOAD = (
+    '{"deviceId":"","email":"coach@example.com","expiresAt":1893456000,'
+    '"issuedAt":1704067200,"keyId":"k_test1","kind":"paid","v":1}'
+)
+KNOWN_VECTOR_TOKEN = (
+    "AVA1.eyJkZXZpY2VJZCI6IiIsImVtYWlsIjoiY29hY2hAZXhhbXBsZS5jb20iLCJleHBpcmVzQXQiOjE4OTM0NTYwMD"
+    "AsImlzc3VlZEF0IjoxNzA0MDY3MjAwLCJrZXlJZCI6ImtfdGVzdDEiLCJraW5kIjoicGFpZCIsInYiOjF9."
+    "PLj0fvb--oSW5sAp3FnHUHMdRgraaepgsDWExc0sY8M"
+)
+
+
+def json_escape(value: str) -> str:
+    return (
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+    )
+
+
+def canonical_payload(claims: dict) -> str:
+    return (
+        '{"deviceId":"'
+        + json_escape(claims["deviceId"])
+        + '","email":"'
+        + json_escape(claims["email"])
+        + '","expiresAt":'
+        + str(int(claims["expiresAt"]))
+        + ',"issuedAt":'
+        + str(int(claims["issuedAt"]))
+        + ',"keyId":"'
+        + json_escape(claims["keyId"])
+        + '","kind":"'
+        + json_escape(claims["kind"])
+        + '","v":1}'
+    )
+
+
+def b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+def sign_claims(secret: str, claims: dict) -> str:
+    payload = canonical_payload(claims)
+    signature = hmac.new(secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).digest()
+    return "AVA1." + b64url(payload.encode("utf-8")) + "." + b64url(signature)
+
+
+def load_secret() -> str:
+    env_secret = os.environ.get("AVA_LICENSE_SIGNING_SECRET", "").strip()
+    if env_secret:
+        return env_secret
+    repo_root = Path(__file__).resolve().parent.parent
+    dev_vars = repo_root / "license-server" / ".dev.vars"
+    if dev_vars.is_file():
+        for line in dev_vars.read_text(encoding="utf-8").splitlines():
+            if line.startswith("LICENSE_SIGNING_SECRET="):
+                return line.split("=", 1)[1].strip().strip('"')
+    return DEFAULT_DEV_SECRET
+
+
+def self_test() -> int:
+    secret = DEFAULT_DEV_SECRET
+    claims = {
+        "deviceId": "",
+        "email": "coach@example.com",
+        "expiresAt": 1893456000,
+        "issuedAt": 1704067200,
+        "keyId": "k_test1",
+        "kind": "paid",
+    }
+    payload = canonical_payload(claims)
+    if payload != KNOWN_VECTOR_PAYLOAD:
+        print("self-test failed: canonical payload mismatch", file=sys.stderr)
+        print(payload, file=sys.stderr)
+        return 1
+    token = sign_claims(secret, claims)
+    if token != KNOWN_VECTOR_TOKEN:
+        print("self-test failed: token mismatch", file=sys.stderr)
+        print(token, file=sys.stderr)
+        return 1
+    print("self-test ok")
+    return 0
+
+
+def issue_via_api(email: str, days: int, out_path: str | None) -> int:
+    api_url = os.environ.get("AVA_LICENSE_API_URL", "").rstrip("/")
+    admin_secret = os.environ.get("AVA_LICENSE_ADMIN_SECRET", "").strip()
+    if not api_url or not admin_secret:
+        print(
+            "Need AVA_LICENSE_API_URL and AVA_LICENSE_ADMIN_SECRET for --register.",
+            file=sys.stderr,
+        )
+        return 1
+    body = json.dumps({"email": email, "days": days}).encode("utf-8")
+    request = urllib.request.Request(
+        api_url + "/v1/admin/issue",
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + admin_secret,
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.URLError as error:
+        print("Could not reach license API:", error, file=sys.stderr)
+        return 1
+    token = payload.get("token", "")
+    license_info = payload.get("license") or {}
+    if not token:
+        print("API did not return a token:", payload, file=sys.stderr)
+        return 1
+    print_license(token, license_info.get("email", email), license_info.get("keyId", ""),
+                  int(license_info.get("expiresAt") or 0))
+    if out_path:
+        write_license_file(out_path, token, license_info.get("email", email),
+                           int(license_info.get("expiresAt") or 0))
+    return 0
+
+
+def write_license_file(out_path: str, token: str, email: str, expires_at: int) -> None:
+    expires_iso = time.strftime("%Y-%m-%d", time.gmtime(expires_at)) if expires_at else "unknown"
+    path = Path(out_path)
+    path.write_text(
+        f"# AVA license for {email} until {expires_iso} UTC\n{token}\n",
+        encoding="utf-8",
+    )
+    print(f"Wrote {path}")
+
+
+def print_license(token: str, email: str, key_id: str, expires_at: int) -> None:
+    expires_iso = time.strftime("%Y-%m-%d", time.gmtime(expires_at)) if expires_at else "?"
+    print(f"License for {email} (expires {expires_iso} UTC)")
+    if key_id:
+        print(f"keyId: {key_id}")
+    print()
+    print(token)
+    print()
+    print("Send the token (or the .ava-license file) to the coach. They paste it in AVA.")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Issue a signed AVA license key.")
+    parser.add_argument("--email", help="Coach email baked into the key")
+    parser.add_argument("--days", type=int, default=365, help="Validity in days (default 365)")
+    parser.add_argument("--out", help="Write a .ava-license file")
+    parser.add_argument(
+        "--register",
+        action="store_true",
+        help="Also POST /v1/admin/issue so the Worker can bind the key to a Mac",
+    )
+    parser.add_argument("--self-test", action="store_true", help="Check HMAC against the known vector")
+    args = parser.parse_args()
+
+    if args.self_test:
+        return self_test()
+
+    if not args.email:
+        parser.error("--email is required unless --self-test")
+
+    if args.register:
+        return issue_via_api(args.email.strip().lower(), args.days, args.out)
+
+    secret = load_secret()
+    if secret == DEFAULT_DEV_SECRET:
+        print(
+            "Using the in-repo development secret. Rebuild AVA with your own "
+            "AVA_LICENSE_SIGNING_SECRET before sending keys to coaches.",
+            file=sys.stderr,
+        )
+
+    now = int(time.time())
+    claims = {
+        "deviceId": "",
+        "email": args.email.strip().lower(),
+        "expiresAt": now + max(1, args.days) * 24 * 60 * 60,
+        "issuedAt": now,
+        "keyId": "k_" + secrets.token_hex(8),
+        "kind": "paid",
+    }
+    token = sign_claims(secret, claims)
+    print_license(token, claims["email"], claims["keyId"], int(claims["expiresAt"]))
+
+    if args.out:
+        write_license_file(args.out, token, claims["email"], int(claims["expiresAt"]))
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

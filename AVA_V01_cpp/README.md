@@ -10,3 +10,7 @@ Pre-made icons live in `AppIcon.iconset/`. To build `AppIcon.icns` for the app b
 ```
 
 If `iconutil` reports "Invalid Iconset", run that command from Terminal (outside Cursor). Alternatively, create `AppIcon.icns` in Xcode (File → New → App Icons) or with another tool and place it in the project root. CMake will use it when building the `.app` bundle.
+
+## Distributing a coach build
+
+See [DISTRIBUTION.md](../DISTRIBUTION.md) at the repo root: 14-day trial, license keys, `macdeployqt` packaging, and Apple notarization (must run on your Mac).
