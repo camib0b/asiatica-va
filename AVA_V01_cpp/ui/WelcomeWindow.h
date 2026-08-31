@@ -17,6 +17,7 @@ public slots:
 
 signals:
   void videoImportRequested();
+  void enterLicenseRequested();
 
 private:
   void buildUi();
@@ -26,4 +27,6 @@ private:
   QLabel* titleLabel_ = nullptr;
   QPushButton* importButton_ = nullptr;
   QLabel* speedLabel_ = nullptr;
+  QLabel* licenseStatusLabel_ = nullptr;
+  QPushButton* enterLicenseButton_ = nullptr;
 };

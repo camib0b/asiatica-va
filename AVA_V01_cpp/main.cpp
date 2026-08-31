@@ -2,6 +2,7 @@
 #include "i18n/AppLocale.h"
 #include "state/EventDefaults.h"
 #include "YouTubeConfig.h"
+#include "license/LicenseManager.h"
 #include <QApplication>
 #include <QIcon>
 #include "style/theme.h"
@@ -16,6 +17,7 @@ int main(int argc, char* argv[]) {
     YouTubeConfig::bootstrap();
     AppLocale::loadFromSettings();
     EventDefaults::loadFromSettings();
+    LicenseManager::instance().bootstrap();
 
     MainWindow w;
     w.show();

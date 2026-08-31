@@ -1,0 +1,13 @@
+{
+  "name": "ava-license-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node --experimental-strip-types --test src/crypto.test.ts"
+  },
+  "devDependencies": {
+    "wrangler": "^4.34.0"
+  }
+}
