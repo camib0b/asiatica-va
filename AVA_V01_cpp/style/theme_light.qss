@@ -400,6 +400,18 @@ QPushButton[variant="gameControlFollowUp"][flash="true"]:focus {
   padding: 7px 15px;
 }
 
+QPushButton[variant="gameControlFollowUp"] QLabel[role="gameControlTitle"] {
+  color: #fafafa;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+QPushButton[variant="gameControlFollowUp"] QLabel[role="muted"] {
+  color: #a1a1aa;
+  font-size: 11px;
+  font-weight: 400;
+}
+
 /* =========================
    Inputs
 ========================= */
