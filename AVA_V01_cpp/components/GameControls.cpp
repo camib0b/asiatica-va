@@ -17,10 +17,25 @@
 #include <QLabel>
 
 namespace {
-void setupFollowUpButton(QPushButton* button, const QString& canonicalKey) {
+void configureFollowUpButton(QPushButton* button, const QString& canonicalKey,
+                             const QString& shortcutHint) {
   if (!button) return;
+  button->setText(QString());
   button->setProperty("gameEventKey", canonicalKey);
-  button->setText(AppLocale::trEvent(canonicalKey));
+  auto* layout = new QVBoxLayout(button);
+  layout->setContentsMargins(6, 4, 6, 4);
+  layout->setSpacing(2);
+  auto* titleLabel = new QLabel(AppLocale::trEvent(canonicalKey), button);
+  titleLabel->setAlignment(Qt::AlignCenter);
+  titleLabel->setWordWrap(true);
+  Style::setRole(titleLabel, "gameControlTitle");
+  titleLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+  auto* shortcutLabel = new QLabel(shortcutHint, button);
+  shortcutLabel->setAlignment(Qt::AlignCenter);
+  Style::setRole(shortcutLabel, "muted");
+  shortcutLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+  layout->addWidget(titleLabel);
+  layout->addWidget(shortcutLabel);
 }
 } // namespace
 
@@ -606,6 +621,8 @@ void GameControls::onFollowUpButtonClicked() {
         followUpPayload = currentFirstFollowUp_ + QStringLiteral(" → ") + selectedTeamLabel();
       } else if (currentMainEvent_ == QStringLiteral("S.O.")) {
         followUpPayload = selectedTeamLabel() + QStringLiteral(" → ") + currentFirstFollowUp_;
+      } else if (currentMainEvent_ == QStringLiteral("16-yd")) {
+        followUpPayload = selectedTeamLabel() + QStringLiteral(" → ") + currentFirstFollowUp_;
       } else {
         followUpPayload = currentFirstFollowUp_;
       }
@@ -762,7 +779,10 @@ QStringList GameControls::getFirstLevelFollowUps(const QString& mainEvent) const
   if (mainEvent == "PC") {
     return {QStringLiteral("Direct shot"), QStringLiteral("Variant"), QStringLiteral("Ruined")};
   }
-  if (mainEvent == QStringLiteral("16-yd") || mainEvent == QStringLiteral("50-yd")) {
+  if (mainEvent == QStringLiteral("16-yd")) {
+    return {QStringLiteral("3 man"), QStringLiteral("4 man")};
+  }
+  if (mainEvent == QStringLiteral("50-yd")) {
     return {};
   }
   if (mainEvent == QStringLiteral("75-yd")) {
@@ -873,8 +893,7 @@ void GameControls::showFirstLevelFollowUps(const QString& mainEvent) {
 
   // If no follow-up actions, emit the main event directly and return
   if (actions.isEmpty()) {
-    if (mainEvent == QStringLiteral("16-yd") || mainEvent == QStringLiteral("50-yd") ||
-        mainEvent == QStringLiteral("Goal")) {
+    if (mainEvent == QStringLiteral("50-yd") || mainEvent == QStringLiteral("Goal")) {
       emit gameEventMarked(mainEvent, selectedTeamLabel());
     } else {
       emit gameEventMarked(mainEvent);
@@ -888,13 +907,14 @@ void GameControls::showFirstLevelFollowUps(const QString& mainEvent) {
   }
 
   // Create new follow-up buttons
-  for (const QString& action : actions) {
+  for (int actionIndex = 0; actionIndex < actions.size(); ++actionIndex) {
+    const QString& action = actions.at(actionIndex);
     auto* button = new QPushButton(followUpContainer_);
-    setupFollowUpButton(button, action);
+    configureFollowUpButton(button, action, QString::number(actionIndex + 1));
     Style::setSize(button, "md");
     Style::setVariant(button, "gameControlFollowUp");
     button->setFocusPolicy(Qt::ClickFocus);
-    button->setMinimumHeight(40);
+    button->setMinimumHeight(44);
 
     // Connect click: flash first, then handle
     connect(button, &QPushButton::clicked, this, [this, button]() { flashButtonBorder(button); });
@@ -935,13 +955,14 @@ void GameControls::showSecondLevelFollowUps(const QString& mainEvent, const QStr
     return;
   }
 
-  for (const QString& action : actions) {
+  for (int actionIndex = 0; actionIndex < actions.size(); ++actionIndex) {
+    const QString& action = actions.at(actionIndex);
     auto* button = new QPushButton(followUpContainer_);
-    setupFollowUpButton(button, action);
+    configureFollowUpButton(button, action, QString::number(actionIndex + 1));
     Style::setSize(button, "md");
     Style::setVariant(button, "gameControlFollowUp");
     button->setFocusPolicy(Qt::ClickFocus);
-    button->setMinimumHeight(40);
+    button->setMinimumHeight(44);
 
     connect(button, &QPushButton::clicked, this, [this, button]() { flashButtonBorder(button); });
     connect(button, &QPushButton::clicked, this, &GameControls::onFollowUpButtonClicked);
@@ -973,13 +994,14 @@ void GameControls::showThirdLevelFollowUps() {
     return;
   }
 
-  for (const QString& action : actions) {
+  for (int actionIndex = 0; actionIndex < actions.size(); ++actionIndex) {
+    const QString& action = actions.at(actionIndex);
     auto* button = new QPushButton(followUpContainer_);
-    setupFollowUpButton(button, action);
+    configureFollowUpButton(button, action, QString::number(actionIndex + 1));
     Style::setSize(button, "md");
     Style::setVariant(button, "gameControlFollowUp");
     button->setFocusPolicy(Qt::ClickFocus);
-    button->setMinimumHeight(40);
+    button->setMinimumHeight(44);
 
     connect(button, &QPushButton::clicked, this, [this, button]() { flashButtonBorder(button); });
     connect(button, &QPushButton::clicked, this, &GameControls::onFollowUpButtonClicked);

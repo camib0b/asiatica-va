@@ -408,7 +408,7 @@ QLineEdit, QTextEdit, QPlainTextEdit {
   background: #FFFFFF;
   border: 1px solid #e4e4e7;
   border-radius: 6px;
-  padding: 8px 12px;
+  padding: 5px 10px;
   font-size: 14px;
   color: #09090b;
   selection-background-color: rgba(24, 24, 27, 0.12);
@@ -432,10 +432,10 @@ QComboBox {
   background: #FFFFFF;
   border: 1px solid #e4e4e7;
   border-radius: 6px;
-  padding: 6px 12px;
+  padding: 4px 10px;
   font-size: 14px;
   color: #09090b;
-  min-height: 36px;
+  min-height: 28px;
 }
 
 QComboBox:hover {
@@ -527,10 +527,10 @@ QSpinBox, QDoubleSpinBox {
   background: #FFFFFF;
   border: 1px solid #e4e4e7;
   border-radius: 6px;
-  padding: 6px 12px;
+  padding: 4px 10px;
   font-size: 14px;
   color: #09090b;
-  min-height: 36px;
+  min-height: 28px;
 }
 
 QSpinBox:focus, QDoubleSpinBox:focus {
@@ -541,10 +541,10 @@ QDateEdit {
   background: #FFFFFF;
   border: 1px solid #e4e4e7;
   border-radius: 6px;
-  padding: 6px 12px;
+  padding: 4px 10px;
   font-size: 14px;
   color: #09090b;
-  min-height: 36px;
+  min-height: 28px;
 }
 
 QDateEdit:focus {
@@ -702,30 +702,37 @@ QWidget#PresentationStageColumn {
 
 QWidget#PresentationBanner {
   background-color: #09090b;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 QLabel#PresentationEventLabel {
   color: #FAFAFA;
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 QLabel#PresentationContextLabel {
   color: #d4d4d8;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 500;
 }
 
 QLabel#PresentationNoteLabel {
   color: #FDE68A;
-  font-size: 17px;
+  font-size: 13px;
   font-weight: 500;
 }
 
 QWidget#ExportJobsBar {
   background-color: #fafafa;
   border-top: 1px solid #e4e4e7;
+}
+
+QWidget#ExportJobsBar QProgressBar {
+  min-height: 18px;
+  max-height: 18px;
+  font-size: 11px;
+  color: #09090b;
 }
 
 /* =========================
@@ -884,17 +891,17 @@ QSlider#TimelineSlider::handle:horizontal:hover {
 }
 
 /* =========================
-   Video controls bar (slim – Tagging mode)
+   Video controls bar (compact – all modes)
 ========================= */
 
-QWidget#VideoControlsBarSlim QPushButton {
+QWidget#VideoControlsBar QPushButton {
   padding: 4px 8px;
   font-size: 12px;
   min-height: 26px;
   border-radius: 6px;
 }
 
-QWidget#VideoControlsBarSlim QLabel {
+QWidget#VideoControlsBar QLabel {
   font-size: 12px;
 }
 
@@ -907,7 +914,7 @@ QWidget#TaggingRightCol QPushButton[variant="gameControl"] {
 QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"] {
   padding: 4px 6px;
   font-size: 11px;
-  min-height: 28px;
+  min-height: 36px;
   border-radius: 6px;
 }
 

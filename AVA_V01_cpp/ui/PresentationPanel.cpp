@@ -60,7 +60,6 @@ QDoubleSpinBox* makeLeadLagSpinBox(QWidget* parent) {
   spinBox->setSingleStep(kLeadLagStepSeconds);
   spinBox->setDecimals(1);
   spinBox->setSuffix(QStringLiteral(" s"));
-  spinBox->setMinimumHeight(32);
   spinBox->setAlignment(Qt::AlignRight);
   spinBox->setButtonSymbols(QAbstractSpinBox::UpDownArrows);
   return spinBox;
@@ -88,36 +87,35 @@ void PresentationPanel::buildUi() {
   Style::setRole(titleLabel_, "h3");
   rootLayout->addWidget(titleLabel_);
 
-  auto* filterGrid = new QGridLayout();
-  filterGrid->setContentsMargins(0, 0, 0, 0);
-  filterGrid->setHorizontalSpacing(8);
-  filterGrid->setVerticalSpacing(6);
+  auto* filterRow = new QHBoxLayout();
+  filterRow->setContentsMargins(0, 0, 0, 0);
+  filterRow->setSpacing(8);
 
   eventFilterLabel_ = new QLabel(this);
   Style::setRole(eventFilterLabel_, "muted");
   eventFilterCombo_ = new QComboBox(this);
-  eventFilterCombo_->setMinimumHeight(32);
+  eventFilterCombo_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   connect(eventFilterCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
           &PresentationPanel::onFilterChanged);
 
   teamFilterLabel_ = new QLabel(this);
   Style::setRole(teamFilterLabel_, "muted");
   teamFilterCombo_ = new QComboBox(this);
-  teamFilterCombo_->setMinimumHeight(32);
+  teamFilterCombo_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   connect(teamFilterCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
           &PresentationPanel::onFilterChanged);
 
-  filterGrid->addWidget(eventFilterLabel_, 0, 0);
-  filterGrid->addWidget(eventFilterCombo_, 0, 1);
-  filterGrid->addWidget(teamFilterLabel_, 1, 0);
-  filterGrid->addWidget(teamFilterCombo_, 1, 1);
-  filterGrid->setColumnStretch(1, 1);
-  rootLayout->addLayout(filterGrid);
+  filterRow->addWidget(eventFilterLabel_);
+  filterRow->addWidget(eventFilterCombo_, 1);
+  filterRow->addWidget(teamFilterLabel_);
+  filterRow->addWidget(teamFilterCombo_, 1);
+  rootLayout->addLayout(filterRow);
 
   auto* selectionRow = new QHBoxLayout();
   selectionRow->setContentsMargins(0, 0, 0, 0);
   selectionRow->setSpacing(6);
 
+  
   selectAllButton_ = new QToolButton(this);
   Style::setVariant(selectAllButton_, "ghost");
   Style::setSize(selectAllButton_, "sm");

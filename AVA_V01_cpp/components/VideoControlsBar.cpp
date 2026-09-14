@@ -5,6 +5,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QSizePolicy>
 
 #include <QAction>
 #include <QApplication>
@@ -34,6 +35,8 @@ VideoControlsBar::VideoControlsBar(QWidget* parent): QWidget(parent) {
 
 void VideoControlsBar
 ::buildUi() {
+  setObjectName(QStringLiteral("VideoControlsBar"));
+
   auto* layout = new QHBoxLayout(this);
   layout->setContentsMargins(0, 0, 0, 0);
   layout->setSpacing(8);
@@ -59,8 +62,9 @@ void VideoControlsBar
   };
 
   for (auto* button : videoControlButtons) {
-    Style::setSize(button, "md");
+    Style::setSize(button, "sm");
     button->setFocusPolicy(Qt::NoFocus);
+    button->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
   }
 
   Style::setVariant(playButton_, "primary");

@@ -78,6 +78,8 @@ const QHash<QString, QString>& spanishEventMap() {
       {QStringLiteral("Left"), QStringLiteral("Izquierda")},
       {QStringLiteral("Middle"), QStringLiteral("Centro")},
       {QStringLiteral("Right"), QStringLiteral("Derecha")},
+      {QStringLiteral("3 man"), QStringLiteral("de 3")},
+      {QStringLiteral("4 man"), QStringLiteral("de 4")},
       // Default follow-up team labels (when names empty)
       {QStringLiteral("home"), QStringLiteral("Local")},
       {QStringLiteral("away"), QStringLiteral("Visita")},

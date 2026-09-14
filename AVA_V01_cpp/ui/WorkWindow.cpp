@@ -117,14 +117,6 @@ QString formatTimestampMs(qint64 ms) {
         .arg(seconds, 2, 10, QChar('0'));
 }
 
-QColor foregroundForTeamBackground(const QColor& backgroundColor) {
-    const double red = backgroundColor.redF();
-    const double green = backgroundColor.greenF();
-    const double blue = backgroundColor.blueF();
-    const double luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-    return luminance > 0.55 ? QColor(20, 20, 20) : QColor(252, 252, 252);
-}
-
 void paintTeamCellForTag(QTableWidgetItem* teamItem, const TagSession::GameTag& tag, TagSession* session) {
     if (!teamItem) return;
     if (!session) {
@@ -158,7 +150,7 @@ void paintTeamCellForTag(QTableWidgetItem* teamItem, const TagSession::GameTag& 
         return;
     }
     teamItem->setBackground(QBrush(backgroundColor));
-    teamItem->setForeground(QBrush(foregroundForTeamBackground(backgroundColor)));
+    teamItem->setForeground(QBrush(QColor(9, 9, 11)));
 }
 
 /// Removes segments that duplicate the session team labels (embedded in follow-up strings from GameControls).
@@ -689,8 +681,8 @@ void WorkWindow::buildPresentationUi() {
     presentationBanner_->setObjectName(QStringLiteral("PresentationBanner"));
     presentationBanner_->setAttribute(Qt::WA_StyledBackground, true);
     auto* bannerLayout = new QVBoxLayout(presentationBanner_);
-    bannerLayout->setContentsMargins(16, 10, 16, 10);
-    bannerLayout->setSpacing(2);
+    bannerLayout->setContentsMargins(12, 6, 12, 6);
+    bannerLayout->setSpacing(1);
 
     presentationEventLabel_ = new QLabel(presentationBanner_);
     presentationEventLabel_->setObjectName(QStringLiteral("PresentationEventLabel"));
@@ -785,9 +777,6 @@ void WorkWindow::applyTaggingLayout() {
         }
     }
 
-    if (videoPlayer_ && videoPlayer_->controlsBar())
-        videoPlayer_->controlsBar()->setObjectName("VideoControlsBarSlim");
-
     QWidget* vw = videoPlayer_->videoWidget();
     static_cast<QBoxLayout*>(taggingVideoCol_->layout())->addWidget(vw, 1);
     auto* rightLayout = static_cast<QBoxLayout*>(taggingRightCol_->layout());
@@ -850,9 +839,6 @@ void WorkWindow::applyAnalyzingLayout() {
     if (taggingMainRow_) taggingMainRow_->hide();
     if (taggingVideoTagsSplitter_) taggingVideoTagsSplitter_->hide();
     if (presentationSplitter_) presentationSplitter_->hide();
-    if (videoPlayer_ && videoPlayer_->controlsBar())
-        videoPlayer_->controlsBar()->setObjectName(""); // normal height
-
     while (QLayoutItem* item = contentLayout_->takeAt(0)) {
         delete item;  // widget stays in tree; do not setParent(nullptr)
     }
@@ -934,9 +920,6 @@ void WorkWindow::applyPresentationLayout() {
     if (taggingMainRow_) taggingMainRow_->hide();
     if (taggingVideoTagsSplitter_) taggingVideoTagsSplitter_->hide();
     if (analyzingMainSplitter_) analyzingMainSplitter_->hide();
-    if (videoPlayer_ && videoPlayer_->controlsBar())
-        videoPlayer_->controlsBar()->setObjectName(QString());  // normal height
-
     QWidget* videoWidget = videoPlayer_ ? videoPlayer_->videoWidget() : nullptr;
     QWidget* timeline = videoPlayer_ ? videoPlayer_->timelineBar() : nullptr;
     if (!videoWidget || !presentationSplitter_ || !presentationStageColumn_) {
