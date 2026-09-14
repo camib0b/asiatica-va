@@ -26,8 +26,11 @@ public:
 
   explicit GameControls(QWidget* parent = nullptr);
 
-  /// Sets home/away team names on the top row (from game setup). Empty names use "home"/"away".
-  void setSessionTeamNames(const QString& homeName, const QString& awayName);
+  /// Sets home/away team names and jersey colors on the top row (from game setup).
+  /// Empty names use "home"/"away"; empty colors keep the default selected border.
+  void setSessionTeamNames(const QString& homeName, const QString& awayName,
+                           const QString& homeColorHex = QString(),
+                           const QString& awayColorHex = QString());
 
   /// Selects home or away on the top row (e.g. after loading a session so tagging can start immediately).
   void setInitialTeamSide(bool selectHome);
@@ -173,6 +176,8 @@ protected:
 
   QString homeTeamFollowUpLabel_ = QStringLiteral("home");
   QString awayTeamFollowUpLabel_ = QStringLiteral("away");
+  QString homeTeamColorHex_;
+  QString awayTeamColorHex_;
   TeamSideSelection teamSideSelection_ = TeamSideSelection::None;
 
   QVector<QLabel*> mainButtonTitleLabels_;

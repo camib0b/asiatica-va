@@ -308,6 +308,7 @@ QPushButton[variant="gameControl"]:focus {
   padding: 7px 15px;
 }
 
+/* teamSelected fallback; GameControls applies team jersey color via widget stylesheet when available */
 QPushButton[variant="gameControl"][teamSelected="true"] {
   border: 2px solid #18181b;
   background: #f4f4f5;

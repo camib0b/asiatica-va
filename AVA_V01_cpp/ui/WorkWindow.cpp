@@ -323,12 +323,15 @@ void WorkWindow::setTagSession(TagSession* session) {
     rebuildTagsList();
 
     if (!tagSession_) {
-        if (gameControls_) gameControls_->setSessionTeamNames(QString(), QString());
+        if (gameControls_) {
+            gameControls_->setSessionTeamNames(QString(), QString(), QString(), QString());
+        }
         return;
     }
 
     if (gameControls_) {
-        gameControls_->setSessionTeamNames(tagSession_->homeTeamName(), tagSession_->awayTeamName());
+        gameControls_->setSessionTeamNames(tagSession_->homeTeamName(), tagSession_->awayTeamName(),
+                                           tagSession_->homeTeamColor(), tagSession_->awayTeamColor());
         gameControls_->setInitialTeamSide(true);
     }
 
@@ -1418,7 +1421,8 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
         gameControls_->resetGameTimeState();
         gameControls_->show();
         if (tagSession_) {
-            gameControls_->setSessionTeamNames(tagSession_->homeTeamName(), tagSession_->awayTeamName());
+            gameControls_->setSessionTeamNames(tagSession_->homeTeamName(), tagSession_->awayTeamName(),
+                                               tagSession_->homeTeamColor(), tagSession_->awayTeamColor());
             gameControls_->setInitialTeamSide(true);
         }
         contextTeam_ = "Home";

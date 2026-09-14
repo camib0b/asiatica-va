@@ -15,8 +15,59 @@
 #include <QEvent>
 #include <QApplication>
 #include <QLabel>
+#include <QColor>
 
 namespace {
+
+constexpr QLatin1StringView kDefaultTeamSelectedBorderHex("#18181b");
+
+QString normalizeTeamColorHex(const QString& hex) {
+  QString hexClean = hex.trimmed();
+  if (hexClean.isEmpty()) return {};
+  if (!hexClean.startsWith(QLatin1Char('#'))) {
+    hexClean.prepend(QLatin1Char('#'));
+  }
+  const QColor color(hexClean);
+  if (!color.isValid()) return {};
+  return color.name(QColor::HexRgb);
+}
+
+QString teamSelectedButtonStylesheet(const QString& borderHex) {
+  const QString borderColor =
+      borderHex.isEmpty() ? QString(kDefaultTeamSelectedBorderHex) : borderHex;
+  return QStringLiteral(
+             "QPushButton {"
+             "  border: 2px solid %1;"
+             "  border-radius: 6px;"
+             "  background: #f4f4f5;"
+             "  font-weight: 700;"
+             "  color: #09090b;"
+             "  padding: 7px 15px;"
+             "}"
+             "QPushButton:hover {"
+             "  background: #e4e4e7;"
+             "  border: 2px solid %1;"
+             "  border-radius: 6px;"
+             "}"
+             "QPushButton:focus {"
+             "  border: 2px solid %1;"
+             "  border-radius: 6px;"
+             "  background: #f4f4f5;"
+             "  padding: 7px 15px;"
+             "}")
+      .arg(borderColor);
+}
+
+void applyTeamButtonSelectionStyle(QPushButton* button, bool selected, const QString& colorHex) {
+  if (!button) return;
+  Style::setState(button, "teamSelected", selected);
+  if (selected) {
+    button->setStyleSheet(teamSelectedButtonStylesheet(normalizeTeamColorHex(colorHex)));
+  } else {
+    button->setStyleSheet(QString());
+  }
+}
+
 void configureFollowUpButton(QPushButton* button, const QString& canonicalKey,
                              const QString& shortcutHint) {
   if (!button) return;
@@ -55,11 +106,14 @@ GameControls::GameControls(QWidget* parent) : QWidget(parent) {
     if (btn) btn->installEventFilter(this);
 }
 
-void GameControls::setSessionTeamNames(const QString& homeName, const QString& awayName) {
+void GameControls::setSessionTeamNames(const QString& homeName, const QString& awayName,
+                                       const QString& homeColorHex, const QString& awayColorHex) {
   const QString homeTrimmed = homeName.trimmed();
   const QString awayTrimmed = awayName.trimmed();
   homeTeamFollowUpLabel_ = homeTrimmed.isEmpty() ? QStringLiteral("home") : homeTrimmed;
   awayTeamFollowUpLabel_ = awayTrimmed.isEmpty() ? QStringLiteral("away") : awayTrimmed;
+  homeTeamColorHex_ = homeColorHex.trimmed();
+  awayTeamColorHex_ = awayColorHex.trimmed();
   teamSideSelection_ = TeamSideSelection::None;
   if (homeTeamButton_) homeTeamButton_->setText(homeTeamFollowUpLabel_);
   if (awayTeamButton_) awayTeamButton_->setText(awayTeamFollowUpLabel_);
@@ -73,10 +127,10 @@ QString GameControls::selectedTeamLabel() const {
 }
 
 void GameControls::updateTeamButtonSelectionVisual() {
-  if (homeTeamButton_)
-    Style::setState(homeTeamButton_, "teamSelected", teamSideSelection_ == TeamSideSelection::Home);
-  if (awayTeamButton_)
-    Style::setState(awayTeamButton_, "teamSelected", teamSideSelection_ == TeamSideSelection::Away);
+  applyTeamButtonSelectionStyle(homeTeamButton_, teamSideSelection_ == TeamSideSelection::Home,
+                                homeTeamColorHex_);
+  applyTeamButtonSelectionStyle(awayTeamButton_, teamSideSelection_ == TeamSideSelection::Away,
+                                awayTeamColorHex_);
 }
 
 void GameControls::onHomeTeamButtonClicked() {
