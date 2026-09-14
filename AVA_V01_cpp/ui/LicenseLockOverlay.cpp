@@ -36,10 +36,6 @@ void LicenseLockOverlay::setCloseAllowed(bool allowed) {
   if (closeButton_) closeButton_->setVisible(allowed);
 }
 
-void LicenseLockOverlay::refreshCopy() {
-  applyUiStrings();
-}
-
 void LicenseLockOverlay::buildUi() {
   auto* outerLayout = new QVBoxLayout(this);
   outerLayout->setContentsMargins(24, 24, 24, 24);

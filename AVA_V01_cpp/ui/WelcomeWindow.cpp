@@ -8,12 +8,10 @@
 #include <QPushButton>
 #include <QWidget>
 #include <QVBoxLayout>
-#include <QHBoxLayout>
 #include <QAction>
 #include <QFontMetrics>
 #include <QApplication>
 #include <QDateTime>
-#include <QDebug>
 #include <QSizePolicy>
 
 
@@ -67,15 +65,10 @@ void WelcomeWindow::applyUiStrings() {
 }
 
 void WelcomeWindow::buildUi() {
-    speedLabel_ = new QLabel(this);
-    Style::setRole(speedLabel_, "muted");
-
-    // Outer layout for centering
     auto* outerLayout = new QVBoxLayout(this);
     outerLayout->setContentsMargins(24, 24, 24, 24);
     outerLayout->addStretch(1);
 
-    // Inner container for content
     auto* contentContainer = new QWidget(this);
     auto* layout = new QVBoxLayout(contentContainer);
     layout->setContentsMargins(0, 0, 0, 0);

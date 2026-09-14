@@ -3,17 +3,11 @@
 #include <QColor>
 
 namespace Style {
-
-// Programmatic highlights for playhead proximity, active clips, and trim ranges.
-// Distinct from QTableWidget selection colors in theme_light.qss.
 namespace ThemeColors {
 
-inline constexpr int kPlayheadHighlightRed = 147;
-inline constexpr int kPlayheadHighlightGreen = 197;
-inline constexpr int kPlayheadHighlightBlue = 253;
-
+// Programmatic playhead highlight; distinct from QTableWidget selection in theme_light.qss.
 inline QColor playheadHighlight(int alpha = 255) {
-  return QColor(kPlayheadHighlightRed, kPlayheadHighlightGreen, kPlayheadHighlightBlue, alpha);
+  return QColor(147, 197, 253, alpha);
 }
 
 } // namespace ThemeColors

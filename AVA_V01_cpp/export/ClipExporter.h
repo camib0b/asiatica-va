@@ -50,12 +50,8 @@ public:
     void startExport();
     void cancelExport();
 
-    bool isRunning() const;
     static QString findFfmpeg();
     static QString findFfprobe();
-    static QSize probeVideoDisplaySize(const QString& videoPath);
-    static qreal computeOverlayScale(const QSize& videoSize);
-    static QSize cappedOutputSize(const QSize& sourceSize);
 
 signals:
     void progressChanged(int currentClip, int totalClips);
@@ -69,6 +65,9 @@ private:
     void processNextClip();
     void concatenateClips();
     void cleanup();
+    static QSize probeVideoDisplaySize(const QString& videoPath);
+    static qreal computeOverlayScale(const QSize& videoSize);
+    static QSize cappedOutputSize(const QSize& sourceSize);
     static QString generateOverlayImage(const QString& primaryText,
                                         const QString& secondaryText,
                                         const QString& outputPath,

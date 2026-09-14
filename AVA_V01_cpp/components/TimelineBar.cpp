@@ -105,8 +105,6 @@ void TimelineBar::wireSignals() {
   connect(slider_, &QSlider::sliderMoved, this, [this](int value) {
     updateLabel(value, durationMs_);
 
-    if (!enableLiveScrubSeek_) return;
-
     if (!scrubThrottleTimer_.isValid()) scrubThrottleTimer_.start();
     if (scrubThrottleTimer_.elapsed() >= kScrubThrottleMs) {
       emit scrubSeekTo(static_cast<qint64>(value));

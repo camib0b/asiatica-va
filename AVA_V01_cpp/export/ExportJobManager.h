@@ -8,10 +8,8 @@
 #include <QStringList>
 #include <QVector>
 
-class ClipExporter;
 class TagSession;
 class YouTubeAuthManager;
-class YouTubeUploader;
 
 enum class ExportOutputFormat {
     Mp4 = 0,

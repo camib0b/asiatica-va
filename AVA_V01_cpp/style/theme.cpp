@@ -43,15 +43,3 @@ void ApplyLightTheme() {
 }
 
 } // namespace Style
-
-/*
-Fusion is fine right now. Just be aware it’s a stylistic decision. If later you
-want “more macOS-native widgets”, you might remove it and keep QSS more limited.
-*/
-
-/*
-All “shadcn-like” differences are expressed as:
--role for text (“h1”, “muted”, “accent”…)
--variant for buttons (“primary”, “secondary”, “ghost”, …)
--size for controls (“sm”, “md”, “lg”)
-*/

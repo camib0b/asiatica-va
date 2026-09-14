@@ -8,7 +8,6 @@
 #include <QBrush>
 #include <QHash>
 #include <QList>
-#include <QSet>
 #include <QVector>
 
 class QLabel;
@@ -147,7 +146,6 @@ private:
   QString displayTeamForTag(const TagSession::GameTag& tag) const;
   bool isMainEventAllowed(const QString& mainEvent) const;
   bool isTagAllowed(const QString& mainEvent, const QString& followUpEvent) const;
-  bool isTagAllowedByQuickFilters(const TagSession::GameTag& tag) const;
   bool hasAnyFilterActive() const;
   TagSession::GameTag currentTagContext() const;
 
@@ -240,7 +238,6 @@ private:
 
   TagSession* tagSession_ = nullptr;
   QHash<QString, QAction*> filterActionByMainEvent_;
-  QSet<QString> allowedMainEvents_;
   QString activeFilterPathMainEvent_;
   QString activeFilterPathFollowUp_;
 
@@ -248,10 +245,9 @@ private:
   qint64 pendingTimestampMs_ = 0;
   bool hasPendingTag_ = false;
 
-  // Tag-context state (period/team/situation for new tags)
+  // Tag-context state (period/team for new tags)
   QString contextPeriod_;
   QString contextTeam_;
-  QString contextSituation_;
 
   QString sourceVideoPath_;
   QString playbackVideoPath_;

@@ -20,7 +20,6 @@ public:
     QString note;
     QString period;   // e.g. "Q1", "Q2", "Q3", "Q4"
     QString team;    // e.g. "Home", "Away"
-    QString situation; // e.g. "Attacking", "Defending"
     bool intervalManuallyEdited = false; // true when the user trimmed start/end away from defaults
   };
 
@@ -75,10 +74,9 @@ public:
   void removeTag(int index);
   void setTagNote(int index, const QString& note);
   QString tagNote(int index) const;
-  /// Updates the clip interval (start/end in ms) of the tag at \p index.
-  /// When \p userInitiated is true (export trim bar drag), the tag is always marked as
+  /// Updates the clip interval (start/end in ms) of the tag at \p index and marks it as
   /// manually trimmed so later default-duration changes cannot overwrite it.
-  void setTagInterval(int index, qint64 startMs, qint64 endMs, bool userInitiated = false);
+  void setTagInterval(int index, qint64 startMs, qint64 endMs);
   /// Re-applies pre/post defaults (in ms) to every tag of \p mainEvent that has not been
   /// manually trimmed. Quarter / start-anchor tags are skipped because their interval is
   /// determined by user clicks, not by symmetric pads.

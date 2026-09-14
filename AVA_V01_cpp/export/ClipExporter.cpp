@@ -324,10 +324,6 @@ void ClipExporter::setIncludeBrandingOverlay(bool includeBrandingOverlay) {
     includeBrandingOverlay_ = includeBrandingOverlay;
 }
 
-bool ClipExporter::isRunning() const {
-    return currentProcess_ && currentProcess_->state() != QProcess::NotRunning;
-}
-
 void ClipExporter::startExport() {
     ffmpegPath_ = findFfmpeg();
     if (ffmpegPath_.isEmpty()) {

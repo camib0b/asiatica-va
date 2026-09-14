@@ -22,7 +22,6 @@ public:
   void startPreparation(const QString& inputPath, const QString& outputDir);
   void cancel();
 
-  bool isRunning() const;
   bool waitWithProgress(QWidget* parentWidget);
 
   QString outputPath() const { return outputPath_; }

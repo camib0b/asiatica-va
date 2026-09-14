@@ -44,7 +44,6 @@ private:
   qint64 lastKnownPositionMs_ = 0;
   bool isScrubbing_ = false;
   bool isEditingTimeEntry_ = false;
-  bool enableLiveScrubSeek_ = true;   // you can tweak this later
   qint64 pendingSeekMs_ = -1;
   bool waitingForSeekCommit_ = false;
   QElapsedTimer scrubThrottleTimer_;

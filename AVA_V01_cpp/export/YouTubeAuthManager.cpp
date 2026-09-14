@@ -172,10 +172,6 @@ QString YouTubeAuthManager::channelTitle() const {
     return channelTitle_;
 }
 
-QString YouTubeAuthManager::channelId() const {
-    return channelId_;
-}
-
 void YouTubeAuthManager::requestAccessToken(
     const std::function<void(const QString& token, const QString& error)>& callback) {
     if (!isAuthenticated()) {
