@@ -167,29 +167,29 @@ void PresentationPanel::buildUi() {
   Style::setRole(currentClipTitleLabel_, "h3");
   rootLayout->addWidget(currentClipTitleLabel_);
 
-  auto* leadLagGrid = new QGridLayout();
-  leadLagGrid->setContentsMargins(0, 0, 0, 0);
-  leadLagGrid->setHorizontalSpacing(8);
-  leadLagGrid->setVerticalSpacing(6);
+  auto* leadLagRow = new QHBoxLayout();
+  leadLagRow->setContentsMargins(0, 0, 0, 0);
+  leadLagRow->setSpacing(8);
 
   leadLabel_ = new QLabel(this);
   Style::setRole(leadLabel_, "muted");
   leadSpinBox_ = makeLeadLagSpinBox(this);
+  leadSpinBox_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   connect(leadSpinBox_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
           [this](double) { onLeadLagSpinChanged(); });
 
   lagLabel_ = new QLabel(this);
   Style::setRole(lagLabel_, "muted");
   lagSpinBox_ = makeLeadLagSpinBox(this);
+  lagSpinBox_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   connect(lagSpinBox_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
           [this](double) { onLeadLagSpinChanged(); });
 
-  leadLagGrid->addWidget(leadLabel_, 0, 0);
-  leadLagGrid->addWidget(leadSpinBox_, 0, 1);
-  leadLagGrid->addWidget(lagLabel_, 1, 0);
-  leadLagGrid->addWidget(lagSpinBox_, 1, 1);
-  leadLagGrid->setColumnStretch(1, 1);
-  rootLayout->addLayout(leadLagGrid);
+  leadLagRow->addWidget(leadLabel_);
+  leadLagRow->addWidget(leadSpinBox_, 1);
+  leadLagRow->addWidget(lagLabel_);
+  leadLagRow->addWidget(lagSpinBox_, 1);
+  rootLayout->addLayout(leadLagRow);
 
   applyToAllButton_ = new QPushButton(this);
   applyToAllButton_->setCursor(Qt::PointingHandCursor);
@@ -314,7 +314,7 @@ void PresentationPanel::rebuildEventFilterOptions() {
   const QString previousTeam = teamFilterCombo_->currentData().toString();
   const QSignalBlocker teamBlocker(teamFilterCombo_);
   teamFilterCombo_->clear();
-  teamFilterCombo_->addItem(AppLocale::trUi("export.team_all"), QString());
+  teamFilterCombo_->addItem(AppLocale::trUi("presentation.team_all"), QString());
   teamFilterCombo_->addItem(teamDisplayName(QStringLiteral("Home")), QStringLiteral("Home"));
   teamFilterCombo_->addItem(teamDisplayName(QStringLiteral("Away")), QStringLiteral("Away"));
   const int restoredTeamIndex = teamFilterCombo_->findData(previousTeam);

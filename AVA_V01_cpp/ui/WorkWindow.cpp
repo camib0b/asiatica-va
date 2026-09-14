@@ -39,6 +39,7 @@
 #include <QHBoxLayout>
 #include <QTemporaryDir>
 #include <QToolButton>
+#include <QFontMetrics>
 #include <QMenu>
 #include <QVideoWidget>
 #include <QAbstractItemView>
@@ -160,6 +161,25 @@ QString followUpForEventColumn(const QString& followUpEvent, const TagSession* s
     }
     return AppLocale::followUpPathWithoutTeamSegments(followUpEvent, session->homeTeamName(), session->awayTeamName());
 }
+
+void syncWorkModeToggleButtonSizes(QToolButton* taggingButton, QToolButton* analyzingButton,
+                                   QToolButton* presentingButton) {
+    if (!taggingButton || !analyzingButton || !presentingButton) return;
+
+    int maxWidth = 0;
+    for (QToolButton* button : {taggingButton, analyzingButton, presentingButton}) {
+        QFont boldFont = button->font();
+        boldFont.setWeight(QFont::DemiBold);
+        const QFontMetrics metrics(boldFont);
+        const int horizontalPadding = 24;
+        maxWidth = qMax(maxWidth, metrics.horizontalAdvance(button->text()) + horizontalPadding);
+    }
+
+    for (QToolButton* button : {taggingButton, analyzingButton, presentingButton}) {
+        button->setMinimumWidth(maxWidth);
+        button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    }
+}
 } // namespace
 
 WorkWindow::WorkWindow(QWidget* parent) : QWidget(parent) {
@@ -250,6 +270,7 @@ void WorkWindow::applyUiStrings() {
         modePresentingBtn_->setText(AppLocale::trUi("mode.presenting"));
         modePresentingBtn_->setToolTip(AppLocale::trUi("tooltip.mode_presenting"));
     }
+    syncWorkModeToggleButtonSizes(modeTaggingBtn_, modeAnalyzingBtn_, modePresentingBtn_);
     if (videoMenuButton_) videoMenuButton_->setToolTip(AppLocale::trUi("tooltip.video_menu"));
     if (replaceVideoAction_) replaceVideoAction_->setText(AppLocale::trUi("menu.replace_video"));
     if (discardVideoAction_) discardVideoAction_->setText(AppLocale::trUi("menu.close_video"));
@@ -347,7 +368,17 @@ void WorkWindow::setTagSession(TagSession* session) {
             }
         }
     });
-    connect(tagSession_, &TagSession::tagNoteChanged, this, [this](int) { loadNoteForSelectedTag(); });
+    connect(tagSession_, &TagSession::tagNoteChanged, this, [this](int changedIndex) {
+        if (!notesEdit_ || !tagSession_) return;
+        if (notesEdit_->hasFocus()) return;
+        const QTableWidgetItem* item = currentTagKeyItem();
+        if (!item) return;
+        const QVariant indexValue = item->data(Qt::UserRole + 3);
+        if (!indexValue.isValid() || indexValue.toInt() != changedIndex) return;
+        const QString noteText = tagSession_->tagNote(changedIndex);
+        if (notesEdit_->toPlainText() == noteText) return;
+        loadNoteForSelectedTag();
+    });
 }
 
 void WorkWindow::setMode(Mode m) {
@@ -816,7 +847,10 @@ void WorkWindow::applyTaggingLayout() {
     if (tagsSection_) tagsSection_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     statsWindow_->hide();
-    if (notesEdit_) notesEdit_->hide();
+    if (notesEdit_) {
+        notesEdit_->setMaximumHeight(120);
+        notesEdit_->hide();
+    }
 
     if (gameControls_) gameControls_->show();
 
@@ -873,18 +907,19 @@ void WorkWindow::applyAnalyzingLayout() {
     timeline->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     tagsSection_->setMinimumWidth(160);
     tagsSection_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    gameControls_->setMinimumWidth(GameControls::kMinimumPanelWidthPx);
-    gameControls_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    if (notesEdit_) {
+        notesEdit_->setMaximumHeight(QWIDGETSIZE_MAX);
+        notesEdit_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    }
 
     analyzingTagsControlsSplitter_->addWidget(tagsSection_);
-    analyzingTagsControlsSplitter_->addWidget(gameControls_);
+    if (notesEdit_) analyzingTagsControlsSplitter_->addWidget(notesEdit_);
 
     analyzingLeftSplitter_->addWidget(vw);
     analyzingLeftSplitter_->addWidget(timeline);
     analyzingLeftSplitter_->addWidget(analyzingTagsControlsSplitter_);
 
     analyzingRightSplitter_->addWidget(statsWindow_);
-    if (notesEdit_) analyzingRightSplitter_->addWidget(notesEdit_);
 
     analyzingMainSplitter_->setStretchFactor(0, 2);
     analyzingMainSplitter_->setStretchFactor(1, 1);
@@ -893,8 +928,7 @@ void WorkWindow::applyAnalyzingLayout() {
     analyzingLeftSplitter_->setStretchFactor(2, 3);
     analyzingTagsControlsSplitter_->setStretchFactor(0, 1);
     analyzingTagsControlsSplitter_->setStretchFactor(1, 1);
-    analyzingRightSplitter_->setStretchFactor(0, 3);
-    analyzingRightSplitter_->setStretchFactor(1, 1);
+    analyzingRightSplitter_->setStretchFactor(0, 1);
 
     contentLayout_->addWidget(analyzingMainSplitter_, 1);
 
@@ -902,7 +936,7 @@ void WorkWindow::applyAnalyzingLayout() {
     if (notesEdit_) notesEdit_->show();
     // Presentation mode hides these outright; re-show them after their layout slot is restored.
     if (tagsSection_) tagsSection_->show();
-    if (gameControls_) gameControls_->show();
+    if (gameControls_) gameControls_->hide();
     tagsTable_->setMaximumHeight(QWIDGETSIZE_MAX);
 
     if (tagsHeaderRow_) tagsHeaderRow_->show();
@@ -961,7 +995,10 @@ void WorkWindow::applyPresentationLayout() {
     if (tagsSection_) tagsSection_->hide();
     if (gameControls_) gameControls_->hide();
     if (statsWindow_) statsWindow_->hide();
-    if (notesEdit_) notesEdit_->hide();
+    if (notesEdit_) {
+        notesEdit_->setMaximumHeight(120);
+        notesEdit_->hide();
+    }
 
     contentLayout_->addWidget(presentationSplitter_, 1);
     presentationSplitter_->show();
@@ -1009,20 +1046,11 @@ void WorkWindow::applyAnalyzingSplitterGeometry() {
         analyzingLeftSplitter_->setSizes({videoH, timelineH, tagsControlsRowH});
     }
 
-    const int tagsControlsRowW = analyzingTagsControlsSplitter_ ? analyzingTagsControlsSplitter_->width() : 0;
-    if (analyzingTagsControlsSplitter_ && tagsControlsRowW >= 120) {
-        const int tagsW = qMax(200, tagsControlsRowW * 1 / 2);
-        const int controlsW = qMax(200, tagsControlsRowW - tagsW);
-        analyzingTagsControlsSplitter_->setSizes({tagsW, controlsW});
-    }
-
-    const int rightH = analyzingRightSplitter_ ? analyzingRightSplitter_->height() : 0;
-    if (analyzingRightSplitter_ && rightH >= 100) {
-        const int handle = analyzingRightSplitter_->handleWidth();
-        const int inner = rightH - handle;
-        const int statsH = qMax(180, inner * 72 / 100);
-        const int notesH = qMax(80, inner - statsH);
-        analyzingRightSplitter_->setSizes({statsH, notesH});
+    const int tagsNotesRowW = analyzingTagsControlsSplitter_ ? analyzingTagsControlsSplitter_->width() : 0;
+    if (analyzingTagsControlsSplitter_ && tagsNotesRowW >= 120) {
+        const int tagsW = qMax(200, tagsNotesRowW / 2);
+        const int notesW = qMax(200, tagsNotesRowW - tagsW);
+        analyzingTagsControlsSplitter_->setSizes({tagsW, notesW});
     }
 }
 
@@ -2011,7 +2039,9 @@ void WorkWindow::loadNoteForSelectedTag() {
     auto* item = currentTagKeyItem();
     notesEdit_->blockSignals(true);
     if (!item) {
-        notesEdit_->clear();
+        if (!notesEdit_->toPlainText().isEmpty()) {
+            notesEdit_->clear();
+        }
         notesEdit_->setEnabled(false);
         notesEdit_->setPlaceholderText("Select a tag to add a note…");
     } else {
@@ -2019,14 +2049,19 @@ void WorkWindow::loadNoteForSelectedTag() {
         if (idxVar.isValid()) {
             int idx = idxVar.toInt();
             if (idx >= 0 && idx < tagSession_->tags().size()) {
-                notesEdit_->setPlainText(tagSession_->tagNote(idx));
+                const QString noteText = tagSession_->tagNote(idx);
+                if (notesEdit_->toPlainText() != noteText) {
+                    notesEdit_->setPlainText(noteText);
+                }
                 notesEdit_->setEnabled(true);
                 notesEdit_->setPlaceholderText("Note for this tag…");
                 notesEdit_->blockSignals(false);
                 return;
             }
         }
-        notesEdit_->clear();
+        if (!notesEdit_->toPlainText().isEmpty()) {
+            notesEdit_->clear();
+        }
         notesEdit_->setEnabled(true);
         notesEdit_->setPlaceholderText("Select a tag to add a note…");
     }
