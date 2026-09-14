@@ -69,10 +69,6 @@ void PlaybackVideoPreparer::cancel() {
     errorMessage_.clear();
 }
 
-bool PlaybackVideoPreparer::isRunning() const {
-    return process_ && process_->state() != QProcess::NotRunning;
-}
-
 void PlaybackVideoPreparer::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus) {
     if (cancelled_) return;
 

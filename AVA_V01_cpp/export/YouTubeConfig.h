@@ -7,9 +7,6 @@ namespace YouTubeConfig {
 /// Returns the Google OAuth client ID, or empty if not configured.
 QString clientId();
 
-/// Returns the YouTube Data API key, or empty if not configured.
-QString apiKey();
-
 /// True when a client ID is available for the OAuth flow.
 bool isConfigured();
 

@@ -41,7 +41,6 @@ public:
   /// Replaces the queue with the given TagSession indexes, ordered by event mark. The clip that is
   /// currently on screen stays selected when it is still part of the new selection.
   void setSelectedTagIndexes(const QVector<int>& tagSessionIndexes);
-  QVector<int> selectedTagIndexes() const { return selectedTagIndexes_; }
   void clear();
 
   bool isEmpty() const { return clips_.isEmpty(); }
@@ -54,8 +53,6 @@ public:
   bool hasPreviousClip() const { return currentIndex_ > 0; }
 
   bool setCurrentIndex(int index);
-  bool moveToNextClip();
-  bool moveToPreviousClip();
   /// Selects the queued clip belonging to \p tagSessionIndex; false when it is not queued.
   bool setCurrentTagIndex(int tagSessionIndex);
 

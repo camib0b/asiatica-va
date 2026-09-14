@@ -29,16 +29,6 @@ QWidget#AppRoot {
 }
 
 /* =========================
-   Cards
-========================= */
-
-QFrame#Card {
-  background: #FFFFFF;
-  border: 1px solid #e4e4e7;
-  border-radius: 8px;
-}
-
-/* =========================
    Typography
 ========================= */
 

@@ -336,7 +336,6 @@ void WorkWindow::setTagSession(TagSession* session) {
     }
 
     connect(tagSession_, &TagSession::cleared, this, [this]() {
-        allowedMainEvents_.clear();
         rebuildFilterMenu();
         rebuildTagsList();
     });
@@ -359,16 +358,7 @@ void WorkWindow::setTagSession(TagSession* session) {
                                             tagSession_->currentQuarterIndex());
         }
         if (tagSession_->currentQuarterIndex() >= 0) {
-            static const QString kQuarterCodes[4] = {
-                QString::fromLatin1(EventDefaults::TimeCodes::kQuarter1),
-                QString::fromLatin1(EventDefaults::TimeCodes::kQuarter2),
-                QString::fromLatin1(EventDefaults::TimeCodes::kQuarter3),
-                QString::fromLatin1(EventDefaults::TimeCodes::kQuarter4),
-            };
-            const int quarterIndex = tagSession_->currentQuarterIndex();
-            if (quarterIndex >= 0 && quarterIndex < 4) {
-                contextPeriod_ = kQuarterCodes[quarterIndex];
-            }
+            contextPeriod_ = EventDefaults::quarterCode(tagSession_->currentQuarterIndex());
         }
     });
     connect(tagSession_, &TagSession::tagNoteChanged, this, [this](int changedIndex) {
@@ -421,7 +411,6 @@ TagSession::GameTag WorkWindow::currentTagContext() const {
     TagSession::GameTag ctx;
     ctx.period = contextPeriod_;
     ctx.team = contextTeam_;
-    ctx.situation = contextSituation_;
     return ctx;
 }
 
@@ -1161,7 +1150,6 @@ void WorkWindow::wireSignals() {
             tag.positionMs = timestampMs;
             TagSession::GameTag ctx = currentTagContext();
             tag.period = ctx.period;
-            tag.situation = ctx.situation;
             if (gameControls_) {
                 const QString sideKey = gameControls_->selectedTeamSideKey();
                 tag.team = sideKey.isEmpty() ? ctx.team : sideKey;
@@ -1326,21 +1314,14 @@ void WorkWindow::onNextQuarterRequested() {
     const qint64 nowMs = videoPlayer_->currentPositionMs();
     const qint64 endMs = nowMs >= quarterStartMs ? nowMs : quarterStartMs;
 
-    static const QString kQuarterCodes[4] = {
-        QString::fromLatin1(EventDefaults::TimeCodes::kQuarter1),
-        QString::fromLatin1(EventDefaults::TimeCodes::kQuarter2),
-        QString::fromLatin1(EventDefaults::TimeCodes::kQuarter3),
-        QString::fromLatin1(EventDefaults::TimeCodes::kQuarter4),
-    };
-
     if (closingIndex < 0 || closingIndex > 3) return;
 
     TagSession::GameTag quarterTag;
-    quarterTag.mainEvent = kQuarterCodes[closingIndex];
+    quarterTag.mainEvent = EventDefaults::quarterCode(closingIndex);
     quarterTag.positionMs = quarterStartMs;
     quarterTag.startMs = quarterStartMs;
     quarterTag.endMs = endMs;
-    quarterTag.period = kQuarterCodes[closingIndex];
+    quarterTag.period = quarterTag.mainEvent;
     quarterTag.intervalManuallyEdited = true; // quarter span is anchored to user clicks
     tagSession_->addTag(quarterTag);
 
@@ -1351,7 +1332,7 @@ void WorkWindow::onNextQuarterRequested() {
         contextPeriod_.clear();
     } else {
         tagSession_->setCurrentQuarter(nextIndex, nowMs);
-        contextPeriod_ = kQuarterCodes[nextIndex];
+        contextPeriod_ = EventDefaults::quarterCode(nextIndex);
     }
 }
 
@@ -2047,7 +2028,7 @@ void WorkWindow::loadNoteForSelectedTag() {
             notesEdit_->clear();
         }
         notesEdit_->setEnabled(false);
-        notesEdit_->setPlaceholderText("Select a tag to add a note…");
+        notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder_empty"));
     } else {
         QVariant idxVar = item->data(Qt::UserRole + 3);
         if (idxVar.isValid()) {
@@ -2058,7 +2039,7 @@ void WorkWindow::loadNoteForSelectedTag() {
                     notesEdit_->setPlainText(noteText);
                 }
                 notesEdit_->setEnabled(true);
-                notesEdit_->setPlaceholderText("Note for this tag…");
+                notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
                 notesEdit_->blockSignals(false);
                 return;
             }
@@ -2067,7 +2048,7 @@ void WorkWindow::loadNoteForSelectedTag() {
             notesEdit_->clear();
         }
         notesEdit_->setEnabled(true);
-        notesEdit_->setPlaceholderText("Select a tag to add a note…");
+        notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder_empty"));
     }
     notesEdit_->blockSignals(false);
 }
@@ -2257,11 +2238,6 @@ bool WorkWindow::isTagAllowed(const QString& mainEvent, const QString& followUpE
     return isMainEventAllowed(mainEvent);
 }
 
-bool WorkWindow::isTagAllowedByQuickFilters(const TagSession::GameTag& tag) const {
-    (void)tag;
-    return true;
-}
-
 bool WorkWindow::hasAnyFilterActive() const {
     if (!activeFilterPathMainEvent_.isEmpty()) return true;
     for (auto it = filterActionByMainEvent_.cbegin(); it != filterActionByMainEvent_.cend(); ++it) {
@@ -2318,7 +2294,7 @@ void WorkWindow::updateFilterIndicator() {
         if (!activeFilterPathFollowUp_.isEmpty()) {
             pathText += QStringLiteral(" → ") + AppLocale::translateCompoundPath(activeFilterPathFollowUp_);
         }
-        tagsFilterIndicator_->setText(AppLocale::trUi("filter.indicator_path") + pathText);
+        tagsFilterIndicator_->setText(AppLocale::trUi("filter.indicator") + pathText);
         tagsFilterIndicator_->show();
         return;
     }
@@ -2336,7 +2312,7 @@ void WorkWindow::updateFilterIndicator() {
     }
 
     activeFilters.sort(Qt::CaseInsensitive);
-    const QString text = AppLocale::trUi("filter.indicator_list") + activeFilters.join(QStringLiteral(", "));
+    const QString text = AppLocale::trUi("filter.indicator") + activeFilters.join(QStringLiteral(", "));
     tagsFilterIndicator_->setText(text);
     tagsFilterIndicator_->show();
 }
@@ -2353,7 +2329,7 @@ void WorkWindow::rebuildTagsList() {
     QVector<TagEntry> entries;
     int tagSessionIndex = 0;
     for (const auto& tag : tagSession_->tags()) {
-        if (isTagAllowed(tag.mainEvent, tag.followUpEvent) && isTagAllowedByQuickFilters(tag)) {
+        if (isTagAllowed(tag.mainEvent, tag.followUpEvent)) {
             entries.append({tag, tagSessionIndex});
         }
         tagSessionIndex++;

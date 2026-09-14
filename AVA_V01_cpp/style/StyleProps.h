@@ -6,15 +6,6 @@
 
 namespace Style {
 
-inline void repolish(QWidget* w) {
-  if (!w) return;
-  if (auto* s = w->style()) {
-    s->unpolish(w);
-    s->polish(w);
-  }
-  w->update();
-}
-
 inline bool setProp(QWidget* w, const char* key, const QVariant& v) {
   if (!w || !key) return false;
 

@@ -127,9 +127,14 @@ EventDuration defaultFor(const QString& canonicalMainEvent) {
   return factoryDefaultFor(canonicalMainEvent);
 }
 
-bool hasUserOverride(const QString& canonicalMainEvent) {
-  ensureOverridesLoaded();
-  return userOverrides().contains(canonicalMainEvent);
+QString quarterCode(int quarterIndex) {
+  switch (quarterIndex) {
+    case 0: return QString::fromLatin1(TimeCodes::kQuarter1);
+    case 1: return QString::fromLatin1(TimeCodes::kQuarter2);
+    case 2: return QString::fromLatin1(TimeCodes::kQuarter3);
+    case 3: return QString::fromLatin1(TimeCodes::kQuarter4);
+    default: return {};
+  }
 }
 
 void setUserOverride(const QString& canonicalMainEvent, qint64 preMs, qint64 postMs) {

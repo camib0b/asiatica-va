@@ -95,16 +95,6 @@ bool PresentationQueue::setCurrentIndex(int index) {
   return true;
 }
 
-bool PresentationQueue::moveToNextClip() {
-  if (!hasNextClip()) return false;
-  return setCurrentIndex(currentIndex_ + 1);
-}
-
-bool PresentationQueue::moveToPreviousClip() {
-  if (!hasPreviousClip()) return false;
-  return setCurrentIndex(currentIndex_ - 1);
-}
-
 bool PresentationQueue::setCurrentTagIndex(int tagSessionIndex) {
   const int queueIndex = queueIndexForTagIndex(tagSessionIndex);
   if (queueIndex < 0) return false;
@@ -123,8 +113,7 @@ void PresentationQueue::setClipInterval(int index, qint64 startMs, qint64 endMs)
 
   if (tagSession_ && clip.tagSessionIndex >= 0 && clip.tagSessionIndex < tagSession_->tags().size()) {
     writingIntervalToSession_ = true;
-    tagSession_->setTagInterval(clip.tagSessionIndex, clip.startMs, clip.endMs,
-                                /*userInitiated=*/true);
+    tagSession_->setTagInterval(clip.tagSessionIndex, clip.startMs, clip.endMs);
     writingIntervalToSession_ = false;
   }
 

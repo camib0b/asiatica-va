@@ -158,20 +158,13 @@ void TagSession::restoreGameTimeStateFromTags() {
     }
   }
 
-  static const QString kQuarterCodes[4] = {
-      QString::fromLatin1(EventDefaults::TimeCodes::kQuarter1),
-      QString::fromLatin1(EventDefaults::TimeCodes::kQuarter2),
-      QString::fromLatin1(EventDefaults::TimeCodes::kQuarter3),
-      QString::fromLatin1(EventDefaults::TimeCodes::kQuarter4),
-  };
-
   bool hasClosedQuarter[4] = {false, false, false, false};
   qint64 quarterStartMs[4] = {0, 0, 0, 0};
   qint64 quarterEndMs[4] = {0, 0, 0, 0};
 
   for (const GameTag& tag : tags_) {
     for (int i = 0; i < 4; ++i) {
-      if (tag.mainEvent == kQuarterCodes[i]) {
+      if (tag.mainEvent == EventDefaults::quarterCode(i)) {
         hasClosedQuarter[i] = true;
         quarterStartMs[i] = tag.startMs;
         quarterEndMs[i] = tag.endMs;
@@ -264,18 +257,15 @@ QString TagSession::tagNote(int index) const {
   return tags_[index].note;
 }
 
-void TagSession::setTagInterval(int index, qint64 startMs, qint64 endMs, bool userInitiated) {
+void TagSession::setTagInterval(int index, qint64 startMs, qint64 endMs) {
   if (index < 0 || index >= tags_.size()) return;
   if (startMs < 0) startMs = 0;
   if (endMs < startMs) endMs = startMs;
   GameTag& tag = tags_[index];
-  if (userInitiated) {
-    tag.intervalManuallyEdited = true;
-  }
+  tag.intervalManuallyEdited = true;
   if (tag.startMs == startMs && tag.endMs == endMs) return;
   tag.startMs = startMs;
   tag.endMs = endMs;
-  tag.intervalManuallyEdited = true;
   emit tagIntervalChanged(index);
 }
 
@@ -352,8 +342,7 @@ QString TagSession::periodLabelAtTimestampMs(qint64 positionMs) const {
   if (quarterPhase_ == QuarterPhase::QuarterInProgress) {
     const int quarterIndex = currentQuarterIndex_;
     if (quarterIndex >= 0 && quarterIndex < 4 && positionMs >= currentQuarterStartMs_) {
-      static const char* kQuarterLabels[4] = {"Q1", "Q2", "Q3", "Q4"};
-      return QString::fromLatin1(kQuarterLabels[quarterIndex]);
+      return EventDefaults::quarterCode(quarterIndex);
     }
   }
 

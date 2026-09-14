@@ -63,7 +63,7 @@ void ExportJobsBar::rebuildRows() {
         rowLayout->addWidget(nameLabel, 0);
 
         auto* statusLabel = new QLabel(snapshot.statusText, row);
-        Style::setRole(statusLabel, snapshot.failed ? "muted" : "muted");
+        Style::setRole(statusLabel, "muted");
         statusLabel->setWordWrap(true);
         rowLayout->addWidget(statusLabel, 1);
 

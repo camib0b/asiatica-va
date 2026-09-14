@@ -17,8 +17,6 @@ public:
     void startConcatenation(const QStringList& inputPaths, const QString& outputDir);
     void cancel();
 
-    bool isRunning() const;
-    bool isFinished() const { return finished_; }
     bool succeeded() const { return succeeded_; }
     QString outputPath() const { return outputPath_; }
     QString errorMessage() const { return errorMessage_; }

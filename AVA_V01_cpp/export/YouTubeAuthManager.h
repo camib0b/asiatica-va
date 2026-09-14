@@ -13,7 +13,6 @@ public:
 
     bool isAuthenticated() const;
     QString channelTitle() const;
-    QString channelId() const;
 
     /// Returns a valid access token, refreshing when needed. Empty on failure.
     void requestAccessToken(const std::function<void(const QString& token, const QString& error)>& callback);

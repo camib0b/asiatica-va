@@ -16,7 +16,7 @@
 #include "../export/VideoConcatenator.h"
 #include "../license/LicenseManager.h"
 
-MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) { // ctor-init
+MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     setWindowTitle(AppLocale::trUi("app.title"));
     resize(1300, 800);
 
@@ -30,7 +30,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) { // ctor-init
     licenseOverlay_ = new LicenseLockOverlay(this);
     tagSession_ = new TagSession(this);
 
-    if (workWindow_) workWindow_->setTagSession(tagSession_);
+    workWindow_->setTagSession(tagSession_);
 
     stack_->addWidget(welcomeWindow_);
     stack_->addWidget(workWindow_);
@@ -73,7 +73,7 @@ void MainWindow::showWorkWindowWithSetup(const QString& filePath, const QStringL
 void MainWindow::showLicenseOverlay(bool allowClose) {
     if (licenseOverlay_) {
         licenseOverlay_->setCloseAllowed(allowClose);
-        licenseOverlay_->refreshCopy();
+        licenseOverlay_->applyUiStrings();
     }
     if (stack_) stack_->setCurrentWidget(licenseOverlay_);
 }

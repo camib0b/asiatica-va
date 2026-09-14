@@ -98,10 +98,6 @@ void VideoConcatenator::cancel() {
     errorMessage_.clear();
 }
 
-bool VideoConcatenator::isRunning() const {
-    return process_ && process_->state() != QProcess::NotRunning;
-}
-
 void VideoConcatenator::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus) {
     if (cancelled_) return;
 

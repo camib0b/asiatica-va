@@ -12,30 +12,20 @@ namespace {
 
 constexpr char kSettingsGroup[] = "youtube/oauth";
 constexpr char kClientIdKey[] = "clientId";
-constexpr char kApiKeyKey[] = "apiKey";
 constexpr char kConfigFileName[] = "youtube_oauth.json";
 
-struct OAuthCredentials {
-    QString clientId;
-    QString apiKey;
-};
-
-OAuthCredentials readCredentialsFromJsonFile(const QString& filePath) {
-    OAuthCredentials credentials;
+QString readClientIdFromJsonFile(const QString& filePath) {
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
-        return credentials;
+        return {};
     }
 
     const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
     if (!document.isObject()) {
-        return credentials;
+        return {};
     }
 
-    const QJsonObject object = document.object();
-    credentials.clientId = object.value(QStringLiteral("client_id")).toString().trimmed();
-    credentials.apiKey = object.value(QStringLiteral("api_key")).toString().trimmed();
-    return credentials;
+    return document.object().value(QStringLiteral("client_id")).toString().trimmed();
 }
 
 QString bundledCredentialsPath() {
@@ -56,39 +46,31 @@ QString bundledCredentialsPath() {
     return macOsPath;
 }
 
-OAuthCredentials resolveCredentials() {
+QString resolveClientId() {
     const QByteArray clientIdEnvironment = qgetenv("AVA_YOUTUBE_CLIENT_ID");
-    const QByteArray apiKeyEnvironment = qgetenv("AVA_YOUTUBE_API_KEY");
     if (!clientIdEnvironment.isEmpty()) {
-        OAuthCredentials credentials;
-        credentials.clientId = QString::fromUtf8(clientIdEnvironment).trimmed();
-        credentials.apiKey = QString::fromUtf8(apiKeyEnvironment).trimmed();
-        return credentials;
+        return QString::fromUtf8(clientIdEnvironment).trimmed();
     }
 
     QSettings settings;
     settings.beginGroup(QLatin1String(kSettingsGroup));
     const QString storedClientId = settings.value(QLatin1String(kClientIdKey)).toString().trimmed();
-    const QString storedApiKey = settings.value(QLatin1String(kApiKeyKey)).toString().trimmed();
     settings.endGroup();
     if (!storedClientId.isEmpty()) {
-        OAuthCredentials credentials;
-        credentials.clientId = storedClientId;
-        credentials.apiKey = storedApiKey;
-        return credentials;
+        return storedClientId;
     }
 
     const QStringList configDirectories = QStandardPaths::standardLocations(
         QStandardPaths::AppConfigLocation);
     for (const QString& directoryPath : configDirectories) {
         const QString filePath = QDir(directoryPath).filePath(QLatin1String(kConfigFileName));
-        const OAuthCredentials fileCredentials = readCredentialsFromJsonFile(filePath);
-        if (!fileCredentials.clientId.isEmpty()) {
-            return fileCredentials;
+        const QString fileClientId = readClientIdFromJsonFile(filePath);
+        if (!fileClientId.isEmpty()) {
+            return fileClientId;
         }
     }
 
-    return readCredentialsFromJsonFile(bundledCredentialsPath());
+    return readClientIdFromJsonFile(bundledCredentialsPath());
 }
 
 } // namespace
@@ -96,11 +78,7 @@ OAuthCredentials resolveCredentials() {
 namespace YouTubeConfig {
 
 QString clientId() {
-    return resolveCredentials().clientId;
-}
-
-QString apiKey() {
-    return resolveCredentials().apiKey;
+    return resolveClientId();
 }
 
 bool isConfigured() {

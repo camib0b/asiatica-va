@@ -15,7 +15,7 @@ public:
   explicit LicenseLockOverlay(QWidget* parent = nullptr);
 
   void setCloseAllowed(bool allowed);
-  void refreshCopy();
+  void applyUiStrings();
 
 signals:
   void closeRequested();
@@ -28,7 +28,6 @@ private slots:
 
 private:
   void buildUi();
-  void applyUiStrings();
 
   QComboBox* languageCombo_ = nullptr;
   QLabel* titleLabel_ = nullptr;

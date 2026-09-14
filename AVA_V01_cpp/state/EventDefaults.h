@@ -38,7 +38,8 @@ EventDuration factoryDefaultFor(const QString& canonicalMainEvent);
 /// Effective default: user override when set, otherwise factory default.
 EventDuration defaultFor(const QString& canonicalMainEvent);
 
-bool hasUserOverride(const QString& canonicalMainEvent);
+/// Quarter code Q1..Q4 for index 0..3; empty when the index is out of range.
+QString quarterCode(int quarterIndex);
 
 /// Persist a user override and update the in-memory cache.
 void setUserOverride(const QString& canonicalMainEvent, qint64 preMs, qint64 postMs);
