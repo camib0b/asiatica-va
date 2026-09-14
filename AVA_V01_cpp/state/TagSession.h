@@ -12,6 +12,7 @@ class TagSession final : public QObject {
 
 public:
   struct GameTag {
+    quint64 id = 0;         // Stable mention identity; assigned on add/import.
     QString mainEvent;
     QString followUpEvent;
     qint64 positionMs = 0;  // Click moment: the anchor used for table seek/highlight.
@@ -74,6 +75,13 @@ public:
   void removeTag(int index);
   void setTagNote(int index, const QString& note);
   QString tagNote(int index) const;
+
+  /// Freeform match notes (HTML); not tied to a single clip. Mentions use ava-tag:id anchors.
+  void setMatchNote(const QString& html);
+  QString matchNote() const { return matchNote_; }
+
+  /// Index of the tag with \p id, or -1 if it is not in the session.
+  int indexOfTagId(quint64 id) const;
   /// Updates the clip interval (start/end in ms) of the tag at \p index and marks it as
   /// manually trimmed so later default-duration changes cannot overwrite it.
   void setTagInterval(int index, qint64 startMs, qint64 endMs);
@@ -109,13 +117,17 @@ signals:
   void tagAdded(const TagSession::GameTag& tag);
   void tagsImported();
   void tagNoteChanged(int index);
+  void matchNoteChanged();
   void tagIntervalChanged(int index);
   void statsChanged();
 
 private:
   void rebuildStatsFromTags();
   void restoreGameTimeStateFromTags();
+  void assignStableId(GameTag& tag);
   QVector<GameTag> tags_;
+  QString matchNote_;
+  quint64 nextTagId_ = 1;
   QHash<QString, int> mainEventCounts_;
   QHash<QString, QHash<QString, int>> followUpCountsByMainEvent_;
   QString homeTeamName_;
