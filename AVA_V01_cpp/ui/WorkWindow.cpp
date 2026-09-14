@@ -1280,7 +1280,7 @@ void WorkWindow::showTeamSetupForVideo(const QString& filePath, const QStringLis
     if (!gameSetupWidget_ || !contentStack_) return;
     gameSetupWidget_->setVideoPath(filePath);
     gameSetupWidget_->setTeamDefaults(QString(), QString(), QString(), QString());
-    gameSetupWidget_->setMetadataDefaults(QString(), QDate::currentDate(), QString(), QString());
+    gameSetupWidget_->setMetadataDefaults(QDate::currentDate(), QString(), QString());
     gameSetupWidget_->beginMetadataSuggestion(sourceVideoPaths);
     contentStack_->setCurrentIndex(0);
     gameSetupWidget_->setInitialFocus();
