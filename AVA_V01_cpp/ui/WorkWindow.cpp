@@ -1224,11 +1224,12 @@ void WorkWindow::wireSignals() {
 }
 
 
-void WorkWindow::showTeamSetupForVideo(const QString& filePath) {
+void WorkWindow::showTeamSetupForVideo(const QString& filePath, const QStringList& sourceVideoPaths) {
     if (!gameSetupWidget_ || !contentStack_) return;
     gameSetupWidget_->setVideoPath(filePath);
     gameSetupWidget_->setTeamDefaults(QString(), QString(), QString(), QString());
     gameSetupWidget_->setMetadataDefaults(QString(), QDate::currentDate(), QString(), QString());
+    gameSetupWidget_->beginMetadataSuggestion(sourceVideoPaths);
     contentStack_->setCurrentIndex(0);
     gameSetupWidget_->setInitialFocus();
     refreshPlaybackShortcutFocusGate();

@@ -77,3 +77,4 @@ license-server/.dev.vars
 license-server/.wrangler/
 license-server/node_modules/
 *.ava-license
+**/xai.json

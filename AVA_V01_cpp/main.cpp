@@ -3,6 +3,7 @@
 #include "state/EventDefaults.h"
 #include "YouTubeConfig.h"
 #include "license/LicenseManager.h"
+#include "XaiConfig.h"
 #include <QApplication>
 #include <QIcon>
 #include "style/theme.h"
@@ -15,6 +16,7 @@ int main(int argc, char* argv[]) {
 
     Style::ApplyLightTheme();
     YouTubeConfig::bootstrap();
+    XaiConfig::bootstrap();
     AppLocale::loadFromSettings();
     EventDefaults::loadFromSettings();
     LicenseManager::instance().bootstrap();

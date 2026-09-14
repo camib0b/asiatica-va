@@ -2,6 +2,7 @@
 
 #include <QMainWindow>
 #include <QString>
+#include <QStringList>
 
 class WelcomeWindow;
 class WorkWindow;
@@ -25,7 +26,7 @@ private slots:
 
 private:
   void showWelcomeWindow();
-  void showWorkWindowWithSetup(const QString& filePath);
+  void showWorkWindowWithSetup(const QString& filePath, const QStringList& sourceVideoPaths);
   void showLicenseOverlay(bool allowClose);
 
   QStackedWidget* stack_ = nullptr;

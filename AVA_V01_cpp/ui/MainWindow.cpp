@@ -65,8 +65,8 @@ void MainWindow::showWelcomeWindow() {
     if (stack_) stack_->setCurrentWidget(welcomeWindow_);
 }
 
-void MainWindow::showWorkWindowWithSetup(const QString& filePath) {
-    if (workWindow_) workWindow_->showTeamSetupForVideo(filePath);
+void MainWindow::showWorkWindowWithSetup(const QString& filePath, const QStringList& sourceVideoPaths) {
+    if (workWindow_) workWindow_->showTeamSetupForVideo(filePath, sourceVideoPaths);
     if (stack_) stack_->setCurrentWidget(workWindow_);
 }
 
@@ -91,7 +91,7 @@ void MainWindow::onVideoImportRequested() {
         workWindow_->setConcatenatedVideoTempDir(nullptr);
         workWindow_->setPendingConcatenation(nullptr);
         workWindow_->setExportDefaultDirectoryFromVideoPath(filePaths.first());
-        showWorkWindowWithSetup(filePaths.first());
+        showWorkWindowWithSetup(filePaths.first(), filePaths);
         return;
     }
 
@@ -121,7 +121,7 @@ void MainWindow::onVideoImportRequested() {
 
     workWindow_->setConcatenatedVideoTempDir(tempDir);
     workWindow_->setPendingConcatenation(concatenator);
-    showWorkWindowWithSetup(tempDir->filePath(QStringLiteral("concatenated.mp4")));
+    showWorkWindowWithSetup(tempDir->filePath(QStringLiteral("concatenated.mp4")), filePaths);
 }
 
 void MainWindow::onVideoClosed() {

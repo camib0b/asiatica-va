@@ -50,6 +50,8 @@ qt_add_executable(AVA
   export/YouTubeConfig.cpp
   export/YouTubeAuthManager.cpp
   export/YouTubeUploader.cpp
+  export/XaiConfig.cpp
+  export/GameMetadataSuggester.cpp
 )
 
 # macOS app bundle and Dock icon

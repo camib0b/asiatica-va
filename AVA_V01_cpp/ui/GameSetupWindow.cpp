@@ -1,6 +1,8 @@
 #include "GameSetupWindow.h"
 
 #include "../components/TeamColorPicker.h"
+#include "../export/GameMetadataSuggester.h"
+#include "../export/XaiConfig.h"
 #include "../i18n/AppLocale.h"
 #include "../style/StyleProps.h"
 
@@ -19,11 +21,16 @@
 GameSetupWindow::GameSetupWindow(QWidget* parent) : QWidget(parent) {
   setObjectName("AppRoot");
   setAttribute(Qt::WA_StyledBackground, true);
+  metadataSuggester_ = new GameMetadataSuggester(this);
   buildUi();
   wireSignals();
   applyUiStrings();
   updateOptionalFieldAppearance();
   setMinimumSize(480, 520);
+}
+
+GameSetupWindow::~GameSetupWindow() {
+  abortMetadataSuggestion();
 }
 
 void GameSetupWindow::setVideoPath(const QString& path) {
@@ -52,6 +59,15 @@ void GameSetupWindow::setMetadataDefaults(const QString& competitionName,
   if (homeAbbrevEdit_) homeAbbrevEdit_->setText(homeAbbrev);
   if (awayAbbrevEdit_) awayAbbrevEdit_->setText(awayAbbrev);
   updateOptionalFieldAppearance();
+}
+
+void GameSetupWindow::beginMetadataSuggestion(const QStringList& sourceVideoPaths) {
+  abortMetadataSuggestion();
+  if (!metadataSuggester_ || !XaiConfig::isConfigured()) {
+    return;
+  }
+  setSuggestionStatusKey("setup.ai_status_teams");
+  metadataSuggester_->start(sourceVideoPaths);
 }
 
 void GameSetupWindow::setInitialFocus() {
@@ -91,6 +107,9 @@ void GameSetupWindow::applyUiStrings() {
   if (awayColorPicker_) {
     awayColorPicker_->setColorDialogTitle(AppLocale::trUi("dialog.pick_away_color"));
     awayColorPicker_->applyUiStrings();
+  }
+  if (suggestionStatusLabel_ && suggestionStatusKey_) {
+    suggestionStatusLabel_->setText(AppLocale::trUi(suggestionStatusKey_));
   }
 }
 
@@ -183,6 +202,13 @@ void GameSetupWindow::buildUi() {
   titleLabel_->setAlignment(Qt::AlignCenter);
   Style::setRole(titleLabel_, "h1");
   layout->addWidget(titleLabel_, 0, Qt::AlignHCenter);
+
+  suggestionStatusLabel_ = new QLabel(contentContainer);
+  suggestionStatusLabel_->setWordWrap(true);
+  suggestionStatusLabel_->setAlignment(Qt::AlignCenter);
+  Style::setRole(suggestionStatusLabel_, "faint");
+  suggestionStatusLabel_->hide();
+  layout->addWidget(suggestionStatusLabel_, 0, Qt::AlignHCenter);
 
   auto addTeamGroup = [&](QLabel*& teamLabel, QLineEdit*& nameEdit, QLineEdit*& abbrevEdit,
                           TeamColorPicker*& colorPicker, bool homeSide) {
@@ -297,9 +323,80 @@ void GameSetupWindow::wireSignals() {
   connect(competitionEdit_, &QLineEdit::textChanged, this,
           &GameSetupWindow::onCompetitionTextChanged);
   connect(gameDateEdit_, &QDateEdit::dateChanged, this, &GameSetupWindow::onGameDateChanged);
+  if (metadataSuggester_) {
+    connect(metadataSuggester_, &GameMetadataSuggester::nameDateSuggested, this,
+            &GameSetupWindow::onNameDateSuggested);
+    connect(metadataSuggester_, &GameMetadataSuggester::colorDetectionStarted, this,
+            &GameSetupWindow::onColorDetectionStarted);
+    connect(metadataSuggester_, &GameMetadataSuggester::colorsSuggested, this,
+            &GameSetupWindow::onColorsSuggested);
+    connect(metadataSuggester_, &GameMetadataSuggester::finished, this,
+            &GameSetupWindow::onMetadataSuggestionFinished);
+  }
+}
+
+void GameSetupWindow::abortMetadataSuggestion() {
+  if (metadataSuggester_) {
+    metadataSuggester_->abort();
+  }
+  setSuggestionStatusKey(nullptr);
+}
+
+void GameSetupWindow::setSuggestionStatusKey(const char* key) {
+  suggestionStatusKey_ = key;
+  if (!suggestionStatusLabel_) {
+    return;
+  }
+  if (!suggestionStatusKey_) {
+    suggestionStatusLabel_->clear();
+    suggestionStatusLabel_->hide();
+    return;
+  }
+  suggestionStatusLabel_->setText(AppLocale::trUi(suggestionStatusKey_));
+  suggestionStatusLabel_->show();
+}
+
+void GameSetupWindow::onNameDateSuggested(const QString& homeTeamName,
+                                         const QString& awayTeamName,
+                                         const QDate& gameDate) {
+  if (homeNameEdit_ && homeNameEdit_->text().trimmed().isEmpty() && !homeTeamName.trimmed().isEmpty()) {
+    homeNameEdit_->setText(homeTeamName.trimmed());
+    onHomeNameEditingFinished();
+  }
+  if (awayNameEdit_ && awayNameEdit_->text().trimmed().isEmpty() && !awayTeamName.trimmed().isEmpty()) {
+    awayNameEdit_->setText(awayTeamName.trimmed());
+    onAwayNameEditingFinished();
+  }
+  if (gameDateEdit_ && !dateEditedByUser_ && gameDate.isValid()) {
+    ignoreDateChange_ = true;
+    gameDateEdit_->setDate(gameDate);
+    ignoreDateChange_ = false;
+    dateEditedByUser_ = true;
+    updateOptionalFieldAppearance();
+  }
+}
+
+void GameSetupWindow::onColorDetectionStarted() {
+  if (metadataSuggester_ && metadataSuggester_->isRunning()) {
+    setSuggestionStatusKey("setup.ai_status_colors");
+  }
+}
+
+void GameSetupWindow::onColorsSuggested(const QString& homeColorHex, const QString& awayColorHex) {
+  if (homeColorPicker_ && homeColorPicker_->color().trimmed().isEmpty() && !homeColorHex.trimmed().isEmpty()) {
+    homeColorPicker_->setColor(homeColorHex);
+  }
+  if (awayColorPicker_ && awayColorPicker_->color().trimmed().isEmpty() && !awayColorHex.trimmed().isEmpty()) {
+    awayColorPicker_->setColor(awayColorHex);
+  }
+}
+
+void GameSetupWindow::onMetadataSuggestionFinished() {
+  setSuggestionStatusKey(nullptr);
 }
 
 void GameSetupWindow::onContinue() {
+  abortMetadataSuggestion();
   const QString homeName = homeNameEdit_ ? homeNameEdit_->text().trimmed() : QString();
   const QString awayName = awayNameEdit_ ? awayNameEdit_->text().trimmed() : QString();
   const QString homeColor = homeColorPicker_ ? homeColorPicker_->color() : QString();
@@ -321,5 +418,6 @@ void GameSetupWindow::onContinue() {
 }
 
 void GameSetupWindow::onBack() {
+  abortMetadataSuggestion();
   emit cancelled();
 }

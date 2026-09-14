@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QtGlobal>
 #include <QString>
+#include <QStringList>
 #include <QBrush>
 #include <QHash>
 #include <QList>
@@ -48,7 +49,7 @@ public:
   ~WorkWindow() override;
 
   void loadVideoFromFile(const QString& filePath);
-  void showTeamSetupForVideo(const QString& filePath);
+  void showTeamSetupForVideo(const QString& filePath, const QStringList& sourceVideoPaths);
   void setTagSession(TagSession* session);
   void setExportDefaultDirectoryFromVideoPath(const QString& videoPath);
   void setConcatenatedVideoTempDir(QTemporaryDir* dir);

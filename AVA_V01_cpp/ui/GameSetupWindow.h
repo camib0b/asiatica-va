@@ -2,8 +2,10 @@
 
 #include <QDate>
 #include <QString>
+#include <QStringList>
 #include <QWidget>
 
+class GameMetadataSuggester;
 class QComboBox;
 class QDateEdit;
 class QLabel;
@@ -16,7 +18,7 @@ class GameSetupWindow final : public QWidget {
 
 public:
   explicit GameSetupWindow(QWidget* parent = nullptr);
-  ~GameSetupWindow() override = default;
+  ~GameSetupWindow() override;
 
   void setVideoPath(const QString& path);
   QString videoPath() const { return videoPath_; }
@@ -26,6 +28,7 @@ public:
                            const QDate& gameDate,
                            const QString& homeAbbrev,
                            const QString& awayAbbrev);
+  void beginMetadataSuggestion(const QStringList& sourceVideoPaths);
   void setInitialFocus();
 
   void applyUiStrings();
@@ -46,6 +49,12 @@ private slots:
   void onAwayNameEditingFinished();
   void onCompetitionTextChanged(const QString& text);
   void onGameDateChanged(QDate date);
+  void onNameDateSuggested(const QString& homeTeamName,
+                           const QString& awayTeamName,
+                           const QDate& gameDate);
+  void onColorDetectionStarted();
+  void onColorsSuggested(const QString& homeColorHex, const QString& awayColorHex);
+  void onMetadataSuggestionFinished();
 
 private:
   void buildUi();
@@ -53,6 +62,8 @@ private:
   void onContinue();
   void onBack();
   void updateOptionalFieldAppearance();
+  void abortMetadataSuggestion();
+  void setSuggestionStatusKey(const char* key);
   /// Returns the first 3 alphanumeric characters of \p teamName, uppercased.
   /// Falls back to empty string when the team name has no alphanumeric content.
   static QString deriveAbbreviationFromTeamName(const QString& teamName);
@@ -60,8 +71,11 @@ private:
   QString videoPath_;
   bool ignoreDateChange_ = false;
   bool dateEditedByUser_ = false;
+  const char* suggestionStatusKey_ = nullptr;
 
+  GameMetadataSuggester* metadataSuggester_ = nullptr;
   QLabel* titleLabel_ = nullptr;
+  QLabel* suggestionStatusLabel_ = nullptr;
   QLabel* homeTeamLabel_ = nullptr;
   QLabel* awayTeamLabel_ = nullptr;
   QLabel* optionalLabel_ = nullptr;
