@@ -12,6 +12,7 @@
 #include <QFontMetrics>
 #include <QApplication>
 #include <QDateTime>
+#include <QTimeZone>
 #include <QSizePolicy>
 
 
@@ -56,7 +57,7 @@ void WelcomeWindow::applyUiStrings() {
             licenseStatusLabel_->setText(AppLocale::trUi("license.status.trial").arg(status.daysRemaining));
         } else if (status.entitled && status.kind == QLatin1String("paid") && status.expiresAt > 0) {
             const QString dateText =
-                QDateTime::fromSecsSinceEpoch(status.expiresAt, Qt::UTC).date().toString(Qt::ISODate);
+                QDateTime::fromSecsSinceEpoch(status.expiresAt, QTimeZone::UTC).date().toString(Qt::ISODate);
             licenseStatusLabel_->setText(AppLocale::trUi("license.status.paid").arg(dateText));
         } else {
             licenseStatusLabel_->clear();
