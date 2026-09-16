@@ -35,6 +35,7 @@ class PresentationQueue;
 class ExportJobManager;
 class ExportJobsBar;
 class YouTubeAuthManager;
+class MatchNotesEditor;
 
 #include "../state/TagSession.h"
 
@@ -65,6 +66,8 @@ private slots:
   void onTagTableSeekToRow(int row);
   void onTagSelectionChanged();
   void onNoteTextChanged();
+  void onMatchNoteTextChanged();
+  void onMatchNoteTagMentionActivated(quint64 tagId);
   void onDeleteSelectedTag();
   void onUndoLastTag();
   void onSelectAllFilters();
@@ -76,6 +79,7 @@ private slots:
   void onModeToggled();
   void showStatsOverlay();
   void saveNoteDebounceFired();
+  void saveMatchNoteDebounceFired();
   void onGameSetupConfirmed(const QString& filePath,
                             const QString& homeName, const QString& awayName,
                             const QString& homeColor, const QString& awayColor,
@@ -139,6 +143,8 @@ private:
   void updateTagPlayheadHighlight(qint64 positionMs);
   void syncNoteToSelectedTag();  // immediate save (used on selection change)
   void loadNoteForSelectedTag();
+  void loadMatchNote();
+  void refreshMatchNoteMentionCandidates();
   void flashNewTagRow();
   void clearNewTagFlash();
   QTableWidgetItem* selectedTagRowTimeItem() const;
@@ -216,10 +222,15 @@ private:
   VideoPlayer* videoPlayer_ = nullptr;
   GameControls* gameControls_ = nullptr;
   StatsWindow* statsWindow_ = nullptr;
+  QWidget* notesColumn_ = nullptr;
+  QLabel* matchNotesLabel_ = nullptr;
+  MatchNotesEditor* matchNotesEditor_ = nullptr;
+  QLabel* clipNotesLabel_ = nullptr;
   QPlainTextEdit* notesEdit_ = nullptr;
   QDialog* statsOverlayDialog_ = nullptr;
   StatsWindow* statsOverlay_ = nullptr;
   QTimer* noteDebounceTimer_ = nullptr;
+  QTimer* matchNoteDebounceTimer_ = nullptr;
   int pendingNoteIndex_ = -1;
   QString pendingNoteText_;
 

@@ -10,6 +10,11 @@ void TagSession::clear() {
   tags_.clear();
   mainEventCounts_.clear();
   followUpCountsByMainEvent_.clear();
+  nextTagId_ = 1;
+  if (!matchNote_.isEmpty()) {
+    matchNote_.clear();
+    emit matchNoteChanged();
+  }
   resetGameTimeState();
   emit cleared();
   emit tagsChanged();
@@ -44,8 +49,19 @@ void TagSession::setGameMetadata(const QString& competitionName,
   awayAbbrev_ = awayAbbrev.trimmed().toUpper();
 }
 
+void TagSession::assignStableId(GameTag& tag) {
+  if (tag.id == 0) {
+    tag.id = nextTagId_++;
+    return;
+  }
+  if (tag.id >= nextTagId_) {
+    nextTagId_ = tag.id + 1;
+  }
+}
+
 void TagSession::addTag(const GameTag& tag) {
   GameTag stored = tag;
+  assignStableId(stored);
   if (stored.startMs == 0 && stored.endMs == 0) {
     // Caller did not provide an explicit interval; seed from per-event-type defaults.
     const auto duration = EventDefaults::defaultFor(stored.mainEvent);
@@ -81,11 +97,13 @@ TagSession::ImportResult TagSession::importTags(const QVector<GameTag>& tags,
     tags_.clear();
     mainEventCounts_.clear();
     followUpCountsByMainEvent_.clear();
+    nextTagId_ = 1;
     resetGameTimeState();
   }
 
   for (const GameTag& incoming : tags) {
     GameTag stored = incoming;
+    assignStableId(stored);
     bool clamped = false;
 
     if (stored.startMs < 0) {
@@ -255,6 +273,20 @@ void TagSession::setTagNote(int index, const QString& note) {
 QString TagSession::tagNote(int index) const {
   if (index < 0 || index >= tags_.size()) return QString();
   return tags_[index].note;
+}
+
+void TagSession::setMatchNote(const QString& html) {
+  if (matchNote_ == html) return;
+  matchNote_ = html;
+  emit matchNoteChanged();
+}
+
+int TagSession::indexOfTagId(quint64 id) const {
+  if (id == 0) return -1;
+  for (int index = 0; index < tags_.size(); ++index) {
+    if (tags_.at(index).id == id) return index;
+  }
+  return -1;
 }
 
 void TagSession::setTagInterval(int index, qint64 startMs, qint64 endMs) {

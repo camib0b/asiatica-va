@@ -36,6 +36,7 @@ qt_add_executable(AVA
   components/VideoControlsBar.cpp
   components/TimelineBar.cpp
   components/GameControls.cpp
+  components/MatchNotesEditor.cpp
   components/VideoPlayer.cpp
   export/ClipExporter.cpp
   export/ClipTrimBar.cpp

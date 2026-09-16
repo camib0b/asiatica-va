@@ -5,6 +5,7 @@
 #include "../style/ThemeColors.h"
 #include "../components/VideoPlayer.h"
 #include "../components/GameControls.h"
+#include "../components/MatchNotesEditor.h"
 #include "../state/EventDefaults.h"
 #include "../state/PresentationQueue.h"
 #include "../state/TagSession.h"
@@ -286,6 +287,9 @@ void WorkWindow::applyUiStrings() {
         undoLastTagButton_->setToolTip(AppLocale::trUi("tags.undo_tooltip"));
     }
     if (notesEdit_) notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
+    if (matchNotesLabel_) matchNotesLabel_->setText(AppLocale::trUi("notes.match_title"));
+    if (clipNotesLabel_) clipNotesLabel_->setText(AppLocale::trUi("notes.clip_title"));
+    if (matchNotesEditor_) matchNotesEditor_->applyUiStrings();
     if (tagsTable_) {
         tagsTable_->setHorizontalHeaderLabels({AppLocale::trUi("tags.col_time"), AppLocale::trUi("tags.col_team"),
                                                AppLocale::trUi("tags.col_event")});
@@ -321,6 +325,7 @@ void WorkWindow::setTagSession(TagSession* session) {
 
     rebuildFilterMenu();
     rebuildTagsList();
+    loadMatchNote();
 
     if (!tagSession_) {
         if (gameControls_) {
@@ -371,6 +376,10 @@ void WorkWindow::setTagSession(TagSession* session) {
         const QString noteText = tagSession_->tagNote(changedIndex);
         if (notesEdit_->toPlainText() == noteText) return;
         loadNoteForSelectedTag();
+    });
+    connect(tagSession_, &TagSession::matchNoteChanged, this, [this]() {
+        if (matchNotesEditor_ && matchNotesEditor_->hasFocus()) return;
+        loadMatchNote();
     });
 }
 
@@ -643,9 +652,30 @@ void WorkWindow::buildUi() {
     statsWindow_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     statsWindow_->setMinimumHeight(180);
 
-    notesEdit_ = new QPlainTextEdit(this);
-    notesEdit_->setMaximumHeight(120);
+    notesColumn_ = new QWidget(this);
+    notesColumn_->setObjectName(QStringLiteral("MatchNotesColumn"));
+    auto* notesColumnLayout = new QVBoxLayout(notesColumn_);
+    notesColumnLayout->setContentsMargins(0, 0, 0, 0);
+    notesColumnLayout->setSpacing(6);
+
+    matchNotesLabel_ = new QLabel(notesColumn_);
+    Style::setRole(matchNotesLabel_, "muted");
+    matchNotesEditor_ = new MatchNotesEditor(notesColumn_);
+    matchNotesEditor_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    clipNotesLabel_ = new QLabel(notesColumn_);
+    Style::setRole(clipNotesLabel_, "muted");
+    notesEdit_ = new QPlainTextEdit(notesColumn_);
+    notesEdit_->setMaximumHeight(88);
+    notesEdit_->setMinimumHeight(64);
+    notesEdit_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     Style::setRole(notesEdit_, "muted");
+
+    notesColumnLayout->addWidget(matchNotesLabel_);
+    notesColumnLayout->addWidget(matchNotesEditor_, 1);
+    notesColumnLayout->addWidget(clipNotesLabel_);
+    notesColumnLayout->addWidget(notesEdit_, 0);
+    notesColumn_->hide();
 
     analyzingTagsControlsSplitter_ = new QSplitter(Qt::Horizontal, this);
     analyzingTagsControlsSplitter_->setObjectName(QStringLiteral("WorkAnalyzingTagsControlsSplitter"));
@@ -787,7 +817,7 @@ void WorkWindow::applyTaggingLayout() {
     detachWidgetFromParent(gameControls_);
     detachWidgetFromParent(analyzingTagsControlsSplitter_);
     detachWidgetFromParent(statsWindow_);
-    if (notesEdit_) detachWidgetFromParent(notesEdit_);
+    if (notesColumn_) detachWidgetFromParent(notesColumn_);
 
     if (videoTimelineRow_) {
         videoTimelineRow_->show();
@@ -839,10 +869,7 @@ void WorkWindow::applyTaggingLayout() {
     if (tagsSection_) tagsSection_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     statsWindow_->hide();
-    if (notesEdit_) {
-        notesEdit_->setMaximumHeight(120);
-        notesEdit_->hide();
-    }
+    if (notesColumn_) notesColumn_->hide();
 
     if (gameControls_) gameControls_->show();
 
@@ -881,7 +908,7 @@ void WorkWindow::applyAnalyzingLayout() {
     detachWidgetFromParent(tagsSection_);
     detachWidgetFromParent(gameControls_);
     detachWidgetFromParent(statsWindow_);
-    if (notesEdit_) detachWidgetFromParent(notesEdit_);
+    if (notesColumn_) detachWidgetFromParent(notesColumn_);
     detachWidgetFromParent(timeline);
     if (videoTimelineRow_) videoTimelineRow_->hide();
 
@@ -899,13 +926,12 @@ void WorkWindow::applyAnalyzingLayout() {
     timeline->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     tagsSection_->setMinimumWidth(160);
     tagsSection_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    if (notesEdit_) {
-        notesEdit_->setMaximumHeight(QWIDGETSIZE_MAX);
-        notesEdit_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    if (notesColumn_) {
+        notesColumn_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     }
 
     analyzingTagsControlsSplitter_->addWidget(tagsSection_);
-    if (notesEdit_) analyzingTagsControlsSplitter_->addWidget(notesEdit_);
+    if (notesColumn_) analyzingTagsControlsSplitter_->addWidget(notesColumn_);
 
     analyzingLeftSplitter_->addWidget(vw);
     analyzingLeftSplitter_->addWidget(timeline);
@@ -925,7 +951,7 @@ void WorkWindow::applyAnalyzingLayout() {
     contentLayout_->addWidget(analyzingMainSplitter_, 1);
 
     statsWindow_->show();
-    if (notesEdit_) notesEdit_->show();
+    if (notesColumn_) notesColumn_->show();
     // Presentation mode hides these outright; re-show them after their layout slot is restored.
     if (tagsSection_) tagsSection_->show();
     if (gameControls_) gameControls_->hide();
@@ -956,7 +982,7 @@ void WorkWindow::applyPresentationLayout() {
     detachWidgetFromParent(tagsSection_);
     detachWidgetFromParent(gameControls_);
     detachWidgetFromParent(statsWindow_);
-    if (notesEdit_) detachWidgetFromParent(notesEdit_);
+    if (notesColumn_) detachWidgetFromParent(notesColumn_);
     detachWidgetFromParent(analyzingTagsControlsSplitter_);
     if (timeline && timeline->parentWidget() != videoTimelineRow_) {
         detachWidgetFromParent(timeline);
@@ -987,10 +1013,7 @@ void WorkWindow::applyPresentationLayout() {
     if (tagsSection_) tagsSection_->hide();
     if (gameControls_) gameControls_->hide();
     if (statsWindow_) statsWindow_->hide();
-    if (notesEdit_) {
-        notesEdit_->setMaximumHeight(120);
-        notesEdit_->hide();
-    }
+    if (notesColumn_) notesColumn_->hide();
 
     contentLayout_->addWidget(presentationSplitter_, 1);
     presentationSplitter_->show();
@@ -1178,6 +1201,12 @@ void WorkWindow::wireSignals() {
 
     if (notesEdit_)
         connect(notesEdit_, &QPlainTextEdit::textChanged, this, &WorkWindow::onNoteTextChanged);
+    if (matchNotesEditor_) {
+        connect(matchNotesEditor_, &MatchNotesEditor::textChanged, this,
+                &WorkWindow::onMatchNoteTextChanged);
+        connect(matchNotesEditor_, &MatchNotesEditor::tagMentionActivated, this,
+                &WorkWindow::onMatchNoteTagMentionActivated);
+    }
 
     connect(statsWindow_, &StatsWindow::filterByEventPathRequested, this, &WorkWindow::onFilterByEventPathRequested);
     connect(tagsRemoveFiltersButton_, &QToolButton::clicked, this, &WorkWindow::onRemoveFilters);
@@ -1207,6 +1236,10 @@ void WorkWindow::wireSignals() {
     noteDebounceTimer_ = new QTimer(this);
     noteDebounceTimer_->setSingleShot(true);
     connect(noteDebounceTimer_, &QTimer::timeout, this, &WorkWindow::saveNoteDebounceFired);
+
+    matchNoteDebounceTimer_ = new QTimer(this);
+    matchNoteDebounceTimer_->setSingleShot(true);
+    connect(matchNoteDebounceTimer_, &QTimer::timeout, this, &WorkWindow::saveMatchNoteDebounceFired);
 
     // Debounce playhead-driven table scans: row highlighting is O(rows).
     playheadSideEffectsDebounceTimer_ = new QTimer(this);
@@ -1247,7 +1280,7 @@ void WorkWindow::showTeamSetupForVideo(const QString& filePath, const QStringLis
     if (!gameSetupWidget_ || !contentStack_) return;
     gameSetupWidget_->setVideoPath(filePath);
     gameSetupWidget_->setTeamDefaults(QString(), QString(), QString(), QString());
-    gameSetupWidget_->setMetadataDefaults(QString(), QDate::currentDate(), QString(), QString());
+    gameSetupWidget_->setMetadataDefaults(QDate::currentDate(), QString(), QString());
     gameSetupWidget_->beginMetadataSuggestion(sourceVideoPaths);
     contentStack_->setCurrentIndex(0);
     gameSetupWidget_->setInitialFocus();
@@ -1990,6 +2023,16 @@ void WorkWindow::saveNoteDebounceFired() {
     }
 }
 
+void WorkWindow::onMatchNoteTextChanged() {
+    if (!matchNoteDebounceTimer_) return;
+    matchNoteDebounceTimer_->start(400);
+}
+
+void WorkWindow::saveMatchNoteDebounceFired() {
+    if (!tagSession_ || !matchNotesEditor_) return;
+    tagSession_->setMatchNote(matchNotesEditor_->serializedHtml());
+}
+
 void WorkWindow::syncNoteToSelectedTag() {
     if (!tagSession_ || !notesEdit_) return;
     auto* item = selectedTagRowTimeItem();
@@ -2028,7 +2071,7 @@ void WorkWindow::loadNoteForSelectedTag() {
             notesEdit_->clear();
         }
         notesEdit_->setEnabled(false);
-        notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder_empty"));
+        notesEdit_->setPlaceholderText(AppLocale::trUi("notes.clip_placeholder_none"));
     } else {
         QVariant idxVar = item->data(Qt::UserRole + 3);
         if (idxVar.isValid()) {
@@ -2048,9 +2091,58 @@ void WorkWindow::loadNoteForSelectedTag() {
             notesEdit_->clear();
         }
         notesEdit_->setEnabled(true);
-        notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder_empty"));
+        notesEdit_->setPlaceholderText(AppLocale::trUi("notes.clip_placeholder_none"));
     }
     notesEdit_->blockSignals(false);
+}
+
+void WorkWindow::loadMatchNote() {
+    if (!matchNotesEditor_) return;
+    const QString html = tagSession_ ? tagSession_->matchNote() : QString();
+    if (matchNotesEditor_->isDocumentEquivalentTo(html)) return;
+    matchNotesEditor_->setSerializedHtml(html);
+}
+
+void WorkWindow::refreshMatchNoteMentionCandidates() {
+    if (!matchNotesEditor_) return;
+
+    QVector<MatchNotesEditor::MentionCandidate> candidates;
+    if (tagSession_) {
+        for (const TagSession::GameTag& tag : tagSession_->tags()) {
+            if (tag.id == 0) continue;
+            if (EventDefaults::isTimeControlEvent(tag.mainEvent)) continue;
+            const QString followUp = followUpForEventColumn(tag.followUpEvent, tagSession_);
+            const QString eventLine = AppLocale::trDisplayTagLine(tag.mainEvent, followUp);
+            const QString teamName = displayTeamForTag(tag);
+            MatchNotesEditor::MentionCandidate candidate;
+            candidate.tagId = tag.id;
+            candidate.label = QStringLiteral("%1  %2  ·  %3")
+                                  .arg(formatTimestampMs(tag.positionMs), eventLine, teamName);
+            candidate.searchText = candidate.label;
+            candidates.append(candidate);
+        }
+    }
+    matchNotesEditor_->setMentionCandidates(candidates);
+}
+
+void WorkWindow::onMatchNoteTagMentionActivated(quint64 tagId) {
+    if (!tagSession_ || !tagsTable_) return;
+    const int sessionIndex = tagSession_->indexOfTagId(tagId);
+    if (sessionIndex < 0 || sessionIndex >= tagSession_->tags().size()) return;
+
+    for (int row = 0; row < tagsTable_->rowCount(); ++row) {
+        QTableWidgetItem* timeItem = tagsTable_->item(row, 0);
+        if (!timeItem) continue;
+        if (timeItem->data(Qt::UserRole + 3).toInt() != sessionIndex) continue;
+        tagsTable_->selectRow(row);
+        tagsTable_->scrollToItem(timeItem, QAbstractItemView::PositionAtCenter);
+        onTagTableSeekToRow(row);
+        return;
+    }
+
+    if (videoPlayer_) {
+        videoPlayer_->seekToMs(tagSession_->tags().at(sessionIndex).positionMs);
+    }
 }
 
 void WorkWindow::onTagTableSeekToRow(int row) {
@@ -2318,7 +2410,12 @@ void WorkWindow::updateFilterIndicator() {
 }
 
 void WorkWindow::rebuildTagsList() {
-    if (!tagsTable_ || !tagSession_) return;
+    if (!tagsTable_) return;
+    if (!tagSession_) {
+        tagsTable_->setRowCount(0);
+        refreshMatchNoteMentionCandidates();
+        return;
+    }
     tagsTable_->setRowCount(0);
 
     // Collect (tag, tagSessionIndex) for tags that pass the filter
@@ -2377,4 +2474,5 @@ void WorkWindow::rebuildTagsList() {
     if (videoPlayer_) {
         updateTagPlayheadHighlight(videoPlayer_->currentPositionMs());
     }
+    refreshMatchNoteMentionCandidates();
 }

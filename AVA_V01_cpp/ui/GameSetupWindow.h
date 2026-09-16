@@ -24,8 +24,7 @@ public:
   QString videoPath() const { return videoPath_; }
   void setTeamDefaults(const QString& homeName, const QString& awayName,
                        const QString& homeColor, const QString& awayColor);
-  void setMetadataDefaults(const QString& competitionName,
-                           const QDate& gameDate,
+  void setMetadataDefaults(const QDate& gameDate,
                            const QString& homeAbbrev,
                            const QString& awayAbbrev);
   void beginMetadataSuggestion(const QStringList& sourceVideoPaths);
@@ -47,7 +46,6 @@ private slots:
   void onLanguageComboChanged(int index);
   void onHomeNameEditingFinished();
   void onAwayNameEditingFinished();
-  void onCompetitionTextChanged(const QString& text);
   void onGameDateChanged(QDate date);
   void onNameDateSuggested(const QString& homeTeamName,
                            const QString& awayTeamName,
@@ -79,13 +77,11 @@ private:
   QLabel* homeTeamLabel_ = nullptr;
   QLabel* awayTeamLabel_ = nullptr;
   QLabel* optionalLabel_ = nullptr;
-  QLabel* competitionLabel_ = nullptr;
   QLabel* dateLabel_ = nullptr;
   QLineEdit* homeNameEdit_ = nullptr;
   QLineEdit* awayNameEdit_ = nullptr;
   QLineEdit* homeAbbrevEdit_ = nullptr;
   QLineEdit* awayAbbrevEdit_ = nullptr;
-  QLineEdit* competitionEdit_ = nullptr;
   QDateEdit* gameDateEdit_ = nullptr;
   TeamColorPicker* homeColorPicker_ = nullptr;
   TeamColorPicker* awayColorPicker_ = nullptr;
