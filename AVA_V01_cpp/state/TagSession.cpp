@@ -12,10 +12,10 @@ void TagSession::clear() {
   followUpCountsByMainEvent_.clear();
   resetGameTimeState();
   emit cleared();
-  emit statsChanged();
+  emit tagsChanged();
 }
 
-void TagSession::clearTeamInfo() {
+void TagSession::clearGameMetadata() {
   homeTeamName_.clear();
   awayTeamName_.clear();
   homeTeamColor_.clear();
@@ -49,8 +49,8 @@ void TagSession::addTag(const GameTag& tag) {
   if (stored.startMs == 0 && stored.endMs == 0) {
     // Caller did not provide an explicit interval; seed from per-event-type defaults.
     const auto duration = EventDefaults::defaultFor(stored.mainEvent);
-    qint64 start = stored.positionMs - duration.preMs;
-    qint64 end = stored.positionMs + duration.postMs;
+    qint64 start = stored.markMs - duration.leadMs;
+    qint64 end = stored.markMs + duration.lagMs;
     if (start < 0) start = 0;
     if (end < start) end = start;
     stored.startMs = start;
@@ -68,7 +68,7 @@ void TagSession::addTag(const GameTag& tag) {
   }
 
   emit tagAdded(stored);
-  emit statsChanged();
+  emit tagsChanged();
 }
 
 TagSession::ImportResult TagSession::importTags(const QVector<GameTag>& tags,
@@ -104,12 +104,12 @@ TagSession::ImportResult TagSession::importTags(const QVector<GameTag>& tags,
       stored.endMs = videoDurationMs;
       clamped = true;
     }
-    if (stored.positionMs < stored.startMs) {
-      stored.positionMs = stored.startMs;
+    if (stored.markMs < stored.startMs) {
+      stored.markMs = stored.startMs;
       clamped = true;
     }
-    if (stored.positionMs > stored.endMs) {
-      stored.positionMs = stored.endMs;
+    if (stored.markMs > stored.endMs) {
+      stored.markMs = stored.endMs;
       clamped = true;
     }
 
@@ -121,17 +121,17 @@ TagSession::ImportResult TagSession::importTags(const QVector<GameTag>& tags,
   std::stable_sort(tags_.begin(), tags_.end(),
                    [](const GameTag& a, const GameTag& b) {
                      if (a.startMs != b.startMs) return a.startMs < b.startMs;
-                     return a.positionMs < b.positionMs;
+                     return a.markMs < b.markMs;
                    });
 
-  rebuildStatsFromTags();
+  rebuildEventCountsFromTags();
   restoreGameTimeStateFromTags();
   emit tagsImported();
-  emit statsChanged();
+  emit tagsChanged();
   return result;
 }
 
-void TagSession::rebuildStatsFromTags() {
+void TagSession::rebuildEventCountsFromTags() {
   mainEventCounts_.clear();
   followUpCountsByMainEvent_.clear();
   for (const GameTag& tag : tags_) {
@@ -242,7 +242,7 @@ void TagSession::removeTag(int index) {
   }
 
   tags_.removeAt(index);
-  emit statsChanged();
+  emit tagsChanged();
 }
 
 void TagSession::setTagNote(int index, const QString& note) {
@@ -269,18 +269,18 @@ void TagSession::setTagInterval(int index, qint64 startMs, qint64 endMs) {
   emit tagIntervalChanged(index);
 }
 
-void TagSession::applyDefaultsToUntrimmedTags(const QString& mainEvent, qint64 preMs, qint64 postMs) {
+void TagSession::applyDefaultsToUntrimmedTags(const QString& mainEvent, qint64 leadMs, qint64 lagMs) {
   if (mainEvent.isEmpty()) return;
   if (EventDefaults::isTimeControlEvent(mainEvent)) return;
-  if (preMs < 0) preMs = 0;
-  if (postMs < 0) postMs = 0;
+  if (leadMs < 0) leadMs = 0;
+  if (lagMs < 0) lagMs = 0;
   for (int i = 0; i < tags_.size(); ++i) {
     GameTag& tag = tags_[i];
     if (tag.mainEvent != mainEvent) continue;
     // Manually trimmed clips (export review or fixed game-time spans) are never touched.
     if (tag.intervalManuallyEdited) continue;
-    qint64 start = tag.positionMs - preMs;
-    qint64 end = tag.positionMs + postMs;
+    qint64 start = tag.markMs - leadMs;
+    qint64 end = tag.markMs + lagMs;
     if (start < 0) start = 0;
     if (end < start) end = start;
     if (tag.startMs == start && tag.endMs == end) continue;

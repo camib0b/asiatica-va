@@ -46,7 +46,8 @@ private:
   void saveStore();
   void evaluateAndNotify();
   LicenseUiStatus evaluate() const;
-  qint64 effectiveNow() const;
+  /// Max of wall clock and last-seen time so rolling the system clock back cannot extend a trial.
+  qint64 tamperResistantUnixTime() const;
   void bumpWallClock(qint64 nowUnix);
   void startLocalTrial();
   void postJson(const QString& path, const QByteArray& body);

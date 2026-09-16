@@ -7,8 +7,8 @@
 namespace EventDefaults {
 
 struct EventDuration {
-  qint64 preMs = 0;
-  qint64 postMs = 0;
+  qint64 leadMs = 0;  ///< Time before the event mark.
+  qint64 lagMs = 0;   ///< Time after the event mark.
 };
 
 /// Canonical event names recognised as game-time anchors / quarter spans.
@@ -26,7 +26,7 @@ inline constexpr const char* kQuarter4 = "Q4";
 bool isQuarterEvent(const QString& canonicalMainEvent);
 
 /// True for time-control codes whose start/end are determined by user clicks
-/// (start anchor, quarter spans, timeouts) and not by symmetric pre/post pads.
+/// (start anchor, quarter spans, timeouts) and not by symmetric lead/lag pads.
 bool isTimeControlEvent(const QString& canonicalMainEvent);
 
 /// All clip event types shown in Clip Duration Settings (fixed display order).
@@ -42,7 +42,7 @@ EventDuration defaultFor(const QString& canonicalMainEvent);
 QString quarterCode(int quarterIndex);
 
 /// Persist a user override and update the in-memory cache.
-void setUserOverride(const QString& canonicalMainEvent, qint64 preMs, qint64 postMs);
+void setUserOverride(const QString& canonicalMainEvent, qint64 leadMs, qint64 lagMs);
 
 /// Remove all user overrides from memory and QSettings.
 void clearUserOverrides();

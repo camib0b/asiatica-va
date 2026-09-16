@@ -16,10 +16,10 @@ class QToolButton;
 
 class TagSession;
 
-/// Side panel of presentation mode: filters the session's tagged events, lets the user tick the
+/// Side panel of presentation mode: filters the session's tagged events, lets the user select the
 /// instances to present, and edits the lead/lag times of the clip currently on screen.
 ///
-/// The panel owns no playback state; it reports the ticked instances (as TagSession indexes) and
+/// The panel owns no playback state; it reports the selected instances (as TagSession indexes) and
 /// the requested lead/lag edits, and WorkWindow feeds them into the PresentationQueue.
 class PresentationPanel final : public QWidget {
   Q_OBJECT
@@ -28,7 +28,7 @@ public:
   explicit PresentationPanel(QWidget* parent = nullptr);
 
   void setTagSession(TagSession* session);
-  /// Rebuilds filters and rows from the session, keeping ticked instances that still exist.
+  /// Rebuilds filters and rows from the session, keeping selected instances that still exist.
   void refreshFromSession();
 
   QVector<int> selectedTagIndexes() const;
@@ -92,7 +92,7 @@ private:
   QPushButton* exportButton_ = nullptr;
   QLabel* keyboardHintLabel_ = nullptr;
 
-  QSet<int> tickedTagIndexes_;
+  QSet<int> selectedTagIndexSet_;
   int currentTagSessionIndex_ = -1;
   bool populatingRows_ = false;
 };

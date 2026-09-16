@@ -47,12 +47,13 @@ QHash<QString, EventDuration>& userOverrides() {
 
 bool overridesLoaded = false;
 
-void persistOverride(const QString& canonicalMainEvent, qint64 preMs, qint64 postMs) {
+void persistOverride(const QString& canonicalMainEvent, qint64 leadMs, qint64 lagMs) {
   QSettings settings;
   settings.beginGroup(QLatin1String(kSettingsGroup));
   settings.beginGroup(canonicalMainEvent);
-  settings.setValue(QStringLiteral("preMs"), preMs);
-  settings.setValue(QStringLiteral("postMs"), postMs);
+  // Historical QSettings keys; kept so existing user clip-duration overrides still load.
+  settings.setValue(QStringLiteral("preMs"), leadMs);
+  settings.setValue(QStringLiteral("postMs"), lagMs);
   settings.endGroup();
   settings.endGroup();
 }
@@ -66,15 +67,15 @@ void ensureOverridesLoaded() {
   const QStringList eventGroups = settings.childGroups();
   for (const QString& eventKey : eventGroups) {
     settings.beginGroup(eventKey);
-    const QVariant preValue = settings.value(QStringLiteral("preMs"));
-    const QVariant postValue = settings.value(QStringLiteral("postMs"));
+    const QVariant leadValue = settings.value(QStringLiteral("preMs"));
+    const QVariant lagValue = settings.value(QStringLiteral("postMs"));
     settings.endGroup();
-    if (!preValue.isValid() || !postValue.isValid()) continue;
+    if (!leadValue.isValid() || !lagValue.isValid()) continue;
 
-    const qint64 preMs = preValue.toLongLong();
-    const qint64 postMs = postValue.toLongLong();
-    if (preMs < 0 || postMs < 0) continue;
-    userOverrides().insert(eventKey, {preMs, postMs});
+    const qint64 leadMs = leadValue.toLongLong();
+    const qint64 lagMs = lagValue.toLongLong();
+    if (leadMs < 0 || lagMs < 0) continue;
+    userOverrides().insert(eventKey, {leadMs, lagMs});
   }
   settings.endGroup();
 }
@@ -137,14 +138,14 @@ QString quarterCode(int quarterIndex) {
   }
 }
 
-void setUserOverride(const QString& canonicalMainEvent, qint64 preMs, qint64 postMs) {
+void setUserOverride(const QString& canonicalMainEvent, qint64 leadMs, qint64 lagMs) {
   if (isTimeControlEvent(canonicalMainEvent)) return;
-  if (preMs < 0) preMs = 0;
-  if (postMs < 0) postMs = 0;
+  if (leadMs < 0) leadMs = 0;
+  if (lagMs < 0) lagMs = 0;
 
   ensureOverridesLoaded();
-  userOverrides().insert(canonicalMainEvent, {preMs, postMs});
-  persistOverride(canonicalMainEvent, preMs, postMs);
+  userOverrides().insert(canonicalMainEvent, {leadMs, lagMs});
+  persistOverride(canonicalMainEvent, leadMs, lagMs);
 }
 
 void clearUserOverrides() {

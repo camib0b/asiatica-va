@@ -20,7 +20,7 @@ class PresentationQueue final : public QObject {
 public:
   struct Clip {
     int tagSessionIndex = -1;
-    qint64 markMs = 0;   ///< Event mark (GameTag::positionMs).
+    qint64 markMs = 0;   ///< Event mark (GameTag::markMs).
     qint64 startMs = 0;  ///< Mark minus lead time.
     qint64 endMs = 0;    ///< Mark plus lag time.
     QString mainEvent;
@@ -75,7 +75,7 @@ private:
   void dropSelectedIndexesOutsideSession();
   void clampClipToVideo(Clip& clip) const;
   int queueIndexForTagIndex(int tagSessionIndex) const;
-  void onSessionTagsChanged();
+  void refreshQueueFromSession();
 
   TagSession* tagSession_ = nullptr;
   QVector<Clip> clips_;

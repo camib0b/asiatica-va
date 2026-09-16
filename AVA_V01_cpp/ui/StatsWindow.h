@@ -22,7 +22,7 @@ public:
   void applyUiStrings();
 
 signals:
-  void filterByPathRequested(const QString& mainEvent, const QString& followUpEvent);
+  void filterByEventPathRequested(const QString& mainEvent, const QString& followUpEvent);
 
 private slots:
   void onTreeItemDoubleClicked(class QTreeWidgetItem* item, int column);

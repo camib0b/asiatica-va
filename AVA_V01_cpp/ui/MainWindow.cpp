@@ -57,7 +57,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 
     connect(qApp, &QCoreApplication::aboutToQuit, this, [this]() {
         if (tagSession_) tagSession_->clear();
-        if (tagSession_) tagSession_->clearTeamInfo();
+        if (tagSession_) tagSession_->clearGameMetadata();
     });
 }
 
@@ -126,7 +126,7 @@ void MainWindow::onVideoImportRequested() {
 
 void MainWindow::onVideoClosed() {
     if (tagSession_) tagSession_->clear();
-    if (tagSession_) tagSession_->clearTeamInfo();
+    if (tagSession_) tagSession_->clearGameMetadata();
     if (LicenseManager::instance().isEntitled()) {
         showWelcomeWindow();
     } else {

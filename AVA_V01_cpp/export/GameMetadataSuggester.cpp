@@ -248,7 +248,7 @@ GameMetadataSuggester::~GameMetadataSuggester() {
     abort();
 }
 
-void GameMetadataSuggester::start(const QStringList& sourceVideoPaths) {
+void GameMetadataSuggester::startSuggestionFromVideoPaths(const QStringList& sourceVideoPaths) {
     abortActiveWork();
     ++generation_;
     running_ = true;

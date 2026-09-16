@@ -13,21 +13,21 @@ ClipTrimBar::ClipTrimBar(QWidget* parent) : QWidget(parent) {
     setFixedHeight(kTrackHeight + kLabelGap + kLabelRowHeight);
 }
 
-void ClipTrimBar::configure(qint64 tagMs, qint64 inMs, qint64 outMs,
+void ClipTrimBar::configure(qint64 markMs, qint64 startMs, qint64 endMs,
                             qint64 windowStartMs, qint64 windowEndMs) {
-    tagPositionMs_ = tagMs;
-    inPointMs_ = inMs;
-    outPointMs_ = outMs;
+    markMs_ = markMs;
+    clipStartMs_ = startMs;
+    clipEndMs_ = endMs;
     windowStartMs_ = windowStartMs;
     windowEndMs_ = windowEndMs;
-    playheadMs_ = inMs;
+    playheadMs_ = startMs;
     dragTarget_ = DragTarget::None;
     update();
 }
 
-void ClipTrimBar::setPlayheadMs(qint64 posMs) {
-    if (playheadMs_ == posMs) return;
-    playheadMs_ = posMs;
+void ClipTrimBar::setPlayheadMs(qint64 playheadMs) {
+    if (playheadMs_ == playheadMs) return;
+    playheadMs_ = playheadMs;
     update();
 }
 
@@ -57,13 +57,13 @@ qint64 ClipTrimBar::xToMs(int x) const {
         + static_cast<qint64>(clamped * (windowEndMs_ - windowStartMs_));
 }
 
-QRect ClipTrimBar::inHandleRect() const {
-    const int x = msToX(inPointMs_);
+QRect ClipTrimBar::startHandleRect() const {
+    const int x = msToX(clipStartMs_);
     return {x - kHandleWidth / 2, 0, kHandleWidth, kTrackHeight};
 }
 
-QRect ClipTrimBar::outHandleRect() const {
-    const int x = msToX(outPointMs_);
+QRect ClipTrimBar::endHandleRect() const {
+    const int x = msToX(clipEndMs_);
     return {x - kHandleWidth / 2, 0, kHandleWidth, kTrackHeight};
 }
 
@@ -102,17 +102,17 @@ void ClipTrimBar::paintEvent(QPaintEvent*) {
     painter.setBrush(QColor(50, 50, 50));
     painter.drawRoundedRect(trackLeft, 0, trackWidth, kTrackHeight, 4, 4);
 
-    const int inX = msToX(inPointMs_);
-    const int outX = msToX(outPointMs_);
+    const int startX = msToX(clipStartMs_);
+    const int endX = msToX(clipEndMs_);
 
     // Selected range highlight
     painter.setBrush(Style::ThemeColors::playheadHighlight(50));
-    painter.drawRect(inX, 0, outX - inX, kTrackHeight);
+    painter.drawRect(startX, 0, endX - startX, kTrackHeight);
 
-    // Tag position marker (thin dashed line)
-    const int tagX = msToX(tagPositionMs_);
+    // Event-mark marker (thin dashed line)
+    const int markX = msToX(markMs_);
     painter.setPen(QPen(QColor(255, 200, 50, 180), 1, Qt::DashLine));
-    painter.drawLine(tagX, 2, tagX, kTrackHeight - 2);
+    painter.drawLine(markX, 2, markX, kTrackHeight - 2);
 
     // Playhead
     if (playheadMs_ >= windowStartMs_ && playheadMs_ <= windowEndMs_) {
@@ -121,14 +121,14 @@ void ClipTrimBar::paintEvent(QPaintEvent*) {
         painter.drawLine(phX, 0, phX, kTrackHeight);
     }
 
-    // In handle
+    // Start handle
     painter.setPen(Qt::NoPen);
     painter.setBrush(QColor(72, 199, 142));
-    painter.drawRoundedRect(inHandleRect(), 3, 3);
+    painter.drawRoundedRect(startHandleRect(), 3, 3);
 
-    // Out handle
+    // End handle
     painter.setBrush(QColor(248, 113, 113));
-    painter.drawRoundedRect(outHandleRect(), 3, 3);
+    painter.drawRoundedRect(endHandleRect(), 3, 3);
 
     // Time labels below track
     painter.setPen(QColor(160, 160, 160));
@@ -139,23 +139,23 @@ void ClipTrimBar::paintEvent(QPaintEvent*) {
     const int labelY = kTrackHeight + kLabelGap;
     const QFontMetrics fm(labelFont);
 
-    const QString inText = formatMs(inPointMs_);
-    painter.drawText(inX - fm.horizontalAdvance(inText) / 2, labelY,
-                     fm.horizontalAdvance(inText) + 2, kLabelRowHeight,
-                     Qt::AlignCenter, inText);
+    const QString startText = formatMs(clipStartMs_);
+    painter.drawText(startX - fm.horizontalAdvance(startText) / 2, labelY,
+                     fm.horizontalAdvance(startText) + 2, kLabelRowHeight,
+                     Qt::AlignCenter, startText);
 
-    const qint64 durationMs = outPointMs_ - inPointMs_;
+    const qint64 durationMs = clipEndMs_ - clipStartMs_;
     const double durationSec = durationMs / 1000.0;
     const QString durText = QStringLiteral("%1s").arg(durationSec, 0, 'f', 1);
-    const int durX = (inX + outX) / 2;
+    const int durX = (startX + endX) / 2;
     painter.drawText(durX - fm.horizontalAdvance(durText) / 2, labelY,
                      fm.horizontalAdvance(durText) + 2, kLabelRowHeight,
                      Qt::AlignCenter, durText);
 
-    const QString outText = formatMs(outPointMs_);
-    painter.drawText(outX - fm.horizontalAdvance(outText) / 2, labelY,
-                     fm.horizontalAdvance(outText) + 2, kLabelRowHeight,
-                     Qt::AlignCenter, outText);
+    const QString endText = formatMs(clipEndMs_);
+    painter.drawText(endX - fm.horizontalAdvance(endText) / 2, labelY,
+                     fm.horizontalAdvance(endText) + 2, kLabelRowHeight,
+                     Qt::AlignCenter, endText);
 }
 
 void ClipTrimBar::mousePressEvent(QMouseEvent* event) {
@@ -167,17 +167,17 @@ void ClipTrimBar::mousePressEvent(QMouseEvent* event) {
     const QPoint pos = event->pos();
     const int hitTolerance = 6;
 
-    const QRect inRect = inHandleRect().adjusted(-hitTolerance, 0, hitTolerance, 0);
-    const QRect outRect = outHandleRect().adjusted(-hitTolerance, 0, hitTolerance, 0);
+    const QRect startRect = startHandleRect().adjusted(-hitTolerance, 0, hitTolerance, 0);
+    const QRect endRect = endHandleRect().adjusted(-hitTolerance, 0, hitTolerance, 0);
 
-    if (inRect.contains(pos) && outRect.contains(pos)) {
-        const int distIn = std::abs(pos.x() - inHandleRect().center().x());
-        const int distOut = std::abs(pos.x() - outHandleRect().center().x());
-        dragTarget_ = (distIn <= distOut) ? DragTarget::InPoint : DragTarget::OutPoint;
-    } else if (inRect.contains(pos)) {
-        dragTarget_ = DragTarget::InPoint;
-    } else if (outRect.contains(pos)) {
-        dragTarget_ = DragTarget::OutPoint;
+    if (startRect.contains(pos) && endRect.contains(pos)) {
+        const int distanceToStart = std::abs(pos.x() - startHandleRect().center().x());
+        const int distanceToEnd = std::abs(pos.x() - endHandleRect().center().x());
+        dragTarget_ = (distanceToStart <= distanceToEnd) ? DragTarget::ClipStart : DragTarget::ClipEnd;
+    } else if (startRect.contains(pos)) {
+        dragTarget_ = DragTarget::ClipStart;
+    } else if (endRect.contains(pos)) {
+        dragTarget_ = DragTarget::ClipEnd;
     } else {
         dragTarget_ = DragTarget::None;
         if (pos.y() <= kTrackHeight) {
@@ -191,9 +191,9 @@ void ClipTrimBar::mouseMoveEvent(QMouseEvent* event) {
     if (dragTarget_ == DragTarget::None) {
         const QPoint pos = event->pos();
         const int hitTolerance = 6;
-        const QRect inRect = inHandleRect().adjusted(-hitTolerance, 0, hitTolerance, 0);
-        const QRect outRect = outHandleRect().adjusted(-hitTolerance, 0, hitTolerance, 0);
-        if (inRect.contains(pos) || outRect.contains(pos)) {
+        const QRect startRect = startHandleRect().adjusted(-hitTolerance, 0, hitTolerance, 0);
+        const QRect endRect = endHandleRect().adjusted(-hitTolerance, 0, hitTolerance, 0);
+        if (startRect.contains(pos) || endRect.contains(pos)) {
             setCursor(Qt::SizeHorCursor);
         } else {
             setCursor(Qt::ArrowCursor);
@@ -203,23 +203,23 @@ void ClipTrimBar::mouseMoveEvent(QMouseEvent* event) {
 
     const qint64 rawMs = xToMs(event->pos().x());
 
-    if (dragTarget_ == DragTarget::InPoint) {
-        const qint64 maxIn = outPointMs_ - kMinClipDurationMs;
-        const qint64 clamped = std::clamp(rawMs, windowStartMs_, maxIn);
-        if (clamped != inPointMs_) {
-            inPointMs_ = clamped;
+    if (dragTarget_ == DragTarget::ClipStart) {
+        const qint64 latestStartMs = clipEndMs_ - kMinClipDurationMs;
+        const qint64 clamped = std::clamp(rawMs, windowStartMs_, latestStartMs);
+        if (clamped != clipStartMs_) {
+            clipStartMs_ = clamped;
             update();
-            emit inPointChanged(inPointMs_);
-            emit seekRequested(inPointMs_);
+            emit clipStartChanged(clipStartMs_);
+            emit seekRequested(clipStartMs_);
         }
-    } else if (dragTarget_ == DragTarget::OutPoint) {
-        const qint64 minOut = inPointMs_ + kMinClipDurationMs;
-        const qint64 clamped = std::clamp(rawMs, minOut, windowEndMs_);
-        if (clamped != outPointMs_) {
-            outPointMs_ = clamped;
+    } else if (dragTarget_ == DragTarget::ClipEnd) {
+        const qint64 earliestEndMs = clipStartMs_ + kMinClipDurationMs;
+        const qint64 clamped = std::clamp(rawMs, earliestEndMs, windowEndMs_);
+        if (clamped != clipEndMs_) {
+            clipEndMs_ = clamped;
             update();
-            emit outPointChanged(outPointMs_);
-            emit seekRequested(outPointMs_);
+            emit clipEndChanged(clipEndMs_);
+            emit seekRequested(clipEndMs_);
         }
     }
 }

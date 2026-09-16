@@ -51,8 +51,10 @@ public:
   void applyUiLanguage();
 
 signals:
-  void mainEventPressed(const QString& mainEvent);
-  void gameEventMarked(const QString& mainEvent, const QString& followUpEvent = QString());
+  /// Playhead timestamp captured when the user presses a main-event button (before follow-ups).
+  void mainEventTimestampCaptured(const QString& mainEvent);
+  /// Follow-up flow finished (or skipped); WorkWindow should create the GameTag.
+  void tagCommitted(const QString& mainEvent, const QString& followUpEvent = QString());
   /// Emitted when the user picks home or away on the top row (isHome true = home team).
   void teamSideSelected(bool isHome);
   /// Emitted when the user clicks the Start Game button.
@@ -130,11 +132,11 @@ protected:
   QPushButton* homeTeamButton_ = nullptr;
   QPushButton* awayTeamButton_ = nullptr;
 
-  QPushButton* hit16ydButton_ = nullptr;
-  QPushButton* hit50ydButton_ = nullptr;
-  QPushButton* hit75ydButton_ = nullptr;
+  QPushButton* sixteenYardButton_ = nullptr;
+  QPushButton* fiftyYardButton_ = nullptr;
+  QPushButton* seventyFiveYardButton_ = nullptr;
   QPushButton* pcButton_ = nullptr;
-  QPushButton* enterDButton_ = nullptr;
+  QPushButton* circleEntryButton_ = nullptr;
   QPushButton* pcFoulButton_ = nullptr;
   QPushButton* shotButton_ = nullptr;
   QPushButton* goalButton_ = nullptr;
@@ -146,11 +148,11 @@ protected:
   QPushButton* psButton_ = nullptr;
 
   // keyboard shortcuts (same row-major order as on-screen grid):
-  QAction* hit16ydAction_ = nullptr;
-  QAction* hit50ydAction_ = nullptr;
-  QAction* hit75ydAction_ = nullptr;
+  QAction* sixteenYardAction_ = nullptr;
+  QAction* fiftyYardAction_ = nullptr;
+  QAction* seventyFiveYardAction_ = nullptr;
   QAction* pcAction_ = nullptr;
-  QAction* enterDAction_ = nullptr;
+  QAction* circleEntryAction_ = nullptr;
   QAction* pcFoulAction_ = nullptr;
   QAction* shotAction_ = nullptr;
   QAction* goalAction_ = nullptr;

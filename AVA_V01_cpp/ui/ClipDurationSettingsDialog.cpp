@@ -144,10 +144,10 @@ void ClipDurationSettingsDialog::populateRows() {
     row.eventLabel = new QLabel(AppLocale::trEvent(eventName), tableHost);
 
     row.leadSpin = makeDurationSpinBox(tableHost);
-    row.leadSpin->setValue(duration.preMs / 1000.0);
+    row.leadSpin->setValue(duration.leadMs / 1000.0);
 
     row.lagSpin = makeDurationSpinBox(tableHost);
-    row.lagSpin->setValue(duration.postMs / 1000.0);
+    row.lagSpin->setValue(duration.lagMs / 1000.0);
 
     row.totalLabel = new QLabel(tableHost);
     row.totalLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
@@ -193,10 +193,10 @@ void ClipDurationSettingsDialog::refreshTotalLabel(const DurationRow& row) {
 }
 
 void ClipDurationSettingsDialog::applyDurationToSession(const QString& eventName,
-                                                         qint64 preMs,
-                                                         qint64 postMs) {
+                                                         qint64 leadMs,
+                                                         qint64 lagMs) {
   if (!tagSession_) return;
-  tagSession_->applyDefaultsToUntrimmedTags(eventName, preMs, postMs);
+  tagSession_->applyDefaultsToUntrimmedTags(eventName, leadMs, lagMs);
 }
 
 void ClipDurationSettingsDialog::onDurationChanged(const QString& eventName) {
@@ -204,11 +204,11 @@ void ClipDurationSettingsDialog::onDurationChanged(const QString& eventName) {
     if (row.eventName != eventName) continue;
     if (!row.leadSpin || !row.lagSpin) return;
 
-    const qint64 preMs = static_cast<qint64>(row.leadSpin->value() * 1000.0);
-    const qint64 postMs = static_cast<qint64>(row.lagSpin->value() * 1000.0);
-    EventDefaults::setUserOverride(eventName, preMs, postMs);
+    const qint64 leadMs = static_cast<qint64>(row.leadSpin->value() * 1000.0);
+    const qint64 lagMs = static_cast<qint64>(row.lagSpin->value() * 1000.0);
+    EventDefaults::setUserOverride(eventName, leadMs, lagMs);
     refreshTotalLabel(row);
-    applyDurationToSession(eventName, preMs, postMs);
+    applyDurationToSession(eventName, leadMs, lagMs);
     return;
   }
 }
@@ -224,11 +224,11 @@ void ClipDurationSettingsDialog::onResetAllClicked() {
     {
       const QSignalBlocker leadBlocker(row.leadSpin);
       const QSignalBlocker lagBlocker(row.lagSpin);
-      row.leadSpin->setValue(factoryDefault.preMs / 1000.0);
-      row.lagSpin->setValue(factoryDefault.postMs / 1000.0);
+      row.leadSpin->setValue(factoryDefault.leadMs / 1000.0);
+      row.lagSpin->setValue(factoryDefault.lagMs / 1000.0);
     }
 
     refreshTotalLabel(row);
-    applyDurationToSession(row.eventName, factoryDefault.preMs, factoryDefault.postMs);
+    applyDurationToSession(row.eventName, factoryDefault.leadMs, factoryDefault.lagMs);
   }
 }

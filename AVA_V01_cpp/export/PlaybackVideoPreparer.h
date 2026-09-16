@@ -16,8 +16,8 @@ public:
   explicit PlaybackVideoPreparer(QObject* parent = nullptr);
   ~PlaybackVideoPreparer() override;
 
-  /// Returns true when Qt's media stack is unlikely to decode the file without conversion.
-  static bool needsPreparation(const QString& filePath);
+  /// True for MKV/WebM containers, which QMediaPlayer/AVFoundation typically cannot decode.
+  static bool requiresTranscodeForPlayback(const QString& filePath);
 
   void startPreparation(const QString& inputPath, const QString& outputDir);
   void cancel();
