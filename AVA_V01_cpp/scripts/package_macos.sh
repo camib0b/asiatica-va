@@ -80,9 +80,6 @@ cp -R "$APP_SRC" "$DIST/AVA.app"
 if [[ -f "$ROOT/config/license_server.json" ]]; then
   cp "$ROOT/config/license_server.json" "$DIST/AVA.app/Contents/MacOS/license_server.json"
 fi
-if [[ -f "$ROOT/config/youtube_oauth.json" ]]; then
-  cp "$ROOT/config/youtube_oauth.json" "$DIST/AVA.app/Contents/MacOS/youtube_oauth.json"
-fi
 
 "$MACDEPLOYQT_BIN" "$DIST/AVA.app" -verbose=1
 

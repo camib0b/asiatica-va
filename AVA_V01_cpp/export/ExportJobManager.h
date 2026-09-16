@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ClipExporter.h"
-#include "YouTubeUploader.h"
 
 #include <QObject>
 #include <QString>
@@ -9,7 +8,6 @@
 #include <QVector>
 
 class TagSession;
-class YouTubeAuthManager;
 
 enum class ExportOutputFormat {
     Mp4 = 0,
@@ -24,8 +22,6 @@ struct ExportJobRequest {
     QVector<ClipSegment> clips;
     bool includeAudioTrack = true;
     bool includeBrandingOverlay = true;
-    bool uploadToYouTube = false;
-    YouTubeUploadMetadata youtubeMetadata;
     TagSession* tagSession = nullptr;
 };
 
@@ -38,14 +34,13 @@ struct ExportJobSnapshot {
     bool canCancel = false;
     bool canDismiss = false;
     bool failed = false;
-    QString youtubeUrl;
 };
 
 class ExportJobManager final : public QObject {
     Q_OBJECT
 
 public:
-    explicit ExportJobManager(YouTubeAuthManager* youtubeAuth, QObject* parent = nullptr);
+    explicit ExportJobManager(QObject* parent = nullptr);
     ~ExportJobManager() override;
 
     /// Starts a job. Returns false and fills \p errorMessage when the request cannot be accepted
@@ -66,8 +61,6 @@ signals:
 private:
     enum class JobState {
         Exporting,
-        ResolvingPlaylist,
-        Uploading,
         Succeeded,
         Failed,
         Cancelled,
@@ -82,17 +75,9 @@ private:
         QString displayName;
         QString statusText;
         QString errorMessage;
-        QString youtubeUrl;
         int currentClip = 0;
         int totalClips = 0;
-        int uploadPercent = 0;
-        bool uploadToYouTube = false;
-        YouTubeUploadMetadata youtubeMetadata;
-        QString playlistId;
-        QString playlistError;
-        bool playlistResolved = false;
         ClipExporter* exporter = nullptr;
-        YouTubeUploader* uploader = nullptr;
     };
 
     Job* jobById(int jobId);
@@ -100,11 +85,9 @@ private:
     ExportJobSnapshot snapshotFor(const Job& job) const;
     void updateExportingStatus(Job& job);
     void finishJob(Job& job, JobState state, const QString& message);
-    void startYouTubeUploadIfReady(Job& job);
     bool pathIsOccupied(const QString& path) const;
     static QString canonicalPath(const QString& path);
 
-    YouTubeAuthManager* youtubeAuth_ = nullptr;
     QVector<Job*> jobs_;
     int nextJobId_ = 1;
 };

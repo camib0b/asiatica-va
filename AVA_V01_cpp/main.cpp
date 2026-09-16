@@ -1,7 +1,6 @@
 #include "ui/MainWindow.h"
 #include "i18n/AppLocale.h"
 #include "state/EventDefaults.h"
-#include "YouTubeConfig.h"
 #include "license/LicenseManager.h"
 #include "XaiConfig.h"
 #include <QApplication>
@@ -15,7 +14,6 @@ int main(int argc, char* argv[]) {
     app.setWindowIcon(QIcon(":/ava-icon.png"));
 
     Style::ApplyLightTheme();
-    YouTubeConfig::bootstrap();
     XaiConfig::bootstrap();
     AppLocale::loadFromSettings();
     EventDefaults::loadFromSettings();

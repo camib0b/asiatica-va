@@ -34,7 +34,6 @@ class PresentationPanel;
 class PresentationQueue;
 class ExportJobManager;
 class ExportJobsBar;
-class YouTubeAuthManager;
 class MatchNotesEditor;
 
 #include "../state/TagSession.h"
@@ -199,7 +198,6 @@ private:
   PresentationQueue* presentationQueue_ = nullptr;
   ExportJobManager* exportJobManager_ = nullptr;
   ExportJobsBar* exportJobsBar_ = nullptr;
-  YouTubeAuthManager* youtubeAuthManager_ = nullptr;
   bool presentationKeyboardShortcutsInstalled_ = false;
   bool presentationAutoPauseArmed_ = false;
   bool updatingPresentationClipBar_ = false;

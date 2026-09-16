@@ -4,12 +4,10 @@
 #include "ExportJobManager.h"
 #include "StyleProps.h"
 
-#include <QDesktopServices>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QProgressBar>
 #include <QPushButton>
-#include <QUrl>
 #include <QVBoxLayout>
 
 ExportJobsBar::ExportJobsBar(ExportJobManager* manager, QWidget* parent)
@@ -73,18 +71,6 @@ void ExportJobsBar::rebuildRows() {
         progressBar->setFixedWidth(140);
         progressBar->setTextVisible(true);
         rowLayout->addWidget(progressBar, 0);
-
-        if (!snapshot.youtubeUrl.isEmpty()) {
-            auto* openButton = new QPushButton(AppLocale::trUi("export.youtube_open_video"), row);
-            openButton->setCursor(Qt::PointingHandCursor);
-            Style::setVariant(openButton, "outline");
-            Style::setSize(openButton, "sm");
-            const QString videoUrl = snapshot.youtubeUrl;
-            connect(openButton, &QPushButton::clicked, this, [videoUrl]() {
-                QDesktopServices::openUrl(QUrl(videoUrl));
-            });
-            rowLayout->addWidget(openButton, 0);
-        }
 
         if (snapshot.canCancel) {
             auto* cancelButton = new QPushButton(AppLocale::trUi("export.cancel"), row);

@@ -71,7 +71,6 @@ dist/
 htmlcov/
 
 # --- Secrets / local API credentials ---
-**/youtube_oauth.json
 **/license_server.json
 license-server/.dev.vars
 license-server/.wrangler/

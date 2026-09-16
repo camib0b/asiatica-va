@@ -18,7 +18,6 @@
 #include "../export/ExportClipBuilder.h"
 #include "../export/ExportJobManager.h"
 #include "../export/ExportJobsBar.h"
-#include "../export/YouTubeAuthManager.h"
 #include "../export/VideoConcatenator.h"
 #include "../export/PlaybackVideoPreparer.h"
 #include "../export/XmlImporter.h"
@@ -534,8 +533,7 @@ void WorkWindow::buildUi() {
 
     layout->addWidget(contentStack_);
 
-    youtubeAuthManager_ = new YouTubeAuthManager(this);
-    exportJobManager_ = new ExportJobManager(youtubeAuthManager_, this);
+    exportJobManager_ = new ExportJobManager(this);
     exportJobsBar_ = new ExportJobsBar(exportJobManager_, this);
     layout->addWidget(exportJobsBar_, 0);
 
@@ -1579,7 +1577,6 @@ void WorkWindow::onPresentationExportRequested() {
         sourceVideoPath_,
         exportDefaultDirectoryPath_,
         queuedClips,
-        youtubeAuthManager_,
         exportJobManager_->activeOutputPaths(),
         this);
     dialog.setModal(true);
@@ -1606,8 +1603,6 @@ void WorkWindow::onPresentationExportRequested() {
     request.clips = ExportClipBuilder::buildClipSegments(tagSession_, orderedClips, overlayOptions);
     request.includeAudioTrack = settings.includeAudioTrack;
     request.includeBrandingOverlay = settings.includeBrandingOverlay;
-    request.uploadToYouTube = settings.uploadToYouTube;
-    request.youtubeMetadata = settings.youtubeMetadata;
     request.tagSession = tagSession_;
 
     QString errorMessage;

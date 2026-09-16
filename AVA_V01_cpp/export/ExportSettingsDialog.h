@@ -3,7 +3,6 @@
 #include "AppLocale.h"
 #include "ExportJobManager.h"
 #include "PresentationQueue.h"
-#include "YouTubeUploader.h"
 
 #include <QDialog>
 #include <QString>
@@ -17,7 +16,6 @@ class QLineEdit;
 class QPushButton;
 
 class TagSession;
-class YouTubeAuthManager;
 
 class ExportSettingsDialog final : public QDialog {
     Q_OBJECT
@@ -33,15 +31,12 @@ public:
         bool includeBrandingOverlay = true;
         bool includeNotesOverlay = true;
         QString outputPath;
-        bool uploadToYouTube = false;
-        YouTubeUploadMetadata youtubeMetadata;
     };
 
     explicit ExportSettingsDialog(TagSession* session,
                                   const QString& sourceVideoPath,
                                   const QString& defaultOutputDirectoryPath,
                                   const QVector<PresentationQueue::Clip>& queuedClips,
-                                  YouTubeAuthManager* youtubeAuth,
                                   const QStringList& occupiedOutputPaths,
                                   QWidget* parent = nullptr);
 
@@ -51,10 +46,6 @@ private slots:
     void onOutputFormatChanged(int index);
     void onBrowseOutputPath();
     void onExportClicked();
-    void onYouTubeConnectClicked();
-    void onYouTubeDisconnectClicked();
-    void onYouTubeAuthStateChanged();
-    void onYouTubeAuthError(const QString& message);
 
 private:
     void buildUi();
@@ -62,17 +53,14 @@ private:
     void updateSortOrderVisibility();
     void updateControlsForFormat();
     void updateClipCount();
-    void updateYouTubeSection();
     ExportOutputFormat selectedOutputFormat() const;
     QString suggestedBaseName() const;
     QString defaultSuggestedFilePath() const;
     void applySuggestedOutputPathFromForm();
     void refreshOutputPathIfFollowingForm();
-    YouTubeUploadMetadata buildYouTubeUploadMetadata() const;
     bool queuedClipsHaveMixedTeams() const;
 
     TagSession* tagSession_ = nullptr;
-    YouTubeAuthManager* youtubeAuth_ = nullptr;
     QString sourceVideoPath_;
     QString defaultOutputDirectoryPath_;
     QVector<PresentationQueue::Clip> queuedClips_;
@@ -92,11 +80,6 @@ private:
     QLabel* clipCountLabel_ = nullptr;
     QLineEdit* outputPathEdit_ = nullptr;
     QPushButton* browseButton_ = nullptr;
-    QCheckBox* uploadToYouTubeCheckBox_ = nullptr;
-    QLabel* youtubeStatusLabel_ = nullptr;
-    QLabel* youtubePlaylistLabel_ = nullptr;
-    QPushButton* youtubeConnectButton_ = nullptr;
-    QPushButton* youtubeDisconnectButton_ = nullptr;
     QPushButton* closeButton_ = nullptr;
     QPushButton* exportButton_ = nullptr;
 };

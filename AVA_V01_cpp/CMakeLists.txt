@@ -48,9 +48,6 @@ qt_add_executable(AVA
   export/PlaybackVideoPreparer.cpp
   export/XmlExporter.cpp
   export/XmlImporter.cpp
-  export/YouTubeConfig.cpp
-  export/YouTubeAuthManager.cpp
-  export/YouTubeUploader.cpp
   export/XaiConfig.cpp
   export/GameMetadataSuggester.cpp
 )
@@ -141,15 +138,6 @@ target_compile_definitions(AVA PRIVATE
   AVA_LICENSE_SIGNING_SECRET="${AVA_LICENSE_SIGNING_SECRET}"
   AVA_LICENSE_API_URL="${AVA_LICENSE_API_URL}"
 )
-
-set(YOUTUBE_OAUTH_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/config/youtube_oauth.json")
-if(EXISTS "${YOUTUBE_OAUTH_CONFIG}")
-  add_custom_command(TARGET AVA POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${YOUTUBE_OAUTH_CONFIG}"
-      "$<TARGET_FILE_DIR:AVA>/youtube_oauth.json"
-    COMMENT "Copying YouTube OAuth config into app bundle")
-endif()
 
 set(LICENSE_SERVER_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/config/license_server.json")
 if(EXISTS "${LICENSE_SERVER_CONFIG}")

@@ -3,9 +3,6 @@
 #include "ClipExporter.h"
 #include "ExportClipBuilder.h"
 #include "TagSession.h"
-#include "YouTubeAuthManager.h"
-#include "YouTubeConfig.h"
-#include "YouTubeUploader.h"
 #include "AppLocale.h"
 #include "StyleProps.h"
 
@@ -27,12 +24,10 @@ ExportSettingsDialog::ExportSettingsDialog(TagSession* session,
                                            const QString& sourceVideoPath,
                                            const QString& defaultOutputDirectoryPath,
                                            const QVector<PresentationQueue::Clip>& queuedClips,
-                                           YouTubeAuthManager* youtubeAuth,
                                            const QStringList& occupiedOutputPaths,
                                            QWidget* parent)
     : QDialog(parent)
     , tagSession_(session)
-    , youtubeAuth_(youtubeAuth)
     , sourceVideoPath_(sourceVideoPath)
     , defaultOutputDirectoryPath_(defaultOutputDirectoryPath)
     , queuedClips_(queuedClips)
@@ -45,14 +40,6 @@ ExportSettingsDialog::ExportSettingsDialog(TagSession* session,
     buildUi();
     updatePathFieldForFormat();
     updateClipCount();
-    updateYouTubeSection();
-
-    if (youtubeAuth_) {
-        connect(youtubeAuth_, &YouTubeAuthManager::authStateChanged,
-                this, &ExportSettingsDialog::onYouTubeAuthStateChanged);
-        connect(youtubeAuth_, &YouTubeAuthManager::authError,
-                this, &ExportSettingsDialog::onYouTubeAuthError);
-    }
 }
 
 void ExportSettingsDialog::buildUi() {
@@ -161,42 +148,6 @@ void ExportSettingsDialog::buildUi() {
     pathRow->addWidget(browseButton_, 0);
     formLayout->addRow(AppLocale::trUi("export.save_to"), pathRow);
 
-    uploadToYouTubeCheckBox_ =
-        new QCheckBox(AppLocale::trUi("export.upload_to_youtube"), this);
-    uploadToYouTubeCheckBox_->setCursor(Qt::PointingHandCursor);
-    uploadToYouTubeCheckBox_->setChecked(false);
-    connect(uploadToYouTubeCheckBox_, &QCheckBox::toggled,
-            this, [this](bool) { updateYouTubeSection(); });
-    formLayout->addRow(QString(), uploadToYouTubeCheckBox_);
-
-    youtubeStatusLabel_ = new QLabel(this);
-    Style::setRole(youtubeStatusLabel_, "muted");
-    youtubeStatusLabel_->setWordWrap(true);
-    formLayout->addRow(AppLocale::trUi("export.youtube_account"), youtubeStatusLabel_);
-
-    youtubePlaylistLabel_ = new QLabel(this);
-    Style::setRole(youtubePlaylistLabel_, "muted");
-    youtubePlaylistLabel_->setWordWrap(true);
-    formLayout->addRow(AppLocale::trUi("export.youtube_playlist"), youtubePlaylistLabel_);
-
-    auto* youtubeButtonRow = new QHBoxLayout();
-    youtubeButtonRow->setSpacing(8);
-    youtubeConnectButton_ = new QPushButton(AppLocale::trUi("export.youtube_connect"), this);
-    youtubeConnectButton_->setCursor(Qt::PointingHandCursor);
-    Style::setVariant(youtubeConnectButton_, "secondary");
-    connect(youtubeConnectButton_, &QPushButton::clicked,
-            this, &ExportSettingsDialog::onYouTubeConnectClicked);
-    youtubeButtonRow->addWidget(youtubeConnectButton_);
-
-    youtubeDisconnectButton_ = new QPushButton(AppLocale::trUi("export.youtube_disconnect"), this);
-    youtubeDisconnectButton_->setCursor(Qt::PointingHandCursor);
-    Style::setVariant(youtubeDisconnectButton_, "outline");
-    connect(youtubeDisconnectButton_, &QPushButton::clicked,
-            this, &ExportSettingsDialog::onYouTubeDisconnectClicked);
-    youtubeButtonRow->addWidget(youtubeDisconnectButton_);
-    youtubeButtonRow->addStretch(1);
-    formLayout->addRow(QString(), youtubeButtonRow);
-
     layout->addLayout(formLayout);
     layout->addStretch(1);
 
@@ -238,7 +189,6 @@ void ExportSettingsDialog::onOutputFormatChanged(int /*index*/) {
     updatePathFieldForFormat();
     updateControlsForFormat();
     updateClipCount();
-    updateYouTubeSection();
 }
 
 void ExportSettingsDialog::updatePathFieldForFormat() {
@@ -375,106 +325,6 @@ void ExportSettingsDialog::onBrowseOutputPath() {
     }
 }
 
-void ExportSettingsDialog::updateYouTubeSection() {
-    const bool configured = YouTubeConfig::isConfigured();
-    const bool authenticated = youtubeAuth_ && youtubeAuth_->isAuthenticated();
-    const bool wantsUpload = uploadToYouTubeCheckBox_ && uploadToYouTubeCheckBox_->isChecked();
-    const bool mp4Capable = selectedOutputFormat() != ExportOutputFormat::Xml;
-
-    if (uploadToYouTubeCheckBox_) {
-        uploadToYouTubeCheckBox_->setEnabled(configured && mp4Capable);
-        if (!mp4Capable && uploadToYouTubeCheckBox_->isChecked()) {
-            uploadToYouTubeCheckBox_->setChecked(false);
-        }
-    }
-
-    if (youtubeStatusLabel_) {
-        if (!configured) {
-            youtubeStatusLabel_->setText(AppLocale::trUi("export.youtube_not_configured"));
-        } else if (authenticated) {
-            youtubeStatusLabel_->setText(
-                AppLocale::trUi("export.youtube_connected")
-                    .arg(youtubeAuth_->channelTitle()));
-        } else {
-            youtubeStatusLabel_->setText(AppLocale::trUi("export.youtube_not_connected"));
-        }
-    }
-
-    if (youtubePlaylistLabel_) {
-        const QString playlistTitle = YouTubeUploader::matchPlaylistTitle(tagSession_);
-        youtubePlaylistLabel_->setText(
-            AppLocale::trUi("export.youtube_playlist_target").arg(playlistTitle));
-        youtubePlaylistLabel_->setVisible(wantsUpload || authenticated);
-    }
-
-    if (youtubeConnectButton_) {
-        youtubeConnectButton_->setEnabled(configured && !authenticated);
-    }
-    if (youtubeDisconnectButton_) {
-        youtubeDisconnectButton_->setEnabled(authenticated);
-    }
-}
-
-void ExportSettingsDialog::onYouTubeConnectClicked() {
-    if (!YouTubeConfig::isConfigured()) {
-        QMessageBox::warning(this,
-            AppLocale::trUi("export.title"),
-            YouTubeConfig::setupInstructions());
-        return;
-    }
-    if (youtubeAuth_) {
-        youtubeAuth_->startSignIn();
-    }
-}
-
-void ExportSettingsDialog::onYouTubeDisconnectClicked() {
-    if (youtubeAuth_) {
-        youtubeAuth_->signOut();
-    }
-}
-
-void ExportSettingsDialog::onYouTubeAuthStateChanged() {
-    updateYouTubeSection();
-}
-
-void ExportSettingsDialog::onYouTubeAuthError(const QString& message) {
-    QMessageBox::warning(this, AppLocale::trUi("export.title"), message);
-}
-
-YouTubeUploadMetadata ExportSettingsDialog::buildYouTubeUploadMetadata() const {
-    YouTubeUploadMetadata metadata;
-    const QFileInfo outputInfo(outputPathEdit_ ? outputPathEdit_->text().trimmed() : QString());
-    metadata.title = outputInfo.completeBaseName().isEmpty()
-        ? suggestedBaseName()
-        : outputInfo.completeBaseName();
-
-    QStringList descriptionLines;
-    if (tagSession_) {
-        if (!tagSession_->competitionName().isEmpty()) {
-            descriptionLines.append(
-                QStringLiteral("%1: %2")
-                    .arg(AppLocale::trUi("setup.competition"), tagSession_->competitionName()));
-        }
-        if (tagSession_->gameDate().isValid()) {
-            descriptionLines.append(
-                QStringLiteral("%1: %2")
-                    .arg(AppLocale::trUi("setup.date"), tagSession_->gameDate().toString(Qt::ISODate)));
-        }
-        descriptionLines.append(
-            QStringLiteral("%1 vs %2")
-                .arg(ExportClipBuilder::teamDisplayName(tagSession_, QStringLiteral("Home")),
-                     ExportClipBuilder::teamDisplayName(tagSession_, QStringLiteral("Away"))));
-    }
-    descriptionLines.append(
-        QStringLiteral("%1: %2")
-            .arg(AppLocale::trUi("export.clips_label"))
-            .arg(queuedClips_.size()));
-    descriptionLines.append(AppLocale::trUi("export.youtube_description_footer"));
-    metadata.description = descriptionLines.join(QStringLiteral("\n"));
-    metadata.privacyStatus = QStringLiteral("unlisted");
-    return metadata;
-}
-
 void ExportSettingsDialog::onExportClicked() {
     const ExportOutputFormat format = selectedOutputFormat();
 
@@ -487,27 +337,6 @@ void ExportSettingsDialog::onExportClicked() {
 
     if (format == ExportOutputFormat::Xml && (!tagSession_ || tagSession_->tags().isEmpty())) {
         return;
-    }
-
-    if (uploadToYouTubeCheckBox_ && uploadToYouTubeCheckBox_->isChecked()) {
-        if (format == ExportOutputFormat::Xml) {
-            QMessageBox::warning(this,
-                AppLocale::trUi("export.title"),
-                AppLocale::trUi("export.youtube_requires_mp4"));
-            return;
-        }
-        if (!YouTubeConfig::isConfigured()) {
-            QMessageBox::warning(this,
-                AppLocale::trUi("export.title"),
-                YouTubeConfig::setupInstructions());
-            return;
-        }
-        if (!youtubeAuth_ || !youtubeAuth_->isAuthenticated()) {
-            QMessageBox::warning(this,
-                AppLocale::trUi("export.title"),
-                AppLocale::trUi("export.youtube_sign_in_required"));
-            return;
-        }
     }
 
     if (format != ExportOutputFormat::Xml && ClipExporter::findFfmpeg().isEmpty()) {
@@ -552,9 +381,6 @@ void ExportSettingsDialog::onExportClicked() {
     result_.includeNotesOverlay =
         includeNotesCheckBox_ && includeNotesCheckBox_->isChecked();
     result_.outputPath = outputPath;
-    result_.uploadToYouTube =
-        uploadToYouTubeCheckBox_ && uploadToYouTubeCheckBox_->isChecked();
-    result_.youtubeMetadata = buildYouTubeUploadMetadata();
 
     accept();
 }
