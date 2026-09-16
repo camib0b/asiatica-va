@@ -100,8 +100,8 @@ GameControls::GameControls(QWidget* parent) : QWidget(parent) {
   applyUiLanguage();
   installEventFilter(this);
   for (auto* btn : {startGameButton_, nextQuarterButton_, homeTeamButton_, awayTeamButton_,
-                    hit16ydButton_, hit50ydButton_, hit75ydButton_,
-                    pcButton_, enterDButton_, pcFoulButton_, shotButton_, goalButton_, passButton_,
+                    sixteenYardButton_, fiftyYardButton_, seventyFiveYardButton_,
+                    pcButton_, circleEntryButton_, pcFoulButton_, shotButton_, goalButton_, passButton_,
                     specialButton_, turnoverButton_, cardButton_, shootoutButton_, psButton_})
     if (btn) btn->installEventFilter(this);
 }
@@ -387,17 +387,17 @@ void GameControls::buildUi() {
   mainGridLayout_->setSpacing(4);
 
   // Create main event buttons (title + keyboard hint on second line)
-  hit16ydButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(hit16ydButton_, QStringLiteral("16-yd"), QStringLiteral("Q"));
-  hit50ydButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(hit50ydButton_, QStringLiteral("50-yd"), QStringLiteral("W"));
-  hit75ydButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(hit75ydButton_, QStringLiteral("75-yd"), QStringLiteral("E"));
+  sixteenYardButton_ = new QPushButton(mainGridWidget);
+  configureMainGameControlButton(sixteenYardButton_, QStringLiteral("16-yd"), QStringLiteral("Q"));
+  fiftyYardButton_ = new QPushButton(mainGridWidget);
+  configureMainGameControlButton(fiftyYardButton_, QStringLiteral("50-yd"), QStringLiteral("W"));
+  seventyFiveYardButton_ = new QPushButton(mainGridWidget);
+  configureMainGameControlButton(seventyFiveYardButton_, QStringLiteral("75-yd"), QStringLiteral("E"));
   pcButton_ = new QPushButton(mainGridWidget);
   configureMainGameControlButton(pcButton_, QStringLiteral("PC"), QStringLiteral("R"));
 
-  enterDButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(enterDButton_, QStringLiteral("Circle Entry"), QStringLiteral("A"));
+  circleEntryButton_ = new QPushButton(mainGridWidget);
+  configureMainGameControlButton(circleEntryButton_, QStringLiteral("Circle Entry"), QStringLiteral("A"));
   pcFoulButton_ = new QPushButton(mainGridWidget);
   configureMainGameControlButton(pcFoulButton_, QStringLiteral("PC Foul"), QStringLiteral("S"));
   shotButton_ = new QPushButton(mainGridWidget);
@@ -422,8 +422,8 @@ void GameControls::buildUi() {
   configureMainGameControlButton(psButton_, QStringLiteral("PS"), QStringLiteral("B"));
 
   QList<QPushButton*> mainButtons = {
-    hit16ydButton_, hit50ydButton_, hit75ydButton_, pcButton_,
-    enterDButton_, pcFoulButton_, shotButton_, goalButton_,
+    sixteenYardButton_, fiftyYardButton_, seventyFiveYardButton_, pcButton_,
+    circleEntryButton_, pcFoulButton_, shotButton_, goalButton_,
     passButton_, specialButton_, turnoverButton_, cardButton_,
     shootoutButton_, psButton_
   };
@@ -438,12 +438,12 @@ void GameControls::buildUi() {
   setFocusPolicy(Qt::StrongFocus);
 
   // Row 0: 16-yd, 50-yd, 75-yd, PC
-  mainGridLayout_->addWidget(hit16ydButton_, 0, 0);
-  mainGridLayout_->addWidget(hit50ydButton_, 0, 1);
-  mainGridLayout_->addWidget(hit75ydButton_, 0, 2);
+  mainGridLayout_->addWidget(sixteenYardButton_, 0, 0);
+  mainGridLayout_->addWidget(fiftyYardButton_, 0, 1);
+  mainGridLayout_->addWidget(seventyFiveYardButton_, 0, 2);
   mainGridLayout_->addWidget(pcButton_, 0, 3);
   // Row 1: Circle Entry, PC Foul, Shot, Goal
-  mainGridLayout_->addWidget(enterDButton_, 1, 0);
+  mainGridLayout_->addWidget(circleEntryButton_, 1, 0);
   mainGridLayout_->addWidget(pcFoulButton_, 1, 1);
   mainGridLayout_->addWidget(shotButton_, 1, 2);
   mainGridLayout_->addWidget(goalButton_, 1, 3);
@@ -490,11 +490,11 @@ void GameControls::wireSignals() {
     connect(btn, &QPushButton::clicked, this, [this, btn]() { flashButtonBorder(btn); });
     connect(btn, &QPushButton::clicked, this, &GameControls::onMainButtonClicked);
   };
-  connectMain(hit16ydButton_);
-  connectMain(hit50ydButton_);
-  connectMain(hit75ydButton_);
+  connectMain(sixteenYardButton_);
+  connectMain(fiftyYardButton_);
+  connectMain(seventyFiveYardButton_);
   connectMain(pcButton_);
-  connectMain(enterDButton_);
+  connectMain(circleEntryButton_);
   connectMain(pcFoulButton_);
   connectMain(shotButton_);
   connectMain(goalButton_);
@@ -519,20 +519,20 @@ void GameControls::buildKeyboardShortcuts() {
   };
 
   // Main grid matches QWERTY geometry: Q W E R | A S D F | Z X C V N | B (PS)
-  hit16ydAction_ = makeAction(Qt::Key_Q, [this]() {
-    if (hit16ydButton_ && hit16ydButton_->isVisible() && hit16ydButton_->isEnabled()) hit16ydButton_->click();
+  sixteenYardAction_ = makeAction(Qt::Key_Q, [this]() {
+    if (sixteenYardButton_ && sixteenYardButton_->isVisible() && sixteenYardButton_->isEnabled()) sixteenYardButton_->click();
   });
-  hit50ydAction_ = makeAction(Qt::Key_W, [this]() {
-    if (hit50ydButton_ && hit50ydButton_->isVisible() && hit50ydButton_->isEnabled()) hit50ydButton_->click();
+  fiftyYardAction_ = makeAction(Qt::Key_W, [this]() {
+    if (fiftyYardButton_ && fiftyYardButton_->isVisible() && fiftyYardButton_->isEnabled()) fiftyYardButton_->click();
   });
-  hit75ydAction_ = makeAction(Qt::Key_E, [this]() {
-    if (hit75ydButton_ && hit75ydButton_->isVisible() && hit75ydButton_->isEnabled()) hit75ydButton_->click();
+  seventyFiveYardAction_ = makeAction(Qt::Key_E, [this]() {
+    if (seventyFiveYardButton_ && seventyFiveYardButton_->isVisible() && seventyFiveYardButton_->isEnabled()) seventyFiveYardButton_->click();
   });
   pcAction_ = makeAction(Qt::Key_R, [this]() {
     if (pcButton_ && pcButton_->isVisible() && pcButton_->isEnabled()) pcButton_->click();
   });
-  enterDAction_ = makeAction(Qt::Key_A, [this]() {
-    if (enterDButton_ && enterDButton_->isVisible() && enterDButton_->isEnabled()) enterDButton_->click();
+  circleEntryAction_ = makeAction(Qt::Key_A, [this]() {
+    if (circleEntryButton_ && circleEntryButton_->isVisible() && circleEntryButton_->isEnabled()) circleEntryButton_->click();
   });
   pcFoulAction_ = makeAction(Qt::Key_S, [this]() {
     if (pcFoulButton_ && pcFoulButton_->isVisible() && pcFoulButton_->isEnabled()) pcFoulButton_->click();
@@ -601,7 +601,7 @@ void GameControls::buildKeyboardShortcuts() {
     if (followUpStage_ == FollowUpStage::None || currentMainEvent_.isEmpty()) return;
 
     // Emit with empty follow-up
-    emit gameEventMarked(currentMainEvent_, QString());
+    emit tagCommitted(currentMainEvent_, QString());
     clearActiveMainButton();
     hideFollowUpButtons();
     currentMainEvent_.clear();
@@ -630,7 +630,7 @@ void GameControls::onMainButtonClicked() {
   currentSecondFollowUp_.clear();
   followUpStage_ = FollowUpStage::None;
   setActiveMainButton(button);
-  emit mainEventPressed(eventName);
+  emit mainEventTimestampCaptured(eventName);
   showFirstLevelFollowUps(eventName);
 }
 
@@ -647,13 +647,13 @@ void GameControls::onFollowUpButtonClicked() {
     if (second.isEmpty()) {
       if (currentMainEvent_ == QStringLiteral("PS")) {
         const QString payload = selectedTeamLabel() + QStringLiteral(" → ") + currentFirstFollowUp_;
-        emit gameEventMarked(QStringLiteral("PS"), payload);
+        emit tagCommitted(QStringLiteral("PS"), payload);
         if (currentFirstFollowUp_ == QStringLiteral("Goal")) {
           currentMainEvent_ = QStringLiteral("Goal");
           currentFirstFollowUp_.clear();
           currentSecondFollowUp_.clear();
           setActiveMainButton(goalButton_);
-          emit mainEventPressed(QStringLiteral("Goal"));
+          emit mainEventTimestampCaptured(QStringLiteral("Goal"));
           showFirstLevelFollowUps(QStringLiteral("Goal"));
           return;
         }
@@ -680,7 +680,7 @@ void GameControls::onFollowUpButtonClicked() {
       } else {
         followUpPayload = currentFirstFollowUp_;
       }
-      emit gameEventMarked(currentMainEvent_, followUpPayload);
+      emit tagCommitted(currentMainEvent_, followUpPayload);
       if (currentMainEvent_ == QStringLiteral("Turnover") && !followUpPayload.isEmpty()) {
         switchTeamSideToOppositeTeam();
       }
@@ -701,7 +701,7 @@ void GameControls::onFollowUpButtonClicked() {
     if (currentMainEvent_ == QStringLiteral("Circle Entry")) {
       const QString combined = selectedTeamLabel() + QStringLiteral(" → ") + currentFirstFollowUp_ +
                                QStringLiteral(" → ") + followUpName;
-      emit gameEventMarked(currentMainEvent_, combined);
+      emit tagCommitted(currentMainEvent_, combined);
       clearActiveMainButton();
       hideFollowUpButtons();
       currentMainEvent_.clear();
@@ -723,14 +723,14 @@ void GameControls::onFollowUpButtonClicked() {
 
       const QString combined = selectedTeamLabel() + QStringLiteral(" → ") + currentFirstFollowUp_ +
                                QStringLiteral(" → ") + followUpName;
-      emit gameEventMarked(currentMainEvent_, combined);
+      emit tagCommitted(currentMainEvent_, combined);
 
       if (followUpName == QStringLiteral("Goal")) {
         currentMainEvent_ = QStringLiteral("Goal");
         currentFirstFollowUp_.clear();
         currentSecondFollowUp_.clear();
         setActiveMainButton(goalButton_);
-        emit mainEventPressed(QStringLiteral("Goal"));
+        emit mainEventTimestampCaptured(QStringLiteral("Goal"));
         showFirstLevelFollowUps(QStringLiteral("Goal"));
         return;
       }
@@ -752,12 +752,12 @@ void GameControls::onFollowUpButtonClicked() {
         followUpName == QStringLiteral("Goal")) {
       const QString shotOutcome =
           currentFirstFollowUp_ + QStringLiteral(" → ") + followUpName;
-      emit gameEventMarked(QStringLiteral("Shot"), shotOutcome);
+      emit tagCommitted(QStringLiteral("Shot"), shotOutcome);
       currentMainEvent_ = QStringLiteral("Goal");
       currentFirstFollowUp_.clear();
       currentSecondFollowUp_.clear();
       setActiveMainButton(goalButton_);
-      emit mainEventPressed(QStringLiteral("Goal"));
+      emit mainEventTimestampCaptured(QStringLiteral("Goal"));
       showFirstLevelFollowUps(QStringLiteral("Goal"));
       return;
     }
@@ -766,7 +766,7 @@ void GameControls::onFollowUpButtonClicked() {
       ? followUpName
       : (currentFirstFollowUp_ + " → " + followUpName);
 
-    emit gameEventMarked(currentMainEvent_, combined);
+    emit tagCommitted(currentMainEvent_, combined);
     clearActiveMainButton();
     hideFollowUpButtons();
     currentMainEvent_.clear();
@@ -781,14 +781,14 @@ void GameControls::onFollowUpButtonClicked() {
       const QString pcOutcome = selectedTeamLabel() + QStringLiteral(" → ") +
                                 currentFirstFollowUp_ + QStringLiteral(" → ") +
                                 currentSecondFollowUp_ + QStringLiteral(" → ") + followUpName;
-      emit gameEventMarked(QStringLiteral("PC"), pcOutcome);
+      emit tagCommitted(QStringLiteral("PC"), pcOutcome);
 
       if (followUpName == QStringLiteral("Goal")) {
         currentMainEvent_ = QStringLiteral("Goal");
         currentFirstFollowUp_.clear();
         currentSecondFollowUp_.clear();
         setActiveMainButton(goalButton_);
-        emit mainEventPressed(QStringLiteral("Goal"));
+        emit mainEventTimestampCaptured(QStringLiteral("Goal"));
         showFirstLevelFollowUps(QStringLiteral("Goal"));
         return;
       }
@@ -803,7 +803,7 @@ void GameControls::onFollowUpButtonClicked() {
     }
 
     const QString combined = currentFirstFollowUp_ + " → " + currentSecondFollowUp_ + " → " + followUpName;
-    emit gameEventMarked(currentMainEvent_, combined);
+    emit tagCommitted(currentMainEvent_, combined);
     clearActiveMainButton();
     hideFollowUpButtons();
     currentMainEvent_.clear();
@@ -814,7 +814,7 @@ void GameControls::onFollowUpButtonClicked() {
   }
 
   // Fallback: treat as first-level
-  emit gameEventMarked(currentMainEvent_, followUpName);
+  emit tagCommitted(currentMainEvent_, followUpName);
   clearActiveMainButton();
   hideFollowUpButtons();
   currentMainEvent_.clear();
@@ -948,9 +948,9 @@ void GameControls::showFirstLevelFollowUps(const QString& mainEvent) {
   // If no follow-up actions, emit the main event directly and return
   if (actions.isEmpty()) {
     if (mainEvent == QStringLiteral("50-yd") || mainEvent == QStringLiteral("Goal")) {
-      emit gameEventMarked(mainEvent, selectedTeamLabel());
+      emit tagCommitted(mainEvent, selectedTeamLabel());
     } else {
-      emit gameEventMarked(mainEvent);
+      emit tagCommitted(mainEvent);
     }
     clearActiveMainButton();
     currentMainEvent_.clear();
@@ -1000,7 +1000,7 @@ void GameControls::showSecondLevelFollowUps(const QString& mainEvent, const QStr
     } else {
       combined = firstFollowUp;
     }
-    emit gameEventMarked(currentMainEvent_, combined);
+    emit tagCommitted(currentMainEvent_, combined);
     clearActiveMainButton();
     currentMainEvent_.clear();
     currentFirstFollowUp_.clear();
@@ -1039,7 +1039,7 @@ void GameControls::showThirdLevelFollowUps() {
     const QString combined = currentFirstFollowUp_.isEmpty()
       ? currentSecondFollowUp_
       : (currentFirstFollowUp_ + " → " + currentSecondFollowUp_);
-    emit gameEventMarked(currentMainEvent_, combined);
+    emit tagCommitted(currentMainEvent_, combined);
     clearActiveMainButton();
     currentMainEvent_.clear();
     currentFirstFollowUp_.clear();
@@ -1116,8 +1116,8 @@ void GameControls::flashButtonBorder(QPushButton* button) {
 QList<QPushButton*> GameControls::focusableButtonsOrder() const {
   QList<QPushButton*> list;
   list << homeTeamButton_ << awayTeamButton_
-       << hit16ydButton_ << hit50ydButton_ << hit75ydButton_ << pcButton_
-       << enterDButton_ << pcFoulButton_ << shotButton_ << goalButton_
+       << sixteenYardButton_ << fiftyYardButton_ << seventyFiveYardButton_ << pcButton_
+       << circleEntryButton_ << pcFoulButton_ << shotButton_ << goalButton_
        << passButton_ << specialButton_ << turnoverButton_ << cardButton_
        << psButton_ << shootoutButton_;
   for (auto* btn : followUpButtons_) {

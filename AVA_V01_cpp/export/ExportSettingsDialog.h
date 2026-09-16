@@ -30,7 +30,7 @@ public:
         bool includeBottomOverlay = true;
         bool includeScoreboardOverlay = true;
         bool includeAudioTrack = true;
-        bool includeAvaOverlay = true;
+        bool includeBrandingOverlay = true;
         bool includeNotesOverlay = true;
         QString outputPath;
         bool uploadToYouTube = false;
@@ -87,7 +87,7 @@ private:
     QCheckBox* includeBottomOverlayCheckBox_ = nullptr;
     QCheckBox* includeScoreboardOverlayCheckBox_ = nullptr;
     QCheckBox* includeAudioTrackCheckBox_ = nullptr;
-    QCheckBox* includeAvaOverlayCheckBox_ = nullptr;
+    QCheckBox* includeBrandingOverlayCheckBox_ = nullptr;
     QCheckBox* includeNotesCheckBox_ = nullptr;
     QLabel* clipCountLabel_ = nullptr;
     QLineEdit* outputPathEdit_ = nullptr;

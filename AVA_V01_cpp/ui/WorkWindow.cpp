@@ -273,7 +273,7 @@ void WorkWindow::applyUiStrings() {
     syncWorkModeToggleButtonSizes(modeTaggingBtn_, modeAnalyzingBtn_, modePresentingBtn_);
     if (videoMenuButton_) videoMenuButton_->setToolTip(AppLocale::trUi("tooltip.video_menu"));
     if (replaceVideoAction_) replaceVideoAction_->setText(AppLocale::trUi("menu.replace_video"));
-    if (discardVideoAction_) discardVideoAction_->setText(AppLocale::trUi("menu.close_video"));
+    if (closeVideoAction_) closeVideoAction_->setText(AppLocale::trUi("menu.close_video"));
     if (importXmlAction_) importXmlAction_->setText(AppLocale::trUi("menu.import_xml"));
     if (clipDurationSettingsAction_) {
         clipDurationSettingsAction_->setText(AppLocale::trUi("menu.clip_durations"));
@@ -340,7 +340,7 @@ void WorkWindow::setTagSession(TagSession* session) {
         rebuildTagsList();
     });
 
-    connect(tagSession_, &TagSession::statsChanged, this, [this]() {
+    connect(tagSession_, &TagSession::tagsChanged, this, [this]() {
         rebuildFilterMenu();
         rebuildTagsList();
     });
@@ -364,7 +364,7 @@ void WorkWindow::setTagSession(TagSession* session) {
     connect(tagSession_, &TagSession::tagNoteChanged, this, [this](int changedIndex) {
         if (!notesEdit_ || !tagSession_) return;
         if (notesEdit_->hasFocus()) return;
-        const QTableWidgetItem* item = currentTagKeyItem();
+        const QTableWidgetItem* item = selectedTagRowTimeItem();
         if (!item) return;
         const QVariant indexValue = item->data(Qt::UserRole + 3);
         if (!indexValue.isValid() || indexValue.toInt() != changedIndex) return;
@@ -407,11 +407,11 @@ WorkWindow::Mode WorkWindow::nextModeInCycle(Mode current) {
     return Mode::Tagging;
 }
 
-TagSession::GameTag WorkWindow::currentTagContext() const {
-    TagSession::GameTag ctx;
-    ctx.period = contextPeriod_;
-    ctx.team = contextTeam_;
-    return ctx;
+TagSession::GameTag WorkWindow::pendingTagPeriodAndTeam() const {
+    TagSession::GameTag pendingTag;
+    pendingTag.period = contextPeriod_;
+    pendingTag.team = contextTeam_;
+    return pendingTag;
 }
 
 void WorkWindow::buildUi() {
@@ -493,7 +493,7 @@ void WorkWindow::buildUi() {
     videoMenuButton_->setCursor(Qt::PointingHandCursor);
     videoMenu_ = new QMenu(videoMenuButton_);
     replaceVideoAction_ = videoMenu_->addAction(QString());
-    discardVideoAction_ = videoMenu_->addAction(QString());
+    closeVideoAction_ = videoMenu_->addAction(QString());
     videoMenu_->addSeparator();
     importXmlAction_ = videoMenu_->addAction(QString());
     clipDurationSettingsAction_ = videoMenu_->addAction(QString());
@@ -767,9 +767,9 @@ void WorkWindow::buildPresentationUi() {
     connect(presentationClipBar_, &ClipTrimBar::seekRequested, this, [this](qint64 positionMs) {
         if (videoPlayer_) videoPlayer_->seekToMs(positionMs);
     });
-    connect(presentationClipBar_, &ClipTrimBar::inPointChanged, this,
+    connect(presentationClipBar_, &ClipTrimBar::clipStartChanged, this,
             [this](qint64) { savePresentationClipIntervalFromClipBar(); });
-    connect(presentationClipBar_, &ClipTrimBar::outPointChanged, this,
+    connect(presentationClipBar_, &ClipTrimBar::clipEndChanged, this,
             [this](qint64) { savePresentationClipIntervalFromClipBar(); });
 }
 
@@ -1088,12 +1088,12 @@ void WorkWindow::restoreTaggingModeUiStateAfterLayout() {
 
 void WorkWindow::wireSignals() {
     if (gameSetupWidget_) {
-        connect(gameSetupWidget_, &GameSetupWindow::teamSetupConfirmed, this, &WorkWindow::onTeamSetupConfirmed);
-        connect(gameSetupWidget_, &GameSetupWindow::cancelled, this, &WorkWindow::onTeamSetupCancelled);
+        connect(gameSetupWidget_, &GameSetupWindow::gameSetupConfirmed, this, &WorkWindow::onGameSetupConfirmed);
+        connect(gameSetupWidget_, &GameSetupWindow::cancelled, this, &WorkWindow::onGameSetupCancelled);
     }
     // Video file management
     connect(replaceVideoAction_, &QAction::triggered, this, &WorkWindow::onReplaceVideo);
-    connect(discardVideoAction_, &QAction::triggered, this, &WorkWindow::onDiscardVideo);
+    connect(closeVideoAction_, &QAction::triggered, this, &WorkWindow::onCloseVideo);
     
     // Connect VideoPlayer's videoClosed signal to WorkWindow's signal
     connect(videoPlayer_, &VideoPlayer::videoClosed, this, &WorkWindow::videoClosed);
@@ -1103,7 +1103,7 @@ void WorkWindow::wireSignals() {
             &WorkWindow::onClipDurationSettings);
 
     // GameControls -> capture timestamp and store tags
-    connect(gameControls_, &GameControls::mainEventPressed, this, [this](const QString& mainEvent) {
+    connect(gameControls_, &GameControls::mainEventTimestampCaptured, this, [this](const QString& mainEvent) {
         if (!LicenseManager::instance().isEntitled()) return;
         if (!videoPlayer_) return;
         pendingMainEvent_ = mainEvent;
@@ -1122,7 +1122,7 @@ void WorkWindow::wireSignals() {
                 &WorkWindow::onNextQuarterRequested);
     }
 
-    connect(gameControls_, &GameControls::gameEventMarked, this, [this](const QString& mainEvent, const QString& followUpEvent) {
+    connect(gameControls_, &GameControls::tagCommitted, this, [this](const QString& mainEvent, const QString& followUpEvent) {
         if (!LicenseManager::instance().isEntitled()) return;
         if (!videoPlayer_) return;
 
@@ -1147,17 +1147,17 @@ void WorkWindow::wireSignals() {
             TagSession::GameTag tag;
             tag.mainEvent = mainEvent;
             tag.followUpEvent = followUpEvent;
-            tag.positionMs = timestampMs;
-            TagSession::GameTag ctx = currentTagContext();
-            tag.period = ctx.period;
+            tag.markMs = timestampMs;
+            TagSession::GameTag pendingPeriodAndTeam = pendingTagPeriodAndTeam();
+            tag.period = pendingPeriodAndTeam.period;
             if (gameControls_) {
                 const QString sideKey = gameControls_->selectedTeamSideKey();
-                tag.team = sideKey.isEmpty() ? ctx.team : sideKey;
+                tag.team = sideKey.isEmpty() ? pendingPeriodAndTeam.team : sideKey;
                 if (!sideKey.isEmpty()) {
                     contextTeam_ = sideKey;
                 }
             } else {
-                tag.team = ctx.team;
+                tag.team = pendingPeriodAndTeam.team;
             }
             // tag.startMs / tag.endMs left at 0 so TagSession::addTag seeds them from EventDefaults.
             tagSession_->addTag(tag);
@@ -1179,7 +1179,7 @@ void WorkWindow::wireSignals() {
     if (notesEdit_)
         connect(notesEdit_, &QPlainTextEdit::textChanged, this, &WorkWindow::onNoteTextChanged);
 
-    connect(statsWindow_, &StatsWindow::filterByPathRequested, this, &WorkWindow::onFilterByPathRequested);
+    connect(statsWindow_, &StatsWindow::filterByEventPathRequested, this, &WorkWindow::onFilterByEventPathRequested);
     connect(tagsRemoveFiltersButton_, &QToolButton::clicked, this, &WorkWindow::onRemoveFilters);
     connect(undoLastTagButton_, &QToolButton::clicked, this, &WorkWindow::onUndoLastTag);
 
@@ -1254,7 +1254,7 @@ void WorkWindow::showTeamSetupForVideo(const QString& filePath, const QStringLis
     refreshPlaybackShortcutFocusGate();
 }
 
-void WorkWindow::onTeamSetupConfirmed(const QString& filePath,
+void WorkWindow::onGameSetupConfirmed(const QString& filePath,
                                        const QString& homeName, const QString& awayName,
                                        const QString& homeColor, const QString& awayColor,
                                        const QString& competitionName,
@@ -1296,7 +1296,7 @@ void WorkWindow::onGameStartRequested() {
     // Insert the start-anchor instance: a 2-second window starting at the anchor moment.
     TagSession::GameTag anchorTag;
     anchorTag.mainEvent = QString::fromLatin1(EventDefaults::TimeCodes::kStartAnchor);
-    anchorTag.positionMs = anchorMs;
+    anchorTag.markMs = anchorMs;
     anchorTag.startMs = anchorMs;
     anchorTag.endMs = anchorMs + 2000;
     anchorTag.period = QStringLiteral("Q1");
@@ -1318,7 +1318,7 @@ void WorkWindow::onNextQuarterRequested() {
 
     TagSession::GameTag quarterTag;
     quarterTag.mainEvent = EventDefaults::quarterCode(closingIndex);
-    quarterTag.positionMs = quarterStartMs;
+    quarterTag.markMs = quarterStartMs;
     quarterTag.startMs = quarterStartMs;
     quarterTag.endMs = endMs;
     quarterTag.period = quarterTag.mainEvent;
@@ -1336,7 +1336,7 @@ void WorkWindow::onNextQuarterRequested() {
     }
 }
 
-void WorkWindow::onTeamSetupCancelled() {
+void WorkWindow::onGameSetupCancelled() {
     cleanupPendingConcatenation();
     cleanupConcatenatedVideo();
     cleanupPlaybackPrepVideo();
@@ -1350,7 +1350,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     QString playbackPath = filePath;
     cleanupPlaybackPrepVideo();
 
-    if (PlaybackVideoPreparer::needsPreparation(filePath)) {
+    if (PlaybackVideoPreparer::requiresTranscodeForPlayback(filePath)) {
         auto* tempDir = new QTemporaryDir();
         if (!tempDir->isValid()) {
             delete tempDir;
@@ -1494,7 +1494,7 @@ void WorkWindow::onReplaceVideo() {
     loadVideoFromFile(outputPath);
 }
 
-void WorkWindow::onDiscardVideo() {
+void WorkWindow::onCloseVideo() {
     hasPreservedTaggingUiState_ = false;
     preservedTaggingVideoTagsSplitterSizes_.clear();
 
@@ -1572,7 +1572,7 @@ void WorkWindow::onPresentationExportRequested() {
     request.outputPath = settings.outputPath;
     request.clips = ExportClipBuilder::buildClipSegments(tagSession_, orderedClips, overlayOptions);
     request.includeAudioTrack = settings.includeAudioTrack;
-    request.includeAvaOverlay = settings.includeAvaOverlay;
+    request.includeBrandingOverlay = settings.includeBrandingOverlay;
     request.uploadToYouTube = settings.uploadToYouTube;
     request.youtubeMetadata = settings.youtubeMetadata;
     request.tagSession = tagSession_;
@@ -1879,8 +1879,8 @@ void WorkWindow::savePresentationClipIntervalFromClipBar() {
     if (queueIndex < 0) return;
 
     updatingPresentationClipBar_ = true;
-    presentationQueue_->setClipInterval(queueIndex, presentationClipBar_->inPointMs(),
-                                        presentationClipBar_->outPointMs());
+    presentationQueue_->setClipInterval(queueIndex, presentationClipBar_->clipStartMs(),
+                                        presentationClipBar_->clipEndMs());
     updatingPresentationClipBar_ = false;
 }
 
@@ -1972,7 +1972,7 @@ void WorkWindow::onTagSelectionChanged() {
 
 void WorkWindow::onNoteTextChanged() {
     if (!notesEdit_ || !tagsTable_) return;
-    auto* item = currentTagKeyItem();
+    auto* item = selectedTagRowTimeItem();
     if (!item) return;
     QVariant idxVar = item->data(Qt::UserRole + 3);
     if (!idxVar.isValid()) return;
@@ -1992,7 +1992,7 @@ void WorkWindow::saveNoteDebounceFired() {
 
 void WorkWindow::syncNoteToSelectedTag() {
     if (!tagSession_ || !notesEdit_) return;
-    auto* item = currentTagKeyItem();
+    auto* item = selectedTagRowTimeItem();
     if (!item) return;
     QVariant idxVar = item->data(Qt::UserRole + 3);
     if (!idxVar.isValid()) return;
@@ -2012,7 +2012,7 @@ void WorkWindow::showStatsOverlay() {
         statsOverlay_ = new StatsWindow(statsOverlayDialog_);
         statsOverlay_->setTagSession(tagSession_);
         layout->addWidget(statsOverlay_);
-        connect(statsOverlay_, &StatsWindow::filterByPathRequested, this, &WorkWindow::onFilterByPathRequested);
+        connect(statsOverlay_, &StatsWindow::filterByEventPathRequested, this, &WorkWindow::onFilterByEventPathRequested);
     }
     if (statsOverlay_) statsOverlay_->setTagSession(tagSession_);
     statsOverlayDialog_->raise();
@@ -2021,7 +2021,7 @@ void WorkWindow::showStatsOverlay() {
 
 void WorkWindow::loadNoteForSelectedTag() {
     if (!tagSession_ || !notesEdit_) return;
-    auto* item = currentTagKeyItem();
+    auto* item = selectedTagRowTimeItem();
     notesEdit_->blockSignals(true);
     if (!item) {
         if (!notesEdit_->toPlainText().isEmpty()) {
@@ -2055,12 +2055,12 @@ void WorkWindow::loadNoteForSelectedTag() {
 
 void WorkWindow::onTagTableSeekToRow(int row) {
     if (row < 0 || !videoPlayer_ || !tagsTable_) return;
-    QTableWidgetItem* keyItem = tagsTable_->item(row, 0);
-    if (!keyItem) return;
-    videoPlayer_->seekToMs(keyItem->data(Qt::UserRole).toLongLong());
+    QTableWidgetItem* timeItem = tagsTable_->item(row, 0);
+    if (!timeItem) return;
+    videoPlayer_->seekToMs(timeItem->data(Qt::UserRole).toLongLong());
 }
 
-QTableWidgetItem* WorkWindow::currentTagKeyItem() const {
+QTableWidgetItem* WorkWindow::selectedTagRowTimeItem() const {
     if (!tagsTable_) return nullptr;
     const int row = tagsTable_->currentRow();
     return row >= 0 ? tagsTable_->item(row, 0) : nullptr;
@@ -2163,7 +2163,7 @@ void WorkWindow::updateTagPlayheadHighlight(qint64 positionMs) {
 void WorkWindow::onDeleteSelectedTag() {
     if (!tagsTable_ || !tagSession_) return;
 
-    auto* item = currentTagKeyItem();
+    auto* item = selectedTagRowTimeItem();
     if (!item) return;
     
     // Get the stored TagSession index directly from the item
@@ -2207,17 +2207,17 @@ void WorkWindow::onFilterActionToggled(bool /*checked*/) {
     updateFilterButtonsVisibility();
 }
 
-void WorkWindow::onFilterByPathRequested(const QString& mainEvent, const QString& followUpEvent) {
-    activeFilterPathMainEvent_ = mainEvent;
-    activeFilterPathFollowUp_ = followUpEvent;
+void WorkWindow::onFilterByEventPathRequested(const QString& mainEvent, const QString& followUpEvent) {
+    activeEventPathMainEvent_ = mainEvent;
+    activeEventPathFollowUp_ = followUpEvent;
     rebuildTagsList();
     updateFilterIndicator();
     updateFilterButtonsVisibility();
 }
 
 void WorkWindow::onRemoveFilters() {
-    activeFilterPathMainEvent_.clear();
-    activeFilterPathFollowUp_.clear();
+    activeEventPathMainEvent_.clear();
+    activeEventPathFollowUp_.clear();
     onSelectAllFilters();
     updateFilterButtonsVisibility();
 }
@@ -2229,17 +2229,17 @@ bool WorkWindow::isMainEventAllowed(const QString& mainEvent) const {
 }
 
 bool WorkWindow::isTagAllowed(const QString& mainEvent, const QString& followUpEvent) const {
-    if (!activeFilterPathMainEvent_.isEmpty()) {
-        if (mainEvent != activeFilterPathMainEvent_) return false;
-        if (activeFilterPathFollowUp_.isEmpty()) return true;
-        return followUpEvent == activeFilterPathFollowUp_
-            || followUpEvent.startsWith(activeFilterPathFollowUp_ + " → ");
+    if (!activeEventPathMainEvent_.isEmpty()) {
+        if (mainEvent != activeEventPathMainEvent_) return false;
+        if (activeEventPathFollowUp_.isEmpty()) return true;
+        return followUpEvent == activeEventPathFollowUp_
+            || followUpEvent.startsWith(activeEventPathFollowUp_ + " → ");
     }
     return isMainEventAllowed(mainEvent);
 }
 
 bool WorkWindow::hasAnyFilterActive() const {
-    if (!activeFilterPathMainEvent_.isEmpty()) return true;
+    if (!activeEventPathMainEvent_.isEmpty()) return true;
     for (auto it = filterActionByMainEvent_.cbegin(); it != filterActionByMainEvent_.cend(); ++it) {
         if (!it.value()->isChecked()) return true;
     }
@@ -2289,10 +2289,10 @@ void WorkWindow::rebuildFilterMenu() {
 void WorkWindow::updateFilterIndicator() {
     if (!tagsFilterIndicator_) return;
 
-    if (!activeFilterPathMainEvent_.isEmpty()) {
-        QString pathText = AppLocale::trEvent(activeFilterPathMainEvent_);
-        if (!activeFilterPathFollowUp_.isEmpty()) {
-            pathText += QStringLiteral(" → ") + AppLocale::translateCompoundPath(activeFilterPathFollowUp_);
+    if (!activeEventPathMainEvent_.isEmpty()) {
+        QString pathText = AppLocale::trEvent(activeEventPathMainEvent_);
+        if (!activeEventPathFollowUp_.isEmpty()) {
+            pathText += QStringLiteral(" → ") + AppLocale::translateCompoundPath(activeEventPathFollowUp_);
         }
         tagsFilterIndicator_->setText(AppLocale::trUi("filter.indicator") + pathText);
         tagsFilterIndicator_->show();
@@ -2337,20 +2337,20 @@ void WorkWindow::rebuildTagsList() {
 
     // Sort by timestamp so the list is always chronological
     std::sort(entries.begin(), entries.end(), [](const TagEntry& a, const TagEntry& b) {
-        return a.tag.positionMs < b.tag.positionMs;
+        return a.tag.markMs < b.tag.markMs;
     });
 
     tagsTable_->setRowCount(entries.size());
     int row = 0;
     for (const auto& e : entries) {
         const auto& tag = e.tag;
-        const QString timeText = formatTimestampMs(tag.positionMs);
+        const QString timeText = formatTimestampMs(tag.markMs);
         const QString teamText = displayTeamForTag(tag);
         const QString eventText =
             AppLocale::trDisplayTagLine(tag.mainEvent, followUpForEventColumn(tag.followUpEvent, tagSession_));
 
         auto* timeItem = new QTableWidgetItem(timeText);
-        timeItem->setData(Qt::UserRole, tag.positionMs);
+        timeItem->setData(Qt::UserRole, tag.markMs);
         timeItem->setData(Qt::UserRole + 1, tag.mainEvent);
         timeItem->setData(Qt::UserRole + 2, tag.followUpEvent);
         timeItem->setData(Qt::UserRole + 3, e.tagSessionIndex);

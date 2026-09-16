@@ -22,7 +22,7 @@ public:
     explicit YouTubeUploader(YouTubeAuthManager* authManager, QObject* parent = nullptr);
 
     /// Builds a stable key for the current match (competition, teams, date).
-    static QString matchFingerprint(const TagSession* session);
+    static QString matchPlaylistCacheKey(const TagSession* session);
 
     /// Human-readable playlist title derived from match metadata.
     static QString matchPlaylistTitle(const TagSession* session);
@@ -54,8 +54,8 @@ private:
     void addVideoToPlaylist(const QString& accessToken,
                             const QString& playlistId,
                             const QString& videoId);
-    void cachePlaylistId(const QString& fingerprint, const QString& playlistId);
-    QString cachedPlaylistId(const QString& fingerprint) const;
+    void cachePlaylistId(const QString& playlistCacheKey, const QString& playlistId);
+    QString cachedPlaylistId(const QString& playlistCacheKey) const;
 
     YouTubeAuthManager* authManager_ = nullptr;
     QNetworkReply* activeReply_ = nullptr;

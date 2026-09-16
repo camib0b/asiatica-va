@@ -23,7 +23,7 @@ struct ExportJobRequest {
     QString outputPath;
     QVector<ClipSegment> clips;
     bool includeAudioTrack = true;
-    bool includeAvaOverlay = true;
+    bool includeBrandingOverlay = true;
     bool uploadToYouTube = false;
     YouTubeUploadMetadata youtubeMetadata;
     TagSession* tagSession = nullptr;

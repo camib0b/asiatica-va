@@ -239,7 +239,7 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
     exporter->setOutputPath(mp4Path);
     exporter->setClips(request.clips);
     exporter->setIncludeAudioTrack(request.includeAudioTrack);
-    exporter->setIncludeBrandingOverlay(request.includeAvaOverlay);
+    exporter->setIncludeBrandingOverlay(request.includeBrandingOverlay);
 
     connect(exporter, &ClipExporter::progressChanged, this,
             [this, jobId = job->id](int currentClip, int totalClips) {

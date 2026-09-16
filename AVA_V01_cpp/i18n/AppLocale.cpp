@@ -112,7 +112,7 @@ void setLanguage(Language language) {
   if (g_language == language) return;
   g_language = language;
   saveToSettings();
-  LocaleNotifier::instance().emitLanguageChanged();
+  LocaleNotifier::instance().notifyLanguageChanged();
 }
 
 void loadFromSettings() {

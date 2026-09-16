@@ -22,7 +22,7 @@ public:
 
     /// Starts filename parsing and, when possible, jersey-color detection.
     /// \p sourceVideoPaths are the original imported files (not a concat temp path).
-    void start(const QStringList& sourceVideoPaths);
+    void startSuggestionFromVideoPaths(const QStringList& sourceVideoPaths);
     void abort();
     bool isRunning() const { return running_; }
 

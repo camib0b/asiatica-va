@@ -33,7 +33,7 @@ private:
   void buildUi();
   void populateRows();
   void refreshTotalLabel(const DurationRow& row);
-  void applyDurationToSession(const QString& eventName, qint64 preMs, qint64 postMs);
+  void applyDurationToSession(const QString& eventName, qint64 leadMs, qint64 lagMs);
 
   TagSession* tagSession_ = nullptr;
   QVector<DurationRow> rows_;

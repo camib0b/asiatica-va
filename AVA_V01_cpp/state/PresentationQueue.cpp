@@ -23,13 +23,13 @@ void PresentationQueue::setTagSession(TagSession* session) {
   if (tagSession_) {
     connect(tagSession_, &TagSession::cleared, this, &PresentationQueue::clear);
     connect(tagSession_, &TagSession::tagsImported, this, &PresentationQueue::clear);
-    connect(tagSession_, &TagSession::statsChanged, this,
-            &PresentationQueue::onSessionTagsChanged);
+    connect(tagSession_, &TagSession::tagsChanged, this,
+            &PresentationQueue::refreshQueueFromSession);
     connect(tagSession_, &TagSession::tagNoteChanged, this,
-            [this](int) { onSessionTagsChanged(); });
+            [this](int) { refreshQueueFromSession(); });
     connect(tagSession_, &TagSession::tagIntervalChanged, this, [this](int) {
       if (writingIntervalToSession_) return;  // our own write; already reflected locally
-      onSessionTagsChanged();
+      refreshQueueFromSession();
     });
   }
 
@@ -129,7 +129,7 @@ void PresentationQueue::applyLeadLagToAllClips(qint64 leadMs, qint64 lagMs) {
   }
 }
 
-void PresentationQueue::onSessionTagsChanged() {
+void PresentationQueue::refreshQueueFromSession() {
   dropSelectedIndexesOutsideSession();
   const int previousTagIndex =
       (currentIndex_ >= 0 && currentIndex_ < clips_.size()) ? clips_.at(currentIndex_).tagSessionIndex : -1;
@@ -161,7 +161,7 @@ void PresentationQueue::rebuildClipsFromSession() {
 
     Clip clip;
     clip.tagSessionIndex = tagSessionIndex;
-    clip.markMs = tag.positionMs;
+    clip.markMs = tag.markMs;
     clip.startMs = tag.startMs;
     clip.endMs = tag.endMs;
     clip.mainEvent = tag.mainEvent;

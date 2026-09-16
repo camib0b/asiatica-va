@@ -9,17 +9,17 @@ class ClipTrimBar final : public QWidget {
 public:
     explicit ClipTrimBar(QWidget* parent = nullptr);
 
-    void configure(qint64 tagMs, qint64 inMs, qint64 outMs,
+    void configure(qint64 markMs, qint64 startMs, qint64 endMs,
                    qint64 windowStartMs, qint64 windowEndMs);
-    void setPlayheadMs(qint64 posMs);
+    void setPlayheadMs(qint64 playheadMs);
 
-    qint64 inPointMs() const { return inPointMs_; }
-    qint64 outPointMs() const { return outPointMs_; }
+    qint64 clipStartMs() const { return clipStartMs_; }
+    qint64 clipEndMs() const { return clipEndMs_; }
 
 signals:
-    void inPointChanged(qint64 inMs);
-    void outPointChanged(qint64 outMs);
-    void seekRequested(qint64 posMs);
+    void clipStartChanged(qint64 startMs);
+    void clipEndChanged(qint64 endMs);
+    void seekRequested(qint64 positionMs);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -29,19 +29,19 @@ protected:
     QSize sizeHint() const override;
 
 private:
-    enum class DragTarget { None, InPoint, OutPoint };
+    enum class DragTarget { None, ClipStart, ClipEnd };
 
     int msToX(qint64 ms) const;
     qint64 xToMs(int x) const;
-    QRect inHandleRect() const;
-    QRect outHandleRect() const;
+    QRect startHandleRect() const;
+    QRect endHandleRect() const;
     static QString formatMs(qint64 ms);
 
     qint64 windowStartMs_ = 0;
     qint64 windowEndMs_ = 0;
-    qint64 tagPositionMs_ = 0;
-    qint64 inPointMs_ = 0;
-    qint64 outPointMs_ = 0;
+    qint64 markMs_ = 0;
+    qint64 clipStartMs_ = 0;
+    qint64 clipEndMs_ = 0;
     qint64 playheadMs_ = 0;
 
     DragTarget dragTarget_ = DragTarget::None;
