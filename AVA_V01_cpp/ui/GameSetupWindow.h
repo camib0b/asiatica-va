@@ -33,7 +33,7 @@ public:
   void applyUiStrings();
 
 signals:
-  void teamSetupConfirmed(const QString& filePath,
+  void gameSetupConfirmed(const QString& filePath,
                           const QString& homeName, const QString& awayName,
                           const QString& homeColor, const QString& awayColor,
                           const QString& competitionName,

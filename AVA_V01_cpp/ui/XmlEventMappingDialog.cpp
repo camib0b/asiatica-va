@@ -457,12 +457,12 @@ TagSession::GameTag XmlEventMappingDialog::gameTagFromInstance(
   if (tag.endMs < tag.startMs) tag.endMs = tag.startMs;
 
   if (EventDefaults::isTimeControlEvent(tag.mainEvent)) {
-    tag.positionMs = tag.startMs;
+    tag.markMs = tag.startMs;
   } else {
     const EventDefaults::EventDuration duration = EventDefaults::defaultFor(tag.mainEvent);
-    tag.positionMs = tag.startMs + duration.preMs;
-    if (tag.positionMs > tag.endMs) tag.positionMs = tag.endMs;
-    if (tag.positionMs < tag.startMs) tag.positionMs = tag.startMs;
+    tag.markMs = tag.startMs + duration.leadMs;
+    if (tag.markMs > tag.endMs) tag.markMs = tag.endMs;
+    if (tag.markMs < tag.startMs) tag.markMs = tag.startMs;
   }
 
   return tag;
@@ -489,7 +489,7 @@ void XmlEventMappingDialog::inferPeriods(QVector<TagSession::GameTag>& tags) con
       continue;
     }
     for (const QuarterSpan& span : quarterSpans) {
-      if (tag.positionMs >= span.startMs && tag.positionMs <= span.endMs) {
+      if (tag.markMs >= span.startMs && tag.markMs <= span.endMs) {
         tag.period = span.label;
         break;
       }

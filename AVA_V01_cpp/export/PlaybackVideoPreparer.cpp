@@ -14,7 +14,7 @@ PlaybackVideoPreparer::~PlaybackVideoPreparer() {
     cancel();
 }
 
-bool PlaybackVideoPreparer::needsPreparation(const QString& filePath) {
+bool PlaybackVideoPreparer::requiresTranscodeForPlayback(const QString& filePath) {
     if (filePath.trimmed().isEmpty()) return false;
 
     const QString extension = QFileInfo(filePath).suffix().toLower();

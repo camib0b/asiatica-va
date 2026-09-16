@@ -65,7 +65,7 @@ void GameSetupWindow::beginMetadataSuggestion(const QStringList& sourceVideoPath
     return;
   }
   setSuggestionStatusKey("setup.ai_status_teams");
-  metadataSuggester_->start(sourceVideoPaths);
+  metadataSuggester_->startSuggestionFromVideoPaths(sourceVideoPaths);
 }
 
 void GameSetupWindow::setInitialFocus() {
@@ -391,7 +391,7 @@ void GameSetupWindow::onContinue() {
     awayAbbrev = deriveAbbreviationFromTeamName(awayName);
   }
 
-  emit teamSetupConfirmed(videoPath_, homeName, awayName, homeColor, awayColor,
+  emit gameSetupConfirmed(videoPath_, homeName, awayName, homeColor, awayColor,
                           QString(), gameDate, homeAbbrev, awayAbbrev);
 }
 

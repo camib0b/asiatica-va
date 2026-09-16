@@ -147,24 +147,24 @@ QVector<ClipSegment> buildClipSegments(const TagSession* session,
             int initialHomeGoals = 0;
             int initialAwayGoals = 0;
             struct InClipGoal {
-                qint64 positionMs;
+                qint64 markMs;
                 QString team;
             };
             QVector<InClipGoal> inClipGoals;
 
             for (const auto& tag : allTags) {
                 if (tag.mainEvent != QStringLiteral("Goal")) continue;
-                if (tag.positionMs <= clip.startMs) {
+                if (tag.markMs <= clip.startMs) {
                     if (tag.team == QStringLiteral("Home")) ++initialHomeGoals;
                     else if (tag.team == QStringLiteral("Away")) ++initialAwayGoals;
-                } else if (tag.positionMs <= clip.endMs) {
-                    inClipGoals.append({tag.positionMs, tag.team});
+                } else if (tag.markMs <= clip.endMs) {
+                    inClipGoals.append({tag.markMs, tag.team});
                 }
             }
 
             std::sort(inClipGoals.begin(), inClipGoals.end(),
                       [](const InClipGoal& first, const InClipGoal& second) {
-                return first.positionMs < second.positionMs;
+                return first.markMs < second.markMs;
             });
 
             scoreboardPhases.append(
@@ -178,19 +178,19 @@ QVector<ClipSegment> buildClipSegments(const TagSession* session,
                 if (goal.team == QStringLiteral("Home")) ++runningHome;
                 else if (goal.team == QStringLiteral("Away")) ++runningAway;
 
-                const double offsetSeconds = (goal.positionMs - clip.startMs) / 1000.0;
+                const double offsetSeconds = (goal.markMs - clip.startMs) / 1000.0;
                 if (scoreboardPhases.last().activationOffsetSeconds == offsetSeconds) {
                     scoreboardPhases.last().scoreboard.homeGoals = runningHome;
                     scoreboardPhases.last().scoreboard.awayGoals = runningAway;
                     if (session) {
                         scoreboardPhases.last().scoreboard.periodLabel =
-                            session->periodLabelAtTimestampMs(goal.positionMs);
+                            session->periodLabelAtTimestampMs(goal.markMs);
                     }
                 } else {
                     scoreboardPhases.append(
                         {offsetSeconds,
                          {homeName, awayName, runningHome, runningAway, homeColorHex, awayColorHex,
-                          session ? session->periodLabelAtTimestampMs(goal.positionMs) : QString()}});
+                          session ? session->periodLabelAtTimestampMs(goal.markMs) : QString()}});
                 }
             }
         }

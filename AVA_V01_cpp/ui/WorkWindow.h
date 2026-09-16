@@ -62,7 +62,7 @@ signals:
 
 private slots:
   void onReplaceVideo();
-  void onDiscardVideo();
+  void onCloseVideo();
   void onTagTableSeekToRow(int row);
   void onTagSelectionChanged();
   void onNoteTextChanged();
@@ -74,20 +74,20 @@ private slots:
   void onSelectNoFilters();
   void onFilterActionToggled(bool checked);
   void onPlayheadPositionChanged(qint64 positionMs);
-  void onFilterByPathRequested(const QString& mainEvent, const QString& followUpEvent);
+  void onFilterByEventPathRequested(const QString& mainEvent, const QString& followUpEvent);
   void onRemoveFilters();
   void onModeToggled();
   void showStatsOverlay();
   void saveNoteDebounceFired();
   void saveMatchNoteDebounceFired();
-  void onTeamSetupConfirmed(const QString& filePath,
+  void onGameSetupConfirmed(const QString& filePath,
                             const QString& homeName, const QString& awayName,
                             const QString& homeColor, const QString& awayColor,
                             const QString& competitionName,
                             const QDate& gameDate,
                             const QString& homeAbbrev,
                             const QString& awayAbbrev);
-  void onTeamSetupCancelled();
+  void onGameSetupCancelled();
   void onGameStartRequested();
   void onNextQuarterRequested();
   void onClipDurationSettings();
@@ -147,13 +147,13 @@ private:
   void refreshMatchNoteMentionCandidates();
   void flashNewTagRow();
   void clearNewTagFlash();
-  QTableWidgetItem* currentTagKeyItem() const;
+  QTableWidgetItem* selectedTagRowTimeItem() const;
   void setTagTableRowBackground(int row, const QBrush& brush);
   QString displayTeamForTag(const TagSession::GameTag& tag) const;
   bool isMainEventAllowed(const QString& mainEvent) const;
   bool isTagAllowed(const QString& mainEvent, const QString& followUpEvent) const;
   bool hasAnyFilterActive() const;
-  TagSession::GameTag currentTagContext() const;
+  TagSession::GameTag pendingTagPeriodAndTeam() const;
 
   void cleanupConcatenatedVideo();
   void cleanupPlaybackPrepVideo();
@@ -209,11 +209,11 @@ private:
   qint64 presentationAutoPauseAtMs_ = 0;
   qint64 lastPresentationPlayheadMs_ = -1;
 
-  // discard or swap video files:
+  // close or swap video files:
   QToolButton* videoMenuButton_ = nullptr;
   QMenu* videoMenu_ = nullptr;
   QAction* replaceVideoAction_ = nullptr;
-  QAction* discardVideoAction_ = nullptr;
+  QAction* closeVideoAction_ = nullptr;
   QAction* importXmlAction_ = nullptr;
   QAction* clipDurationSettingsAction_ = nullptr;
   QAction* statsOverlayAction_ = nullptr;
@@ -249,8 +249,8 @@ private:
 
   TagSession* tagSession_ = nullptr;
   QHash<QString, QAction*> filterActionByMainEvent_;
-  QString activeFilterPathMainEvent_;
-  QString activeFilterPathFollowUp_;
+  QString activeEventPathMainEvent_;
+  QString activeEventPathFollowUp_;
 
   QString pendingMainEvent_;
   qint64 pendingTimestampMs_ = 0;

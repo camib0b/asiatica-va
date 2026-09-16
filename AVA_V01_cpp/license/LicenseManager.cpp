@@ -122,7 +122,7 @@ void LicenseManager::activateLicense(const QString& email, const QString& licens
       setUserMessage(QStringLiteral("license.error.other_device"));
       return;
     }
-    const qint64 now = effectiveNow();
+    const qint64 now = tamperResistantUnixTime();
     if (now >= claims.expiresAt) {
       setUserMessage(QStringLiteral("license.error.expired_key"));
       return;
@@ -252,7 +252,7 @@ void LicenseManager::evaluateAndNotify() {
 
 LicenseUiStatus LicenseManager::evaluate() const {
   LicenseUiStatus status;
-  const qint64 now = effectiveNow();
+  const qint64 now = tamperResistantUnixTime();
   LicenseClaims claims;
   if (!LicenseCrypto::verifyToken(store_.token, &claims)) {
     status.lockReason = LicenseLockReason::Invalid;
@@ -300,7 +300,7 @@ LicenseUiStatus LicenseManager::evaluate() const {
   return status;
 }
 
-qint64 LicenseManager::effectiveNow() const {
+qint64 LicenseManager::tamperResistantUnixTime() const {
   const qint64 wall = unixNow();
   return wall > store_.maxWallClockSeen ? wall : store_.maxWallClockSeen;
 }

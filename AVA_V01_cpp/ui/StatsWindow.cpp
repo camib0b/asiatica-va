@@ -63,7 +63,7 @@ void StatsWindow::setTagSession(TagSession* session) {
         clearTree();
     });
 
-    connect(tagSession_, &TagSession::statsChanged, this, [this]() {
+    connect(tagSession_, &TagSession::tagsChanged, this, [this]() {
         rebuildTree();
     });
 }
@@ -172,7 +172,7 @@ void StatsWindow::onTreeItemDoubleClicked(QTreeWidgetItem* item, int /*column*/)
     const QString mainEvent = item->data(0, Qt::UserRole).toString();
     const QString followUpEvent = item->data(0, Qt::UserRole + 1).toString();
     if (!mainEvent.isEmpty()) {
-        emit filterByPathRequested(mainEvent, followUpEvent);
+        emit filterByEventPathRequested(mainEvent, followUpEvent);
     }
 }
 

@@ -133,11 +133,11 @@ void ExportSettingsDialog::buildUi() {
     includeAudioTrackCheckBox_->setChecked(true);
     formLayout->addRow(QString(), includeAudioTrackCheckBox_);
 
-    includeAvaOverlayCheckBox_ =
+    includeBrandingOverlayCheckBox_ =
         new QCheckBox(AppLocale::trUi("export.include_ava_overlay"), this);
-    includeAvaOverlayCheckBox_->setCursor(Qt::PointingHandCursor);
-    includeAvaOverlayCheckBox_->setChecked(true);
-    formLayout->addRow(QString(), includeAvaOverlayCheckBox_);
+    includeBrandingOverlayCheckBox_->setCursor(Qt::PointingHandCursor);
+    includeBrandingOverlayCheckBox_->setChecked(true);
+    formLayout->addRow(QString(), includeBrandingOverlayCheckBox_);
 
     clipCountLabel_ = new QLabel(this);
     Style::setRole(clipCountLabel_, "muted");
@@ -284,7 +284,7 @@ void ExportSettingsDialog::updateControlsForFormat() {
     setOverlayEnabled(includeScoreboardOverlayCheckBox_);
     setOverlayEnabled(includeNotesCheckBox_);
     setOverlayEnabled(includeAudioTrackCheckBox_);
-    setOverlayEnabled(includeAvaOverlayCheckBox_);
+    setOverlayEnabled(includeBrandingOverlayCheckBox_);
 
     updateSortOrderVisibility();
 }
@@ -547,8 +547,8 @@ void ExportSettingsDialog::onExportClicked() {
         includeScoreboardOverlayCheckBox_ && includeScoreboardOverlayCheckBox_->isChecked();
     result_.includeAudioTrack =
         includeAudioTrackCheckBox_ && includeAudioTrackCheckBox_->isChecked();
-    result_.includeAvaOverlay =
-        includeAvaOverlayCheckBox_ && includeAvaOverlayCheckBox_->isChecked();
+    result_.includeBrandingOverlay =
+        includeBrandingOverlayCheckBox_ && includeBrandingOverlayCheckBox_->isChecked();
     result_.includeNotesOverlay =
         includeNotesCheckBox_ && includeNotesCheckBox_->isChecked();
     result_.outputPath = outputPath;

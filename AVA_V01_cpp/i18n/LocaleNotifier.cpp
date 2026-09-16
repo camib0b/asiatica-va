@@ -7,6 +7,6 @@ LocaleNotifier& LocaleNotifier::instance() {
   return notifier;
 }
 
-void LocaleNotifier::emitLanguageChanged() {
+void LocaleNotifier::notifyLanguageChanged() {
   emit languageChanged();
 }

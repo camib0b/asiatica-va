@@ -52,7 +52,7 @@ YouTubeUploader::YouTubeUploader(YouTubeAuthManager* authManager, QObject* paren
     , authManager_(authManager) {
 }
 
-QString YouTubeUploader::matchFingerprint(const TagSession* session) {
+QString YouTubeUploader::matchPlaylistCacheKey(const TagSession* session) {
     if (!session) {
         return QString();
     }
@@ -95,13 +95,13 @@ QString YouTubeUploader::matchPlaylistTitle(const TagSession* session) {
 void YouTubeUploader::resolvePlaylistForMatch(
     const TagSession* session,
     const std::function<void(const QString& playlistId, const QString& error)>& callback) {
-    const QString fingerprint = matchFingerprint(session);
-    if (fingerprint.isEmpty()) {
+    const QString playlistCacheKey = matchPlaylistCacheKey(session);
+    if (playlistCacheKey.isEmpty()) {
         callback(QString(), QStringLiteral("Match metadata is missing."));
         return;
     }
 
-    const QString cachedId = cachedPlaylistId(fingerprint);
+    const QString cachedId = cachedPlaylistId(playlistCacheKey);
     if (!cachedId.isEmpty()) {
         callback(cachedId, QString());
         return;
@@ -112,7 +112,7 @@ void YouTubeUploader::resolvePlaylistForMatch(
         return;
     }
 
-    authManager_->requestAccessToken([this, session, fingerprint, callback](const QString& accessToken,
+    authManager_->requestAccessToken([this, session, playlistCacheKey, callback](const QString& accessToken,
                                                                               const QString& error) {
         if (accessToken.isEmpty()) {
             callback(QString(), error);
@@ -123,7 +123,7 @@ void YouTubeUploader::resolvePlaylistForMatch(
         auto* networkManager = new QNetworkAccessManager(this);
 
         const auto searchNextPage = std::make_shared<std::function<void(const QString&)>>();
-        *searchNextPage = [this, networkManager, accessToken, targetTitle, fingerprint, callback, searchNextPage](
+        *searchNextPage = [this, networkManager, accessToken, targetTitle, playlistCacheKey, callback, searchNextPage](
                               const QString& pageToken) {
             if (cancelled_) {
                 networkManager->deleteLater();
@@ -145,7 +145,7 @@ void YouTubeUploader::resolvePlaylistForMatch(
 
             QNetworkReply* reply = networkManager->get(request);
             connect(reply, &QNetworkReply::finished, this, [this, reply, networkManager, accessToken, targetTitle,
-                                                           fingerprint, callback, searchNextPage]() {
+                                                           playlistCacheKey, callback, searchNextPage]() {
                 const QByteArray responseBody = reply->readAll();
                 if (reply->error() != QNetworkReply::NoError) {
                     callback(QString(), QStringLiteral("Failed to list YouTube playlists: %1").arg(reply->errorString()));
@@ -161,7 +161,7 @@ void YouTubeUploader::resolvePlaylistForMatch(
                     const QJsonObject snippet = itemObject.value(QStringLiteral("snippet")).toObject();
                     if (snippet.value(QStringLiteral("title")).toString() == targetTitle) {
                         const QString playlistId = itemObject.value(QStringLiteral("id")).toString();
-                        cachePlaylistId(fingerprint, playlistId);
+                        cachePlaylistId(playlistCacheKey, playlistId);
                         callback(playlistId, QString());
                         reply->deleteLater();
                         networkManager->deleteLater();
@@ -197,7 +197,7 @@ void YouTubeUploader::resolvePlaylistForMatch(
 
                 QNetworkReply* createReply =
                     networkManager->post(createRequest, QJsonDocument(createBody).toJson(QJsonDocument::Compact));
-                connect(createReply, &QNetworkReply::finished, this, [this, createReply, networkManager, fingerprint,
+                connect(createReply, &QNetworkReply::finished, this, [this, createReply, networkManager, playlistCacheKey,
                                                                        callback]() {
                     const QByteArray createResponseBody = createReply->readAll();
                     if (createReply->error() != QNetworkReply::NoError) {
@@ -211,7 +211,7 @@ void YouTubeUploader::resolvePlaylistForMatch(
 
                     const QJsonObject createObject = QJsonDocument::fromJson(createResponseBody).object();
                     const QString playlistId = createObject.value(QStringLiteral("id")).toString();
-                    cachePlaylistId(fingerprint, playlistId);
+                    cachePlaylistId(playlistCacheKey, playlistId);
                     callback(playlistId, QString());
                     createReply->deleteLater();
                     networkManager->deleteLater();
@@ -432,17 +432,17 @@ void YouTubeUploader::addVideoToPlaylist(const QString& accessToken,
     });
 }
 
-void YouTubeUploader::cachePlaylistId(const QString& fingerprint, const QString& playlistId) {
+void YouTubeUploader::cachePlaylistId(const QString& playlistCacheKey, const QString& playlistId) {
     QSettings settings;
     settings.beginGroup(QLatin1String(kPlaylistCacheGroup));
-    settings.setValue(fingerprint, playlistId);
+    settings.setValue(playlistCacheKey, playlistId);
     settings.endGroup();
 }
 
-QString YouTubeUploader::cachedPlaylistId(const QString& fingerprint) const {
+QString YouTubeUploader::cachedPlaylistId(const QString& playlistCacheKey) const {
     QSettings settings;
     settings.beginGroup(QLatin1String(kPlaylistCacheGroup));
-    const QString playlistId = settings.value(fingerprint).toString();
+    const QString playlistId = settings.value(playlistCacheKey).toString();
     settings.endGroup();
     return playlistId;
 }

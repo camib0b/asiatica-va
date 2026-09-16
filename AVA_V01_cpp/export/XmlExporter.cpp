@@ -35,7 +35,7 @@ QString secondsString(qint64 ms) {
   return QString::number(seconds, 'f', 3);
 }
 
-/// Clip interval written to <start>/<end>: current EventDefaults lead/lag around \p positionMs,
+/// Clip interval written to <start>/<end>: current EventDefaults lead/lag around \p tag.markMs,
 /// unless the tag was manually trimmed or is a game-time span (quarters, Inicio, TM).
 QPair<qint64, qint64> exportIntervalFor(const TagSession::GameTag& tag) {
   auto clampInterval = [](qint64 startMs, qint64 endMs) {
@@ -53,8 +53,8 @@ QPair<qint64, qint64> exportIntervalFor(const TagSession::GameTag& tag) {
   }
 
   const EventDefaults::EventDuration duration = EventDefaults::defaultFor(tag.mainEvent);
-  qint64 startMs = tag.positionMs - duration.preMs;
-  qint64 endMs = tag.positionMs + duration.postMs;
+  qint64 startMs = tag.markMs - duration.leadMs;
+  qint64 endMs = tag.markMs + duration.lagMs;
   return clampInterval(startMs, endMs);
 }
 
@@ -109,8 +109,8 @@ bool hasExplicitGoalTagForTeam(const QVector<TagSession::GameTag>& tags,
         goalInterval.second >= sourceInterval.first) {
       return true;
     }
-    if (tag.positionMs >= source.positionMs &&
-        tag.positionMs - source.positionMs <= kGoalConfirmWindowAfterOriginMs) {
+    if (tag.markMs >= source.markMs &&
+        tag.markMs - source.markMs <= kGoalConfirmWindowAfterOriginMs) {
       return true;
     }
   }
@@ -139,7 +139,7 @@ QVector<TagSession::GameTag> tagsForExport(const QVector<TagSession::GameTag>& s
   std::stable_sort(expanded.begin(), expanded.end(),
                    [](const TagSession::GameTag& a, const TagSession::GameTag& b) {
                      if (a.startMs != b.startMs) return a.startMs < b.startMs;
-                     if (a.positionMs != b.positionMs) return a.positionMs < b.positionMs;
+                     if (a.markMs != b.markMs) return a.markMs < b.markMs;
                      // Emit the originating event before the derived Goal at the same timestamp.
                      const bool aIsGoal = a.mainEvent == QStringLiteral("Goal");
                      const bool bIsGoal = b.mainEvent == QStringLiteral("Goal");
@@ -155,7 +155,7 @@ QPair<int, int> runningScoreAt(const QVector<TagSession::GameTag>& tags, qint64 
   int away = 0;
   for (const auto& tag : tags) {
     if (tag.mainEvent != QStringLiteral("Goal")) continue;
-    if (tag.positionMs > positionMs) continue;
+    if (tag.markMs > positionMs) continue;
     if (tag.team == QStringLiteral("Home")) ++home;
     else if (tag.team == QStringLiteral("Away")) ++away;
   }
@@ -288,7 +288,7 @@ bool writeAllInstances(const TagSession* session,
   std::stable_sort(sortedTags.begin(), sortedTags.end(),
                    [](const TagSession::GameTag& a, const TagSession::GameTag& b) {
                      if (a.startMs != b.startMs) return a.startMs < b.startMs;
-                     return a.positionMs < b.positionMs;
+                     return a.markMs < b.markMs;
                    });
 
   const QVector<TagSession::GameTag> exportTags = tagsForExport(sortedTags);
@@ -330,7 +330,7 @@ bool writeAllInstances(const TagSession* session,
     const QVector<EmittedInstance> instances = emittedInstancesFor(tag, homeAbbrev, awayAbbrev);
     if (instances.isEmpty()) continue;
 
-    const QPair<int, int> score = runningScoreAt(exportTags, tag.positionMs);
+    const QPair<int, int> score = runningScoreAt(exportTags, tag.markMs);
     const QString resultadoLabel =
         (homeAbbrev.isEmpty() && awayAbbrev.isEmpty())
             ? QString()

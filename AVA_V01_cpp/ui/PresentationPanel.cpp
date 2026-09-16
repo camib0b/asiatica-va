@@ -253,23 +253,23 @@ void PresentationPanel::setTagSession(TagSession* session) {
   if (tagSession_) disconnect(tagSession_, nullptr, this, nullptr);
 
   tagSession_ = session;
-  tickedTagIndexes_.clear();
+  selectedTagIndexSet_.clear();
   currentTagSessionIndex_ = -1;
 
   if (tagSession_) {
     connect(tagSession_, &TagSession::cleared, this, [this]() {
-      tickedTagIndexes_.clear();
+      selectedTagIndexSet_.clear();
       currentTagSessionIndex_ = -1;
       refreshFromSession();
       emitSelectionChanged();
     });
     connect(tagSession_, &TagSession::tagsImported, this, [this]() {
-      tickedTagIndexes_.clear();
+      selectedTagIndexSet_.clear();
       currentTagSessionIndex_ = -1;
       refreshFromSession();
       emitSelectionChanged();
     });
-    connect(tagSession_, &TagSession::statsChanged, this,
+    connect(tagSession_, &TagSession::tagsChanged, this,
             &PresentationPanel::refreshFromSession);
     connect(tagSession_, &TagSession::tagNoteChanged, this,
             [this](int) { refreshFromSession(); });
@@ -347,7 +347,7 @@ void PresentationPanel::rebuildRows() {
 
       const QString followUpForDisplay = AppLocale::followUpPathWithoutTeamSegments(
           tag.followUpEvent, tagSession_->homeTeamName(), tagSession_->awayTeamName());
-      visibleTags.append({tagIndex, tag.positionMs, tag.team,
+      visibleTags.append({tagIndex, tag.markMs, tag.team,
                           AppLocale::trDisplayTagLine(tag.mainEvent, followUpForDisplay)});
     }
 
@@ -364,7 +364,7 @@ void PresentationPanel::rebuildRows() {
       auto* timeItem = new QTableWidgetItem(formatTimestampMs(visibleTag.markMs));
       timeItem->setData(kTagIndexRole, visibleTag.tagSessionIndex);
       timeItem->setFlags((timeItem->flags() | Qt::ItemIsUserCheckable) & ~Qt::ItemIsEditable);
-      timeItem->setCheckState(tickedTagIndexes_.contains(visibleTag.tagSessionIndex)
+      timeItem->setCheckState(selectedTagIndexSet_.contains(visibleTag.tagSessionIndex)
                                   ? Qt::Checked
                                   : Qt::Unchecked);
       timeItem->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
@@ -408,9 +408,9 @@ QVector<int> PresentationPanel::selectedTagIndexes() const {
   if (!tagSession_) return indexes;
 
   const auto& tags = tagSession_->tags();
-  indexes.reserve(tickedTagIndexes_.size());
+  indexes.reserve(selectedTagIndexSet_.size());
   for (int tagIndex = 0; tagIndex < tags.size(); ++tagIndex) {
-    if (tickedTagIndexes_.contains(tagIndex)) indexes.append(tagIndex);
+    if (selectedTagIndexSet_.contains(tagIndex)) indexes.append(tagIndex);
   }
   return indexes;
 }
@@ -433,9 +433,9 @@ void PresentationPanel::onTableItemChanged(QTableWidgetItem* item) {
   const int tagSessionIndex = tagIndexValue.toInt();
 
   if (item->checkState() == Qt::Checked) {
-    tickedTagIndexes_.insert(tagSessionIndex);
+    selectedTagIndexSet_.insert(tagSessionIndex);
   } else {
-    tickedTagIndexes_.remove(tagSessionIndex);
+    selectedTagIndexSet_.remove(tagSessionIndex);
   }
   emitSelectionChanged();
 }
@@ -450,8 +450,8 @@ void PresentationPanel::onTableCellDoubleClicked(int row, int /*column*/) {
   const int tagSessionIndex = tagIndexValue.toInt();
 
   // Double-clicking an instance also queues it, so the presenter can jump straight to a clip.
-  if (!tickedTagIndexes_.contains(tagSessionIndex)) {
-    tickedTagIndexes_.insert(tagSessionIndex);
+  if (!selectedTagIndexSet_.contains(tagSessionIndex)) {
+    selectedTagIndexSet_.insert(tagSessionIndex);
     const QSignalBlocker tableBlocker(instancesTable_);
     timeItem->setCheckState(Qt::Checked);
     emitSelectionChanged();
@@ -466,7 +466,7 @@ void PresentationPanel::onSelectAllClicked() {
     if (!timeItem) continue;
     const QVariant tagIndexValue = timeItem->data(kTagIndexRole);
     if (!tagIndexValue.isValid()) continue;
-    tickedTagIndexes_.insert(tagIndexValue.toInt());
+    selectedTagIndexSet_.insert(tagIndexValue.toInt());
   }
   rebuildRows();
   emitSelectionChanged();
@@ -480,7 +480,7 @@ void PresentationPanel::onSelectNoneClicked() {
     if (!timeItem) continue;
     const QVariant tagIndexValue = timeItem->data(kTagIndexRole);
     if (!tagIndexValue.isValid()) continue;
-    tickedTagIndexes_.remove(tagIndexValue.toInt());
+    selectedTagIndexSet_.remove(tagIndexValue.toInt());
   }
   rebuildRows();
   emitSelectionChanged();
@@ -490,7 +490,7 @@ void PresentationPanel::updateSelectionSummary() {
   if (!selectionSummaryLabel_) return;
   const int listedCount = instancesTable_ ? instancesTable_->rowCount() : 0;
   selectionSummaryLabel_->setText(AppLocale::trUi("presentation.selection_summary")
-                                      .arg(tickedTagIndexes_.size())
+                                      .arg(selectedTagIndexSet_.size())
                                       .arg(listedCount));
 }
 
