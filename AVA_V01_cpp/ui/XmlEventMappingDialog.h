@@ -70,7 +70,6 @@ private:
   bool validateMappings(QString* errorMessage) const;
   TagSession::GameTag gameTagFromInstance(const XmlImporter::ParsedInstance& instance,
                                           const CodeMapping& mapping) const;
-  void inferPeriods(QVector<TagSession::GameTag>& tags) const;
 
   QVector<XmlImporter::ParsedInstance> instances_;
   qint64 offsetMs_ = 0;

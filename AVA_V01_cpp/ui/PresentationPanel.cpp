@@ -70,8 +70,10 @@ QDoubleSpinBox* makeLeadLagSpinBox(QWidget* parent) {
 PresentationPanel::PresentationPanel(QWidget* parent)
     : QWidget(parent),
       tagSession_(nullptr),
-      selectedTagIndexSet_(),
+      selectedTagIdSet_(),
+      currentTagId_(0),
       currentTagSessionIndex_(-1),
+      lastEmittedSelectedIndexes_(),
       populatingRows_(false) {
   setObjectName(QStringLiteral("PresentationPanel"));
   buildUi();
@@ -258,21 +260,22 @@ void PresentationPanel::setTagSession(TagSession* session) {
   if (tagSession_) disconnect(tagSession_, nullptr, this, nullptr);
 
   tagSession_ = session;
-  selectedTagIndexSet_.clear();
+  selectedTagIdSet_.clear();
+  currentTagId_ = 0;
   currentTagSessionIndex_ = -1;
 
   if (tagSession_) {
     connect(tagSession_, &TagSession::cleared, this, [this]() {
-      selectedTagIndexSet_.clear();
+      selectedTagIdSet_.clear();
+      currentTagId_ = 0;
       currentTagSessionIndex_ = -1;
       refreshFromSession();
-      emitSelectionChanged();
     });
     connect(tagSession_, &TagSession::tagsImported, this, [this]() {
-      selectedTagIndexSet_.clear();
+      selectedTagIdSet_.clear();
+      currentTagId_ = 0;
       currentTagSessionIndex_ = -1;
       refreshFromSession();
-      emitSelectionChanged();
     });
     connect(tagSession_, &TagSession::tagsChanged, this,
             &PresentationPanel::refreshFromSession);
@@ -284,10 +287,17 @@ void PresentationPanel::setTagSession(TagSession* session) {
 }
 
 void PresentationPanel::refreshFromSession() {
+  pruneSelectionToExistingTags();
   rebuildEventFilterOptions();
   rebuildRows();
   updateSelectionSummary();
   updateCurrentClipControlsEnabled();
+
+  const QVector<int> currentIndexes = selectedTagIndexes();
+  if (currentIndexes != lastEmittedSelectedIndexes_) {
+    lastEmittedSelectedIndexes_ = currentIndexes;
+    emit selectedTagIndexesChanged(currentIndexes);
+  }
 }
 
 void PresentationPanel::rebuildEventFilterOptions() {
@@ -338,6 +348,7 @@ void PresentationPanel::rebuildRows() {
   if (tagSession_) {
     struct VisibleTag {
       int tagSessionIndex;
+      quint64 tagId;
       qint64 markMs;
       QString team;
       QString eventLine;
@@ -352,7 +363,7 @@ void PresentationPanel::rebuildRows() {
 
       const QString followUpForDisplay = AppLocale::followUpPathWithoutTeamSegments(
           tag.followUpEvent, tagSession_->homeTeamName(), tagSession_->awayTeamName());
-      visibleTags.append({tagIndex, tag.markMs, tag.team,
+      visibleTags.append({tagIndex, tag.id, tag.markMs, tag.team,
                           AppLocale::trDisplayTagLine(tag.mainEvent, followUpForDisplay)});
     }
 
@@ -369,7 +380,7 @@ void PresentationPanel::rebuildRows() {
       auto* timeItem = new QTableWidgetItem(formatTimestampMs(visibleTag.markMs));
       timeItem->setData(kTagIndexRole, visibleTag.tagSessionIndex);
       timeItem->setFlags((timeItem->flags() | Qt::ItemIsUserCheckable) & ~Qt::ItemIsEditable);
-      timeItem->setCheckState(selectedTagIndexSet_.contains(visibleTag.tagSessionIndex)
+      timeItem->setCheckState(selectedTagIdSet_.contains(visibleTag.tagId)
                                   ? Qt::Checked
                                   : Qt::Unchecked);
       timeItem->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
@@ -384,7 +395,7 @@ void PresentationPanel::rebuildRows() {
       instancesTable_->setItem(row, 1, teamItem);
       instancesTable_->setItem(row, 2, eventItem);
 
-      const bool isCurrentClip = visibleTag.tagSessionIndex == currentTagSessionIndex_;
+      const bool isCurrentClip = currentTagId_ != 0 && visibleTag.tagId == currentTagId_;
       const QBrush rowBrush =
           isCurrentClip ? QBrush(Style::ThemeColors::playheadHighlight()) : QBrush();
       timeItem->setBackground(rowBrush);
@@ -413,16 +424,48 @@ QVector<int> PresentationPanel::selectedTagIndexes() const {
   if (!tagSession_) return indexes;
 
   const auto& tags = tagSession_->tags();
-  indexes.reserve(selectedTagIndexSet_.size());
+  indexes.reserve(selectedTagIdSet_.size());
   for (int tagIndex = 0; tagIndex < tags.size(); ++tagIndex) {
-    if (selectedTagIndexSet_.contains(tagIndex)) indexes.append(tagIndex);
+    if (selectedTagIdSet_.contains(tags.at(tagIndex).id)) indexes.append(tagIndex);
   }
   return indexes;
 }
 
 void PresentationPanel::emitSelectionChanged() {
+  lastEmittedSelectedIndexes_ = selectedTagIndexes();
   updateSelectionSummary();
-  emit selectedTagIndexesChanged(selectedTagIndexes());
+  emit selectedTagIndexesChanged(lastEmittedSelectedIndexes_);
+}
+
+void PresentationPanel::pruneSelectionToExistingTags() {
+  if (!tagSession_) {
+    selectedTagIdSet_.clear();
+    currentTagId_ = 0;
+    currentTagSessionIndex_ = -1;
+    return;
+  }
+
+  QSet<quint64> existingTagIds;
+  const auto& tags = tagSession_->tags();
+  existingTagIds.reserve(tags.size());
+  for (const TagSession::GameTag& tag : tags) {
+    if (tag.id != 0) existingTagIds.insert(tag.id);
+  }
+  selectedTagIdSet_.intersect(existingTagIds);
+
+  if (currentTagId_ != 0) {
+    currentTagSessionIndex_ = tagSession_->indexOfTagId(currentTagId_);
+    if (currentTagSessionIndex_ < 0) currentTagId_ = 0;
+  } else {
+    currentTagSessionIndex_ = -1;
+  }
+}
+
+quint64 PresentationPanel::tagIdAt(int tagSessionIndex) const {
+  if (!tagSession_ || tagSessionIndex < 0) return 0;
+  const auto& tags = tagSession_->tags();
+  if (tagSessionIndex >= tags.size()) return 0;
+  return tags.at(tagSessionIndex).id;
 }
 
 void PresentationPanel::onFilterChanged() {
@@ -436,11 +479,13 @@ void PresentationPanel::onTableItemChanged(QTableWidgetItem* item) {
   const QVariant tagIndexValue = item->data(kTagIndexRole);
   if (!tagIndexValue.isValid()) return;
   const int tagSessionIndex = tagIndexValue.toInt();
+  const quint64 tagId = tagIdAt(tagSessionIndex);
+  if (tagId == 0) return;
 
   if (item->checkState() == Qt::Checked) {
-    selectedTagIndexSet_.insert(tagSessionIndex);
+    selectedTagIdSet_.insert(tagId);
   } else {
-    selectedTagIndexSet_.remove(tagSessionIndex);
+    selectedTagIdSet_.remove(tagId);
   }
   emitSelectionChanged();
 }
@@ -453,10 +498,12 @@ void PresentationPanel::onTableCellDoubleClicked(int row, int /*column*/) {
   const QVariant tagIndexValue = timeItem->data(kTagIndexRole);
   if (!tagIndexValue.isValid()) return;
   const int tagSessionIndex = tagIndexValue.toInt();
+  const quint64 tagId = tagIdAt(tagSessionIndex);
+  if (tagId == 0) return;
 
   // Double-clicking an instance also queues it, so the presenter can jump straight to a clip.
-  if (!selectedTagIndexSet_.contains(tagSessionIndex)) {
-    selectedTagIndexSet_.insert(tagSessionIndex);
+  if (!selectedTagIdSet_.contains(tagId)) {
+    selectedTagIdSet_.insert(tagId);
     const QSignalBlocker tableBlocker(instancesTable_);
     timeItem->setCheckState(Qt::Checked);
     emitSelectionChanged();
@@ -471,7 +518,8 @@ void PresentationPanel::onSelectAllClicked() {
     if (!timeItem) continue;
     const QVariant tagIndexValue = timeItem->data(kTagIndexRole);
     if (!tagIndexValue.isValid()) continue;
-    selectedTagIndexSet_.insert(tagIndexValue.toInt());
+    const quint64 tagId = tagIdAt(tagIndexValue.toInt());
+    if (tagId != 0) selectedTagIdSet_.insert(tagId);
   }
   rebuildRows();
   emitSelectionChanged();
@@ -485,7 +533,8 @@ void PresentationPanel::onSelectNoneClicked() {
     if (!timeItem) continue;
     const QVariant tagIndexValue = timeItem->data(kTagIndexRole);
     if (!tagIndexValue.isValid()) continue;
-    selectedTagIndexSet_.remove(tagIndexValue.toInt());
+    const quint64 tagId = tagIdAt(tagIndexValue.toInt());
+    if (tagId != 0) selectedTagIdSet_.remove(tagId);
   }
   rebuildRows();
   emitSelectionChanged();
@@ -495,7 +544,7 @@ void PresentationPanel::updateSelectionSummary() {
   if (!selectionSummaryLabel_) return;
   const int listedCount = instancesTable_ ? instancesTable_->rowCount() : 0;
   selectionSummaryLabel_->setText(AppLocale::trUi("presentation.selection_summary")
-                                      .arg(selectedTagIndexSet_.size())
+                                      .arg(selectedTagIndexes().size())
                                       .arg(listedCount));
 }
 
@@ -504,8 +553,11 @@ void PresentationPanel::updateSelectionSummary() {
 // ---------------------------------------------------------------------------
 
 void PresentationPanel::setCurrentClip(int tagSessionIndex, qint64 leadMs, qint64 lagMs) {
-  const bool currentClipChanged = currentTagSessionIndex_ != tagSessionIndex;
-  currentTagSessionIndex_ = tagSessionIndex;
+  const quint64 tagId = tagIdAt(tagSessionIndex);
+  const int resolvedIndex = tagId != 0 ? tagSessionIndex : -1;
+  const bool currentClipChanged = currentTagSessionIndex_ != resolvedIndex;
+  currentTagSessionIndex_ = resolvedIndex;
+  currentTagId_ = tagId;
 
   if (leadSpinBox_ && lagSpinBox_) {
     const QSignalBlocker leadBlocker(leadSpinBox_);
@@ -521,6 +573,7 @@ void PresentationPanel::setCurrentClip(int tagSessionIndex, qint64 leadMs, qint6
 
 void PresentationPanel::clearCurrentClip() {
   currentTagSessionIndex_ = -1;
+  currentTagId_ = 0;
   rebuildRows();
   updateCurrentClipControlsEnabled();
 }
@@ -534,14 +587,18 @@ void PresentationPanel::setExportEnabled(bool enabled) {
 }
 
 void PresentationPanel::updateCurrentClipControlsEnabled() {
-  const bool hasCurrentClip = currentTagSessionIndex_ >= 0;
+  const bool hasCurrentClip =
+      currentTagSessionIndex_ >= 0 && tagSession_ &&
+      currentTagSessionIndex_ < tagSession_->tags().size();
   if (leadSpinBox_) leadSpinBox_->setEnabled(hasCurrentClip);
   if (lagSpinBox_) lagSpinBox_->setEnabled(hasCurrentClip);
   if (applyToAllButton_) applyToAllButton_->setEnabled(hasCurrentClip);
 }
 
 void PresentationPanel::onLeadLagSpinChanged() {
-  if (currentTagSessionIndex_ < 0 || !leadSpinBox_ || !lagSpinBox_) return;
+  if (!leadSpinBox_ || !lagSpinBox_) return;
+  if (currentTagSessionIndex_ < 0 || !tagSession_) return;
+  if (currentTagSessionIndex_ >= tagSession_->tags().size()) return;
   emit currentClipLeadLagEdited(static_cast<qint64>(leadSpinBox_->value() * 1000.0),
                                 static_cast<qint64>(lagSpinBox_->value() * 1000.0));
 }

@@ -18,7 +18,8 @@ XmlSyncDialog::XmlSyncDialog(VideoPlayer* videoPlayer,
       videoPlayer_(videoPlayer),
       anchorInstance_(anchorInstance),
       instances_(instances),
-      anchorUsedFallback_(anchorUsedFallback) {
+      anchorUsedFallback_(anchorUsedFallback),
+      offsetMs_(0) {
   setWindowTitle(AppLocale::trUi("xml_import.sync_title"));
   setMinimumWidth(520);
   buildUi();
@@ -77,11 +78,16 @@ void XmlSyncDialog::wireSignals() {
   connect(importButton_, &QPushButton::clicked, this, &QDialog::accept);
   connect(useCurrentButton_, &QPushButton::clicked, this, &XmlSyncDialog::onUseCurrentPositionClicked);
 
-  if (videoPlayer_) {
-    connect(videoPlayer_, &VideoPlayer::positionChangedMs, this,
-            &XmlSyncDialog::onVideoPositionChanged);
-    onVideoPositionChanged(videoPlayer_->currentPositionMs());
+  if (!videoPlayer_) {
+    offsetMs_ = 0;
+    useCurrentButton_->setEnabled(false);
+    return;
   }
+
+  useCurrentButton_->setEnabled(true);
+  connect(videoPlayer_, &VideoPlayer::positionChangedMs, this,
+          &XmlSyncDialog::onVideoPositionChanged);
+  onVideoPositionChanged(videoPlayer_->currentPositionMs());
 }
 
 void XmlSyncDialog::applyUiStrings() {
@@ -126,8 +132,15 @@ void XmlSyncDialog::onUseCurrentPositionClicked() {
 
 void XmlSyncDialog::updatePreview() {
   if (videoAnchorLabel_) {
-    const qint64 videoMs = anchorInstance_.startMs + offsetMs_;
-    videoAnchorLabel_->setText(AppLocale::trUi("xml_import.sync_video_anchor").arg(formatMs(videoMs)));
+    if (videoPlayer_) {
+      const qint64 videoMs = anchorInstance_.startMs + offsetMs_;
+      videoAnchorLabel_->setText(
+          AppLocale::trUi("xml_import.sync_video_anchor").arg(formatMs(videoMs)));
+    } else {
+      videoAnchorLabel_->setText(
+          AppLocale::trUi("xml_import.sync_video_anchor")
+              .arg(AppLocale::trUi("xml_import.sync_video_unavailable")));
+    }
   }
   if (offsetLabel_) {
     const double offsetSeconds = static_cast<double>(offsetMs_) / 1000.0;

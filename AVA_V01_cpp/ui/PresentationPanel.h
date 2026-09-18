@@ -67,6 +67,8 @@ private:
   void updateSelectionSummary();
   void updateCurrentClipControlsEnabled();
   void emitSelectionChanged();
+  void pruneSelectionToExistingTags();
+  quint64 tagIdAt(int tagSessionIndex) const;
   bool passesFilters(const QString& mainEvent, const QString& team) const;
   QString teamDisplayName(const QString& teamKey) const;
 
@@ -92,7 +94,10 @@ private:
   QPushButton* exportButton_ = nullptr;
   QLabel* keyboardHintLabel_ = nullptr;
 
-  QSet<int> selectedTagIndexSet_{};
+  /// Stable GameTag::id values; converted to session indexes at the public API boundary.
+  QSet<quint64> selectedTagIdSet_{};
+  quint64 currentTagId_ = 0;
   int currentTagSessionIndex_ = -1;
+  QVector<int> lastEmittedSelectedIndexes_{};
   bool populatingRows_ = false;
 };

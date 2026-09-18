@@ -70,6 +70,101 @@ QTableWidgetItem* makeImportCheckItem() {
   return item;
 }
 
+constexpr int kQuarterCount = 4;
+
+int quarterIndexForMainEvent(const QString& mainEvent) {
+  for (int quarterIndex = 0; quarterIndex < kQuarterCount; ++quarterIndex) {
+    if (mainEvent == EventDefaults::quarterCode(quarterIndex)) return quarterIndex;
+  }
+  return -1;
+}
+
+/// Canonical "+"-form of a parsed team code so "home foul+" matches "HOME FOUL-".
+QString canonicalPositiveTeamCode(const QString& abbrev, const QString& shortCode) {
+  return QStringLiteral("%1 %2+").arg(abbrev, shortCode);
+}
+
+struct ClosedQuarterSpan {
+  bool present = false;
+  qint64 startMs = 0;
+  qint64 endMs = 0;
+};
+
+QString periodLabelAtMarkMs(qint64 markMs,
+                            const ClosedQuarterSpan closedQuarters[kQuarterCount],
+                            qint64 gameStartAnchorMs) {
+  int matchingQuarterIndex = -1;
+  qint64 matchingStartMs = 0;
+  qint64 matchingEndMs = 0;
+  for (int quarterIndex = 0; quarterIndex < kQuarterCount; ++quarterIndex) {
+    const ClosedQuarterSpan& closedQuarter = closedQuarters[quarterIndex];
+    if (!closedQuarter.present) continue;
+    if (markMs < closedQuarter.startMs || markMs > closedQuarter.endMs) continue;
+    const bool isBetterMatch =
+        matchingQuarterIndex < 0 || closedQuarter.startMs < matchingStartMs ||
+        (closedQuarter.startMs == matchingStartMs && closedQuarter.endMs < matchingEndMs);
+    if (!isBetterMatch) continue;
+    matchingQuarterIndex = quarterIndex;
+    matchingStartMs = closedQuarter.startMs;
+    matchingEndMs = closedQuarter.endMs;
+  }
+  if (matchingQuarterIndex >= 0) return EventDefaults::quarterCode(matchingQuarterIndex);
+
+  int closedPrefixCount = 0;
+  while (closedPrefixCount < kQuarterCount && closedQuarters[closedPrefixCount].present) {
+    ++closedPrefixCount;
+  }
+
+  if (closedPrefixCount == kQuarterCount) {
+    const ClosedQuarterSpan& finalQuarter = closedQuarters[kQuarterCount - 1];
+    if (finalQuarter.present && markMs >= finalQuarter.startMs) {
+      return EventDefaults::quarterCode(kQuarterCount - 1);
+    }
+    return QString();
+  }
+
+  if (closedPrefixCount > 0) {
+    const qint64 currentQuarterStartMs = closedQuarters[closedPrefixCount - 1].endMs;
+    if (markMs >= currentQuarterStartMs) {
+      return EventDefaults::quarterCode(closedPrefixCount);
+    }
+    return QString();
+  }
+
+  if (gameStartAnchorMs >= 0 && markMs >= gameStartAnchorMs) {
+    return EventDefaults::quarterCode(0);
+  }
+  return QString();
+}
+
+void inferPeriods(QVector<TagSession::GameTag>& tags) {
+  ClosedQuarterSpan closedQuarters[kQuarterCount] = {};
+  qint64 gameStartAnchorMs = -1;
+
+  for (const TagSession::GameTag& tag : tags) {
+    if (tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kStartAnchor)) {
+      if (gameStartAnchorMs < 0) gameStartAnchorMs = tag.startMs;
+      continue;
+    }
+    const int quarterIndex = quarterIndexForMainEvent(tag.mainEvent);
+    if (quarterIndex < 0) continue;
+    ClosedQuarterSpan& span = closedQuarters[quarterIndex];
+    span.present = true;
+    span.startMs = tag.startMs;
+    span.endMs = tag.endMs;
+  }
+
+  for (TagSession::GameTag& tag : tags) {
+    if (!tag.period.isEmpty()) continue;
+    if (EventDefaults::isQuarterEvent(tag.mainEvent)) {
+      tag.period = tag.mainEvent;
+      continue;
+    }
+    if (EventDefaults::isTimeControlEvent(tag.mainEvent)) continue;
+    tag.period = periodLabelAtMarkMs(tag.markMs, closedQuarters, gameStartAnchorMs);
+  }
+}
+
 } // namespace
 
 XmlEventMappingDialog::XmlEventMappingDialog(const QVector<XmlImporter::ParsedInstance>& instances,
@@ -336,7 +431,7 @@ void XmlEventMappingDialog::applyAutoMappings() {
   for (const MappingRow& row : rows_) {
     const ParsedTeamCode parsed = parseTeamCodePattern(row.xmlCode);
     if (parsed.valid && parsed.sign == QLatin1Char('+')) {
-      positiveCodes.insert(row.xmlCode);
+      positiveCodes.insert(canonicalPositiveTeamCode(parsed.abbrev, parsed.shortCode));
     }
   }
 
@@ -368,7 +463,7 @@ void XmlEventMappingDialog::applyAutoMappings() {
 
       if (parsed.sign == QLatin1Char('-')) {
         const QString positiveCode =
-            QStringLiteral("%1 %2+").arg(parsed.abbrev, parsed.shortCode);
+            canonicalPositiveTeamCode(parsed.abbrev, parsed.shortCode);
         if (positiveCodes.contains(positiveCode)) {
           importEnabled = false;
           row.autoMapped = true;
@@ -469,35 +564,6 @@ TagSession::GameTag XmlEventMappingDialog::gameTagFromInstance(
   }
 
   return tag;
-}
-
-void XmlEventMappingDialog::inferPeriods(QVector<TagSession::GameTag>& tags) const {
-  struct QuarterSpan {
-    QString label;
-    qint64 startMs = 0;
-    qint64 endMs = 0;
-  };
-  QVector<QuarterSpan> quarterSpans;
-  for (const TagSession::GameTag& tag : tags) {
-    if (!EventDefaults::isQuarterEvent(tag.mainEvent)) continue;
-    quarterSpans.append({tag.mainEvent, tag.startMs, tag.endMs});
-  }
-
-  for (TagSession::GameTag& tag : tags) {
-    if (!tag.period.isEmpty()) continue;
-    if (EventDefaults::isTimeControlEvent(tag.mainEvent)) {
-      if (EventDefaults::isQuarterEvent(tag.mainEvent)) {
-        tag.period = tag.mainEvent;
-      }
-      continue;
-    }
-    for (const QuarterSpan& span : quarterSpans) {
-      if (tag.markMs >= span.startMs && tag.markMs <= span.endMs) {
-        tag.period = span.label;
-        break;
-      }
-    }
-  }
 }
 
 QVector<TagSession::GameTag> XmlEventMappingDialog::buildGameTags() const {

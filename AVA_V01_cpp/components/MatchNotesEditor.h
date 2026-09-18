@@ -40,7 +40,8 @@ private:
   void openMentionPopup();
   void closeMentionPopup();
   void updateMentionFilterFromCursor();
-  void insertSelectedMention();
+  /// Returns true when a mention was inserted (caller should not forward the key to QTextEdit).
+  bool insertSelectedMention();
   void insertMention(const MentionCandidate& candidate);
   void positionMentionPopup();
   quint64 tagIdFromAnchor(const QString& href) const;

@@ -90,23 +90,30 @@ quint64 MatchNotesEditor::tagIdFromAnchor(const QString& href) const {
 }
 
 void MatchNotesEditor::keyPressEvent(QKeyEvent* event) {
+  // Popup navigation keys are intentionally not forwarded to QTextEdit: Escape must
+  // not bubble as an unhandled shortcut, Return must not insert a newline after a
+  // mention, and Up/Down must move the popup selection instead of the text caret.
   if (mentionPopup_ && mentionPopup_->isVisible()) {
     if (event->key() == Qt::Key_Escape) {
       closeMentionPopup();
+      event->accept();
       return;
     }
     if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
-      insertSelectedMention();
-      return;
-    }
-    if (event->key() == Qt::Key_Down) {
+      if (insertSelectedMention()) {
+        event->accept();
+        return;
+      }
+      // No selectable mention — fall through so QTextEdit can insert a newline.
+    } else if (event->key() == Qt::Key_Down) {
       const int nextRow = qMin(mentionPopup_->currentRow() + 1, mentionPopup_->count() - 1);
       mentionPopup_->setCurrentRow(qMax(0, nextRow));
+      event->accept();
       return;
-    }
-    if (event->key() == Qt::Key_Up) {
+    } else if (event->key() == Qt::Key_Up) {
       const int nextRow = qMax(mentionPopup_->currentRow() - 1, 0);
       mentionPopup_->setCurrentRow(nextRow);
+      event->accept();
       return;
     }
   }
@@ -127,11 +134,12 @@ void MatchNotesEditor::keyPressEvent(QKeyEvent* event) {
 void MatchNotesEditor::mousePressEvent(QMouseEvent* event) {
   const QString href = anchorAt(event->pos());
   const quint64 tagId = tagIdFromAnchor(href);
+  // Always run the base implementation so focus, caret placement, and selection
+  // still apply when the click lands on a tag mention.
+  QTextEdit::mousePressEvent(event);
   if (tagId != 0) {
     emit tagMentionActivated(tagId);
-    return;
   }
-  QTextEdit::mousePressEvent(event);
   if (mentionPopup_ && mentionPopup_->isVisible()) {
     updateMentionFilterFromCursor();
   }
@@ -245,19 +253,20 @@ void MatchNotesEditor::positionMentionPopup() {
   mentionPopup_->raise();
 }
 
-void MatchNotesEditor::insertSelectedMention() {
-  if (!mentionPopup_) return;
+bool MatchNotesEditor::insertSelectedMention() {
+  if (!mentionPopup_) return false;
   QListWidgetItem* item = mentionPopup_->currentItem();
-  if (!item) return;
+  if (!item) return false;
   const quint64 tagId = item->data(Qt::UserRole).toULongLong();
-  if (tagId == 0) return;
+  if (tagId == 0) return false;
 
   for (const MentionCandidate& candidate : candidates_) {
     if (candidate.tagId == tagId) {
       insertMention(candidate);
-      return;
+      return true;
     }
   }
+  return false;
 }
 
 void MatchNotesEditor::insertMention(const MentionCandidate& candidate) {
