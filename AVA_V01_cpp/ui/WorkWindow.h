@@ -113,7 +113,7 @@ private:
   void buildUi();
   void buildPresentationUi();
   void wireSignals();
-  void applyUiStrings();
+  void applyUiStrings() const;
   void applyTaggingLayout();
   void applyAnalyzingLayout();
   void applyPresentationLayout();
@@ -122,14 +122,21 @@ private:
   void applyPresentationSplitterGeometry();
 
   /// Cycles Tagging → Analyzing → Presenting → Tagging (the M shortcut).
-  static Mode nextModeInCycle(Mode current);
+  static constexpr Mode nextModeInCycle(Mode current) {
+    switch (current) {
+      case Mode::Tagging: return Mode::Analyzing;
+      case Mode::Analyzing: return Mode::Presenting;
+      case Mode::Presenting: return Mode::Tagging;
+    }
+    return Mode::Tagging;
+  }
 
   // Presentation mode helpers
   void showPresentationClip(int queueIndex, bool startPlaying);
   void goToNextPresentationClip();
   void goToPreviousPresentationClip();
-  void updatePresentationStage();
-  void configurePresentationClipBarForCurrentClip();
+  void updatePresentationStage() const;
+  void configurePresentationClipBarForCurrentClip() const;
   void savePresentationClipIntervalFromClipBar();
   void updatePresentationPlayhead(qint64 positionMs);
   void armPresentationAutoPause(qint64 clipEndMs);
@@ -139,17 +146,17 @@ private:
   void restoreTaggingModeUiStateAfterLayout();
   void rebuildTagsList();
   void rebuildFilterMenu();
-  void updateFilterIndicator();
-  void updateFilterButtonsVisibility();
-  void updateTagPlayheadHighlight(qint64 positionMs);
-  void syncNoteToSelectedTag();  // immediate save (used on selection change)
-  void loadNoteForSelectedTag();
-  void loadMatchNote();
-  void refreshMatchNoteMentionCandidates();
+  void updateFilterIndicator() const;
+  void updateFilterButtonsVisibility() const;
+  void updateTagPlayheadHighlight(qint64 positionMs) const;
+  void flushPendingClipNote();
+  void loadNoteForSelectedTag() const;
+  void loadMatchNote() const;
+  void refreshMatchNoteMentionCandidates() const;
   void flashNewTagRow();
   void clearNewTagFlash();
   QTableWidgetItem* selectedTagRowTimeItem() const;
-  void setTagTableRowBackground(int row, const QBrush& brush);
+  void setTagTableRowBackground(int row, const QBrush& brush) const;
   QString displayTeamForTag(const TagSession::GameTag& tag) const;
   bool isMainEventAllowed(const QString& mainEvent) const;
   bool isTagAllowed(const QString& mainEvent, const QString& followUpEvent) const;
@@ -161,9 +168,9 @@ private:
   void cleanupPendingConcatenation();
 
   /// Whether Space and playback-speed keys should control the main video player (same rules for all).
-  bool shouldDeliverPlaybackKeyboardToVideoPlayer(QWidget* focusWidget) const;
-  void onApplicationFocusWidgetChanged(QWidget* oldFocus, QWidget* newFocus);
-  void refreshPlaybackShortcutFocusGate();
+  bool shouldDeliverPlaybackKeyboardToVideoPlayer(const QWidget* focusWidget) const;
+  void onApplicationFocusWidgetChanged(QWidget* oldFocus, QWidget* newFocus) const;
+  void refreshPlaybackShortcutFocusGate() const;
 
   // Mode and layout
   Mode mode_ = Mode::Tagging;

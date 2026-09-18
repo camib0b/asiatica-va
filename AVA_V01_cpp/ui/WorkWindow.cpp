@@ -73,13 +73,13 @@
 
 namespace {
 
-bool isTextInteractionFocusWidget(QWidget* widget) {
+bool isTextInteractionFocusWidget(const QWidget* widget) {
     if (!widget) return false;
-    if (qobject_cast<QLineEdit*>(widget)) return true;
-    if (qobject_cast<QAbstractSpinBox*>(widget)) return true;
-    if (qobject_cast<QPlainTextEdit*>(widget)) return true;
-    if (qobject_cast<QTextEdit*>(widget)) return true;
-    if (qobject_cast<QComboBox*>(widget)) return true;
+    if (qobject_cast<const QLineEdit*>(widget)) return true;
+    if (qobject_cast<const QAbstractSpinBox*>(widget)) return true;
+    if (qobject_cast<const QPlainTextEdit*>(widget)) return true;
+    if (qobject_cast<const QTextEdit*>(widget)) return true;
+    if (qobject_cast<const QComboBox*>(widget)) return true;
     return false;
 }
 
@@ -96,11 +96,9 @@ void detachWidgetFromParent(QWidget* widget) {
     }
 }
 
-QString formatTimestampMs(qint64 ms) {
-    if (ms < 0) {
-        ms = 0;
-    }
-    const qint64 totalSeconds = ms / 1000;
+QString formatTimestampMs(qint64 milliseconds) {
+    const qint64 clampedMilliseconds = milliseconds < 0 ? 0 : milliseconds;
+    const qint64 totalSeconds = clampedMilliseconds / 1000;
     const qint64 hours = totalSeconds / 3600;
     const qint64 minutes = (totalSeconds / 60) % 60;
     const qint64 seconds = totalSeconds % 60;
@@ -118,7 +116,8 @@ QString formatTimestampMs(qint64 ms) {
         .arg(seconds, 2, 10, QChar('0'));
 }
 
-void paintTeamCellForTag(QTableWidgetItem* teamItem, const TagSession::GameTag& tag, TagSession* session) {
+void paintTeamCellForTag(QTableWidgetItem* teamItem, const TagSession::GameTag& tag,
+                         const TagSession* session) {
     if (!teamItem) return;
     if (!session) {
         teamItem->setBackground(QBrush());
@@ -194,7 +193,7 @@ WorkWindow::~WorkWindow() {
     detachPresentationKeyboardShortcuts();
 }
 
-bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(QWidget* focusWidget) const {
+bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(const QWidget* focusWidget) const {
     if (!focusWidget) return false;
     if (focusWidget->window() != window()) return false;
     if (!isAncestorOf(focusWidget)) return false;
@@ -205,7 +204,7 @@ bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(QWidget* focusWidget
     return true;
 }
 
-void WorkWindow::onApplicationFocusWidgetChanged(QWidget* /*oldFocus*/, QWidget* newFocus) {
+void WorkWindow::onApplicationFocusWidgetChanged(QWidget* /*oldFocus*/, QWidget* newFocus) const {
     if (!videoPlayer_ || !videoPlayer_->controlsBar()) {
         return;
     }
@@ -213,7 +212,7 @@ void WorkWindow::onApplicationFocusWidgetChanged(QWidget* /*oldFocus*/, QWidget*
     videoPlayer_->controlsBar()->setPlaybackShortcutFocusGate(allowPlaybackShortcuts);
 }
 
-void WorkWindow::refreshPlaybackShortcutFocusGate() {
+void WorkWindow::refreshPlaybackShortcutFocusGate() const {
     onApplicationFocusWidgetChanged(nullptr, QApplication::focusWidget());
 }
 
@@ -245,7 +244,7 @@ void WorkWindow::cleanupPendingConcatenation() {
     pendingConcatenator_.reset();
 }
 
-void WorkWindow::applyUiStrings() {
+void WorkWindow::applyUiStrings() const {
     if (modeTaggingBtn_) {
         modeTaggingBtn_->setText(AppLocale::trUi("mode.tagging"));
         modeTaggingBtn_->setToolTip(AppLocale::trUi("tooltip.mode_tagging"));
@@ -392,15 +391,6 @@ void WorkWindow::setMode(Mode m) {
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->setChecked(m == Mode::Analyzing);
     if (modePresentingBtn_) modePresentingBtn_->setChecked(m == Mode::Presenting);
     refreshPlaybackShortcutFocusGate();
-}
-
-WorkWindow::Mode WorkWindow::nextModeInCycle(Mode current) {
-    switch (current) {
-        case Mode::Tagging: return Mode::Analyzing;
-        case Mode::Analyzing: return Mode::Presenting;
-        case Mode::Presenting: return Mode::Tagging;
-    }
-    return Mode::Tagging;
 }
 
 TagSession::GameTag WorkWindow::pendingTagPeriodAndTeam() const {
@@ -1809,7 +1799,7 @@ void WorkWindow::goToPreviousPresentationClip() {
     showPresentationClip(presentationQueue_->currentIndex() - 1, /*startPlaying=*/true);
 }
 
-void WorkWindow::updatePresentationStage() {
+void WorkWindow::updatePresentationStage() const {
     if (!presentationEventLabel_ || !presentationContextLabel_ || !presentationNoteLabel_) return;
 
     const PresentationQueue::Clip* clip =
@@ -1857,7 +1847,7 @@ void WorkWindow::updatePresentationStage() {
     }
 }
 
-void WorkWindow::configurePresentationClipBarForCurrentClip() {
+void WorkWindow::configurePresentationClipBarForCurrentClip() const {
     if (!presentationClipBar_) return;
 
     const PresentationQueue::Clip* clip =
@@ -1975,10 +1965,7 @@ bool WorkWindow::eventFilter(QObject* watched, QEvent* event) {
 
 void WorkWindow::onTagSelectionChanged() {
     noteDebounceTimer_->stop();
-    if (pendingNoteIndex_ >= 0 && tagSession_) {
-        tagSession_->setTagNote(pendingNoteIndex_, pendingNoteText_);
-        pendingNoteIndex_ = -1;
-    }
+    flushPendingClipNote();
     loadNoteForSelectedTag();
 }
 
@@ -1996,10 +1983,7 @@ void WorkWindow::onNoteTextChanged() {
 }
 
 void WorkWindow::saveNoteDebounceFired() {
-    if (pendingNoteIndex_ >= 0 && tagSession_) {
-        tagSession_->setTagNote(pendingNoteIndex_, pendingNoteText_);
-        pendingNoteIndex_ = -1;
-    }
+    flushPendingClipNote();
 }
 
 void WorkWindow::onMatchNoteTextChanged() {
@@ -2012,15 +1996,10 @@ void WorkWindow::saveMatchNoteDebounceFired() {
     tagSession_->setMatchNote(matchNotesEditor_->serializedHtml());
 }
 
-void WorkWindow::syncNoteToSelectedTag() {
-    if (!tagSession_ || !notesEdit_) return;
-    auto* item = selectedTagRowTimeItem();
-    if (!item) return;
-    QVariant idxVar = item->data(Qt::UserRole + 3);
-    if (!idxVar.isValid()) return;
-    int idx = idxVar.toInt();
-    if (idx < 0 || idx >= tagSession_->tags().size()) return;
-    tagSession_->setTagNote(idx, notesEdit_->toPlainText());
+void WorkWindow::flushPendingClipNote() {
+    if (pendingNoteIndex_ < 0 || !tagSession_) return;
+    tagSession_->setTagNote(pendingNoteIndex_, pendingNoteText_);
+    pendingNoteIndex_ = -1;
 }
 
 void WorkWindow::showStatsOverlay() {
@@ -2041,7 +2020,7 @@ void WorkWindow::showStatsOverlay() {
     statsOverlayDialog_->show();
 }
 
-void WorkWindow::loadNoteForSelectedTag() {
+void WorkWindow::loadNoteForSelectedTag() const {
     if (!tagSession_ || !notesEdit_) return;
     auto* item = selectedTagRowTimeItem();
     notesEdit_->blockSignals(true);
@@ -2075,14 +2054,14 @@ void WorkWindow::loadNoteForSelectedTag() {
     notesEdit_->blockSignals(false);
 }
 
-void WorkWindow::loadMatchNote() {
+void WorkWindow::loadMatchNote() const {
     if (!matchNotesEditor_) return;
     const QString html = tagSession_ ? tagSession_->matchNote() : QString();
     if (matchNotesEditor_->isDocumentEquivalentTo(html)) return;
     matchNotesEditor_->setSerializedHtml(html);
 }
 
-void WorkWindow::refreshMatchNoteMentionCandidates() {
+void WorkWindow::refreshMatchNoteMentionCandidates() const {
     if (!matchNotesEditor_) return;
 
     QVector<MatchNotesEditor::MentionCandidate> candidates;
@@ -2096,7 +2075,7 @@ void WorkWindow::refreshMatchNoteMentionCandidates() {
             MatchNotesEditor::MentionCandidate candidate;
             candidate.tagId = tag.id;
             candidate.label = QStringLiteral("%1  %2  ·  %3")
-                                  .arg(formatTimestampMs(tag.positionMs), eventLine, teamName);
+                                  .arg(formatTimestampMs(tag.markMs), eventLine, teamName);
             candidate.searchText = candidate.label;
             candidates.append(candidate);
         }
@@ -2120,7 +2099,7 @@ void WorkWindow::onMatchNoteTagMentionActivated(quint64 tagId) {
     }
 
     if (videoPlayer_) {
-        videoPlayer_->seekToMs(tagSession_->tags().at(sessionIndex).positionMs);
+        videoPlayer_->seekToMs(tagSession_->tags().at(sessionIndex).markMs);
     }
 }
 
@@ -2137,7 +2116,7 @@ QTableWidgetItem* WorkWindow::selectedTagRowTimeItem() const {
     return row >= 0 ? tagsTable_->item(row, 0) : nullptr;
 }
 
-void WorkWindow::setTagTableRowBackground(int row, const QBrush& brush) {
+void WorkWindow::setTagTableRowBackground(int row, const QBrush& brush) const {
     if (!tagsTable_ || row < 0) return;
     const bool clearHighlight = (brush.style() == Qt::NoBrush);
 
@@ -2216,7 +2195,7 @@ void WorkWindow::onPlayheadPositionChanged(qint64 positionMs) {
     updateTagPlayheadHighlight(positionMs);
 }
 
-void WorkWindow::updateTagPlayheadHighlight(qint64 positionMs) {
+void WorkWindow::updateTagPlayheadHighlight(qint64 positionMs) const {
     if (!tagsTable_) return;
     for (int row = 0; row < tagsTable_->rowCount(); ++row) {
         QTableWidgetItem* keyItem = tagsTable_->item(row, 0);
@@ -2317,7 +2296,7 @@ bool WorkWindow::hasAnyFilterActive() const {
     return false;
 }
 
-void WorkWindow::updateFilterButtonsVisibility() {
+void WorkWindow::updateFilterButtonsVisibility() const {
     if (!tagsRemoveFiltersButton_) return;
     if (hasAnyFilterActive()) {
         tagsRemoveFiltersButton_->show();
@@ -2357,7 +2336,7 @@ void WorkWindow::rebuildFilterMenu() {
     }
 }
 
-void WorkWindow::updateFilterIndicator() {
+void WorkWindow::updateFilterIndicator() const {
     if (!tagsFilterIndicator_) return;
 
     if (!activeEventPathMainEvent_.isEmpty()) {
