@@ -45,6 +45,35 @@ bool colorLooksLight(const QColor& color) {
   return luminance > 0.65;
 }
 
+QString colorToHex(const QColor& color) {
+  return QString("#%1%2%3")
+      .arg(color.red(), 2, 16, QChar('0'))
+      .arg(color.green(), 2, 16, QChar('0'))
+      .arg(color.blue(), 2, 16, QChar('0'));
+}
+
+bool isHexDigit(QChar character) {
+  const char latin = character.toLatin1();
+  return (latin >= '0' && latin <= '9') || (latin >= 'a' && latin <= 'f') ||
+         (latin >= 'A' && latin <= 'F');
+}
+
+// Exactly 6 hex digits, optional leading '#'. QColor also accepts #rgb, names,
+// and #rgba; those must not commit here or live typing would rewrite the field.
+QString normalizeHex(const QString& text) {
+  QString digits = text.trimmed();
+  if (digits.startsWith(QLatin1Char('#'))) {
+    digits.remove(0, 1);
+  }
+  if (digits.size() != 6) return {};
+  for (const QChar digit : digits) {
+    if (!isHexDigit(digit)) return {};
+  }
+  const QColor parsed(QLatin1Char('#') + digits);
+  if (!parsed.isValid()) return {};
+  return colorToHex(parsed);
+}
+
 class ColorCircleButton final : public QAbstractButton {
 public:
   explicit ColorCircleButton(QWidget* parent = nullptr) : QAbstractButton(parent) {
@@ -133,7 +162,17 @@ private:
 
 }  // namespace
 
-TeamColorPicker::TeamColorPicker(QWidget* parent) : QWidget(parent) {
+TeamColorPicker::TeamColorPicker(QWidget* parent)
+    : QWidget(parent),
+      colorHex_(),
+      colorDialogTitle_(),
+      fallbackPreviewColor_(Qt::gray),
+      syncingHexEdit_(false),
+      wellButton_(nullptr),
+      popup_(nullptr),
+      hexEdit_(nullptr),
+      moreColorsButton_(nullptr),
+      swatchButtons_() {
   setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
   setFixedSize(36, 36);
   buildUi();
@@ -279,11 +318,6 @@ void TeamColorPicker::hidePalettePopup() {
 
 void TeamColorPicker::onHexTextChanged(const QString& text) {
   if (syncingHexEdit_) return;
-  QString digits = text.trimmed();
-  if (digits.startsWith(QLatin1Char('#'))) {
-    digits.remove(0, 1);
-  }
-  if (digits.size() != 6) return;
   const QString normalized = normalizeHex(text);
   if (normalized.isEmpty()) return;
   applyNormalizedColor(normalized, true);
@@ -371,22 +405,4 @@ QColor TeamColorPicker::dialogSeedColor() const {
     if (current.isValid()) return current;
   }
   return fallbackPreviewColor_;
-}
-
-QString TeamColorPicker::colorToHex(const QColor& color) {
-  return QString("#%1%2%3")
-      .arg(color.red(), 2, 16, QChar('0'))
-      .arg(color.green(), 2, 16, QChar('0'))
-      .arg(color.blue(), 2, 16, QChar('0'));
-}
-
-QString TeamColorPicker::normalizeHex(const QString& text) {
-  QString trimmed = text.trimmed();
-  if (trimmed.isEmpty()) return {};
-  QColor parsed(trimmed);
-  if (!parsed.isValid() && !trimmed.startsWith(QLatin1Char('#'))) {
-    parsed = QColor(QLatin1Char('#') + trimmed);
-  }
-  if (!parsed.isValid()) return {};
-  return colorToHex(parsed);
 }

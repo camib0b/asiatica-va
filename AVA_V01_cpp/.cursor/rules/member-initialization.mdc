@@ -8,7 +8,9 @@ alwaysApply: false
 
 If the constructor body (or helpers it calls) **reads** a member, initialize that member in the constructor initializer list. Do not rely on later setters, or on the reader noticing an in-class default.
 
-Uninitialized scalars and pointers are undefined behavior. Even with in-class defaults, the init list makes the starting state visible at the construction site.
+C++ does not zero members just because a constructor exists. A `bool`, `int`, or pointer with neither an in-class `=` nor an init-list entry is indeterminate; the first `if (flag_)` is undefined behavior, not a quiet `false`. Class types (`QString`, `QColor`) are safe to default-construct, but still list them so the starting state is visible next to the constructor.
+
+In-class `= nullptr` / `= false` / `= Qt::gray` is a second line of defense, not a substitute for the init list.
 
 ```cpp
 // BAD — applyUiStrings() / refreshFromSession() read these before setTagSession()

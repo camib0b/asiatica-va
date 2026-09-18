@@ -43,11 +43,8 @@ private:
   void syncHexEditFromColor() const;
   QColor dialogSeedColor() const;
 
-  static QString colorToHex(const QColor& color);
-  static QString normalizeHex(const QString& text);
-
-  QString colorHex_;
-  QString colorDialogTitle_;
+  QString colorHex_{};
+  QString colorDialogTitle_{};
   QColor fallbackPreviewColor_ = QColor(Qt::gray);
   mutable bool syncingHexEdit_ = false;
 
@@ -55,5 +52,5 @@ private:
   QFrame* popup_ = nullptr;
   QLineEdit* hexEdit_ = nullptr;
   QPushButton* moreColorsButton_ = nullptr;
-  QVector<QAbstractButton*> swatchButtons_;
+  QVector<QAbstractButton*> swatchButtons_{};
 };

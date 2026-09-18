@@ -20,4 +20,6 @@ void refreshWell() const;
 
 Do **not** mark methods `const` when they assign to non-`mutable` members or change the object's own model/interaction state (setters, popup show/hide, signal emission of new values).
 
+If a method does not use `this` at all, `const` is the wrong tool: make it `static` or a free function in the anonymous namespace.
+
 Use `mutable` only for bookkeeping that is not logical state (reentrancy guards, caches). Example: `mutable bool syncingHexEdit_` so `syncHexEditFromColor() const` can suppress echo while writing a child `QLineEdit`.
