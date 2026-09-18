@@ -5,7 +5,7 @@
 #include "TagSession.h"
 
 #include <QColor>
-#include <QFile>
+#include <QFileDevice>
 #include <QHash>
 #include <QSaveFile>
 #include <QSet>
@@ -118,45 +118,56 @@ bool hasExplicitGoalTagForTeam(const QVector<TagSession::GameTag>& tags,
   return false;
 }
 
+/// Emission order: game time (markMs), originating event before a Goal at the same mark,
+/// then exported clip start. Clip lead/lag must not pull a derived Goal ahead of its origin
+/// (Goal defaults are a longer lead than Shot/PC).
+bool exportTagComesBefore(const TagSession::GameTag& a, const TagSession::GameTag& b) {
+  if (a.markMs != b.markMs) return a.markMs < b.markMs;
+  const bool aIsGoal = a.mainEvent == QStringLiteral("Goal");
+  const bool bIsGoal = b.mainEvent == QStringLiteral("Goal");
+  if (aIsGoal != bIsGoal) return bIsGoal;
+  if (a.startMs != b.startMs) return a.startMs < b.startMs;
+  return false;
+}
+
 /// Adds synthetic Goal tags when a scored goal is implied by follow-up but never tagged as Goal.
-QVector<TagSession::GameTag> tagsForExport(const QVector<TagSession::GameTag>& sortedTags) {
-  QVector<TagSession::GameTag> expanded = sortedTags;
-  expanded.reserve(sortedTags.size() + 8);
-  for (const auto& tag : sortedTags) {
+QVector<TagSession::GameTag> tagsForExport(const QVector<TagSession::GameTag>& tags) {
+  QVector<TagSession::GameTag> expanded = tags;
+  expanded.reserve(tags.size() + 8);
+  for (const auto& tag : tags) {
     if (tag.mainEvent == QStringLiteral("Goal")) continue;
     if (!followUpPathContainsScoredGoal(tag.followUpEvent)) continue;
-    if (hasExplicitGoalTagForTeam(sortedTags, tag)) continue;
+    if (hasExplicitGoalTagForTeam(tags, tag)) continue;
 
     TagSession::GameTag goalTag = tag;
     goalTag.mainEvent = QStringLiteral("Goal");
     goalTag.followUpEvent.clear();
-    // Use Goal lead/lag from EventDefaults unless the originating clip was manually trimmed.
-    if (!tag.intervalManuallyEdited) {
-      goalTag.intervalManuallyEdited = false;
-    }
+    // Synthetic Goals always use Goal lead/lag from EventDefaults around markMs.
+    // Never inherit the originating tag's intervalManuallyEdited flag or trimmed span.
+    goalTag.intervalManuallyEdited = false;
     expanded.append(goalTag);
   }
 
-  std::stable_sort(expanded.begin(), expanded.end(),
-                   [](const TagSession::GameTag& a, const TagSession::GameTag& b) {
-                     if (a.startMs != b.startMs) return a.startMs < b.startMs;
-                     if (a.markMs != b.markMs) return a.markMs < b.markMs;
-                     // Emit the originating event before the derived Goal at the same timestamp.
-                     const bool aIsGoal = a.mainEvent == QStringLiteral("Goal");
-                     const bool bIsGoal = b.mainEvent == QStringLiteral("Goal");
-                     if (aIsGoal != bIsGoal) return bIsGoal;
-                     return false;
-                   });
+  // Stamp the interval that will be written to <start>/<end> so the sort's startMs
+  // key matches emission. Derived Goals get Goal defaults even when the origin was trimmed.
+  for (TagSession::GameTag& tag : expanded) {
+    const QPair<qint64, qint64> interval = exportIntervalFor(tag);
+    tag.startMs = interval.first;
+    tag.endMs = interval.second;
+  }
+
+  std::stable_sort(expanded.begin(), expanded.end(), exportTagComesBefore);
   return expanded;
 }
 
-/// Returns the running goal counts (home, away) for goals tagged at or before \p positionMs.
-QPair<int, int> runningScoreAt(const QVector<TagSession::GameTag>& tags, qint64 positionMs) {
+/// Running score after every Goal in \p tags through \p throughIndex inclusive.
+/// \p tags must already be in emission order (see tagsForExport).
+QPair<int, int> runningScoreAt(const QVector<TagSession::GameTag>& tags, int throughIndex) {
   int home = 0;
   int away = 0;
-  for (const auto& tag : tags) {
+  for (int index = 0; index <= throughIndex && index < tags.size(); ++index) {
+    const TagSession::GameTag& tag = tags.at(index);
     if (tag.mainEvent != QStringLiteral("Goal")) continue;
-    if (tag.markMs > positionMs) continue;
     if (tag.team == QStringLiteral("Home")) ++home;
     else if (tag.team == QStringLiteral("Away")) ++away;
   }
@@ -284,15 +295,9 @@ bool writeAllInstances(const TagSession* session,
     return false;
   }
 
-  // Sort tags chronologically by their interval start so the IDs reflect timeline order.
-  QVector<TagSession::GameTag> sortedTags = session->tags();
-  std::stable_sort(sortedTags.begin(), sortedTags.end(),
-                   [](const TagSession::GameTag& a, const TagSession::GameTag& b) {
-                     if (a.startMs != b.startMs) return a.startMs < b.startMs;
-                     return a.markMs < b.markMs;
-                   });
-
-  const QVector<TagSession::GameTag> exportTags = tagsForExport(sortedTags);
+  // Expand follow-up Goals, then sort that full list so instance IDs and RESULTADO
+  // walk game time (synthetic Goals are not visible to a pre-sort of session tags).
+  const QVector<TagSession::GameTag> exportTags = tagsForExport(session->tags());
 
   const QString homeAbbrev = session->homeAbbrev();
   const QString awayAbbrev = session->awayAbbrev();
@@ -327,11 +332,12 @@ bool writeAllInstances(const TagSession* session,
   QStringList emittedCodesOrder;
 
   int nextInstanceId = 1;
-  for (const auto& tag : exportTags) {
+  for (int tagIndex = 0; tagIndex < exportTags.size(); ++tagIndex) {
+    const TagSession::GameTag& tag = exportTags.at(tagIndex);
     const QVector<EmittedInstance> instances = emittedInstancesFor(tag, homeAbbrev, awayAbbrev);
     if (instances.isEmpty()) continue;
 
-    const QPair<int, int> score = runningScoreAt(exportTags, tag.markMs);
+    const QPair<int, int> score = runningScoreAt(exportTags, tagIndex);
     const QString resultadoLabel =
         (homeAbbrev.isEmpty() && awayAbbrev.isEmpty())
             ? QString()
@@ -400,9 +406,20 @@ bool writeAllInstances(const TagSession* session,
   writer.writeEndElement(); // file
   writer.writeEndDocument();
 
-  if (writer.hasError()) {
+  // QXmlStreamWriter::hasError() does not report QIODevice failures. QSaveFile
+  // discards the temporary on destruction only if commit() was never called, so
+  // cancel any incomplete write while the file is still open.
+  const bool xmlWriterFailed = writer.hasError();
+  const bool deviceWriteFailed = !file.flush() || file.error() != QFileDevice::NoError;
+  if (xmlWriterFailed || deviceWriteFailed) {
+    const QString deviceError = file.errorString();
+    file.cancelWriting();
     if (errorMessage) {
-      *errorMessage = QStringLiteral("XML writer reported an error.");
+      if (xmlWriterFailed) {
+        *errorMessage = QStringLiteral("XML writer reported an error.");
+      } else {
+        *errorMessage = QStringLiteral("Failed to write file: ") + deviceError;
+      }
     }
     return false;
   }

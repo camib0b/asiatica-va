@@ -1,0 +1,41 @@
+---
+description: Do not call QSaveFile::commit() on a failed write; cancel so the temp file is discarded
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# QSaveFile commit vs cancel
+
+`QSaveFile` writes a temporary. `commit()` atomically replaces the target **only** after a clean write. The destructor discards that temporary **only if `commit()` was never called**. Once `commit()` runs it closes the device; a failed flush/rename then cannot rely on destructor rollback and can leave a zero-length or truncated temp.
+
+`QXmlStreamWriter::hasError()` (and other stream `status()` checks) do not report `QIODevice` failures such as disk full. Flush and check `file.error()` before committing.
+
+```cpp
+// BAD — commit() after writer-only check; device errors become a generic commit
+// failure and the temp may survive because commit() already closed the file
+if (writer.hasError()) {
+  *errorMessage = QStringLiteral("XML writer reported an error.");
+  return false;
+}
+if (!file.commit()) {
+  *errorMessage = QStringLiteral("Failed to commit file: ") + file.errorString();
+  return false;
+}
+
+// GOOD — cancel while still open so destruction removes the temp; commit only
+// when the writer and device both succeeded
+if (writer.hasError() || !file.flush() || file.error() != QFileDevice::NoError) {
+  const QString deviceError = file.errorString();
+  file.cancelWriting();
+  *errorMessage = writer.hasError()
+      ? QStringLiteral("XML writer reported an error.")
+      : QStringLiteral("Failed to write file: ") + deviceError;
+  return false;
+}
+if (!file.commit()) {
+  *errorMessage = QStringLiteral("Failed to commit file: ") + file.errorString();
+  return false;
+}
+```
+
+Do not call `close()` on `QSaveFile`. Do not enable `setDirectWriteFallback(true)` for exports: cancel cannot restore a directly overwritten target.

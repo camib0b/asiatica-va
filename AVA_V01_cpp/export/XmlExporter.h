@@ -13,6 +13,8 @@ class TagSession;
 ///
 /// <start>/<end> use EventDefaults lead/lag for each main event around the tag position; manually
 /// trimmed tags (export review or fixed game-time spans) keep their stored start/end instead.
+/// Instance IDs follow game time (mark), with an originating event before a derived Goal that
+/// shares its mark; RESULTADO only counts Goal instances already emitted.
 ///
 /// The output format mirrors the reference shipped with the spec:
 ///   <file>
