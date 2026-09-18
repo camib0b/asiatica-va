@@ -4,6 +4,7 @@
 #include <QProcess>
 #include <QString>
 #include <QStringList>
+#include <QTemporaryFile>
 
 #include <memory>
 
@@ -38,11 +39,15 @@ private slots:
 private:
     void stopAndDiscardProcess();
     void failWith(const QString& message);
+    void discardConcatList();
+    void removePartialOutput();
 
     /// Unparented QObject; this unique_ptr is the only owner. Replace via
     /// stopAndDiscardProcess() (release + deleteLater) so finished() cannot
     /// delete the process on its own stack.
     std::unique_ptr<QProcess> process_;
+    /// Closed after writing so FFmpeg can open it; auto-removed on reset/destruction.
+    std::unique_ptr<QTemporaryFile> concatListFile_;
     QString outputPath_;
     QString errorMessage_;
     bool finished_ = false;

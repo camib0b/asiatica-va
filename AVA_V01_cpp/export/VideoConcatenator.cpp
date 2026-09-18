@@ -14,12 +14,28 @@
 #include <QProcess>
 #include <QProgressDialog>
 #include <QPushButton>
+#include <QTemporaryFile>
 #include <QTextStream>
 #include <QVBoxLayout>
+
+namespace {
+
+QString ffmpegStderrForDisplay(const QByteArray& stderrBytes) {
+    const QString text = QString::fromUtf8(stderrBytes).trimmed();
+    constexpr int keepHeadCharacters = 2000;
+    constexpr int keepTailCharacters = 1500;
+    if (text.size() <= keepHeadCharacters + keepTailCharacters) return text;
+    return text.left(keepHeadCharacters)
+        + QStringLiteral("\n...\n")
+        + text.right(keepTailCharacters);
+}
+
+}  // namespace
 
 VideoConcatenator::VideoConcatenator(QObject* parent)
     : QObject(parent),
       process_(),
+      concatListFile_(),
       outputPath_(),
       errorMessage_(),
       finished_(false),
@@ -28,6 +44,7 @@ VideoConcatenator::VideoConcatenator(QObject* parent)
 
 VideoConcatenator::~VideoConcatenator() {
     stopAndDiscardProcess();
+    if (!succeeded_) removePartialOutput();
 }
 
 void VideoConcatenator::stopAndDiscardProcess() {
@@ -41,34 +58,53 @@ void VideoConcatenator::stopAndDiscardProcess() {
     dyingProcess->deleteLater();
 }
 
+void VideoConcatenator::discardConcatList() {
+    concatListFile_.reset();
+}
+
+void VideoConcatenator::removePartialOutput() {
+    if (outputPath_.isEmpty()) return;
+    QFile::remove(outputPath_);
+}
+
+void VideoConcatenator::failWith(const QString& message) {
+    discardConcatList();
+    finished_ = true;
+    succeeded_ = false;
+    errorMessage_ = message;
+    emit concatenationFinished(false);
+}
+
 void VideoConcatenator::startConcatenation(const QStringList& inputPaths,
                                            const QString& outputDir) {
     const QString ffmpegPath = ClipExporter::findFfmpeg();
     if (ffmpegPath.isEmpty()) {
-        finished_ = true;
-        succeeded_ = false;
-        errorMessage_ = AppLocale::trUi("concat.error_ffmpeg");
-        emit concatenationFinished(false);
+        failWith(AppLocale::trUi("concat.error_ffmpeg"));
         return;
     }
 
-    const QString concatListPath = outputDir + QStringLiteral("/concat_list.txt");
-    QFile listFile(concatListPath);
-    if (!listFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        finished_ = true;
-        succeeded_ = false;
-        errorMessage_ = AppLocale::trUi("concat.error_failed");
-        emit concatenationFinished(false);
+    discardConcatList();
+    concatListFile_ = std::make_unique<QTemporaryFile>();
+    if (!concatListFile_->open()) {
+        failWith(AppLocale::trUi("concat.error_list_file")
+                     .arg(concatListFile_->fileName(), concatListFile_->errorString()));
         return;
     }
 
-    QTextStream stream(&listFile);
+    QTextStream stream(concatListFile_.get());
     for (const QString& path : inputPaths) {
         QString escapedPath = path;
         escapedPath.replace(QStringLiteral("'"), QStringLiteral("'\\''"));
         stream << QStringLiteral("file '") << escapedPath << QStringLiteral("'\n");
     }
-    listFile.close();
+    stream.flush();
+    if (stream.status() != QTextStream::Ok || !concatListFile_->flush()) {
+        failWith(AppLocale::trUi("concat.error_list_file")
+                     .arg(concatListFile_->fileName(), concatListFile_->errorString()));
+        return;
+    }
+    const QString concatListPath = concatListFile_->fileName();
+    concatListFile_->close();
 
     outputPath_ = outputDir + QStringLiteral("/concatenated.mp4");
     finished_ = false;
@@ -80,6 +116,7 @@ void VideoConcatenator::startConcatenation(const QStringList& inputPaths,
     process_ = std::make_unique<QProcess>();
     connect(process_.get(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &VideoConcatenator::onProcessFinished);
+    connect(process_.get(), &QProcess::errorOccurred, this, &VideoConcatenator::onProcessError);
 
     // +faststart moves the moov atom to the file start so the OS media stack can
     // resolve duration and random-seek without scanning the whole file (critical for
@@ -108,19 +145,46 @@ void VideoConcatenator::cancel() {
     finished_ = true;
     succeeded_ = false;
     errorMessage_.clear();
+    discardConcatList();
+    removePartialOutput();
 }
 
 void VideoConcatenator::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus) {
-    if (cancelled_) return;
+    if (cancelled_ || finished_) return;
 
     finished_ = true;
     succeeded_ = (exitStatus == QProcess::NormalExit && exitCode == 0);
+    discardConcatList();
     if (!succeeded_) {
-        errorMessage_ = process_
-            ? QString::fromUtf8(process_->readAllStandardError()).right(500)
-            : AppLocale::trUi("concat.error_failed");
+        removePartialOutput();
+        const QString stderrOutput = process_
+            ? ffmpegStderrForDisplay(process_->readAllStandardError())
+            : QString();
+        if (stderrOutput.isEmpty()) {
+            errorMessage_ = AppLocale::trUi("concat.error_failed")
+                + QLatin1Char('\n')
+                + QStringLiteral("no FFmpeg stderr (exit %1, status %2)")
+                      .arg(exitCode)
+                      .arg(exitStatus == QProcess::CrashExit
+                               ? QStringLiteral("crashed")
+                               : QStringLiteral("failed"));
+        } else {
+            errorMessage_ = AppLocale::trUi("concat.error_failed")
+                + QLatin1Char('\n') + stderrOutput;
+        }
     }
     emit concatenationFinished(succeeded_);
+}
+
+void VideoConcatenator::onProcessError(QProcess::ProcessError error) {
+    if (cancelled_ || finished_) return;
+    // Crashes and I/O errors still emit finished(); FailedToStart does not.
+    if (error != QProcess::FailedToStart) return;
+
+    const QString program = process_ ? process_->program() : QString();
+    const QString processError = process_ ? process_->errorString() : QString();
+    removePartialOutput();
+    failWith(AppLocale::trUi("concat.error_ffmpeg_start").arg(program, processError));
 }
 
 bool VideoConcatenator::waitWithProgress(QWidget* parentWidget) {
