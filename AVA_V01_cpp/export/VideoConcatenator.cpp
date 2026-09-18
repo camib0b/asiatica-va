@@ -35,7 +35,7 @@ QString ffmpegStderrForDisplay(const QByteArray& stderrBytes) {
 VideoConcatenator::VideoConcatenator(QObject* parent)
     : QObject(parent),
       process_(),
-      concatListFile_(),
+      concatListPath_(),
       outputPath_(),
       errorMessage_(),
       finished_(false),
@@ -44,6 +44,7 @@ VideoConcatenator::VideoConcatenator(QObject* parent)
 
 VideoConcatenator::~VideoConcatenator() {
     stopAndDiscardProcess();
+    discardConcatList();
     if (!succeeded_) removePartialOutput();
 }
 
@@ -59,7 +60,9 @@ void VideoConcatenator::stopAndDiscardProcess() {
 }
 
 void VideoConcatenator::discardConcatList() {
-    concatListFile_.reset();
+    if (concatListPath_.isEmpty()) return;
+    QFile::remove(concatListPath_);
+    concatListPath_.clear();
 }
 
 void VideoConcatenator::removePartialOutput() {
@@ -84,27 +87,28 @@ void VideoConcatenator::startConcatenation(const QStringList& inputPaths,
     }
 
     discardConcatList();
-    concatListFile_ = std::make_unique<QTemporaryFile>();
-    if (!concatListFile_->open()) {
+    QTemporaryFile listFile;
+    listFile.setAutoRemove(false);
+    if (!listFile.open()) {
         failWith(AppLocale::trUi("concat.error_list_file")
-                     .arg(concatListFile_->fileName(), concatListFile_->errorString()));
+                     .arg(listFile.fileName(), listFile.errorString()));
         return;
     }
 
-    QTextStream stream(concatListFile_.get());
+    QTextStream stream(&listFile);
     for (const QString& path : inputPaths) {
         QString escapedPath = path;
         escapedPath.replace(QStringLiteral("'"), QStringLiteral("'\\''"));
         stream << QStringLiteral("file '") << escapedPath << QStringLiteral("'\n");
     }
     stream.flush();
-    if (stream.status() != QTextStream::Ok || !concatListFile_->flush()) {
+    concatListPath_ = listFile.fileName();
+    if (stream.status() != QTextStream::Ok || !listFile.flush()) {
         failWith(AppLocale::trUi("concat.error_list_file")
-                     .arg(concatListFile_->fileName(), concatListFile_->errorString()));
+                     .arg(concatListPath_, listFile.errorString()));
         return;
     }
-    const QString concatListPath = concatListFile_->fileName();
-    concatListFile_->close();
+    listFile.close();
 
     outputPath_ = outputDir + QStringLiteral("/concatenated.mp4");
     finished_ = false;
@@ -125,7 +129,7 @@ void VideoConcatenator::startConcatenation(const QStringList& inputPaths,
     arguments << QStringLiteral("-y")
               << QStringLiteral("-f") << QStringLiteral("concat")
               << QStringLiteral("-safe") << QStringLiteral("0")
-              << QStringLiteral("-i") << concatListPath
+              << QStringLiteral("-i") << concatListPath_
               << QStringLiteral("-c") << QStringLiteral("copy")
               << QStringLiteral("-movflags") << QStringLiteral("+faststart")
               << outputPath_;
