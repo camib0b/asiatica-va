@@ -9,16 +9,24 @@
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QAction>
-#include <QApplication>
 #include <QDateTime>
 #include <QTimeZone>
 #include <QSizePolicy>
 #include <QStyle>
 #include <QStyleOptionButton>
 #include <QEvent>
+#include <QObject>
+
+#include <memory>
+#include <utility>
 
 
-WelcomeWindow::WelcomeWindow(QWidget* parent) : QWidget(parent) {
+WelcomeWindow::WelcomeWindow(QWidget* parent)
+    : QWidget(parent),
+      titleLabel_(nullptr),
+      importButton_(nullptr),
+      licenseStatusLabel_(nullptr),
+      enterLicenseButton_(nullptr) {
     setObjectName("AppRoot");
     setAttribute(Qt::WA_StyledBackground, true);
     buildUi();
@@ -29,6 +37,20 @@ WelcomeWindow::WelcomeWindow(QWidget* parent) : QWidget(parent) {
 }
 
 namespace {
+
+struct QtParentDeleter {
+    void operator()(QObject* object) const noexcept {
+        if (object != nullptr && object->parent() == nullptr) {
+            delete object;
+        }
+    }
+};
+
+template<typename Object, typename... Args>
+std::unique_ptr<Object, QtParentDeleter> makeQtPtr(Args&&... args) {
+    return std::unique_ptr<Object, QtParentDeleter>(
+        std::make_unique<Object>(std::forward<Args>(args)...).release());
+}
 
 int styledPushButtonMinimumWidth(const QPushButton* button) {
     if (!button) return 0;
@@ -81,45 +103,46 @@ void WelcomeWindow::applyUiStrings() {
 }
 
 void WelcomeWindow::buildUi() {
-    auto* outerLayout = new QVBoxLayout(this);
+    auto outerLayout = makeQtPtr<QVBoxLayout>(this);
     outerLayout->setContentsMargins(24, 24, 24, 24);
     outerLayout->addStretch(1);
 
-    auto* contentContainer = new QWidget(this);
-    auto* layout = new QVBoxLayout(contentContainer);
+    auto contentContainer = makeQtPtr<QWidget>(this);
+    auto layout = makeQtPtr<QVBoxLayout>(contentContainer.get());
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(12);
 
-    titleLabel_ = new QLabel(contentContainer);
-    titleLabel_->setWordWrap(false);
-    titleLabel_->setAlignment(Qt::AlignCenter);
-    Style::setRole(titleLabel_, "h1");
+    auto titleLabel = makeQtPtr<QLabel>(contentContainer.get());
+    titleLabel->setWordWrap(false);
+    titleLabel->setAlignment(Qt::AlignCenter);
+    Style::setRole(titleLabel.get(), "h1");
+    titleLabel_ = titleLabel.get();
 
-    // import button:
-    importButton_ = new QPushButton(contentContainer);
-    importButton_->setCursor(Qt::PointingHandCursor);
-    Style::setVariant(importButton_, "welcomeImport");
-    Style::setSize(importButton_, "lg");
-    importButton_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-    importButton_->setFocusPolicy(Qt::TabFocus); // Allow keyboard focus but don't auto-focus on window open
+    auto importButton = makeQtPtr<QPushButton>(contentContainer.get());
+    importButton->setCursor(Qt::PointingHandCursor);
+    Style::setVariant(importButton.get(), "welcomeImport");
+    Style::setSize(importButton.get(), "lg");
+    importButton->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+    importButton->setFocusPolicy(Qt::TabFocus); // Allow keyboard focus but don't auto-focus on window open
+    importButton_ = importButton.get();
 
-    licenseStatusLabel_ = new QLabel(contentContainer);
-    licenseStatusLabel_->setAlignment(Qt::AlignCenter);
-    Style::setRole(licenseStatusLabel_, "muted");
+    auto licenseStatusLabel = makeQtPtr<QLabel>(contentContainer.get());
+    licenseStatusLabel->setAlignment(Qt::AlignCenter);
+    Style::setRole(licenseStatusLabel.get(), "muted");
+    licenseStatusLabel_ = licenseStatusLabel.get();
 
-    enterLicenseButton_ = new QPushButton(contentContainer);
-    enterLicenseButton_->setCursor(Qt::PointingHandCursor);
-    enterLicenseButton_->setFlat(true);
-    enterLicenseButton_->setFocusPolicy(Qt::TabFocus);
+    auto enterLicenseButton = makeQtPtr<QPushButton>(contentContainer.get());
+    enterLicenseButton->setCursor(Qt::PointingHandCursor);
+    enterLicenseButton->setFlat(true);
+    enterLicenseButton->setFocusPolicy(Qt::TabFocus);
+    enterLicenseButton_ = enterLicenseButton.get();
 
-    // Add widgets vertically, centered
-    layout->addWidget(titleLabel_, 0, Qt::AlignHCenter);
-    layout->addWidget(importButton_, 0, Qt::AlignHCenter);
-    layout->addWidget(licenseStatusLabel_, 0, Qt::AlignHCenter);
-    layout->addWidget(enterLicenseButton_, 0, Qt::AlignHCenter);
+    layout->addWidget(titleLabel.get(), 0, Qt::AlignHCenter);
+    layout->addWidget(importButton.get(), 0, Qt::AlignHCenter);
+    layout->addWidget(licenseStatusLabel.get(), 0, Qt::AlignHCenter);
+    layout->addWidget(enterLicenseButton.get(), 0, Qt::AlignHCenter);
 
-    // Center content container in outer layout
-    outerLayout->addWidget(contentContainer, 0, Qt::AlignCenter);
+    outerLayout->addWidget(contentContainer.get(), 0, Qt::AlignCenter);
     outerLayout->addStretch(1);
 }
 
@@ -142,24 +165,14 @@ void WelcomeWindow::wireSignals() {
 }
 
 void WelcomeWindow::buildKeyboardShortcuts() {
-    Q_ASSERT(QApplication::instance() != nullptr);
-
-    auto makeAction = [this](const QKeySequence& seq) -> QAction* {
-        auto* act = new QAction(this);
-        act->setShortcut(seq);
-        act->setShortcutContext(Qt::ApplicationShortcut);
-        connect(act, &QAction::triggered, this, [this]() {
-            if (importButton_ && importButton_->isEnabled()) {
-                importButton_->click();
-            }
-        });
-        this->addAction(act);
-        return act;
-    };
-
-    // Keyboard shortcuts for import button: 's', spacebar, enter
-    makeAction(QKeySequence(Qt::Key_S));
-    makeAction(QKeySequence(Qt::Key_Space));
-    makeAction(QKeySequence(Qt::Key_Return));
-    makeAction(QKeySequence(Qt::Key_Enter));
+    auto importShortcut = makeQtPtr<QAction>(this);
+    importShortcut->setShortcut(QKeySequence(Qt::Key_S));
+    // Only while this stacked page has focus; Window/Application would still fire on WorkWindow.
+    importShortcut->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+    connect(importShortcut.get(), &QAction::triggered, this, [this]() {
+        if (importButton_ && importButton_->isEnabled()) {
+            importButton_->click();
+        }
+    });
+    addAction(importShortcut.get());
 }

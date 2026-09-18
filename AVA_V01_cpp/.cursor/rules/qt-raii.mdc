@@ -1,28 +1,39 @@
 ---
-description: One owner per heap object — unique_ptr for structs and unparented QObjects; Qt parent for widgets; never both, never reparent a held pointer
+description: One owner per heap object — unique_ptr for structs and unparented QObjects; parent-aware unique_ptr plus QPointer for widgets; never both default-deleter unique_ptr and a Qt parent
 globs: **/*.{h,hpp,cpp}
 alwaysApply: false
 ---
 
 # Qt / C++ ownership: one owner
 
-Pick **one** owner. Mixing `new`/`delete`, `deleteLater`, and a Qt parent on the same object is how jobs leak or double-delete.
+Pick **one** owner. Mixing `new`/`delete`, `deleteLater`, a Qt parent, and a default-deleter `unique_ptr` on the same object is how jobs leak or double-delete.
 
 - **Non-QObject heap types** (`Job`, `QTemporaryDir`): `std::unique_ptr`. No destructor `delete`. Store them in `std::vector`, not `QVector` (QList detach copy-constructs).
-- **QWidget / parented QObject**: `new Foo(this)` and a raw pointer. Do not `unique_ptr`. Do not `setParent()` onto another host while you still hold the member.
-- **Unparented QObject you uniquely own** (`ClipExporter` on a job, `VideoConcatenator`): `std::make_unique<Foo>()` with **no** Qt parent. Never also `new Foo(this)`.
+- **QWidget / parented QObject** (`QLabel`, `QPushButton`, `QAction`, layouts): `makeQtPtr<T>(parent)` (see below). No raw `new`. Members that observe these widgets are `QPointer<T>` (auto-null if Qt deletes first). Do not store a default-deleter `unique_ptr` after the object has a Qt parent.
+- **Unparented QObject you uniquely own** (`ClipExporter` on a job, `VideoConcatenator`, `QProcess`): `std::make_unique<Foo>()` with **no** Qt parent. Never also `new Foo(this)`.
 - **Transfer across objects**: the setter takes `std::unique_ptr<T>` by value; the caller `std::move`s. Do not pass a raw `T*` into a setter that later `delete`s it.
 - **Destructor**: do not `delete` or `reset()` unique_ptr members. They run after the destructor body. `reset()` only when releasing **early** (cancel, replace, dismiss).
 - **Destroying a QObject from its own signal**: `release()` then `disconnect()` then `deleteLater()`. Do not `unique_ptr::reset()` on that stack.
 
 ```cpp
-// BAD — destructor still owns unique_ptr lifetime; parented AND deleteLater
-~WorkWindow() { concatenatedVideoTempDir_.reset(); }
-job->exporter = new ClipExporter(this);
-job->exporter->deleteLater();
+struct QtParentDeleter {
+  void operator()(QObject* object) const noexcept {
+    if (object && object->parent() == nullptr) delete object;
+  }
+};
+template<typename T, typename... Args>
+std::unique_ptr<T, QtParentDeleter> makeQtPtr(Args&&... args) {
+  return {std::make_unique<T>(std::forward<Args>(args)...).release()};
+}
 
-// GOOD — unique_ptr members destroy themselves; reset() only for early release
-~WorkWindow() { detachPresentationKeyboardShortcuts(); }
-concatenatedVideoTempDir_.reset();  // close/replace video, not ~WorkWindow
-job->exporter = std::make_unique<ClipExporter>();  // no Qt parent
+// BAD — raw new; member dangles if Qt parent deletes first
+titleLabel_ = new QLabel(contentContainer);
+
+// BAD — default unique_ptr AND Qt parent: two owners
+std::unique_ptr<QLabel> titleLabel_ = std::make_unique<QLabel>(this);
+
+// GOOD — parent-aware unique_ptr; QPointer only observes
+auto titleLabel = makeQtPtr<QLabel>(contentContainer.get());
+titleLabel_ = titleLabel.get();
+layout->addWidget(titleLabel.get());
 ```

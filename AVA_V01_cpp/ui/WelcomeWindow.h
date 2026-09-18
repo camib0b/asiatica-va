@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QPointer>
 #include <QWidget>
 
 class QLabel;
@@ -29,8 +30,8 @@ private:
   void buildKeyboardShortcuts();
   void syncImportButtonMinimumWidth();
 
-  QLabel* titleLabel_ = nullptr;
-  QPushButton* importButton_ = nullptr;
-  QLabel* licenseStatusLabel_ = nullptr;
-  QPushButton* enterLicenseButton_ = nullptr;
+  QPointer<QLabel> titleLabel_;
+  QPointer<QPushButton> importButton_;
+  QPointer<QLabel> licenseStatusLabel_;
+  QPointer<QPushButton> enterLicenseButton_;
 };
