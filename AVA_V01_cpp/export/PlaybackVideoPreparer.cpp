@@ -1,12 +1,12 @@
 #include "PlaybackVideoPreparer.h"
 #include "ClipExporter.h"
 #include "../i18n/AppLocale.h"
+#include "../style/StyleProps.h"
 
 #include <QEventLoop>
 #include <QFileInfo>
 #include <QProcess>
 #include <QProgressDialog>
-#include <QSize>
 
 PlaybackVideoPreparer::PlaybackVideoPreparer(QObject* parent) : QObject(parent) {}
 
@@ -89,9 +89,9 @@ bool PlaybackVideoPreparer::waitWithProgress(QWidget* parentWidget) {
         AppLocale::trUi("playback_prep.preparing"),
         AppLocale::trUi("playback_prep.cancel"),
         0, 0, parentWidget);
+    Style::setRole(&progress, "blocking");
     progress.setWindowModality(Qt::WindowModal);
     progress.setMinimumDuration(0);
-    progress.setMinimumSize(QSize(520, 180));
 
     QEventLoop loop;
 

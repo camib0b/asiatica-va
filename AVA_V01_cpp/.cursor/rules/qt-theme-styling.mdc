@@ -1,0 +1,26 @@
+---
+description: Widget colors, type, and sizes live in theme QSS via Style::setRole/setVariant/setSize — not inline stylesheets or magic pixel sizes
+globs: **/*.{h,hpp,cpp,qss}
+alwaysApply: false
+---
+
+# Style through the theme system
+
+Do not hard-code QSS strings or magic pixel sizes on widgets. Tag the widget and put look-and-layout tokens in `style/theme_light.qss`.
+
+```cpp
+// BAD
+listWidget->setStyleSheet(QStringLiteral("QListWidget { background: transparent; }"));
+dialog.setMinimumSize(960, 300);
+item->setSizeHint(QSize(150, 52));
+
+// GOOD
+Style::setRole(listWidget, "chipStrip");
+Style::setRole(&dialog, "fileOrder");
+Style::setVariant(button, "ghost");
+Style::setSize(button, "sm");
+```
+
+QSS owns colors, padding, radius, min/max width and height. Match existing zinc tokens (`#e4e4e7`, `#f4f4f5`, `#09090b`) instead of one-off palettes.
+
+Widget-only Qt APIs (flow, wrapping, drag-drop, scrollbar policy) stay in C++. Pair horizontal `QListView` flow with wrapping and a vertical scrollbar so many items can scale.

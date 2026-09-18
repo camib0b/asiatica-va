@@ -16,7 +16,6 @@
 #include <QPushButton>
 #include <QTextStream>
 #include <QVBoxLayout>
-#include <QSize>
 
 VideoConcatenator::VideoConcatenator(QObject* parent) : QObject(parent) {}
 
@@ -118,9 +117,9 @@ bool VideoConcatenator::waitWithProgress(QWidget* parentWidget) {
         AppLocale::trUi("concat.preparing"),
         AppLocale::trUi("concat.cancel"),
         0, 0, parentWidget);
+    Style::setRole(&progress, "blocking");
     progress.setWindowModality(Qt::WindowModal);
     progress.setMinimumDuration(0);
-    progress.setMinimumSize(QSize(520, 180));
 
     QEventLoop loop;
 
@@ -157,7 +156,7 @@ bool VideoConcatenator::showFileOrderDialog(QStringList& filePaths,
                                             QWidget* parentWidget) {
     QDialog dialog(parentWidget);
     dialog.setWindowTitle(AppLocale::trUi("concat.dialog_title"));
-    dialog.setMinimumSize(960, 300);
+    Style::setRole(&dialog, "fileOrder");
 
     auto* layout = new QVBoxLayout(&dialog);
     layout->setSpacing(16);
@@ -169,38 +168,22 @@ bool VideoConcatenator::showFileOrderDialog(QStringList& filePaths,
     layout->addWidget(titleLabel);
 
     auto* listWidget = new QListWidget(&dialog);
+    Style::setRole(listWidget, "chipStrip");
+    listWidget->setFrameShape(QFrame::NoFrame);
     listWidget->setFlow(QListView::LeftToRight);
-    listWidget->setWrapping(false);
+    listWidget->setWrapping(true);
     listWidget->setResizeMode(QListView::Adjust);
     listWidget->setSpacing(6);
     listWidget->setDragDropMode(QAbstractItemView::InternalMove);
     listWidget->setDefaultDropAction(Qt::MoveAction);
-    listWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    listWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    listWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    listWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     listWidget->setSelectionMode(QAbstractItemView::SingleSelection);
-    listWidget->setFixedHeight(76);
-    listWidget->setStyleSheet(QStringLiteral(
-        "QListWidget { background: transparent; border: none; }"
-        "QListWidget::item {"
-        "  border: 1.5px solid #c8c8c8;"
-        "  border-radius: 6px;"
-        "  padding: 6px 14px;"
-        "  background: #f5f5f5;"
-        "  color: #1a1a1a;"
-        "}"
-        "QListWidget::item:selected {"
-        "  border: 2px solid #4a90d9;"
-        "  background: #e4eefb;"
-        "  color: #1a1a1a;"
-        "}"
-        "QListWidget::item:selected:active {"
-        "  color: #1a1a1a;"
-        "}"));
+    listWidget->setTextElideMode(Qt::ElideMiddle);
 
     for (const QString& path : filePaths) {
         auto* item = new QListWidgetItem(QFileInfo(path).fileName());
         item->setData(Qt::UserRole, path);
-        item->setSizeHint(QSize(150, 52));
         item->setTextAlignment(Qt::AlignCenter);
         listWidget->addItem(item);
     }
@@ -233,7 +216,6 @@ bool VideoConcatenator::showFileOrderDialog(QStringList& filePaths,
     Style::setSize(cancelButton, "md");
     Style::setVariant(continueButton, "welcomeImport");
     Style::setSize(continueButton, "lg");
-    continueButton->setMaximumWidth(220);
     buttonRow->addStretch(1);
     buttonRow->addWidget(cancelButton);
     buttonRow->addWidget(continueButton);

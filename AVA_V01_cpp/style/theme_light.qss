@@ -446,6 +446,53 @@ QListWidget#MatchNoteMentionPopup::item:selected {
   color: #fafafa;
 }
 
+/* Horizontal file-order chips (concat dialog); wraps and scrolls vertically */
+QListWidget[role="chipStrip"] {
+  background: transparent;
+  border: none;
+  outline: none;
+  min-height: 76px;
+  max-height: 220px;
+}
+
+QListWidget[role="chipStrip"] > QWidget {
+  background: transparent;
+}
+
+QListWidget[role="chipStrip"]::item {
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  padding: 6px 14px;
+  background: #f4f4f5;
+  color: #09090b;
+  min-width: 150px;
+  min-height: 52px;
+}
+
+QListWidget[role="chipStrip"]::item:hover {
+  background: #e4e4e7;
+  border-color: #d4d4d8;
+}
+
+QListWidget[role="chipStrip"]::item:selected {
+  border: 2px solid #18181b;
+  background: #e4e4e7;
+  color: #09090b;
+}
+
+QListWidget[role="chipStrip"]::item:selected:active {
+  color: #09090b;
+}
+
+QDialog[role="fileOrder"] {
+  min-width: 960px;
+  min-height: 300px;
+}
+
+QDialog[role="fileOrder"] QPushButton[variant="welcomeImport"] {
+  max-width: 220px;
+}
+
 /* =========================
    ComboBox / Select
 ========================= */
@@ -957,6 +1004,11 @@ QProgressBar {
 QProgressBar::chunk {
   border-radius: 4px;
   background: #18181b;
+}
+
+QProgressDialog[role="blocking"] {
+  min-width: 520px;
+  min-height: 180px;
 }
 
 /* =========================
