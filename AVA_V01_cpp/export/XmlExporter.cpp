@@ -144,7 +144,7 @@ QVector<TagSession::GameTag> tagsForExport(const QVector<TagSession::GameTag>& s
                      // Emit the originating event before the derived Goal at the same timestamp.
                      const bool aIsGoal = a.mainEvent == QStringLiteral("Goal");
                      const bool bIsGoal = b.mainEvent == QStringLiteral("Goal");
-                     if (aIsGoal != bIsGoal) return aIsGoal;
+                     if (aIsGoal != bIsGoal) return bIsGoal;
                      return false;
                    });
   return expanded;
