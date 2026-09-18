@@ -6,17 +6,17 @@
 #include <QAbstractButton>
 #include <QColor>
 #include <QColorDialog>
-#include <QEvent>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPaintEvent>
+#include <QPointer>
 #include <QPushButton>
 #include <QSizePolicy>
-#include <QTimer>
 #include <QVBoxLayout>
 
 namespace {
@@ -107,6 +107,30 @@ private:
   bool showSelectionRing_ = false;
 };
 
+// Qt::Popup grabs the mouse. An outside press is delivered here, the popup
+// closes, and Qt then replays that press unless WA_NoMouseReplay is set.
+// Suppress replay only when the press is on the well so the well does not
+// reopen the popup; clicks on other widgets still get the replayed press.
+class PalettePopupFrame final : public QFrame {
+public:
+  PalettePopupFrame(QWidget* parent, QWidget* wellButton)
+      : QFrame(parent, Qt::Popup), wellButton_(wellButton) {}
+
+protected:
+  void mousePressEvent(QMouseEvent* event) override {
+    if (wellButton_) {
+      const QPoint wellLocal = wellButton_->mapFromGlobal(event->globalPosition().toPoint());
+      if (wellButton_->rect().contains(wellLocal)) {
+        setAttribute(Qt::WA_NoMouseReplay);
+      }
+    }
+    QFrame::mousePressEvent(event);
+  }
+
+private:
+  QPointer<QWidget> wellButton_;
+};
+
 }  // namespace
 
 TeamColorPicker::TeamColorPicker(QWidget* parent) : QWidget(parent) {
@@ -164,7 +188,7 @@ void TeamColorPicker::buildUi() {
   layout->addWidget(well);
   setFocusProxy(well);
 
-  popup_ = new QFrame(this, Qt::Popup);
+  popup_ = new PalettePopupFrame(this, well);
   popup_->setObjectName(QStringLiteral("TeamColorPopup"));
   popup_->setAttribute(Qt::WA_StyledBackground, true);
   popup_->setFrameShape(QFrame::NoFrame);
@@ -223,33 +247,17 @@ void TeamColorPicker::buildUi() {
   popupLayout->addWidget(moreColorsButton_, 0, Qt::AlignLeft);
 
   connect(wellButton_, &QAbstractButton::clicked, this, &TeamColorPicker::onWellClicked);
-  popup_->installEventFilter(this);
   connect(hexEdit_, &QLineEdit::textChanged, this, &TeamColorPicker::onHexTextChanged);
   connect(hexEdit_, &QLineEdit::editingFinished, this, &TeamColorPicker::onHexEditingFinished);
   connect(moreColorsButton_, &QPushButton::clicked, this, &TeamColorPicker::onMoreColorsClicked);
 }
 
-bool TeamColorPicker::eventFilter(QObject* watched, QEvent* event) {
-  if (watched == popup_ && event && event->type() == QEvent::Hide) {
-    onPopupHide();
-  }
-  return QWidget::eventFilter(watched, event);
-}
-
 void TeamColorPicker::onWellClicked() {
-  if (popupJustClosed_) {
-    return;
-  }
   if (popup_ && popup_->isVisible()) {
     hidePalettePopup();
     return;
   }
   showPalettePopup();
-}
-
-void TeamColorPicker::onPopupHide() {
-  popupJustClosed_ = true;
-  QTimer::singleShot(0, this, [this]() { popupJustClosed_ = false; });
 }
 
 void TeamColorPicker::showPalettePopup() {

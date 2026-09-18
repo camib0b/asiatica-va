@@ -6,10 +6,8 @@
 #include <QWidget>
 
 class QAbstractButton;
-class QEvent;
 class QFrame;
 class QLineEdit;
-class QObject;
 class QPushButton;
 
 /// Compact color well that opens a two-click palette (swatches, hex, color wheel).
@@ -29,9 +27,6 @@ public:
 signals:
   void colorChanged(const QString& hex);
 
-protected:
-  bool eventFilter(QObject* watched, QEvent* event) override;
-
 private slots:
   void onWellClicked();
   void onHexTextChanged(const QString& text);
@@ -39,7 +34,6 @@ private slots:
   void onMoreColorsClicked();
 
 private:
-  void onPopupHide();
   void buildUi();
   void showPalettePopup();
   void hidePalettePopup();
@@ -55,7 +49,6 @@ private:
   QString colorHex_;
   QString colorDialogTitle_;
   QColor fallbackPreviewColor_ = QColor(Qt::gray);
-  bool popupJustClosed_ = false;
   mutable bool syncingHexEdit_ = false;
 
   QAbstractButton* wellButton_ = nullptr;
