@@ -13,13 +13,15 @@ class TagSession;
 /// Clip intervals are read from and written back to the TagSession, so a lead/lag adjustment made
 /// while presenting is exactly the interval the clip exporter will later use. The queue stores
 /// TagSession indexes (not copies) as its source of truth and rebuilds its cached clip data
-/// whenever the session changes.
+/// whenever the session changes. Selection is stored by stable tag id so tag removals and
+/// reordering in the session cannot desync the queue from the user's picks.
 class PresentationQueue final : public QObject {
   Q_OBJECT
 
 public:
   struct Clip {
     int tagSessionIndex = -1;
+    quint64 tagId = 0;   ///< Stable TagSession::GameTag::id; survives tag list edits.
     qint64 markMs = 0;   ///< Event mark (GameTag::markMs).
     qint64 startMs = 0;  ///< Mark minus lead time.
     qint64 endMs = 0;    ///< Mark plus lag time.
@@ -72,14 +74,17 @@ signals:
 
 private:
   void rebuildClipsFromSession();
-  void dropSelectedIndexesOutsideSession();
+  void pruneSelectedTagIds();
   void clampClipToVideo(Clip& clip) const;
+  quint64 currentTagId() const;
+  void restoreCurrentIndex(quint64 previousTagId);
   int queueIndexForTagIndex(int tagSessionIndex) const;
+  int queueIndexForTagId(quint64 tagId) const;
   void refreshQueueFromSession();
 
   TagSession* tagSession_ = nullptr;
   QVector<Clip> clips_;
-  QVector<int> selectedTagIndexes_;
+  QVector<quint64> selectedTagIds_;
   int currentIndex_ = -1;
   qint64 videoDurationMs_ = 0;
   /// Guards against reacting to the TagSession signals this queue itself triggered.

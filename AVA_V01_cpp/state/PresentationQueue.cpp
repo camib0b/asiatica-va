@@ -4,9 +4,23 @@
 
 #include <algorithm>
 
+#include <QSet>
+
 namespace {
 /// A clip must stay long enough to be watchable even if the user drags lead and lag to zero.
 constexpr qint64 kMinimumClipDurationMs = 500;
+
+class SessionWriteGuard {
+public:
+  explicit SessionWriteGuard(bool& writingFlag) : writingFlag_(writingFlag) { writingFlag_ = true; }
+  ~SessionWriteGuard() { writingFlag_ = false; }
+
+  SessionWriteGuard(const SessionWriteGuard&) = delete;
+  SessionWriteGuard& operator=(const SessionWriteGuard&) = delete;
+
+private:
+  bool& writingFlag_;
+};
 } // namespace
 
 PresentationQueue::PresentationQueue(QObject* parent) : QObject(parent) {}
@@ -16,7 +30,7 @@ void PresentationQueue::setTagSession(TagSession* session) {
   if (tagSession_) disconnect(tagSession_, nullptr, this, nullptr);
 
   tagSession_ = session;
-  selectedTagIndexes_.clear();
+  selectedTagIds_.clear();
   clips_.clear();
   currentIndex_ = -1;
 
@@ -28,7 +42,7 @@ void PresentationQueue::setTagSession(TagSession* session) {
     connect(tagSession_, &TagSession::tagNoteChanged, this,
             [this](int) { refreshQueueFromSession(); });
     connect(tagSession_, &TagSession::tagIntervalChanged, this, [this](int) {
-      if (writingIntervalToSession_) return;  // our own write; already reflected locally
+      if (writingIntervalToSession_) return;
       refreshQueueFromSession();
     });
   }
@@ -45,33 +59,30 @@ void PresentationQueue::setVideoDurationMs(qint64 videoDurationMs) {
 }
 
 void PresentationQueue::setSelectedTagIndexes(const QVector<int>& tagSessionIndexes) {
-  const int previousTagIndex =
-      (currentIndex_ >= 0 && currentIndex_ < clips_.size()) ? clips_.at(currentIndex_).tagSessionIndex : -1;
+  const quint64 previousTagId = currentTagId();
 
-  selectedTagIndexes_ = tagSessionIndexes;
-  dropSelectedIndexesOutsideSession();
+  QVector<quint64> selectedTagIds;
+  selectedTagIds.reserve(tagSessionIndexes.size());
+  QSet<quint64> seenTagIds;
+  if (tagSession_) {
+    const auto& tags = tagSession_->tags();
+    for (const int tagSessionIndex : tagSessionIndexes) {
+      if (tagSessionIndex < 0 || tagSessionIndex >= tags.size()) continue;
+      const quint64 tagId = tags.at(tagSessionIndex).id;
+      if (tagId == 0 || seenTagIds.contains(tagId)) continue;
+      seenTagIds.insert(tagId);
+      selectedTagIds.append(tagId);
+    }
+  }
+  selectedTagIds_ = selectedTagIds;
   rebuildClipsFromSession();
-
-  const int restoredIndex = queueIndexForTagIndex(previousTagIndex);
-  const int previousCurrentIndex = currentIndex_;
-  const int lastIndex = static_cast<int>(clips_.size()) - 1;
-  if (restoredIndex >= 0) {
-    currentIndex_ = restoredIndex;
-  } else if (clips_.isEmpty()) {
-    currentIndex_ = -1;
-  } else {
-    currentIndex_ = std::clamp(currentIndex_ < 0 ? 0 : currentIndex_, 0, lastIndex);
-  }
-
+  restoreCurrentIndex(previousTagId);
   emit queueChanged();
-  if (currentIndex_ != previousCurrentIndex || restoredIndex < 0) {
-    emit currentClipChanged(currentIndex_);
-  }
 }
 
 void PresentationQueue::clear() {
-  const bool hadContent = !clips_.isEmpty() || !selectedTagIndexes_.isEmpty();
-  selectedTagIndexes_.clear();
+  const bool hadContent = !clips_.isEmpty() || !selectedTagIds_.isEmpty();
+  selectedTagIds_.clear();
   clips_.clear();
   currentIndex_ = -1;
   if (!hadContent) return;
@@ -104,19 +115,26 @@ bool PresentationQueue::setCurrentTagIndex(int tagSessionIndex) {
 void PresentationQueue::setClipInterval(int index, qint64 startMs, qint64 endMs) {
   if (index < 0 || index >= clips_.size()) return;
 
-  Clip& clip = clips_[index];
+  const quint64 tagId = clips_[index].tagId;
+  const int tagSessionIndex = clips_[index].tagSessionIndex;
+
+  Clip intervalClip = clips_[index];
   if (startMs < 0) startMs = 0;
   if (endMs < startMs + kMinimumClipDurationMs) endMs = startMs + kMinimumClipDurationMs;
-  clip.startMs = startMs;
-  clip.endMs = endMs;
-  clampClipToVideo(clip);
+  intervalClip.startMs = startMs;
+  intervalClip.endMs = endMs;
+  clampClipToVideo(intervalClip);
 
-  if (tagSession_ && clip.tagSessionIndex >= 0 && clip.tagSessionIndex < tagSession_->tags().size()) {
-    writingIntervalToSession_ = true;
-    tagSession_->setTagInterval(clip.tagSessionIndex, clip.startMs, clip.endMs);
-    writingIntervalToSession_ = false;
+  if (tagSession_ && tagSessionIndex >= 0 && tagSessionIndex < tagSession_->tags().size()) {
+    SessionWriteGuard guard(writingIntervalToSession_);
+    tagSession_->setTagInterval(tagSessionIndex, intervalClip.startMs, intervalClip.endMs);
+    refreshQueueFromSession();
+    const int refreshedIndex = queueIndexForTagId(tagId);
+    if (refreshedIndex >= 0) emit clipIntervalChanged(refreshedIndex);
+    return;
   }
 
+  clips_[index] = intervalClip;
   emit clipIntervalChanged(index);
 }
 
@@ -130,23 +148,11 @@ void PresentationQueue::applyLeadLagToAllClips(qint64 leadMs, qint64 lagMs) {
 }
 
 void PresentationQueue::refreshQueueFromSession() {
-  dropSelectedIndexesOutsideSession();
-  const int previousTagIndex =
-      (currentIndex_ >= 0 && currentIndex_ < clips_.size()) ? clips_.at(currentIndex_).tagSessionIndex : -1;
-
+  pruneSelectedTagIds();
+  const quint64 previousTagId = currentTagId();
   rebuildClipsFromSession();
-
-  const int restoredIndex = queueIndexForTagIndex(previousTagIndex);
-  const int previousCurrentIndex = currentIndex_;
-  const int lastIndex = static_cast<int>(clips_.size()) - 1;
-  currentIndex_ = clips_.isEmpty()
-      ? -1
-      : (restoredIndex >= 0 ? restoredIndex : std::clamp(currentIndex_, 0, lastIndex));
-
+  restoreCurrentIndex(previousTagId);
   emit queueChanged();
-  if (currentIndex_ != previousCurrentIndex) {
-    emit currentClipChanged(currentIndex_);
-  }
 }
 
 void PresentationQueue::rebuildClipsFromSession() {
@@ -154,13 +160,16 @@ void PresentationQueue::rebuildClipsFromSession() {
   if (!tagSession_) return;
 
   const auto& tags = tagSession_->tags();
-  clips_.reserve(selectedTagIndexes_.size());
-  for (const int tagSessionIndex : selectedTagIndexes_) {
+  clips_.reserve(selectedTagIds_.size());
+  for (const quint64 tagId : selectedTagIds_) {
+    if (tagId == 0) continue;
+    const int tagSessionIndex = tagSession_->indexOfTagId(tagId);
     if (tagSessionIndex < 0 || tagSessionIndex >= tags.size()) continue;
     const TagSession::GameTag& tag = tags.at(tagSessionIndex);
 
     Clip clip;
     clip.tagSessionIndex = tagSessionIndex;
+    clip.tagId = tag.id;
     clip.markMs = tag.markMs;
     clip.startMs = tag.startMs;
     clip.endMs = tag.endMs;
@@ -178,23 +187,75 @@ void PresentationQueue::rebuildClipsFromSession() {
   });
 }
 
-void PresentationQueue::dropSelectedIndexesOutsideSession() {
-  const int tagCount = tagSession_ ? tagSession_->tags().size() : 0;
-  QVector<int> validIndexes;
-  validIndexes.reserve(selectedTagIndexes_.size());
-  for (const int tagSessionIndex : selectedTagIndexes_) {
-    if (tagSessionIndex < 0 || tagSessionIndex >= tagCount) continue;
-    if (validIndexes.contains(tagSessionIndex)) continue;
-    validIndexes.append(tagSessionIndex);
+void PresentationQueue::pruneSelectedTagIds() {
+  if (!tagSession_) {
+    selectedTagIds_.clear();
+    return;
   }
-  selectedTagIndexes_ = validIndexes;
+
+  QVector<quint64> validTagIds;
+  validTagIds.reserve(selectedTagIds_.size());
+  QSet<quint64> seenTagIds;
+  for (const quint64 tagId : selectedTagIds_) {
+    if (tagId == 0) continue;
+    if (tagSession_->indexOfTagId(tagId) < 0) continue;
+    if (seenTagIds.contains(tagId)) continue;
+    seenTagIds.insert(tagId);
+    validTagIds.append(tagId);
+  }
+  selectedTagIds_ = validTagIds;
 }
 
 void PresentationQueue::clampClipToVideo(Clip& clip) const {
   if (clip.startMs < 0) clip.startMs = 0;
-  if (videoDurationMs_ > 0 && clip.endMs > videoDurationMs_) clip.endMs = videoDurationMs_;
+
+  if (videoDurationMs_ > 0) {
+    if (videoDurationMs_ <= kMinimumClipDurationMs) {
+      clip.startMs = std::clamp(clip.startMs, 0LL, videoDurationMs_);
+      clip.endMs = videoDurationMs_;
+      return;
+    }
+    if (clip.startMs > videoDurationMs_) clip.startMs = videoDurationMs_;
+  }
+
   if (clip.endMs < clip.startMs + kMinimumClipDurationMs) {
     clip.endMs = clip.startMs + kMinimumClipDurationMs;
+  }
+
+  if (videoDurationMs_ > 0 && clip.endMs > videoDurationMs_) {
+    clip.endMs = videoDurationMs_;
+    const qint64 minimumStartMs = clip.endMs - kMinimumClipDurationMs;
+    if (clip.startMs > minimumStartMs) {
+      clip.startMs = std::max(0LL, minimumStartMs);
+    }
+  }
+
+  if (clip.endMs < clip.startMs) clip.endMs = clip.startMs;
+}
+
+quint64 PresentationQueue::currentTagId() const {
+  if (currentIndex_ < 0 || currentIndex_ >= clips_.size()) return 0;
+  return clips_.at(currentIndex_).tagId;
+}
+
+void PresentationQueue::restoreCurrentIndex(quint64 previousTagId) {
+  const int previousCurrentIndex = currentIndex_;
+  const int restoredIndex = queueIndexForTagId(previousTagId);
+  const int lastIndex = static_cast<int>(clips_.size()) - 1;
+
+  if (restoredIndex >= 0) {
+    currentIndex_ = restoredIndex;
+  } else if (clips_.isEmpty()) {
+    currentIndex_ = -1;
+  } else {
+    currentIndex_ = std::clamp(currentIndex_ < 0 ? 0 : currentIndex_, 0, lastIndex);
+  }
+
+  const quint64 currentTagIdValue =
+      (currentIndex_ >= 0 && currentIndex_ < clips_.size()) ? clips_.at(currentIndex_).tagId : 0;
+  if (currentIndex_ != previousCurrentIndex || restoredIndex < 0 ||
+      currentTagIdValue != previousTagId) {
+    emit currentClipChanged(currentIndex_);
   }
 }
 
@@ -202,6 +263,14 @@ int PresentationQueue::queueIndexForTagIndex(int tagSessionIndex) const {
   if (tagSessionIndex < 0) return -1;
   for (int index = 0; index < clips_.size(); ++index) {
     if (clips_.at(index).tagSessionIndex == tagSessionIndex) return index;
+  }
+  return -1;
+}
+
+int PresentationQueue::queueIndexForTagId(quint64 tagId) const {
+  if (tagId == 0) return -1;
+  for (int index = 0; index < clips_.size(); ++index) {
+    if (clips_.at(index).tagId == tagId) return index;
   }
   return -1;
 }
