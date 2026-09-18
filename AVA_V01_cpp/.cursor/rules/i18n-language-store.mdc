@@ -1,0 +1,27 @@
+---
+description: Keep current language in a locked LanguageStore and notify LocaleNotifier on every change, including loadFromSettings
+globs: i18n/**/*.{h,cpp}
+alwaysApply: false
+---
+
+# Language store, not a bare global
+
+Do not keep the current UI language in a file-scope `g_language`. Put it in a `LanguageStore` (mutex next to the enum, Meyers singleton). Snapshot under the lock, persist `QSettings` under the same lock, emit `LocaleNotifier` **outside** it.
+
+Every mutation that changes the language must notify — `setLanguage` **and** `loadFromSettings`. A silent load after widgets subscribe leaves stale copy.
+
+```cpp
+// BAD — global; load does not notify
+Language g_language = Language::English;
+void loadFromSettings() { g_language = readSettings(); }
+
+// GOOD — locked store; notify only after the lock is released
+void setLanguage(Language language) {
+  notifyLanguageChangedIf(LanguageStore::instance().setLanguageAndPersist(language));
+}
+void loadFromSettings() {
+  notifyLanguageChangedIf(LanguageStore::instance().loadFromSettings());
+}
+```
+
+Do not lazy-load `QSettings` from `currentLanguage()`: org/app name is set after `QApplication` exists. Call `loadFromSettings()` from `main` after that, before creating windows.

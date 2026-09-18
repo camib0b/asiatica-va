@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Refresh UI after language change
 
-`AppLocale::setLanguage` updates the locale and notifies `LocaleNotifier`. A widget that owns a language combo must still refresh its own labels, placeholders, buttons, combo items, dialog titles, and status strings.
+`AppLocale::setLanguage` and `loadFromSettings` notify `LocaleNotifier` when the current language actually changes. A widget that owns a language combo must still refresh its own labels, placeholders, buttons, combo items, dialog titles, and status strings.
 
 Do not assume a parent `languageChanged` connection will paint this widget. Call `applyUiStrings()` after `setLanguage`. If that helper writes the combo index, block its signals so `currentIndexChanged` cannot recurse.
 

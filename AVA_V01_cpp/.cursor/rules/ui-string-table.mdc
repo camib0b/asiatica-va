@@ -1,0 +1,22 @@
+---
+description: Add UI copy once in AppLocale's {key, english, spanish} table; never duplicate EN/ES hashes
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# One table for UI translations
+
+`AppLocale::trUi` reads a single `QHash<QString, UiTranslation>` (`english` + `spanish` per key). Adding a string means **one** new row. Do not keep parallel EN and ES hashes — keys diverge.
+
+```cpp
+// BAD — two tables; easy to add a key in only one language
+return (language != Spanish) ? en.value(key, key) : es.value(key, key);
+
+// GOOD — one struct per key; miss is explicit, then fall back to the key
+struct UiTranslation { QString english; QString spanish; };
+const auto iterator = table.constFind(key);
+if (iterator == table.cend()) return key;
+return language == Spanish ? iterator->spanish : iterator->english;
+```
+
+When you add `trUi("foo.bar")`, add `foo.bar` to `uiTranslationTable()` in `i18n/AppLocale.cpp` with both languages in the same initializer. Event tokens stay in `spanishEventMap()` (canonical English → Spanish).
