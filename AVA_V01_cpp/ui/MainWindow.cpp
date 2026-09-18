@@ -6,6 +6,8 @@
 #include <QTemporaryDir>
 #include <QWidget>
 
+#include <memory>
+
 #include "WelcomeWindow.h"
 #include "WorkWindow.h"
 #include "LicenseLockOverlay.h"
@@ -107,21 +109,23 @@ void MainWindow::onVideoImportRequested() {
         return;
     }
 
-    auto* tempDir = new QTemporaryDir();
+    auto tempDir = std::make_unique<QTemporaryDir>();
     if (!tempDir->isValid()) {
-        delete tempDir;
         QMessageBox::warning(this,
                              AppLocale::trUi("app.title"),
                              AppLocale::trUi("concat.error_failed"));
         return;
     }
 
-    auto* concatenator = new VideoConcatenator(workWindow_);
-    concatenator->startConcatenation(filePaths, tempDir->path());
+    const QString tempDirPath = tempDir->path();
+    const QString concatenatedPath = tempDir->filePath(QStringLiteral("concatenated.mp4"));
 
-    workWindow_->setConcatenatedVideoTempDir(tempDir);
-    workWindow_->setPendingConcatenation(concatenator);
-    showWorkWindowWithSetup(tempDir->filePath(QStringLiteral("concatenated.mp4")), filePaths);
+    auto concatenator = std::make_unique<VideoConcatenator>();
+    concatenator->startConcatenation(filePaths, tempDirPath);
+
+    workWindow_->setConcatenatedVideoTempDir(std::move(tempDir));
+    workWindow_->setPendingConcatenation(std::move(concatenator));
+    showWorkWindowWithSetup(concatenatedPath, filePaths);
 }
 
 void MainWindow::onVideoClosed() {

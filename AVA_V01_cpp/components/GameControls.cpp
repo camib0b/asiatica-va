@@ -1,4 +1,5 @@
 #include "GameControls.h"
+#include "FollowUpCatalog.h"
 #include "../style/StyleProps.h"
 #include "../i18n/AppLocale.h"
 #include "../state/TagSession.h"
@@ -92,10 +93,7 @@ void configureFollowUpButton(QPushButton* button, const QString& canonicalKey,
 
 GameControls::GameControls(QWidget* parent)
     : QWidget(parent),
-      currentMainEvent_(),
-      currentFirstFollowUp_(),
-      currentSecondFollowUp_(),
-      followUpStage_(FollowUpStage::None),
+      followUpState_(),
       gamePhase_(GamePhase::NotStarted),
       activeMainButton_(nullptr),
       teamSideSelection_(TeamSideSelection::None) {
@@ -605,18 +603,7 @@ void GameControls::buildKeyboardShortcuts() {
   }
 
   // Escape: discard follow-ups and save with empty follow-up
-  escapeAction_ = makeAction(Qt::Key_Escape, [this]() {
-    if (followUpStage_ == FollowUpStage::None || currentMainEvent_.isEmpty()) return;
-
-    // Emit with empty follow-up
-    emit tagCommitted(currentMainEvent_, QString());
-    clearActiveMainButton();
-    hideFollowUpButtons();
-    currentMainEvent_.clear();
-    currentFirstFollowUp_.clear();
-    currentSecondFollowUp_.clear();
-    followUpStage_ = FollowUpStage::None;
-  });
+  escapeAction_ = makeAction(Qt::Key_Escape, [this]() { cancelFollowUpFlow(); });
 }
 
 void GameControls::onMainButtonClicked() {
@@ -633,13 +620,10 @@ void GameControls::onMainButtonClicked() {
   if (eventName.isEmpty()) {
     eventName = button->text();
   }
-  currentMainEvent_ = eventName;
-  currentFirstFollowUp_.clear();
-  currentSecondFollowUp_.clear();
-  followUpStage_ = FollowUpStage::None;
+  followUpState_.beginMainEvent(eventName);
   setActiveMainButton(button);
   emit mainEventTimestampCaptured(eventName);
-  showFirstLevelFollowUps(eventName);
+  showFirstLevelFollowUps();
 }
 
 void GameControls::onFollowUpButtonClicked() {
@@ -648,374 +632,69 @@ void GameControls::onFollowUpButtonClicked() {
 
   QString followUpName = button->property("gameEventKey").toString();
   if (followUpName.isEmpty()) followUpName = button->text();
-  if (followUpStage_ == FollowUpStage::FirstLevel) {
-    currentFirstFollowUp_ = followUpName;
+  advanceFollowUpFlow(followUpName);
+}
 
-    const QStringList second = getSecondLevelFollowUps(currentMainEvent_, currentFirstFollowUp_);
-    if (second.isEmpty()) {
-      if (currentMainEvent_ == QStringLiteral("PS")) {
-        const QString payload = selectedTeamLabel() + QStringLiteral(" → ") + currentFirstFollowUp_;
-        emit tagCommitted(QStringLiteral("PS"), payload);
-        if (currentFirstFollowUp_ == QStringLiteral("Goal")) {
-          currentMainEvent_ = QStringLiteral("Goal");
-          currentFirstFollowUp_.clear();
-          currentSecondFollowUp_.clear();
-          setActiveMainButton(goalButton_);
-          emit mainEventTimestampCaptured(QStringLiteral("Goal"));
-          showFirstLevelFollowUps(QStringLiteral("Goal"));
-          return;
-        }
-        clearActiveMainButton();
-        hideFollowUpButtons();
-        currentMainEvent_.clear();
-        currentFirstFollowUp_.clear();
-        currentSecondFollowUp_.clear();
-        followUpStage_ = FollowUpStage::None;
-        return;
-      }
-
-      QString followUpPayload;
-      if (currentMainEvent_ == QStringLiteral("PC Foul")) {
-        followUpPayload = selectedTeamLabel() + QStringLiteral(" → ") + currentFirstFollowUp_;
-      } else if (currentMainEvent_ == QStringLiteral("Card")) {
-        followUpPayload = currentFirstFollowUp_ + QStringLiteral(" → ") + selectedTeamLabel();
-      } else if (currentMainEvent_ == QStringLiteral("75-yd")) {
-        followUpPayload = currentFirstFollowUp_ + QStringLiteral(" → ") + selectedTeamLabel();
-      } else if (currentMainEvent_ == QStringLiteral("S.O.")) {
-        followUpPayload = selectedTeamLabel() + QStringLiteral(" → ") + currentFirstFollowUp_;
-      } else if (currentMainEvent_ == QStringLiteral("16-yd")) {
-        followUpPayload = selectedTeamLabel() + QStringLiteral(" → ") + currentFirstFollowUp_;
-      } else {
-        followUpPayload = currentFirstFollowUp_;
-      }
-      emit tagCommitted(currentMainEvent_, followUpPayload);
-      if (currentMainEvent_ == QStringLiteral("Turnover") && !followUpPayload.isEmpty()) {
-        switchTeamSideToOppositeTeam();
-      }
-      clearActiveMainButton();
-      hideFollowUpButtons();
-      currentMainEvent_.clear();
-      currentFirstFollowUp_.clear();
-      currentSecondFollowUp_.clear();
-      followUpStage_ = FollowUpStage::None;
-      return;
-    }
-
-    showSecondLevelFollowUps(currentMainEvent_, currentFirstFollowUp_);
+void GameControls::advanceFollowUpFlow(const QString& choice) {
+  followUpState_.select(choice);
+  const QStringList nextOptions =
+      FollowUpCatalog::optionsAfter(followUpState_.mainEvent(), followUpState_.selections());
+  if (nextOptions.isEmpty()) {
+    commitFollowUpFlow();
     return;
   }
+  presentFollowUpChoices(nextOptions, followUpState_.stageAfterSelection());
+}
 
-  if (followUpStage_ == FollowUpStage::SecondLevel) {
-    if (currentMainEvent_ == QStringLiteral("Circle Entry")) {
-      const QString combined = selectedTeamLabel() + QStringLiteral(" → ") + currentFirstFollowUp_ +
-                               QStringLiteral(" → ") + followUpName;
-      emit tagCommitted(currentMainEvent_, combined);
-      clearActiveMainButton();
-      hideFollowUpButtons();
-      currentMainEvent_.clear();
-      currentFirstFollowUp_.clear();
-      currentSecondFollowUp_.clear();
-      followUpStage_ = FollowUpStage::None;
-      return;
-    }
+void GameControls::commitFollowUpFlow() {
+  const QString teamLabel = selectedTeamLabel();
+  const FollowUpState::Snapshot snapshot = followUpState_.takeCommit();
+  const QString payload =
+      FollowUpCatalog::formatPayload(snapshot.mainEvent, snapshot.selections, teamLabel);
 
-    if (currentMainEvent_ == QStringLiteral("PC")) {
-      if (currentFirstFollowUp_ == QStringLiteral("Direct shot")) {
-        currentSecondFollowUp_ = followUpName;
-        const QStringList third = getThirdLevelFollowUps(currentMainEvent_, currentFirstFollowUp_, currentSecondFollowUp_);
-        if (!third.isEmpty()) {
-          showThirdLevelFollowUps();
-          return;
-        }
-      }
+  emit tagCommitted(snapshot.mainEvent, payload);
 
-      const QString combined = selectedTeamLabel() + QStringLiteral(" → ") + currentFirstFollowUp_ +
-                               QStringLiteral(" → ") + followUpName;
-      emit tagCommitted(currentMainEvent_, combined);
-
-      if (followUpName == QStringLiteral("Goal")) {
-        currentMainEvent_ = QStringLiteral("Goal");
-        currentFirstFollowUp_.clear();
-        currentSecondFollowUp_.clear();
-        setActiveMainButton(goalButton_);
-        emit mainEventTimestampCaptured(QStringLiteral("Goal"));
-        showFirstLevelFollowUps(QStringLiteral("Goal"));
-        return;
-      }
-
-      clearActiveMainButton();
-      hideFollowUpButtons();
-      currentMainEvent_.clear();
-      currentFirstFollowUp_.clear();
-      currentSecondFollowUp_.clear();
-      followUpStage_ = FollowUpStage::None;
-      return;
-    }
-
-    // Shot → On target → Goal matches the main "Goal" control: continue with Goal follow-ups.
-    // Register the completed shot path first (same payload as the generic second-level combine),
-    // then emit Goal so WorkWindow records Shot then Goal without dropping the shot.
-    if (currentMainEvent_ == QStringLiteral("Shot") &&
-        currentFirstFollowUp_ == QStringLiteral("On target") &&
-        followUpName == QStringLiteral("Goal")) {
-      const QString shotOutcome =
-          currentFirstFollowUp_ + QStringLiteral(" → ") + followUpName;
-      emit tagCommitted(QStringLiteral("Shot"), shotOutcome);
-      currentMainEvent_ = QStringLiteral("Goal");
-      currentFirstFollowUp_.clear();
-      currentSecondFollowUp_.clear();
-      setActiveMainButton(goalButton_);
-      emit mainEventTimestampCaptured(QStringLiteral("Goal"));
-      showFirstLevelFollowUps(QStringLiteral("Goal"));
-      return;
-    }
-
-    const QString combined = currentFirstFollowUp_.isEmpty()
-      ? followUpName
-      : (currentFirstFollowUp_ + " → " + followUpName);
-
-    emit tagCommitted(currentMainEvent_, combined);
-    clearActiveMainButton();
-    hideFollowUpButtons();
-    currentMainEvent_.clear();
-    currentFirstFollowUp_.clear();
-    currentSecondFollowUp_.clear();
-    followUpStage_ = FollowUpStage::None;
+  if (FollowUpCatalog::switchesTeamOnCommit(snapshot.mainEvent) && !payload.isEmpty()) {
+    switchTeamSideToOppositeTeam();
+  }
+  if (FollowUpCatalog::continuesAsGoal(snapshot.mainEvent, snapshot.selections)) {
+    beginChainedGoalFlow();
     return;
   }
+  clearFollowUpUi();
+}
 
-  if (followUpStage_ == FollowUpStage::ThirdLevel) {
-    if (currentMainEvent_ == QStringLiteral("PC")) {
-      const QString pcOutcome = selectedTeamLabel() + QStringLiteral(" → ") +
-                                currentFirstFollowUp_ + QStringLiteral(" → ") +
-                                currentSecondFollowUp_ + QStringLiteral(" → ") + followUpName;
-      emit tagCommitted(QStringLiteral("PC"), pcOutcome);
+void GameControls::cancelFollowUpFlow() {
+  if (followUpState_.isIdle()) return;
+  const QString mainEvent = followUpState_.takeCommit().mainEvent;
+  emit tagCommitted(mainEvent, QString());
+  clearFollowUpUi();
+}
 
-      if (followUpName == QStringLiteral("Goal")) {
-        currentMainEvent_ = QStringLiteral("Goal");
-        currentFirstFollowUp_.clear();
-        currentSecondFollowUp_.clear();
-        setActiveMainButton(goalButton_);
-        emit mainEventTimestampCaptured(QStringLiteral("Goal"));
-        showFirstLevelFollowUps(QStringLiteral("Goal"));
-        return;
-      }
+void GameControls::beginChainedGoalFlow() {
+  followUpState_.beginMainEvent(QStringLiteral("Goal"));
+  setActiveMainButton(goalButton_);
+  emit mainEventTimestampCaptured(QStringLiteral("Goal"));
+  showFirstLevelFollowUps();
+}
 
-      clearActiveMainButton();
-      hideFollowUpButtons();
-      currentMainEvent_.clear();
-      currentFirstFollowUp_.clear();
-      currentSecondFollowUp_.clear();
-      followUpStage_ = FollowUpStage::None;
-      return;
-    }
-
-    const QString combined = currentFirstFollowUp_ + " → " + currentSecondFollowUp_ + " → " + followUpName;
-    emit tagCommitted(currentMainEvent_, combined);
-    clearActiveMainButton();
-    hideFollowUpButtons();
-    currentMainEvent_.clear();
-    currentFirstFollowUp_.clear();
-    currentSecondFollowUp_.clear();
-    followUpStage_ = FollowUpStage::None;
-    return;
-  }
-
-  // Fallback: treat as first-level
-  emit tagCommitted(currentMainEvent_, followUpName);
+void GameControls::clearFollowUpUi() {
   clearActiveMainButton();
   hideFollowUpButtons();
-  currentMainEvent_.clear();
-  currentFirstFollowUp_.clear();
-  currentSecondFollowUp_.clear();
-  followUpStage_ = FollowUpStage::None;
 }
 
-QStringList GameControls::getFirstLevelFollowUps(const QString& mainEvent) const {
-  if (mainEvent == "Shot") {
-    return {QStringLiteral("On target"), QStringLiteral("Off target"), QStringLiteral("Blocked")};
-  }
-  if (mainEvent == "Circle Entry") {
-    return {"Dribling", "Pass", "Deflection"};
-  }
-  if (mainEvent == "PC") {
-    return {QStringLiteral("Direct shot"), QStringLiteral("Variant"), QStringLiteral("Ruined")};
-  }
-  if (mainEvent == QStringLiteral("16-yd")) {
-    return {QStringLiteral("3 man"), QStringLiteral("4 man")};
-  }
-  if (mainEvent == QStringLiteral("50-yd")) {
-    return {};
-  }
-  if (mainEvent == QStringLiteral("75-yd")) {
-    return {"Forward", "Sideways", "Back"};
-  }
-  if (mainEvent == "Goal") {
-    return {};
-  }
-  if (mainEvent == "Card") {
-    return {"Green", "Yellow", "Red"};
-  }
-  if (mainEvent == "Pass") {
-    return {"Flick", "Push", "Sweep", "Hit"};
-  }
-  if (mainEvent == "Special") {
-    return {"Good", "Bad", "Neutral", "Referee"};
-  }
-  if (mainEvent == "Turnover") {
-    return {"Interception", "Tackle", "Pressure", "Unforced error"};
-  }
-  if (mainEvent == "PC Foul") {
-    return {"Foot", "Stick", "Danger", "Other"};
-  }
-  if (mainEvent == "PS") {
-    return {QStringLiteral("Goal"), QStringLiteral("No Goal")};
-  }
-  if (mainEvent == QStringLiteral("S.O.")) {
-    return {QStringLiteral("Converted"), QStringLiteral("Missed"), QStringLiteral("Replay")};
-  }
-  return {};
-}
-
-QStringList GameControls::getSecondLevelFollowUps(const QString& mainEvent, const QString& firstFollowUp) const {
-  if (mainEvent == QStringLiteral("16-yd") || mainEvent == QStringLiteral("50-yd")) {
-    return {};
-  }
-  if (mainEvent == "Goal") {
-    return {};
-  }
-  if (mainEvent == "Card") {
-    return {};
-  }
-  if (mainEvent == QStringLiteral("75-yd")) {
-    if (firstFollowUp == "Forward" || firstFollowUp == "Sideways" || firstFollowUp == "Back") {
-      return {};
-    }
-    return {};
-  }
-  if (mainEvent == "Shot") {
-    if (firstFollowUp == QStringLiteral("On target")) return {QStringLiteral("Goal"), QStringLiteral("Saved"), QStringLiteral("Post")};
-    if (firstFollowUp == QStringLiteral("Off target")) return {QStringLiteral("Closeby"), QStringLiteral("Not close")};
-    if (firstFollowUp == QStringLiteral("Blocked")) return {};
-    return {};
-  }
-
-  if (mainEvent == "PC") {
-    if (firstFollowUp == QStringLiteral("Direct shot")) {
-      return {QStringLiteral("Hit"), QStringLiteral("Swept"), QStringLiteral("Dragflick")};
-    }
-    if (firstFollowUp == QStringLiteral("Variant") || firstFollowUp == QStringLiteral("Ruined")) {
-      return {QStringLiteral("Goal"), QStringLiteral("No Goal"), QStringLiteral("New PC")};
-    }
-    return {};
-  }
-
-  if (mainEvent == "Circle Entry") {
-    if (firstFollowUp == "Dribling" || firstFollowUp == "Pass" || firstFollowUp == "Deflection") {
-      return {"Left", "Middle", "Right"};
-    }
-    return {};
-  }
-
-  if (mainEvent == "Pass") {
-    if (firstFollowUp == "Flick" || firstFollowUp == "Push" || firstFollowUp == "Sweep" ||
-        firstFollowUp == "Hit") {
-      return {"Completed", "Failed"};
-    }
-    return {};
-  }
-
-  if (mainEvent == "Special") {
-    return {};
-  }
-
-  if (mainEvent == "PC Foul") {
-    return {};
-  }
-
-  return {};
-}
-
-QStringList GameControls::getThirdLevelFollowUps(const QString& mainEvent, const QString& firstFollowUp,
-                                                 const QString& secondFollowUp) const {
-  if (mainEvent == QStringLiteral("PC") && firstFollowUp == QStringLiteral("Direct shot")) {
-    if (secondFollowUp == QStringLiteral("Hit") || secondFollowUp == QStringLiteral("Swept") ||
-        secondFollowUp == QStringLiteral("Dragflick")) {
-      return {QStringLiteral("Goal"), QStringLiteral("No Goal")};
-    }
-  }
-  return {};
-}
-
-void GameControls::showFirstLevelFollowUps(const QString& mainEvent) {
-  // Clear existing follow-up buttons
-  hideFollowUpButtons();
-
-  QStringList actions = getFirstLevelFollowUps(mainEvent);
-
-  // If no follow-up actions, emit the main event directly and return
+void GameControls::showFirstLevelFollowUps() {
+  const QStringList actions = FollowUpCatalog::firstLevelOptions(followUpState_.mainEvent());
   if (actions.isEmpty()) {
-    if (mainEvent == QStringLiteral("50-yd") || mainEvent == QStringLiteral("Goal")) {
-      emit tagCommitted(mainEvent, selectedTeamLabel());
-    } else {
-      emit tagCommitted(mainEvent);
-    }
-    clearActiveMainButton();
-    currentMainEvent_.clear();
-    currentFirstFollowUp_.clear();
-    currentSecondFollowUp_.clear();
-    followUpStage_ = FollowUpStage::None;
+    commitFollowUpFlow();
     return;
   }
-
-  // Create new follow-up buttons
-  for (int actionIndex = 0; actionIndex < actions.size(); ++actionIndex) {
-    const QString& action = actions.at(actionIndex);
-    auto* button = new QPushButton(followUpContainer_);
-    configureFollowUpButton(button, action, QString::number(actionIndex + 1));
-    Style::setSize(button, "md");
-    Style::setVariant(button, "gameControlFollowUp");
-    button->setFocusPolicy(Qt::ClickFocus);
-    button->setMinimumHeight(44);
-
-    // Connect click: flash first, then handle
-    connect(button, &QPushButton::clicked, this, [this, button]() { flashButtonBorder(button); });
-    connect(button, &QPushButton::clicked, this, &GameControls::onFollowUpButtonClicked);
-    button->installEventFilter(this);
-    followUpLayout_->addWidget(button);
-    followUpButtons_.append(button);
-  }
-
-  followUpStage_ = FollowUpStage::FirstLevel;
-  followUpContainer_->setVisible(true);
-  followUpContainer_->update();
+  presentFollowUpChoices(actions, FollowUpState::Stage::FirstLevel);
 }
 
-void GameControls::showSecondLevelFollowUps(const QString& mainEvent, const QString& firstFollowUp) {
-  Q_UNUSED(mainEvent);
-
-  // Clear existing follow-up buttons and rebuild
+void GameControls::presentFollowUpChoices(const QStringList& actions, FollowUpState::Stage stage) {
+  Q_ASSERT(!actions.isEmpty());
   hideFollowUpButtons();
-  currentSecondFollowUp_.clear();
-
-  QStringList actions = getSecondLevelFollowUps(currentMainEvent_, firstFollowUp);
-  if (actions.isEmpty()) {
-    QString combined;
-    if (currentMainEvent_ == QStringLiteral("75-yd")) {
-      combined = firstFollowUp + QStringLiteral(" → ") + selectedTeamLabel();
-    } else if (currentMainEvent_ == QStringLiteral("Card")) {
-      combined = firstFollowUp + QStringLiteral(" → ") + selectedTeamLabel();
-    } else {
-      combined = firstFollowUp;
-    }
-    emit tagCommitted(currentMainEvent_, combined);
-    clearActiveMainButton();
-    currentMainEvent_.clear();
-    currentFirstFollowUp_.clear();
-    currentSecondFollowUp_.clear();
-    followUpStage_ = FollowUpStage::None;
-    return;
-  }
 
   for (int actionIndex = 0; actionIndex < actions.size(); ++actionIndex) {
     const QString& action = actions.at(actionIndex);
@@ -1033,46 +712,7 @@ void GameControls::showSecondLevelFollowUps(const QString& mainEvent, const QStr
     followUpButtons_.append(button);
   }
 
-  followUpStage_ = FollowUpStage::SecondLevel;
-  followUpContainer_->setVisible(true);
-  followUpContainer_->update();
-}
-
-void GameControls::showThirdLevelFollowUps() {
-  hideFollowUpButtons();
-
-  QStringList actions =
-      getThirdLevelFollowUps(currentMainEvent_, currentFirstFollowUp_, currentSecondFollowUp_);
-  if (actions.isEmpty()) {
-    const QString combined = currentFirstFollowUp_.isEmpty()
-      ? currentSecondFollowUp_
-      : (currentFirstFollowUp_ + " → " + currentSecondFollowUp_);
-    emit tagCommitted(currentMainEvent_, combined);
-    clearActiveMainButton();
-    currentMainEvent_.clear();
-    currentFirstFollowUp_.clear();
-    currentSecondFollowUp_.clear();
-    followUpStage_ = FollowUpStage::None;
-    return;
-  }
-
-  for (int actionIndex = 0; actionIndex < actions.size(); ++actionIndex) {
-    const QString& action = actions.at(actionIndex);
-    auto* button = new QPushButton(followUpContainer_);
-    configureFollowUpButton(button, action, QString::number(actionIndex + 1));
-    Style::setSize(button, "md");
-    Style::setVariant(button, "gameControlFollowUp");
-    button->setFocusPolicy(Qt::ClickFocus);
-    button->setMinimumHeight(44);
-
-    connect(button, &QPushButton::clicked, this, [this, button]() { flashButtonBorder(button); });
-    connect(button, &QPushButton::clicked, this, &GameControls::onFollowUpButtonClicked);
-    button->installEventFilter(this);
-    followUpLayout_->addWidget(button);
-    followUpButtons_.append(button);
-  }
-
-  followUpStage_ = FollowUpStage::ThirdLevel;
+  followUpState_.setStage(stage);
   followUpContainer_->setVisible(true);
   followUpContainer_->update();
 }

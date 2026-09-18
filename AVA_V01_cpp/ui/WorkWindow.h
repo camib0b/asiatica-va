@@ -10,6 +10,8 @@
 #include <QList>
 #include <QVector>
 
+#include <memory>
+
 class QLabel;
 class QAction;
 class QToolButton;
@@ -51,8 +53,8 @@ public:
   void showTeamSetupForVideo(const QString& filePath, const QStringList& sourceVideoPaths);
   void setTagSession(TagSession* session);
   void setExportDefaultDirectoryFromVideoPath(const QString& videoPath);
-  void setConcatenatedVideoTempDir(QTemporaryDir* dir);
-  void setPendingConcatenation(VideoConcatenator* concatenator);
+  void setConcatenatedVideoTempDir(std::unique_ptr<QTemporaryDir> dir);
+  void setPendingConcatenation(std::unique_ptr<VideoConcatenator> concatenator);
   Mode mode() const { return mode_; }
   void setMode(Mode m);
 
@@ -261,9 +263,9 @@ private:
   QString sourceVideoPath_;
   QString playbackVideoPath_;
   QString exportDefaultDirectoryPath_;
-  QTemporaryDir* concatenatedVideoTempDir_ = nullptr;
-  QTemporaryDir* playbackPrepTempDir_ = nullptr;
-  VideoConcatenator* pendingConcatenator_ = nullptr;
+  std::unique_ptr<QTemporaryDir> concatenatedVideoTempDir_;
+  std::unique_ptr<QTemporaryDir> playbackPrepTempDir_;
+  std::unique_ptr<VideoConcatenator> pendingConcatenator_;
 
   QList<int> preservedTaggingVideoTagsSplitterSizes_;
   int preservedTagsTableVerticalScrollValue_ = 0;

@@ -1,0 +1,29 @@
+---
+description: Encapsulate multi-stage UI flows so commit/cancel always reset; keep option trees in a table
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# Commit-reset state machines
+
+Do not walk a multi-stage UI flow with nested event `if`s and a copied reset on every return. Put the walk position in a small state type whose commit/cancel path always clears it. Put the option tree, payload shape, and post-commit side effects in a catalog/table.
+
+```cpp
+// BAD — reset duplicated on every exit; new events must touch every branch
+if (stage_ == First && event_ == "PS") {
+  emit tagCommitted(...);
+  clearUi(); event_.clear(); first_.clear(); stage_ = None;
+  return;
+}
+
+// GOOD — one advance, one commit; takeCommit() resets
+followUpState_.select(choice);
+if (FollowUpCatalog::optionsAfter(followUpState_.mainEvent(),
+                                  followUpState_.selections()).isEmpty()) {
+  const auto snapshot = followUpState_.takeCommit();
+  emit tagCommitted(snapshot.mainEvent, FollowUpCatalog::formatPayload(...));
+  clearUi();
+}
+```
+
+Adding a follow-up event means extending `FollowUpCatalog`, not `onFollowUpButtonClicked()`.

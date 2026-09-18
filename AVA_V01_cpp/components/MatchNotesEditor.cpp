@@ -28,6 +28,9 @@ MatchNotesEditor::MatchNotesEditor(QWidget* parent) : QTextEdit(parent) {
 
   mentionPopup_ = new QListWidget(this);
   mentionPopup_->setObjectName(QStringLiteral("MatchNoteMentionPopup"));
+  mentionPopup_->setWindowFlags(Qt::Tool | Qt::FramelessWindowHint);
+  mentionPopup_->setAttribute(Qt::WA_ShowWithoutActivating);
+  mentionPopup_->setAttribute(Qt::WA_StyledBackground, true);
   mentionPopup_->setFocusPolicy(Qt::NoFocus);
   mentionPopup_->setMouseTracking(true);
   mentionPopup_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -234,16 +237,11 @@ void MatchNotesEditor::updateMentionFilterFromCursor() {
 
 void MatchNotesEditor::positionMentionPopup() {
   if (!mentionPopup_) return;
-  QWidget* host = window() ? window() : this;
-  if (mentionPopup_->parentWidget() != host) {
-    mentionPopup_->setParent(host);
-  }
   const QRect caretRect = cursorRect(textCursor());
-  QPoint globalPos = mapToGlobal(QPoint(caretRect.left(), caretRect.bottom() + 4));
-  if (viewport()) {
-    globalPos = viewport()->mapToGlobal(QPoint(caretRect.left(), caretRect.bottom() + 4));
-  }
-  mentionPopup_->move(host->mapFromGlobal(globalPos));
+  const QPoint caretBottomLeft(caretRect.left(), caretRect.bottom() + 4);
+  const QPoint globalPos =
+      viewport() ? viewport()->mapToGlobal(caretBottomLeft) : mapToGlobal(caretBottomLeft);
+  mentionPopup_->move(globalPos);
   mentionPopup_->raise();
 }
 

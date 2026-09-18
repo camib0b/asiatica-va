@@ -10,15 +10,17 @@
 #include <QFileInfo>
 
 ExportJobManager::ExportJobManager(QObject* parent)
-    : QObject(parent) {
+    : QObject(parent),
+      jobs_(),
+      nextJobId_(1) {
 }
 
 ExportJobManager::~ExportJobManager() {
-    for (Job* job : jobs_) {
-        if (job->exporter) job->exporter->cancelExport();
-        delete job;
+    for (const std::unique_ptr<Job>& job : jobs_) {
+        if (!job || !job->exporter) continue;
+        job->exporter->disconnect();
+        job->exporter->cancelExport();
     }
-    jobs_.clear();
 }
 
 QString ExportJobManager::canonicalPath(const QString& path) {
@@ -28,7 +30,7 @@ QString ExportJobManager::canonicalPath(const QString& path) {
 bool ExportJobManager::pathIsOccupied(const QString& path) const {
     if (path.trimmed().isEmpty()) return false;
     const QString candidate = canonicalPath(path);
-    for (const Job* job : jobs_) {
+    for (const std::unique_ptr<Job>& job : jobs_) {
         if (!job) continue;
         if (job->state != JobState::Exporting) continue;
         if (!job->outputPath.isEmpty() && canonicalPath(job->outputPath) == candidate) return true;
@@ -39,7 +41,7 @@ bool ExportJobManager::pathIsOccupied(const QString& path) const {
 
 QStringList ExportJobManager::activeOutputPaths() const {
     QStringList paths;
-    for (const Job* job : jobs_) {
+    for (const std::unique_ptr<Job>& job : jobs_) {
         if (!job) continue;
         if (job->state != JobState::Exporting) continue;
         if (!job->outputPath.isEmpty()) paths.append(canonicalPath(job->outputPath));
@@ -49,21 +51,21 @@ QStringList ExportJobManager::activeOutputPaths() const {
 }
 
 ExportJobManager::Job* ExportJobManager::jobById(int jobId) {
-    for (Job* job : jobs_) {
-        if (job && job->id == jobId) return job;
+    for (const std::unique_ptr<Job>& job : jobs_) {
+        if (job && job->id == jobId) return job.get();
     }
     return nullptr;
 }
 
 const ExportJobManager::Job* ExportJobManager::jobById(int jobId) const {
-    for (const Job* job : jobs_) {
-        if (job && job->id == jobId) return job;
+    for (const std::unique_ptr<Job>& job : jobs_) {
+        if (job && job->id == jobId) return job.get();
     }
     return nullptr;
 }
 
 bool ExportJobManager::hasJobs() const {
-    return !jobs_.isEmpty();
+    return !jobs_.empty();
 }
 
 ExportJobSnapshot ExportJobManager::snapshotFor(const Job& job) const {
@@ -89,7 +91,7 @@ ExportJobSnapshot ExportJobManager::snapshotFor(const Job& job) const {
 QVector<ExportJobSnapshot> ExportJobManager::snapshots() const {
     QVector<ExportJobSnapshot> result;
     result.reserve(jobs_.size());
-    for (const Job* job : jobs_) {
+    for (const std::unique_ptr<Job>& job : jobs_) {
         if (job) result.append(snapshotFor(*job));
     }
     return result;
@@ -102,13 +104,17 @@ void ExportJobManager::updateExportingStatus(Job& job) {
         .arg(job.totalClips);
 }
 
+void ExportJobManager::discardExporter(Job& job) {
+    if (!job.exporter) return;
+    ClipExporter* dying = job.exporter.release();
+    dying->disconnect();
+    dying->deleteLater();
+}
+
 void ExportJobManager::finishJob(Job& job, JobState state, const QString& message) {
     job.state = state;
     job.statusText = message;
-    if (job.exporter) {
-        job.exporter->deleteLater();
-        job.exporter = nullptr;
-    }
+    discardExporter(job);
     emit jobsChanged();
 }
 
@@ -166,18 +172,18 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
         }
     }
 
-    auto* job = new Job();
+    auto job = std::make_unique<Job>();
     job->id = nextJobId_++;
     job->format = request.format;
     job->outputPath = mp4Path.isEmpty() ? xmlPath : mp4Path;
     job->xmlPath = xmlPath;
     job->displayName = QFileInfo(job->outputPath).fileName();
     job->totalClips = request.clips.size();
-    jobs_.append(job);
 
     if (request.format == ExportOutputFormat::Xml) {
         job->state = JobState::Succeeded;
         job->statusText = AppLocale::trUi("export.xml_success");
+        jobs_.push_back(std::move(job));
         emit jobsChanged();
         return true;
     }
@@ -186,16 +192,17 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
     job->currentClip = 0;
     updateExportingStatus(*job);
 
-    auto* exporter = new ClipExporter(this);
-    job->exporter = exporter;
+    job->exporter = std::make_unique<ClipExporter>();
+    ClipExporter* exporter = job->exporter.get();
     exporter->setSourceVideo(request.sourceVideoPath);
     exporter->setOutputPath(mp4Path);
     exporter->setClips(request.clips);
     exporter->setIncludeAudioTrack(request.includeAudioTrack);
     exporter->setIncludeBrandingOverlay(request.includeBrandingOverlay);
 
+    const int jobId = job->id;
     connect(exporter, &ClipExporter::progressChanged, this,
-            [this, jobId = job->id](int currentClip, int totalClips) {
+            [this, jobId](int currentClip, int totalClips) {
         Job* currentJob = jobById(jobId);
         if (!currentJob) return;
         currentJob->currentClip = currentClip;
@@ -204,13 +211,9 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
         emit jobsChanged();
     });
     connect(exporter, &ClipExporter::exportFinished, this,
-            [this, jobId = job->id](bool success, const QString& message) {
+            [this, jobId](bool success, const QString& message) {
         Job* currentJob = jobById(jobId);
         if (!currentJob) return;
-        if (currentJob->exporter) {
-            currentJob->exporter->deleteLater();
-            currentJob->exporter = nullptr;
-        }
         if (!success) {
             const bool cancelled = message.contains(QStringLiteral("cancelled"), Qt::CaseInsensitive);
             finishJob(*currentJob,
@@ -221,6 +224,7 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
         finishJob(*currentJob, JobState::Succeeded, AppLocale::trUi("export.done"));
     });
 
+    jobs_.push_back(std::move(job));
     emit jobsChanged();
     exporter->startExport();
     return true;
@@ -237,11 +241,10 @@ void ExportJobManager::cancelJob(int jobId) {
 
 void ExportJobManager::dismissJob(int jobId) {
     for (int index = 0; index < jobs_.size(); ++index) {
-        Job* job = jobs_.at(index);
+        Job* job = jobs_.at(index).get();
         if (!job || job->id != jobId) continue;
         if (job->state == JobState::Exporting) return;
-        jobs_.removeAt(index);
-        delete job;
+        jobs_.erase(jobs_.begin() + index);
         emit jobsChanged();
         return;
     }

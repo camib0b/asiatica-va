@@ -6,6 +6,7 @@
 #include <QHash>
 #include <QVector>
 
+#include "FollowUpState.h"
 #include "../state/TagSession.h"
 
 class QPushButton;
@@ -76,16 +77,16 @@ private:
   void buildUi();
   void wireSignals();
   void buildKeyboardShortcuts();
-  void showFirstLevelFollowUps(const QString& mainEvent);
-  void showSecondLevelFollowUps(const QString& mainEvent, const QString& firstFollowUp);
-  void showThirdLevelFollowUps();
+  void showFirstLevelFollowUps();
+  void presentFollowUpChoices(const QStringList& actions, FollowUpState::Stage stage);
   void hideFollowUpButtons();
   void configureMainGameControlButton(QPushButton* button, const QString& eventName,
                                       const QString& shortcutHint);
-  QStringList getFirstLevelFollowUps(const QString& mainEvent) const;
-  QStringList getSecondLevelFollowUps(const QString& mainEvent, const QString& firstFollowUp) const;
-  QStringList getThirdLevelFollowUps(const QString& mainEvent, const QString& firstFollowUp,
-                                     const QString& secondFollowUp) const;
+  void advanceFollowUpFlow(const QString& choice);
+  void commitFollowUpFlow();
+  void cancelFollowUpFlow();
+  void beginChainedGoalFlow();
+  void clearFollowUpUi();
   QString selectedTeamLabel() const;
   /// After possession changes to the other side (e.g. Turnover), select the other team for the next tag.
   void switchTeamSideToOppositeTeam();
@@ -101,13 +102,6 @@ private:
 protected:
   bool eventFilter(QObject* obj, QEvent* event) override;
   void keyPressEvent(QKeyEvent* event) override;
-
-  enum class FollowUpStage {
-    None,
-    FirstLevel,
-    SecondLevel,
-    ThirdLevel,
-  };
 
   enum class TeamSideSelection {
     None,
@@ -167,10 +161,7 @@ protected:
   QList<QAction*> followUpNumberActions_;
   QAction* escapeAction_ = nullptr;
 
-  QString currentMainEvent_{};
-  QString currentFirstFollowUp_{};
-  QString currentSecondFollowUp_{};
-  FollowUpStage followUpStage_ = FollowUpStage::None;
+  FollowUpState followUpState_{};
   GamePhase gamePhase_ = GamePhase::NotStarted;
   QPushButton* activeMainButton_ = nullptr;
   QList<QPushButton*> followUpButtons_;

@@ -1,28 +1,28 @@
 ---
-description: Own QTemporaryDir with unique_ptr; do not new/delete Qt resources by hand
+description: One owner per heap object — unique_ptr for structs and unparented QObjects; Qt parent for widgets; never both, never reparent a held pointer
 globs: **/*.{h,hpp,cpp}
 alwaysApply: false
 ---
 
-# RAII for temp dirs and processes
+# Qt / C++ ownership: one owner
 
-Own `QTemporaryDir` with `std::unique_ptr`. Resetting the pointer (or destroying the exporter) removes the directory via `QTemporaryDir`'s destructor. Do not `new`/`delete` it on every error path.
+Pick **one** owner. Mixing `new`/`delete`, `deleteLater`, and a Qt parent on the same object is how jobs leak or double-delete.
 
-`QProcess` may stay parented to the `QObject`, but still discard the previous job before starting another (`disconnect`, kill, wait, `deleteLater`).
+- **Non-QObject heap types** (`Job`, `QTemporaryDir`): `std::unique_ptr`. No destructor `delete`. Store them in `std::vector`, not `QVector` (QList detach copy-constructs).
+- **QWidget / parented QObject**: `new Foo(this)` and a raw pointer. Do not `unique_ptr`. Do not `setParent()` onto another host while you still hold the member.
+- **Unparented QObject you uniquely own** (`ClipExporter` on a job, `VideoConcatenator`): `std::make_unique<Foo>()` with **no** Qt parent. Never also `new Foo(this)`.
+- **Transfer across objects**: the setter takes `std::unique_ptr<T>` by value; the caller `std::move`s. Do not pass a raw `T*` into a setter that later `delete`s it.
+- **Destructor**: do not `delete` or `reset()` unique_ptr members. They run after the destructor body. `reset()` only when releasing **early** (cancel, replace, dismiss).
+- **Destroying a QObject from its own signal**: `release()` then `disconnect()` then `deleteLater()`. Do not `unique_ptr::reset()` on that stack.
 
 ```cpp
-// BAD
-tempDir_ = new QTemporaryDir();
-...
-delete tempDir_;
-tempDir_ = nullptr;
+// BAD — destructor still owns unique_ptr lifetime; parented AND deleteLater
+~WorkWindow() { concatenatedVideoTempDir_.reset(); }
+job->exporter = new ClipExporter(this);
+job->exporter->deleteLater();
 
-// GOOD
-tempDir_ = std::make_unique<QTemporaryDir>();
-if (!tempDir_->isValid()) {
-    cleanup();  // tempDir_.reset()
-    return;
-}
+// GOOD — unique_ptr members destroy themselves; reset() only for early release
+~WorkWindow() { detachPresentationKeyboardShortcuts(); }
+concatenatedVideoTempDir_.reset();  // close/replace video, not ~WorkWindow
+job->exporter = std::make_unique<ClipExporter>();  // no Qt parent
 ```
-
-Manual `cleanup()` should only reset smart pointers and clear related paths, not scatter `delete`.

@@ -192,9 +192,6 @@ WorkWindow::WorkWindow(QWidget* parent) : QWidget(parent) {
 
 WorkWindow::~WorkWindow() {
     detachPresentationKeyboardShortcuts();
-    cleanupPendingConcatenation();
-    cleanupConcatenatedVideo();
-    cleanupPlaybackPrepVideo();
 }
 
 bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(QWidget* focusWidget) const {
@@ -220,9 +217,8 @@ void WorkWindow::refreshPlaybackShortcutFocusGate() {
     onApplicationFocusWidgetChanged(nullptr, QApplication::focusWidget());
 }
 
-void WorkWindow::setConcatenatedVideoTempDir(QTemporaryDir* dir) {
-    cleanupConcatenatedVideo();
-    concatenatedVideoTempDir_ = dir;
+void WorkWindow::setConcatenatedVideoTempDir(std::unique_ptr<QTemporaryDir> dir) {
+    concatenatedVideoTempDir_ = std::move(dir);
 }
 
 void WorkWindow::setExportDefaultDirectoryFromVideoPath(const QString& videoPath) {
@@ -233,28 +229,20 @@ void WorkWindow::setExportDefaultDirectoryFromVideoPath(const QString& videoPath
     exportDefaultDirectoryPath_ = videoInfo.absolutePath();
 }
 
-void WorkWindow::setPendingConcatenation(VideoConcatenator* concatenator) {
-    cleanupPendingConcatenation();
-    pendingConcatenator_ = concatenator;
+void WorkWindow::setPendingConcatenation(std::unique_ptr<VideoConcatenator> concatenator) {
+    pendingConcatenator_ = std::move(concatenator);
 }
 
 void WorkWindow::cleanupConcatenatedVideo() {
-    if (concatenatedVideoTempDir_) {
-        delete concatenatedVideoTempDir_;
-        concatenatedVideoTempDir_ = nullptr;
-    }
+    concatenatedVideoTempDir_.reset();
 }
 
 void WorkWindow::cleanupPlaybackPrepVideo() {
-    if (playbackPrepTempDir_) {
-        delete playbackPrepTempDir_;
-        playbackPrepTempDir_ = nullptr;
-    }
+    playbackPrepTempDir_.reset();
 }
 
 void WorkWindow::cleanupPendingConcatenation() {
-    delete pendingConcatenator_;
-    pendingConcatenator_ = nullptr;
+    pendingConcatenator_.reset();
 }
 
 void WorkWindow::applyUiStrings() {
@@ -1304,8 +1292,7 @@ void WorkWindow::onGameSetupConfirmed(const QString& filePath,
             emit videoClosed();
             return;
         }
-        delete pendingConcatenator_;
-        pendingConcatenator_ = nullptr;
+        pendingConcatenator_.reset();
     }
 
     if (tagSession_) {
@@ -1382,9 +1369,8 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     cleanupPlaybackPrepVideo();
 
     if (PlaybackVideoPreparer::requiresTranscodeForPlayback(filePath)) {
-        auto* tempDir = new QTemporaryDir();
+        auto tempDir = std::make_unique<QTemporaryDir>();
         if (!tempDir->isValid()) {
-            delete tempDir;
             QMessageBox::warning(this,
                                  AppLocale::trUi("app.title"),
                                  AppLocale::trUi("playback_prep.error_failed"));
@@ -1392,15 +1378,14 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
             return;
         }
 
-        auto* preparer = new PlaybackVideoPreparer(this);
+        auto preparer = std::make_unique<PlaybackVideoPreparer>();
         preparer->startPreparation(filePath, tempDir->path());
         const bool prepOk = preparer->waitWithProgress(this);
         const QString errorMsg = preparer->errorMessage();
         const QString preparedPath = preparer->outputPath();
-        delete preparer;
+        preparer.reset();
 
         if (!prepOk) {
-            delete tempDir;
             if (!errorMsg.isEmpty()) {
                 QMessageBox::warning(this, AppLocale::trUi("app.title"), errorMsg);
             }
@@ -1408,7 +1393,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
             return;
         }
 
-        playbackPrepTempDir_ = tempDir;
+        playbackPrepTempDir_ = std::move(tempDir);
         playbackPath = preparedPath;
     }
 
@@ -1494,22 +1479,21 @@ void WorkWindow::onReplaceVideo() {
     if (!VideoConcatenator::showFileOrderDialog(filePaths, this)) return;
     setExportDefaultDirectoryFromVideoPath(filePaths.first());
 
-    auto* tempDir = new QTemporaryDir();
+    auto tempDir = std::make_unique<QTemporaryDir>();
     if (!tempDir->isValid()) {
-        delete tempDir;
         QMessageBox::warning(this,
                              AppLocale::trUi("app.title"),
                              AppLocale::trUi("concat.error_failed"));
         return;
     }
 
-    auto* concatenator = new VideoConcatenator(this);
+    auto concatenator = std::make_unique<VideoConcatenator>();
     concatenator->startConcatenation(filePaths, tempDir->path());
 
     if (!concatenator->waitWithProgress(this)) {
         const QString errorMsg = concatenator->errorMessage();
-        delete concatenator;
-        delete tempDir;
+        concatenator.reset();
+        tempDir.reset();
         if (!errorMsg.isEmpty()) {
             QMessageBox::warning(this, AppLocale::trUi("app.title"), errorMsg);
         }
@@ -1517,11 +1501,11 @@ void WorkWindow::onReplaceVideo() {
     }
 
     const QString outputPath = concatenator->outputPath();
-    delete concatenator;
+    concatenator.reset();
 
     cleanupPendingConcatenation();
     cleanupConcatenatedVideo();
-    concatenatedVideoTempDir_ = tempDir;
+    concatenatedVideoTempDir_ = std::move(tempDir);
     loadVideoFromFile(outputPath);
 }
 

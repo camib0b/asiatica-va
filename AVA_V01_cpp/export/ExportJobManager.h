@@ -7,6 +7,9 @@
 #include <QStringList>
 #include <QVector>
 
+#include <memory>
+#include <vector>
+
 class TagSession;
 
 enum class ExportOutputFormat {
@@ -77,7 +80,9 @@ private:
         QString errorMessage;
         int currentClip = 0;
         int totalClips = 0;
-        ClipExporter* exporter = nullptr;
+        /// Unparented QObject; this unique_ptr is the only owner. Do not parent it
+        /// to the manager. Destroy from exportFinished via discardExporter().
+        std::unique_ptr<ClipExporter> exporter;
     };
 
     Job* jobById(int jobId);
@@ -85,9 +90,10 @@ private:
     ExportJobSnapshot snapshotFor(const Job& job) const;
     void updateExportingStatus(Job& job);
     void finishJob(Job& job, JobState state, const QString& message);
+    void discardExporter(Job& job);
     bool pathIsOccupied(const QString& path) const;
     static QString canonicalPath(const QString& path);
 
-    QVector<Job*> jobs_;
+    std::vector<std::unique_ptr<Job>> jobs_;
     int nextJobId_ = 1;
 };
