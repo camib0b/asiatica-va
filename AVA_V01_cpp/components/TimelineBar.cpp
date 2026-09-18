@@ -12,6 +12,7 @@
 #include <QStyle>
 #include <QStyleOptionSlider>
 
+#include <algorithm>
 #include <limits>
 
 
@@ -325,7 +326,7 @@ bool TimelineBar::parseTimeEntryMs(const QString& text, qint64* outMs) {
 
   if (trimmed.contains(QLatin1Char(':'))) {
     const QStringList parts = trimmed.split(QLatin1Char(':'), Qt::KeepEmptyParts);
-    if (parts.isEmpty() || parts.size() > 3) return false;
+    if (parts.size() < 2 || parts.size() > 3) return false;
 
     qint64 components[3] = {0, 0, 0};
     const int partCount = parts.size();
@@ -337,25 +338,19 @@ bool TimelineBar::parseTimeEntryMs(const QString& text, qint64* outMs) {
       hours = components[0];
       minutes = components[1];
       seconds = components[2];
-    } else if (partCount == 2) {
+      if (minutes > 59 || seconds > 59) return false;
+    } else {
       minutes = components[0];
       seconds = components[1];
-    } else {
-      seconds = components[0];
+      if (seconds > 59) return false;
     }
-
-    if (minutes > 59 || seconds > 59) return false;
   } else {
-    qint64 compactValue = 0;
-    if (!parseNonNegativeInt64(trimmed, &compactValue)) return false;
-    Q_UNUSED(compactValue);
-
     if (trimmed.size() <= 2) {
       if (!parseNonNegativeInt64(trimmed, &seconds)) return false;
     } else if (trimmed.size() <= 4) {
       if (!parseNonNegativeInt64(trimmed.left(trimmed.size() - 2), &minutes)) return false;
       if (!parseNonNegativeInt64(trimmed.right(2), &seconds)) return false;
-      if (minutes > 59 || seconds > 59) return false;
+      if (seconds > 59) return false;
     } else {
       if (!parseNonNegativeInt64(trimmed.left(trimmed.size() - 4), &hours)) return false;
       if (!parseNonNegativeInt64(trimmed.mid(trimmed.size() - 4, 2), &minutes)) return false;
