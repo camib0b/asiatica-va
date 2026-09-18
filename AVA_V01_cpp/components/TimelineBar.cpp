@@ -5,7 +5,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QSlider>
-#include <QElapsedTimer>
+#include <QTimer>
 #include <QEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -92,23 +92,31 @@ void TimelineBar::buildUi() {
 }
 
 void TimelineBar::wireSignals() {
-  scrubThrottleTimer_.invalidate();
+  scrubSeekThrottleTimer_ = new QTimer(this);
+  scrubSeekThrottleTimer_->setSingleShot(true);
+  scrubSeekThrottleTimer_->setInterval(static_cast<int>(kScrubThrottleMs));
+  connect(scrubSeekThrottleTimer_, &QTimer::timeout, this, [this]() {
+    if (pendingScrubSeekMs_ < 0) return;
+    emit scrubSeekTo(pendingScrubSeekMs_);
+    pendingScrubSeekMs_ = -1;
+  });
 
   connect(slider_, &QSlider::sliderPressed, this, [this]() {
     isScrubbing_ = true;
     waitingForSeekCommit_ = false;
     pendingSeekMs_ = -1;
-    scrubThrottleTimer_.invalidate();
+    pendingScrubSeekMs_ = -1;
+    scrubSeekThrottleTimer_->stop();
     emit scrubStarted();
   });
 
   connect(slider_, &QSlider::sliderMoved, this, [this](int value) {
-    updateLabel(value, durationMs_);
+    const qint64 posMs = static_cast<qint64>(value);
+    updateLabel(posMs, durationMs_);
 
-    if (!scrubThrottleTimer_.isValid()) scrubThrottleTimer_.start();
-    if (scrubThrottleTimer_.elapsed() >= kScrubThrottleMs) {
-      emit scrubSeekTo(static_cast<qint64>(value));
-      scrubThrottleTimer_.restart();
+    pendingScrubSeekMs_ = posMs;
+    if (!scrubSeekThrottleTimer_->isActive()) {
+      scrubSeekThrottleTimer_->start();
     }
   });
 
@@ -116,6 +124,8 @@ void TimelineBar::wireSignals() {
     const qint64 releasedPosMs = static_cast<qint64>(slider_->value());
     waitingForSeekCommit_ = true;
     pendingSeekMs_ = releasedPosMs;
+    pendingScrubSeekMs_ = -1;
+    scrubSeekThrottleTimer_->stop();
     isScrubbing_ = false;
     updateLabel(releasedPosMs, durationMs_);
     emit scrubFinished(releasedPosMs);
@@ -144,6 +154,10 @@ void TimelineBar::reset() {
   isEditingTimeEntry_ = false;
   waitingForSeekCommit_ = false;
   pendingSeekMs_ = -1;
+  pendingScrubSeekMs_ = -1;
+  lastDisplayedPosSeconds_ = -1;
+  lastDisplayedDurSeconds_ = -1;
+  if (scrubSeekThrottleTimer_) scrubSeekThrottleTimer_->stop();
   slider_->setRange(0, 0);
   slider_->setValue(0);
   slider_->setEnabled(false);
@@ -185,9 +199,17 @@ void TimelineBar::setPositionMs(qint64 posMs) {
 }
 
 void TimelineBar::updateLabel(qint64 posMs, qint64 durMs) {
-  if (!isEditingTimeEntry_) {
-    label_->setText(QString("%1 / %2").arg(formatMs(posMs), formatMs(durMs)));
-  }
+  if (isEditingTimeEntry_) return;
+
+  // The timestamp is formatted at second resolution, so skip QString work and
+  // QLabel::setText unless the visible text would actually change.
+  const qint64 posSeconds = std::max<qint64>(0, posMs) / 1000;
+  const qint64 durSeconds = std::max<qint64>(0, durMs) / 1000;
+  if (posSeconds == lastDisplayedPosSeconds_ && durSeconds == lastDisplayedDurSeconds_) return;
+  lastDisplayedPosSeconds_ = posSeconds;
+  lastDisplayedDurSeconds_ = durSeconds;
+
+  label_->setText(QString("%1 / %2").arg(formatMs(posMs), formatMs(durMs)));
 }
 
 bool TimelineBar::eventFilter(QObject* watched, QEvent* event) {

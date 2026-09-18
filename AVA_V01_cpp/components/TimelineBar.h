@@ -1,6 +1,5 @@
 #pragma once
 
-#include <QElapsedTimer>
 #include <QWidget>
 #include <QtGlobal>
 
@@ -8,6 +7,7 @@ class QLabel;
 class QSlider;
 class QLineEdit;
 class QEvent;
+class QTimer;
 
 class TimelineBar final : public QWidget {
   Q_OBJECT
@@ -46,5 +46,8 @@ private:
   bool isEditingTimeEntry_ = false;
   qint64 pendingSeekMs_ = -1;
   bool waitingForSeekCommit_ = false;
-  QElapsedTimer scrubThrottleTimer_;
+  QTimer* scrubSeekThrottleTimer_ = nullptr;
+  qint64 pendingScrubSeekMs_ = -1;
+  qint64 lastDisplayedPosSeconds_ = -1;
+  qint64 lastDisplayedDurSeconds_ = -1;
 };
