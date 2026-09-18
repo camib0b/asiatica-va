@@ -6,6 +6,7 @@
 #include <QXmlStreamReader>
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
 
 namespace XmlImporter {
@@ -16,6 +17,10 @@ qint64 secondsTextToMs(const QString& text, bool* ok) {
   bool parseOk = false;
   const double seconds = text.trimmed().toDouble(&parseOk);
   if (!parseOk || seconds < 0.0) {
+    if (ok) *ok = false;
+    return 0;
+  }
+  if (seconds > static_cast<double>(LLONG_MAX) / 1000.0 || !std::isfinite(seconds)) {
     if (ok) *ok = false;
     return 0;
   }
@@ -56,6 +61,7 @@ bool parse(const QString& filePath,
   }
 
   QXmlStreamReader reader(&file);
+  QVector<ParsedInstance> parsedInstances;
   bool inAllInstances = false;
   bool inInstance = false;
   ParsedInstance current;
@@ -85,7 +91,19 @@ bool parse(const QString& filePath,
       if (name == QStringLiteral("ID")) {
         reader.readNext();
         if (reader.isCharacters()) {
-          current.xmlId = reader.text().toString().trimmed().toInt();
+          bool ok = false;
+          current.xmlId = reader.text().toString().trimmed().toInt(&ok);
+          if (!ok) {
+            if (errorMessage) {
+              *errorMessage = QStringLiteral("Invalid <ID> value.");
+            }
+            return false;
+          }
+        } else {
+          if (errorMessage) {
+            *errorMessage = QStringLiteral("Missing or empty <ID> value.");
+          }
+          return false;
         }
         continue;
       }
@@ -174,7 +192,7 @@ bool parse(const QString& filePath,
           }
           return false;
         }
-        instances->append(current);
+        parsedInstances.append(current);
         continue;
       }
       if (name == QStringLiteral("ALL_INSTANCES")) {
@@ -190,12 +208,13 @@ bool parse(const QString& filePath,
     return false;
   }
 
-  if (instances->isEmpty()) {
+  if (parsedInstances.isEmpty()) {
     if (errorMessage) *errorMessage = QStringLiteral("No instances found in XML file.");
     return false;
   }
 
-  sortInstances(*instances);
+  sortInstances(parsedInstances);
+  *instances = std::move(parsedInstances);
   return true;
 }
 
