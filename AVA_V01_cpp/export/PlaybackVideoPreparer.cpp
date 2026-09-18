@@ -11,7 +11,18 @@
 PlaybackVideoPreparer::PlaybackVideoPreparer(QObject* parent) : QObject(parent) {}
 
 PlaybackVideoPreparer::~PlaybackVideoPreparer() {
-    cancel();
+    stopAndDiscardProcess();
+}
+
+void PlaybackVideoPreparer::stopAndDiscardProcess() {
+    if (!process_) return;
+    process_->disconnect();
+    if (process_->state() != QProcess::NotRunning) {
+        process_->kill();
+        process_->waitForFinished(3000);
+    }
+    process_->deleteLater();
+    process_ = nullptr;
 }
 
 bool PlaybackVideoPreparer::requiresTranscodeForPlayback(const QString& filePath) {
@@ -38,6 +49,7 @@ void PlaybackVideoPreparer::startPreparation(const QString& inputPath,
     cancelled_ = false;
     errorMessage_.clear();
 
+    stopAndDiscardProcess();
     process_ = new QProcess(this);
     connect(process_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &PlaybackVideoPreparer::onProcessFinished);

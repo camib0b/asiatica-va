@@ -33,6 +33,8 @@ private slots:
     void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
 private:
+    void stopAndDiscardProcess();
+
     QProcess* process_ = nullptr;
     QString outputPath_;
     QString errorMessage_;

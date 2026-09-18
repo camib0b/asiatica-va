@@ -20,13 +20,18 @@
 VideoConcatenator::VideoConcatenator(QObject* parent) : QObject(parent) {}
 
 VideoConcatenator::~VideoConcatenator() {
-    if (process_) {
-        process_->disconnect();
-        if (process_->state() != QProcess::NotRunning) {
-            process_->kill();
-            process_->waitForFinished(3000);
-        }
+    stopAndDiscardProcess();
+}
+
+void VideoConcatenator::stopAndDiscardProcess() {
+    if (!process_) return;
+    process_->disconnect();
+    if (process_->state() != QProcess::NotRunning) {
+        process_->kill();
+        process_->waitForFinished(3000);
     }
+    process_->deleteLater();
+    process_ = nullptr;
 }
 
 void VideoConcatenator::startConcatenation(const QStringList& inputPaths,
@@ -64,6 +69,7 @@ void VideoConcatenator::startConcatenation(const QStringList& inputPaths,
     cancelled_ = false;
     errorMessage_.clear();
 
+    stopAndDiscardProcess();
     process_ = new QProcess(this);
     connect(process_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &VideoConcatenator::onProcessFinished);

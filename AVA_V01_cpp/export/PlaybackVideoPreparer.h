@@ -36,6 +36,8 @@ private slots:
   void onProcessError(QProcess::ProcessError error);
 
 private:
+  void stopAndDiscardProcess();
+
   QProcess* process_ = nullptr;
   QString outputPath_;
   QString errorMessage_;
