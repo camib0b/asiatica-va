@@ -16,7 +16,15 @@ static QString loadTextFile(const QString& path) {
 }
 
 void ApplyLightTheme() {
-  QApplication::setStyle(QStyleFactory::create("Fusion"));
+  QStyle* style = QStyleFactory::create(QStringLiteral("Fusion"));
+  if (!style) {
+    style = QStyleFactory::create(QStringLiteral("Windows"));
+  }
+  if (style) {
+    QApplication::setStyle(style);
+  } else {
+    qWarning() << "Fusion and Windows styles unavailable; using platform default.";
+  }
 
   QFont font(QStringLiteral("Inter"));
   if (!QFontInfo(font).exactMatch()) {
