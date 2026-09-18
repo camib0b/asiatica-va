@@ -20,6 +20,8 @@
 #include <QTableWidgetItem>
 #include <QVBoxLayout>
 
+#include <optional>
+
 namespace {
 
 constexpr int kColCode = 0;
@@ -357,9 +359,10 @@ void XmlEventMappingDialog::applyAutoMappings() {
 
     const ParsedTeamCode parsed = parseTeamCodePattern(code);
     if (parsed.valid) {
-      const QString mainEvent = EventCodeMap::mainEventForShortCode(parsed.shortCode);
-      if (!mainEvent.isEmpty()) {
-        const int eventIndex = row.eventCombo->findText(mainEvent);
+      const std::optional<QString> mainEvent =
+          EventCodeMap::mainEventForShortCode(parsed.shortCode);
+      if (mainEvent.has_value()) {
+        const int eventIndex = row.eventCombo->findText(*mainEvent);
         if (eventIndex >= 0) row.eventCombo->setCurrentIndex(eventIndex);
       }
 

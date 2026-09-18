@@ -2,13 +2,15 @@
 
 #include <QString>
 
+#include <optional>
+
 namespace EventCodeMap {
 
-/// Returns the short XML code for a canonical main-event name, or empty when the event
-/// has no team-affiliated short code (i.e. it is a neutral / pass-through code).
-QString shortCodeForMainEvent(const QString& canonicalMainEvent);
+/// Short XML code for a canonical main-event name. `nullopt` when the event is not in the
+/// team-affiliated map (neutral / pass-through / unknown).
+std::optional<QString> shortCodeForMainEvent(const QString& canonicalMainEvent);
 
-/// Returns the canonical main-event name for a short XML code, or empty when unknown.
-QString mainEventForShortCode(const QString& shortCode);
+/// Canonical main-event name for a short XML code. `nullopt` when the code is unknown.
+std::optional<QString> mainEventForShortCode(const QString& shortCode);
 
 } // namespace EventCodeMap

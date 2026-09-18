@@ -1,0 +1,29 @@
+---
+description: Map/hash identity lookups must signal miss explicitly — std::optional or iterator miss, not QHash::value() empty QString
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# Lookup miss is not an empty QString
+
+`QHash::value(key)` (and `QMap::value`) returns a default-constructed `T` when the key is absent. For `QString` that is `""`, which callers treat as a real code, name, or path. Identity lookups must make miss visible at the type or branch.
+
+- **Identity maps** (event codes, canonical names): `constFind` + `std::optional<T>`. Do not return `QString()`.
+- **Documented fallback** (`EventDefaults::factoryDefaultFor`): `constFind`, then return the named fallback. Still do not use bare `.value(key)`.
+- **Numeric accumulators** (`counts.value(key, 0)`): explicit default is the API. Fine.
+- Prefer one `constFind` over `contains` + `value` (two lookups). Check `has_value()` before `*optional`.
+- File-local find helpers go in the anonymous namespace (`static-helpers.mdc`). Inputs are `const T&` (`const-correctness.mdc`).
+
+```cpp
+// BAD — miss and "no mapping" are the same empty string
+QString shortCodeForMainEvent(const QString& canonicalMainEvent) {
+  return canonicalToShortMap().value(canonicalMainEvent);
+}
+
+// GOOD — miss is nullopt; caller must branch
+std::optional<QString> shortCodeForMainEvent(const QString& canonicalMainEvent) {
+  const auto iterator = canonicalToShortMap().constFind(canonicalMainEvent);
+  if (iterator == canonicalToShortMap().cend()) return std::nullopt;
+  return iterator.value();
+}
+```

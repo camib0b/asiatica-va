@@ -2,6 +2,8 @@
 
 #include <QHash>
 
+#include <optional>
+
 namespace EventCodeMap {
 
 namespace {
@@ -37,14 +39,24 @@ const QHash<QString, QString>& shortToCanonicalMap() {
   return map;
 }
 
-} // namespace
-
-QString shortCodeForMainEvent(const QString& canonicalMainEvent) {
-  return canonicalToShortMap().value(canonicalMainEvent);
+std::optional<QString> findMappedString(const QHash<QString, QString>& map,
+                                        const QString& key) {
+  const auto iterator = map.constFind(key);
+  if (iterator == map.cend()) {
+    return std::nullopt;
+  }
+  return iterator.value();
 }
 
-QString mainEventForShortCode(const QString& shortCode) {
-  return shortToCanonicalMap().value(shortCode.trimmed().toUpper());
+} // namespace
+
+std::optional<QString> shortCodeForMainEvent(const QString& canonicalMainEvent) {
+  return findMappedString(canonicalToShortMap(), canonicalMainEvent);
+}
+
+std::optional<QString> mainEventForShortCode(const QString& shortCode) {
+  const QString normalizedShortCode = shortCode.trimmed().toUpper();
+  return findMappedString(shortToCanonicalMap(), normalizedShortCode);
 }
 
 } // namespace EventCodeMap

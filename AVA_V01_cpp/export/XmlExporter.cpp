@@ -15,6 +15,7 @@
 #include <QXmlStreamWriter>
 
 #include <algorithm>
+#include <optional>
 
 namespace XmlExporter {
 
@@ -189,7 +190,7 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
   // Team-affiliated code: requires both team abbreviation and a short code mapping. When
   // either is missing we still emit a single neutral <code> using the canonical event name
   // so the user does not silently lose information.
-  const QString shortCode = EventCodeMap::shortCodeForMainEvent(tag.mainEvent);
+  const std::optional<QString> shortCode = EventCodeMap::shortCodeForMainEvent(tag.mainEvent);
   const bool hasAbbrevs = !homeAbbrev.isEmpty() && !awayAbbrev.isEmpty();
   const QString taggedAbbrev =
       tag.team == QStringLiteral("Home") ? homeAbbrev :
@@ -198,7 +199,7 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
       tag.team == QStringLiteral("Home") ? awayAbbrev :
       tag.team == QStringLiteral("Away") ? homeAbbrev : QString();
 
-  if (shortCode.isEmpty() || !hasAbbrevs || taggedAbbrev.isEmpty()) {
+  if (!shortCode.has_value() || !hasAbbrevs || taggedAbbrev.isEmpty()) {
     EmittedInstance instance;
     instance.startMs = exportStartMs;
     instance.endMs = exportEndMs;
@@ -211,14 +212,14 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
   EmittedInstance positive;
   positive.startMs = exportStartMs;
   positive.endMs = exportEndMs;
-  positive.code = QStringLiteral("%1 %2+").arg(taggedAbbrev, shortCode);
+  positive.code = QStringLiteral("%1 %2+").arg(taggedAbbrev, *shortCode);
   positive.period = tag.period;
   result.append(positive);
 
   EmittedInstance negative;
   negative.startMs = exportStartMs;
   negative.endMs = exportEndMs;
-  negative.code = QStringLiteral("%1 %2-").arg(opposingAbbrev, shortCode);
+  negative.code = QStringLiteral("%1 %2-").arg(opposingAbbrev, *shortCode);
   negative.period = tag.period;
   result.append(negative);
 

@@ -29,6 +29,8 @@ void onVideoClosed();      // slot; clears session and navigates
 
 Pass read-only objects as `const T&` (`QString`, `QSize`, structs). Pass cheap scalars by value. Prefer `const` locals.
 
+Identity lookups on `QHash`/`QMap` (`EventCodeMap`) must not use `.value(key)` and treat a default `QString()` as a miss. Return `std::optional<T>` or branch on `constFind` (see `lookup-presence.mdc`).
+
 Lambdas: capture only what you need. Capture `const T&` (or by value for cheap/const data) for reads; `&` only for locals the lambda mutates.
 
 Use `mutable` only for caches/reentrancy guards.
