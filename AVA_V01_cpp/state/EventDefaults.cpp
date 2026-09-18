@@ -3,6 +3,8 @@
 #include <QHash>
 #include <QSettings>
 
+#include <mutex>
+
 namespace EventDefaults {
 
 namespace {
@@ -40,12 +42,16 @@ const QHash<QString, EventDuration>& defaultDurationTable() {
 
 constexpr EventDuration kFallback{3000, 4000};
 
-QHash<QString, EventDuration>& userOverrides() {
-  static QHash<QString, EventDuration> overrides;
-  return overrides;
-}
+struct UserOverrideState {
+  std::mutex mutex;
+  QHash<QString, EventDuration> overrides;
+  bool loaded = false;
+};
 
-bool overridesLoaded = false;
+UserOverrideState& userOverrideState() {
+  static UserOverrideState state;
+  return state;
+}
 
 void persistOverride(const QString& canonicalMainEvent, qint64 leadMs, qint64 lagMs) {
   QSettings settings;
@@ -58,9 +64,10 @@ void persistOverride(const QString& canonicalMainEvent, qint64 leadMs, qint64 la
   settings.endGroup();
 }
 
-void ensureOverridesLoaded() {
-  if (overridesLoaded) return;
-  overridesLoaded = true;
+// Caller must hold state.mutex.
+void loadOverridesFromSettings(UserOverrideState& state) {
+  if (state.loaded) return;
+  state.loaded = true;
 
   QSettings settings;
   settings.beginGroup(QLatin1String(kSettingsGroup));
@@ -75,7 +82,7 @@ void ensureOverridesLoaded() {
     const qint64 leadMs = leadValue.toLongLong();
     const qint64 lagMs = lagValue.toLongLong();
     if (leadMs < 0 || lagMs < 0) continue;
-    userOverrides().insert(eventKey, {leadMs, lagMs});
+    state.overrides.insert(eventKey, {leadMs, lagMs});
   }
   settings.endGroup();
 }
@@ -122,9 +129,11 @@ EventDuration factoryDefaultFor(const QString& canonicalMainEvent) {
 }
 
 EventDuration defaultFor(const QString& canonicalMainEvent) {
-  ensureOverridesLoaded();
-  const auto overrideIt = userOverrides().constFind(canonicalMainEvent);
-  if (overrideIt != userOverrides().constEnd()) return overrideIt.value();
+  UserOverrideState& state = userOverrideState();
+  std::lock_guard<std::mutex> lock(state.mutex);
+  loadOverridesFromSettings(state);
+  const auto iterator = state.overrides.constFind(canonicalMainEvent);
+  if (iterator != state.overrides.cend()) return iterator.value();
   return factoryDefaultFor(canonicalMainEvent);
 }
 
@@ -143,21 +152,27 @@ void setUserOverride(const QString& canonicalMainEvent, qint64 leadMs, qint64 la
   if (leadMs < 0) leadMs = 0;
   if (lagMs < 0) lagMs = 0;
 
-  ensureOverridesLoaded();
-  userOverrides().insert(canonicalMainEvent, {leadMs, lagMs});
+  UserOverrideState& state = userOverrideState();
+  std::lock_guard<std::mutex> lock(state.mutex);
+  loadOverridesFromSettings(state);
+  state.overrides.insert(canonicalMainEvent, {leadMs, lagMs});
   persistOverride(canonicalMainEvent, leadMs, lagMs);
 }
 
 void clearUserOverrides() {
-  ensureOverridesLoaded();
-  userOverrides().clear();
+  UserOverrideState& state = userOverrideState();
+  std::lock_guard<std::mutex> lock(state.mutex);
+  state.overrides.clear();
+  state.loaded = true;
 
   QSettings settings;
   settings.remove(QLatin1String(kSettingsGroup));
 }
 
 void loadFromSettings() {
-  ensureOverridesLoaded();
+  UserOverrideState& state = userOverrideState();
+  std::lock_guard<std::mutex> lock(state.mutex);
+  loadOverridesFromSettings(state);
 }
 
 } // namespace EventDefaults

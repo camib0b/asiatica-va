@@ -1,12 +1,15 @@
 #pragma once
 
 #include <QDialog>
+#include <QPointer>
 #include <QString>
 #include <QVector>
 
 class QDoubleSpinBox;
+class QGridLayout;
 class QLabel;
 class QPushButton;
+class QWidget;
 class TagSession;
 
 class ClipDurationSettingsDialog final : public QDialog {
@@ -24,10 +27,10 @@ private slots:
 private:
   struct DurationRow {
     QString eventName;
-    QLabel* eventLabel = nullptr;
-    QDoubleSpinBox* leadSpin = nullptr;
-    QDoubleSpinBox* lagSpin = nullptr;
-    QLabel* totalLabel = nullptr;
+    QPointer<QLabel> eventLabel;
+    QPointer<QDoubleSpinBox> leadSpin;
+    QPointer<QDoubleSpinBox> lagSpin;
+    QPointer<QLabel> totalLabel;
   };
 
   void buildUi();
@@ -38,12 +41,14 @@ private:
   TagSession* tagSession_ = nullptr;
   QVector<DurationRow> rows_;
 
-  QLabel* titleLabel_ = nullptr;
-  QLabel* subtitleLabel_ = nullptr;
-  QLabel* eventHeaderLabel_ = nullptr;
-  QLabel* leadHeaderLabel_ = nullptr;
-  QLabel* lagHeaderLabel_ = nullptr;
-  QLabel* totalHeaderLabel_ = nullptr;
-  QPushButton* resetButton_ = nullptr;
-  QPushButton* closeButton_ = nullptr;
+  QPointer<QWidget> tableHost_;
+  QPointer<QGridLayout> tableGrid_;
+  QPointer<QLabel> titleLabel_;
+  QPointer<QLabel> subtitleLabel_;
+  QPointer<QLabel> eventHeaderLabel_;
+  QPointer<QLabel> leadHeaderLabel_;
+  QPointer<QLabel> lagHeaderLabel_;
+  QPointer<QLabel> totalHeaderLabel_;
+  QPointer<QPushButton> resetButton_;
+  QPointer<QPushButton> closeButton_;
 };

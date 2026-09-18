@@ -11,6 +11,7 @@ A function that never uses `this` is not an instance method. `const` does not ap
 - Used only in one `.cpp`: put it in the **anonymous namespace** (internal linkage, off the class). Prefer this over `static` at namespace scope.
 - Needed from multiple translation units, or as part of the type's API: declare it `static` on the class.
 - Do not put a namespace-scope `static` function in a header (each TU would get its own copy).
+- A file-local helper that owns **mutable** process-lifetime data (`static QHash`, `bool loaded`) is not “pure”. Colocate a mutex with that data (`shared-static-state.mdc`).
 
 ```cpp
 // BAD — still on the class; looks like it can touch members

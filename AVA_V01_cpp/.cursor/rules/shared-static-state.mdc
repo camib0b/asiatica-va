@@ -1,0 +1,35 @@
+---
+description: Guard process-lifetime mutable statics with a mutex colocated with the data; magic static init is not thread-safe mutation
+globs: **/*.{h,hpp,cpp,mm}
+alwaysApply: false
+---
+
+# Shared static mutable state needs a mutex
+
+A function-local `static` container or a file-scope flag is process-lifetime shared memory. C++11 magic-static init is thread-safe **once**. Later reads and writes of a `QHash`, `bool`, or similar from `defaultFor` / `setUserOverride` / background export are a data race unless one mutex (or RW lock) covers the whole critical section.
+
+- Put the mutex **in the same struct** as the data it guards (`UserOverrideState`, `callbackEntriesMutex` next to the vector). Do not leave a bare `static QHash` and a separate `bool loaded`.
+- Hold the lock for the entire lookup or update. Do not `constFind` under one lock and `cend()` after release (iterator invalidation / torn read).
+- Helpers that touch the cache (`loadOverridesFromSettings`) must assume the caller already holds the lock. Do not take the same `std::mutex` again (it is not recursive).
+- Serialize `QSettings` load/save for those keys under the same lock. `QSettings` is not safe for the same file from two threads.
+- Immutable after init (`const static` factory tables) does not need a mutex. Concurrent readers plus a writer still do.
+- If you must call out (Qt signals, user callbacks), snapshot under the lock, then invoke **outside** it (`snapshotCallbackEntries` in SystemPowerNotifier).
+
+```cpp
+// BAD — static hash + flag; defaultFor races setUserOverride
+QHash<QString, EventDuration>& userOverrides() {
+  static QHash<QString, EventDuration> overrides;
+  return overrides;
+}
+bool overridesLoaded = false;
+
+// GOOD — one struct, one lock, one critical section
+struct UserOverrideState {
+  std::mutex mutex;
+  QHash<QString, EventDuration> overrides;
+  bool loaded = false;
+};
+std::lock_guard<std::mutex> lock(state.mutex);
+loadOverridesFromSettings(state);
+const auto iterator = state.overrides.constFind(key);
+```

@@ -1,4 +1,5 @@
 #include "WelcomeWindow.h"
+#include "QtPtr.h"
 #include "../style/StyleProps.h"
 #include "../i18n/AppLocale.h"
 #include "../license/LicenseManager.h"
@@ -15,10 +16,6 @@
 #include <QStyle>
 #include <QStyleOptionButton>
 #include <QEvent>
-#include <QObject>
-
-#include <memory>
-#include <utility>
 
 
 WelcomeWindow::WelcomeWindow(QWidget* parent)
@@ -37,20 +34,6 @@ WelcomeWindow::WelcomeWindow(QWidget* parent)
 }
 
 namespace {
-
-struct QtParentDeleter {
-    void operator()(QObject* object) const noexcept {
-        if (object != nullptr && object->parent() == nullptr) {
-            delete object;
-        }
-    }
-};
-
-template<typename Object, typename... Args>
-std::unique_ptr<Object, QtParentDeleter> makeQtPtr(Args&&... args) {
-    return std::unique_ptr<Object, QtParentDeleter>(
-        std::make_unique<Object>(std::forward<Args>(args)...).release());
-}
 
 int styledPushButtonMinimumWidth(const QPushButton* button) {
     if (!button) return 0;

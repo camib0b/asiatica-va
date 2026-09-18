@@ -1,4 +1,5 @@
 #include "ClipDurationSettingsDialog.h"
+#include "QtPtr.h"
 
 #include "../i18n/AppLocale.h"
 #include "../state/EventDefaults.h"
@@ -16,14 +17,16 @@
 #include <QSignalBlocker>
 #include <QVBoxLayout>
 
+#include <memory>
+
 namespace {
 
 constexpr double kMinDurationSeconds = 0.0;
 constexpr double kMaxDurationSeconds = 60.0;
 constexpr double kDurationStepSeconds = 0.5;
 
-QDoubleSpinBox* makeDurationSpinBox(QWidget* parent) {
-  auto* spin = new QDoubleSpinBox(parent);
+std::unique_ptr<QDoubleSpinBox, QtParentDeleter> makeDurationSpinBox(QWidget* parent) {
+  auto spin = makeQtPtr<QDoubleSpinBox>(parent);
   spin->setRange(kMinDurationSeconds, kMaxDurationSeconds);
   spin->setSingleStep(kDurationStepSeconds);
   spin->setDecimals(1);
@@ -38,7 +41,18 @@ QDoubleSpinBox* makeDurationSpinBox(QWidget* parent) {
 } // namespace
 
 ClipDurationSettingsDialog::ClipDurationSettingsDialog(TagSession* session, QWidget* parent)
-    : QDialog(parent), tagSession_(session) {
+    : QDialog(parent),
+      tagSession_(session),
+      tableHost_(nullptr),
+      tableGrid_(nullptr),
+      titleLabel_(nullptr),
+      subtitleLabel_(nullptr),
+      eventHeaderLabel_(nullptr),
+      leadHeaderLabel_(nullptr),
+      lagHeaderLabel_(nullptr),
+      totalHeaderLabel_(nullptr),
+      resetButton_(nullptr),
+      closeButton_(nullptr) {
   setWindowTitle(AppLocale::trUi("clip_durations.title"));
   setMinimumSize(560, 520);
   resize(600, 560);
@@ -49,86 +63,95 @@ ClipDurationSettingsDialog::ClipDurationSettingsDialog(TagSession* session, QWid
 }
 
 void ClipDurationSettingsDialog::buildUi() {
-  auto* rootLayout = new QVBoxLayout(this);
+  auto rootLayout = makeQtPtr<QVBoxLayout>(this);
   rootLayout->setSpacing(16);
   rootLayout->setContentsMargins(24, 24, 24, 24);
 
-  titleLabel_ = new QLabel(this);
-  Style::setRole(titleLabel_, "h2");
-  rootLayout->addWidget(titleLabel_);
+  auto titleLabel = makeQtPtr<QLabel>(this);
+  Style::setRole(titleLabel.get(), "h2");
+  titleLabel_ = titleLabel.get();
+  rootLayout->addWidget(titleLabel.get());
 
-  subtitleLabel_ = new QLabel(this);
-  Style::setRole(subtitleLabel_, "muted");
-  subtitleLabel_->setWordWrap(true);
-  rootLayout->addWidget(subtitleLabel_);
+  auto subtitleLabel = makeQtPtr<QLabel>(this);
+  Style::setRole(subtitleLabel.get(), "muted");
+  subtitleLabel->setWordWrap(true);
+  subtitleLabel_ = subtitleLabel.get();
+  rootLayout->addWidget(subtitleLabel.get());
 
-  auto* scrollArea = new QScrollArea(this);
+  auto scrollArea = makeQtPtr<QScrollArea>(this);
   scrollArea->setWidgetResizable(true);
   scrollArea->setFrameShape(QFrame::NoFrame);
   scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-  auto* tableHost = new QWidget(scrollArea);
-  auto* grid = new QGridLayout(tableHost);
+  auto tableHost = makeQtPtr<QWidget>(scrollArea.get());
+  auto grid = makeQtPtr<QGridLayout>(tableHost.get());
   grid->setContentsMargins(0, 0, 0, 0);
   grid->setHorizontalSpacing(12);
   grid->setVerticalSpacing(8);
+  tableHost_ = tableHost.get();
+  tableGrid_ = grid.get();
 
-  eventHeaderLabel_ = new QLabel(tableHost);
-  Style::setRole(eventHeaderLabel_, "muted");
-  leadHeaderLabel_ = new QLabel(tableHost);
-  Style::setRole(leadHeaderLabel_, "muted");
-  leadHeaderLabel_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-  lagHeaderLabel_ = new QLabel(tableHost);
-  Style::setRole(lagHeaderLabel_, "muted");
-  lagHeaderLabel_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-  totalHeaderLabel_ = new QLabel(tableHost);
-  Style::setRole(totalHeaderLabel_, "muted");
-  totalHeaderLabel_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+  auto eventHeaderLabel = makeQtPtr<QLabel>(tableHost.get());
+  Style::setRole(eventHeaderLabel.get(), "muted");
+  eventHeaderLabel_ = eventHeaderLabel.get();
 
-  grid->addWidget(eventHeaderLabel_, 0, 0);
-  grid->addWidget(leadHeaderLabel_, 0, 1);
-  grid->addWidget(lagHeaderLabel_, 0, 2);
-  grid->addWidget(totalHeaderLabel_, 0, 3);
+  auto leadHeaderLabel = makeQtPtr<QLabel>(tableHost.get());
+  Style::setRole(leadHeaderLabel.get(), "muted");
+  leadHeaderLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+  leadHeaderLabel_ = leadHeaderLabel.get();
+
+  auto lagHeaderLabel = makeQtPtr<QLabel>(tableHost.get());
+  Style::setRole(lagHeaderLabel.get(), "muted");
+  lagHeaderLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+  lagHeaderLabel_ = lagHeaderLabel.get();
+
+  auto totalHeaderLabel = makeQtPtr<QLabel>(tableHost.get());
+  Style::setRole(totalHeaderLabel.get(), "muted");
+  totalHeaderLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+  totalHeaderLabel_ = totalHeaderLabel.get();
+
+  grid->addWidget(eventHeaderLabel.get(), 0, 0);
+  grid->addWidget(leadHeaderLabel.get(), 0, 1);
+  grid->addWidget(lagHeaderLabel.get(), 0, 2);
+  grid->addWidget(totalHeaderLabel.get(), 0, 3);
   grid->setColumnStretch(0, 1);
 
-  scrollArea->setWidget(tableHost);
-  rootLayout->addWidget(scrollArea, 1);
+  scrollArea->setWidget(tableHost.get());
+  rootLayout->addWidget(scrollArea.get(), 1);
 
-  auto* buttonRow = new QHBoxLayout();
+  auto buttonRow = makeQtPtr<QHBoxLayout>();
   buttonRow->setSpacing(8);
 
-  resetButton_ = new QPushButton(this);
-  resetButton_->setCursor(Qt::PointingHandCursor);
-  Style::setVariant(resetButton_, "outline");
-  connect(resetButton_, &QPushButton::clicked, this, &ClipDurationSettingsDialog::onResetAllClicked);
-  buttonRow->addWidget(resetButton_);
+  auto resetButton = makeQtPtr<QPushButton>(this);
+  resetButton->setCursor(Qt::PointingHandCursor);
+  Style::setVariant(resetButton.get(), "outline");
+  connect(resetButton.get(), &QPushButton::clicked, this,
+          &ClipDurationSettingsDialog::onResetAllClicked);
+  resetButton_ = resetButton.get();
+  buttonRow->addWidget(resetButton.get());
 
   buttonRow->addStretch(1);
 
-  closeButton_ = new QPushButton(this);
-  closeButton_->setCursor(Qt::PointingHandCursor);
-  closeButton_->setDefault(true);
-  Style::setVariant(closeButton_, "primary");
-  connect(closeButton_, &QPushButton::clicked, this, &QDialog::accept);
-  buttonRow->addWidget(closeButton_);
+  auto closeButton = makeQtPtr<QPushButton>(this);
+  closeButton->setCursor(Qt::PointingHandCursor);
+  closeButton->setDefault(true);
+  Style::setVariant(closeButton.get(), "primary");
+  connect(closeButton.get(), &QPushButton::clicked, this, &QDialog::accept);
+  closeButton_ = closeButton.get();
+  buttonRow->addWidget(closeButton.get());
 
-  rootLayout->addLayout(buttonRow);
+  rootLayout->addLayout(buttonRow.get());
 }
 
 void ClipDurationSettingsDialog::populateRows() {
-  QWidget* tableHost = eventHeaderLabel_->parentWidget();
-  auto* grid = qobject_cast<QGridLayout*>(tableHost->layout());
-  if (!grid) return;
+  if (!tableHost_ || !tableGrid_) return;
+  QGridLayout* grid = tableGrid_.get();
 
-  for (const DurationRow& row : rows_) {
-    if (row.eventLabel) grid->removeWidget(row.eventLabel);
-    if (row.leadSpin) grid->removeWidget(row.leadSpin);
-    if (row.lagSpin) grid->removeWidget(row.lagSpin);
-    if (row.totalLabel) grid->removeWidget(row.totalLabel);
-    delete row.eventLabel;
-    delete row.leadSpin;
-    delete row.lagSpin;
-    delete row.totalLabel;
+  for (DurationRow& row : rows_) {
+    unparentAndDelete(row.eventLabel.get());
+    unparentAndDelete(row.leadSpin.get());
+    unparentAndDelete(row.lagSpin.get());
+    unparentAndDelete(row.totalLabel.get());
   }
   rows_.clear();
 
@@ -139,29 +162,31 @@ void ClipDurationSettingsDialog::populateRows() {
   for (const QString& eventName : eventTypes) {
     const EventDefaults::EventDuration duration = EventDefaults::defaultFor(eventName);
 
+    auto eventLabel = makeQtPtr<QLabel>(AppLocale::trEvent(eventName), tableHost_.get());
+    auto leadSpin = makeDurationSpinBox(tableHost_.get());
+    leadSpin->setValue(duration.leadMs / 1000.0);
+    auto lagSpin = makeDurationSpinBox(tableHost_.get());
+    lagSpin->setValue(duration.lagMs / 1000.0);
+    auto totalLabel = makeQtPtr<QLabel>(tableHost_.get());
+    totalLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    Style::setRole(totalLabel.get(), "muted");
+
     DurationRow row;
     row.eventName = eventName;
-    row.eventLabel = new QLabel(AppLocale::trEvent(eventName), tableHost);
-
-    row.leadSpin = makeDurationSpinBox(tableHost);
-    row.leadSpin->setValue(duration.leadMs / 1000.0);
-
-    row.lagSpin = makeDurationSpinBox(tableHost);
-    row.lagSpin->setValue(duration.lagMs / 1000.0);
-
-    row.totalLabel = new QLabel(tableHost);
-    row.totalLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    Style::setRole(row.totalLabel, "muted");
+    row.eventLabel = eventLabel.get();
+    row.leadSpin = leadSpin.get();
+    row.lagSpin = lagSpin.get();
+    row.totalLabel = totalLabel.get();
     refreshTotalLabel(row);
 
-    grid->addWidget(row.eventLabel, gridRow, 0);
-    grid->addWidget(row.leadSpin, gridRow, 1);
-    grid->addWidget(row.lagSpin, gridRow, 2);
-    grid->addWidget(row.totalLabel, gridRow, 3);
+    grid->addWidget(eventLabel.get(), gridRow, 0);
+    grid->addWidget(leadSpin.get(), gridRow, 1);
+    grid->addWidget(lagSpin.get(), gridRow, 2);
+    grid->addWidget(totalLabel.get(), gridRow, 3);
 
-    connect(row.leadSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+    connect(leadSpin.get(), QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
             [this, eventName](double) { onDurationChanged(eventName); });
-    connect(row.lagSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+    connect(lagSpin.get(), QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
             [this, eventName](double) { onDurationChanged(eventName); });
 
     rows_.append(row);

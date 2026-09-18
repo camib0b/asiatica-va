@@ -1,33 +1,27 @@
 ---
-description: One owner per heap object — unique_ptr for structs and unparented QObjects; parent-aware unique_ptr plus QPointer for widgets; never both default-deleter unique_ptr and a Qt parent
+description: One owner per heap object — unique_ptr for structs and unparented QObjects; makeQtPtr plus QPointer for widgets; never both default-deleter unique_ptr and a Qt parent
 globs: **/*.{h,hpp,cpp}
 alwaysApply: false
 ---
 
 # Qt / C++ ownership: one owner
 
-Pick **one** owner. Mixing `new`/`delete`, `deleteLater`, a Qt parent, and a default-deleter `unique_ptr` on the same object is how jobs leak or double-delete.
+Pick **one** owner. Mixing `new`/`delete`, `deleteLater`, a Qt parent, and a default-deleter `unique_ptr` on the same object is how jobs leak or double-delete. Use `ui/QtPtr.h` (`makeQtPtr`, `unparentAndDelete`). Do not copy those helpers into a `.cpp`.
 
 - **Non-QObject heap types** (`Job`, `QTemporaryDir`): `std::unique_ptr`. No destructor `delete`. Store them in `std::vector`, not `QVector` (QList detach copy-constructs).
-- **QWidget / parented QObject** (`QLabel`, `QPushButton`, `QAction`, layouts): `makeQtPtr<T>(parent)` (see below). No raw `new`. Members that observe these widgets are `QPointer<T>` (auto-null if Qt deletes first). Do not store a default-deleter `unique_ptr` after the object has a Qt parent.
+- **QWidget / parented QObject** (`QLabel`, `QPushButton`, `QAction`, layouts): `makeQtPtr<T>(parent)`. No raw `new`. Observe with `QPointer<T>` (auto-null if Qt deletes first). Do not store a default-deleter `unique_ptr` after the object has a Qt parent. Row structs in `QVector` hold `QPointer`s, not owning `unique_ptr`s (`QVector` copies; `QtParentDeleter` will not free a still-parented widget on `clear()`).
+- **Widget factories** (`makeDurationSpinBox`): return `std::unique_ptr<T, QtParentDeleter>`, not `T*`. The caller keeps the local until the widget is parented / in a layout, then observes with `QPointer`.
+- **Replacing parented children**: do not `delete` a widget that still has a Qt parent (UAF if the parent already destroyed it; double-ownership with `new`). Call `unparentAndDelete(widget)` so Qt releases ownership first. Skip `removeWidget` + raw `delete` loops.
 - **Unparented QObject you uniquely own** (`ClipExporter` on a job, `VideoConcatenator`, `QProcess`): `std::make_unique<Foo>()` with **no** Qt parent. Never also `new Foo(this)`.
 - **Transfer across objects**: the setter takes `std::unique_ptr<T>` by value; the caller `std::move`s. Do not pass a raw `T*` into a setter that later `delete`s it.
 - **Destructor**: do not `delete` or `reset()` unique_ptr members. They run after the destructor body. `reset()` only when releasing **early** (cancel, replace, dismiss).
 - **Destroying a QObject from its own signal**: `release()` then `disconnect()` then `deleteLater()`. Do not `unique_ptr::reset()` on that stack.
 
 ```cpp
-struct QtParentDeleter {
-  void operator()(QObject* object) const noexcept {
-    if (object && object->parent() == nullptr) delete object;
-  }
-};
-template<typename T, typename... Args>
-std::unique_ptr<T, QtParentDeleter> makeQtPtr(Args&&... args) {
-  return {std::make_unique<T>(std::forward<Args>(args)...).release()};
-}
-
-// BAD — raw new; member dangles if Qt parent deletes first
-titleLabel_ = new QLabel(contentContainer);
+// BAD — raw new; factory returns T*; populateRows deletes parented widgets
+QDoubleSpinBox* makeDurationSpinBox(QWidget* parent);
+titleLabel_ = new QLabel(this);
+delete row.eventLabel;
 
 // BAD — default unique_ptr AND Qt parent: two owners
 std::unique_ptr<QLabel> titleLabel_ = std::make_unique<QLabel>(this);
@@ -36,4 +30,5 @@ std::unique_ptr<QLabel> titleLabel_ = std::make_unique<QLabel>(this);
 auto titleLabel = makeQtPtr<QLabel>(contentContainer.get());
 titleLabel_ = titleLabel.get();
 layout->addWidget(titleLabel.get());
+unparentAndDelete(row.eventLabel.get());  // rebuild: Qt releases, then C++ deletes
 ```

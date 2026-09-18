@@ -35,19 +35,19 @@ QStringList allConfigurableEventTypes();
 /// Hard-coded factory defaults (ignores user overrides).
 EventDuration factoryDefaultFor(const QString& canonicalMainEvent);
 
-/// Effective default: user override when set, otherwise factory default.
+/// Effective default: user override when set, otherwise factory default. Thread-safe.
 EventDuration defaultFor(const QString& canonicalMainEvent);
 
 /// Quarter code Q1..Q4 for index 0..3; empty when the index is out of range.
 QString quarterCode(int quarterIndex);
 
-/// Persist a user override and update the in-memory cache.
+/// Persist a user override and update the in-memory cache. Thread-safe.
 void setUserOverride(const QString& canonicalMainEvent, qint64 leadMs, qint64 lagMs);
 
-/// Remove all user overrides from memory and QSettings.
+/// Remove all user overrides from memory and QSettings. Thread-safe.
 void clearUserOverrides();
 
-/// Load persisted overrides from QSettings (call once at app startup).
+/// Load persisted overrides from QSettings (call once at app startup). Thread-safe.
 void loadFromSettings();
 
 } // namespace EventDefaults
