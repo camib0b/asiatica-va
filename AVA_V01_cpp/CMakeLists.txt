@@ -45,6 +45,7 @@ qt_add_executable(AVA
   export/ExportJobManager.cpp
   export/ExportJobsBar.cpp
   export/ExportSettingsDialog.cpp
+  export/ConcatFileOrderDialog.cpp
   export/VideoConcatenator.cpp
   export/PlaybackVideoPreparer.cpp
   export/XmlExporter.cpp

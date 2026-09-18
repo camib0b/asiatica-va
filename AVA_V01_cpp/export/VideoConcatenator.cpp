@@ -1,24 +1,41 @@
 #include "VideoConcatenator.h"
 #include "ClipExporter.h"
+#include "ConcatFileOrderDialog.h"
 #include "../i18n/AppLocale.h"
 #include "../style/StyleProps.h"
 
-#include <QDialog>
 #include <QEventLoop>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QListWidget>
 #include <QProcess>
 #include <QProgressDialog>
-#include <QPushButton>
+#include <QSignalBlocker>
 #include <QTemporaryFile>
 #include <QTextStream>
-#include <QVBoxLayout>
 
 namespace {
+
+bool concatPathContainsControlCharacters(const QString& path) {
+    for (const QChar character : path) {
+        if (character.unicode() < 0x20 || character.unicode() == 0x7F) return true;
+    }
+    return false;
+}
+
+QString resolvedConcatSourcePath(const QString& path) {
+    const QFileInfo info(path);
+    if (!info.exists() || !info.isFile()) return {};
+    const QString canonicalPath = info.canonicalFilePath();
+    if (!canonicalPath.isEmpty()) return canonicalPath;
+    return info.absoluteFilePath();
+}
+
+QString ffmpegConcatFileDirective(const QString& absolutePath) {
+    QString escapedPath = absolutePath;
+    escapedPath.replace(QLatin1Char('\''), QStringLiteral("'\\''"));
+    return QStringLiteral("file '") + escapedPath + QStringLiteral("'\n");
+}
 
 QString ffmpegStderrForDisplay(const QByteArray& stderrBytes) {
     const QString text = QString::fromUtf8(stderrBytes).trimmed();
@@ -38,14 +55,43 @@ VideoConcatenator::VideoConcatenator(QObject* parent)
       concatListPath_(),
       outputPath_(),
       errorMessage_(),
-      finished_(false),
-      succeeded_(false),
-      cancelled_(false) {}
+      state_(JobState::Idle) {}
 
 VideoConcatenator::~VideoConcatenator() {
     stopAndDiscardProcess();
     discardConcatList();
-    if (!succeeded_) removePartialOutput();
+    if (state_ != JobState::Succeeded) removePartialOutput();
+}
+
+bool VideoConcatenator::succeeded() const {
+    return state_ == JobState::Succeeded;
+}
+
+bool VideoConcatenator::isTerminal() const {
+    return state_ == JobState::Succeeded
+        || state_ == JobState::Failed
+        || state_ == JobState::Cancelled;
+}
+
+void VideoConcatenator::beginNewJob() {
+    stopAndDiscardProcess();
+    discardConcatList();
+    state_ = JobState::Idle;
+    errorMessage_.clear();
+    outputPath_.clear();
+}
+
+void VideoConcatenator::settle(JobState nextState, const QString& message) {
+    if (isTerminal()) return;
+
+    const bool hadStartedOutput = (state_ == JobState::Running);
+    state_ = nextState;
+    errorMessage_ = message;
+    discardConcatList();
+    if (nextState != JobState::Succeeded && hadStartedOutput) {
+        removePartialOutput();
+    }
+    emit concatenationFinished(nextState == JobState::Succeeded);
 }
 
 void VideoConcatenator::stopAndDiscardProcess() {
@@ -71,22 +117,19 @@ void VideoConcatenator::removePartialOutput() {
 }
 
 void VideoConcatenator::failWith(const QString& message) {
-    discardConcatList();
-    finished_ = true;
-    succeeded_ = false;
-    errorMessage_ = message;
-    emit concatenationFinished(false);
+    settle(JobState::Failed, message);
 }
 
 void VideoConcatenator::startConcatenation(const QStringList& inputPaths,
                                            const QString& outputDir) {
+    beginNewJob();
+
     const QString ffmpegPath = ClipExporter::findFfmpeg();
     if (ffmpegPath.isEmpty()) {
         failWith(AppLocale::trUi("concat.error_ffmpeg"));
         return;
     }
 
-    discardConcatList();
     QTemporaryFile listFile;
     listFile.setAutoRemove(false);
     if (!listFile.open()) {
@@ -96,10 +139,18 @@ void VideoConcatenator::startConcatenation(const QStringList& inputPaths,
     }
 
     QTextStream stream(&listFile);
+    stream << QStringLiteral("ffconcat version 1.0\n");
     for (const QString& path : inputPaths) {
-        QString escapedPath = path;
-        escapedPath.replace(QStringLiteral("'"), QStringLiteral("'\\''"));
-        stream << QStringLiteral("file '") << escapedPath << QStringLiteral("'\n");
+        const QString absolutePath = resolvedConcatSourcePath(path);
+        if (absolutePath.isEmpty()) {
+            failWith(AppLocale::trUi("concat.error_missing_file").arg(path));
+            return;
+        }
+        if (concatPathContainsControlCharacters(absolutePath)) {
+            failWith(AppLocale::trUi("concat.error_unsafe_path").arg(path));
+            return;
+        }
+        stream << ffmpegConcatFileDirective(absolutePath);
     }
     stream.flush();
     concatListPath_ = listFile.fileName();
@@ -111,12 +162,8 @@ void VideoConcatenator::startConcatenation(const QStringList& inputPaths,
     listFile.close();
 
     outputPath_ = outputDir + QStringLiteral("/concatenated.mp4");
-    finished_ = false;
-    succeeded_ = false;
-    cancelled_ = false;
-    errorMessage_.clear();
+    state_ = JobState::Running;
 
-    stopAndDiscardProcess();
     process_ = std::make_unique<QProcess>();
     connect(process_.get(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &VideoConcatenator::onProcessFinished);
@@ -138,61 +185,49 @@ void VideoConcatenator::startConcatenation(const QStringList& inputPaths,
 }
 
 void VideoConcatenator::cancel() {
-    // Ignore spurious cancel (e.g. QProgressDialog teardown) after a successful run;
-    // otherwise succeeded_ would be cleared and callers return false incorrectly.
-    if (finished_ && succeeded_) return;
-
-    cancelled_ = true;
+    if (isTerminal()) return;
+    settle(JobState::Cancelled, QString());
     if (process_ && process_->state() != QProcess::NotRunning) {
         process_->kill();
     }
-    finished_ = true;
-    succeeded_ = false;
-    errorMessage_.clear();
-    discardConcatList();
-    removePartialOutput();
 }
 
 void VideoConcatenator::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus) {
-    if (cancelled_ || finished_) return;
+    if (isTerminal()) return;
 
-    finished_ = true;
-    succeeded_ = (exitStatus == QProcess::NormalExit && exitCode == 0);
-    discardConcatList();
-    if (!succeeded_) {
-        removePartialOutput();
-        const QString stderrOutput = process_
-            ? ffmpegStderrForDisplay(process_->readAllStandardError())
-            : QString();
-        if (stderrOutput.isEmpty()) {
-            errorMessage_ = AppLocale::trUi("concat.error_failed")
-                + QLatin1Char('\n')
-                + QStringLiteral("no FFmpeg stderr (exit %1, status %2)")
-                      .arg(exitCode)
-                      .arg(exitStatus == QProcess::CrashExit
-                               ? QStringLiteral("crashed")
-                               : QStringLiteral("failed"));
-        } else {
-            errorMessage_ = AppLocale::trUi("concat.error_failed")
-                + QLatin1Char('\n') + stderrOutput;
-        }
+    if (exitStatus == QProcess::NormalExit && exitCode == 0) {
+        settle(JobState::Succeeded, QString());
+        return;
     }
-    emit concatenationFinished(succeeded_);
+
+    const QString stderrOutput = process_
+        ? ffmpegStderrForDisplay(process_->readAllStandardError())
+        : QString();
+    if (stderrOutput.isEmpty()) {
+        failWith(AppLocale::trUi("concat.error_failed")
+            + QLatin1Char('\n')
+            + QStringLiteral("no FFmpeg stderr (exit %1, status %2)")
+                  .arg(exitCode)
+                  .arg(exitStatus == QProcess::CrashExit
+                           ? QStringLiteral("crashed")
+                           : QStringLiteral("failed")));
+        return;
+    }
+    failWith(AppLocale::trUi("concat.error_failed") + QLatin1Char('\n') + stderrOutput);
 }
 
 void VideoConcatenator::onProcessError(QProcess::ProcessError error) {
-    if (cancelled_ || finished_) return;
+    if (isTerminal()) return;
     // Crashes and I/O errors still emit finished(); FailedToStart does not.
     if (error != QProcess::FailedToStart) return;
 
     const QString program = process_ ? process_->program() : QString();
     const QString processError = process_ ? process_->errorString() : QString();
-    removePartialOutput();
     failWith(AppLocale::trUi("concat.error_ffmpeg_start").arg(program, processError));
 }
 
 bool VideoConcatenator::waitWithProgress(QWidget* parentWidget) {
-    if (finished_) return succeeded_;
+    if (isTerminal()) return succeeded();
 
     QProgressDialog progress(
         AppLocale::trUi("concat.preparing"),
@@ -203,26 +238,17 @@ bool VideoConcatenator::waitWithProgress(QWidget* parentWidget) {
     progress.setMinimumDuration(0);
 
     QEventLoop loop;
-
-    connect(this, &VideoConcatenator::concatenationFinished,
-            &loop, &QEventLoop::quit);
-
-    connect(&progress, &QProgressDialog::canceled, this, [this, &loop]() {
-        cancel();
-        loop.quit();
-    });
+    connect(this, &VideoConcatenator::concatenationFinished, &loop, &QEventLoop::quit);
+    connect(&progress, &QProgressDialog::canceled, this, &VideoConcatenator::cancel);
 
     progress.show();
-
-    if (!finished_) {
+    if (!isTerminal()) {
         loop.exec();
     }
 
-    // Snapshot before close(): on some platforms closing the dialog can emit
-    // canceled(), which would call cancel() and wrongly clear succeeded_.
-    const bool concatenationOk = succeeded_;
+    const QSignalBlocker closeGuard(&progress);
     progress.close();
-    return concatenationOk;
+    return succeeded();
 }
 
 QStringList VideoConcatenator::selectVideoFiles(QWidget* parentWidget) {
@@ -235,98 +261,8 @@ QStringList VideoConcatenator::selectVideoFiles(QWidget* parentWidget) {
 
 bool VideoConcatenator::showFileOrderDialog(QStringList& filePaths,
                                             QWidget* parentWidget) {
-    QDialog dialog(parentWidget);
-    dialog.setWindowTitle(AppLocale::trUi("concat.dialog_title"));
-    Style::setRole(&dialog, "fileOrder");
-
-    auto* layout = new QVBoxLayout(&dialog);
-    layout->setSpacing(16);
-    layout->setContentsMargins(24, 24, 24, 24);
-
-    auto* titleLabel = new QLabel(AppLocale::trUi("concat.dialog_title"), &dialog);
-    Style::setRole(titleLabel, "h1");
-    titleLabel->setAlignment(Qt::AlignCenter);
-    layout->addWidget(titleLabel);
-
-    auto* listWidget = new QListWidget(&dialog);
-    Style::setRole(listWidget, "chipStrip");
-    listWidget->setFrameShape(QFrame::NoFrame);
-    listWidget->setFlow(QListView::LeftToRight);
-    listWidget->setWrapping(true);
-    listWidget->setResizeMode(QListView::Adjust);
-    listWidget->setSpacing(6);
-    listWidget->setDragDropMode(QAbstractItemView::InternalMove);
-    listWidget->setDefaultDropAction(Qt::MoveAction);
-    listWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    listWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    listWidget->setSelectionMode(QAbstractItemView::SingleSelection);
-    listWidget->setTextElideMode(Qt::ElideMiddle);
-
-    for (const QString& path : filePaths) {
-        auto* item = new QListWidgetItem(QFileInfo(path).fileName());
-        item->setData(Qt::UserRole, path);
-        item->setTextAlignment(Qt::AlignCenter);
-        listWidget->addItem(item);
-    }
-    if (listWidget->count() > 0) listWidget->setCurrentRow(0);
-    layout->addWidget(listWidget);
-
-    auto* moveRow = new QHBoxLayout();
-    moveRow->setSpacing(8);
-    auto* moveLeftButton = new QPushButton(AppLocale::trUi("concat.move_left"), &dialog);
-    auto* moveRightButton = new QPushButton(AppLocale::trUi("concat.move_right"), &dialog);
-    moveLeftButton->setCursor(Qt::PointingHandCursor);
-    moveRightButton->setCursor(Qt::PointingHandCursor);
-    Style::setVariant(moveLeftButton, "ghost");
-    Style::setSize(moveLeftButton, "sm");
-    Style::setVariant(moveRightButton, "ghost");
-    Style::setSize(moveRightButton, "sm");
-    moveRow->addStretch(1);
-    moveRow->addWidget(moveLeftButton);
-    moveRow->addWidget(moveRightButton);
-    moveRow->addStretch(1);
-    layout->addLayout(moveRow);
-
-    auto* buttonRow = new QHBoxLayout();
-    buttonRow->setSpacing(12);
-    auto* cancelButton = new QPushButton(AppLocale::trUi("concat.cancel"), &dialog);
-    auto* continueButton = new QPushButton(AppLocale::trUi("concat.continue_btn"), &dialog);
-    cancelButton->setCursor(Qt::PointingHandCursor);
-    continueButton->setCursor(Qt::PointingHandCursor);
-    Style::setVariant(cancelButton, "ghost");
-    Style::setSize(cancelButton, "md");
-    Style::setVariant(continueButton, "welcomeImport");
-    Style::setSize(continueButton, "lg");
-    buttonRow->addStretch(1);
-    buttonRow->addWidget(cancelButton);
-    buttonRow->addWidget(continueButton);
-    buttonRow->addStretch(1);
-    layout->addLayout(buttonRow);
-
-    QObject::connect(moveLeftButton, &QPushButton::clicked, &dialog, [&listWidget]() {
-        const int row = listWidget->currentRow();
-        if (row <= 0) return;
-        QListWidgetItem* item = listWidget->takeItem(row);
-        listWidget->insertItem(row - 1, item);
-        listWidget->setCurrentRow(row - 1);
-    });
-
-    QObject::connect(moveRightButton, &QPushButton::clicked, &dialog, [&listWidget]() {
-        const int row = listWidget->currentRow();
-        if (row < 0 || row >= listWidget->count() - 1) return;
-        QListWidgetItem* item = listWidget->takeItem(row);
-        listWidget->insertItem(row + 1, item);
-        listWidget->setCurrentRow(row + 1);
-    });
-
-    QObject::connect(continueButton, &QPushButton::clicked, &dialog, &QDialog::accept);
-    QObject::connect(cancelButton, &QPushButton::clicked, &dialog, &QDialog::reject);
-
+    ConcatFileOrderDialog dialog(filePaths, parentWidget);
     if (dialog.exec() != QDialog::Accepted) return false;
-
-    filePaths.clear();
-    for (int i = 0; i < listWidget->count(); ++i) {
-        filePaths.append(listWidget->item(i)->data(Qt::UserRole).toString());
-    }
+    filePaths = dialog.orderedFilePaths();
     return true;
 }

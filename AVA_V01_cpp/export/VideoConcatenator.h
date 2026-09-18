@@ -19,7 +19,7 @@ public:
     void startConcatenation(const QStringList& inputPaths, const QString& outputDir);
     void cancel();
 
-    bool succeeded() const { return succeeded_; }
+    bool succeeded() const;
     QString outputPath() const { return outputPath_; }
     QString errorMessage() const { return errorMessage_; }
 
@@ -36,8 +36,19 @@ private slots:
     void onProcessError(QProcess::ProcessError error);
 
 private:
+    enum class JobState {
+        Idle,
+        Running,
+        Succeeded,
+        Failed,
+        Cancelled,
+    };
+
+    void beginNewJob();
     void stopAndDiscardProcess();
     void failWith(const QString& message);
+    void settle(JobState nextState, const QString& message);
+    bool isTerminal() const;
     void discardConcatList();
     void removePartialOutput();
 
@@ -48,7 +59,5 @@ private:
     QString concatListPath_;
     QString outputPath_;
     QString errorMessage_;
-    bool finished_ = false;
-    bool succeeded_ = false;
-    bool cancelled_ = false;
+    JobState state_ = JobState::Idle;
 };
