@@ -10,8 +10,10 @@
 #include <QAction>
 #include <QApplication>
 #include <QKeySequence>
+#include <QList>
 
 #include <QTimer>
+#include <QPointer>
 #include <QPalette>
 #include <QColor>
 
@@ -20,6 +22,23 @@
 
 namespace {
 constexpr qint64 kSeekStepMs = 2000;
+constexpr int kFlashDurationMs = 150;
+
+void setButtonFlashState(QPushButton* button, bool flashing) {
+  if (!button) {
+    return;
+  }
+  button->setProperty("flash", flashing);
+  button->style()->unpolish(button);
+  button->style()->polish(button);
+  button->update();
+}
+
+void applyButtonStrings(QPushButton* button, const char* textKey, const char* tooltipKey) {
+  Q_ASSERT(button != nullptr);
+  button->setText(AppLocale::trUi(textKey));
+  button->setToolTip(AppLocale::trUi(tooltipKey));
+}
 }
 
 VideoControlsBar::VideoControlsBar(QWidget* parent)
@@ -32,6 +51,8 @@ VideoControlsBar::VideoControlsBar(QWidget* parent)
       playbackRate_(1.0) {
   buildUi();
   wireSignals();
+  setPlaybackShortcutMediaGate(false);
+  setPlaybackShortcutFocusGate(false);
   buildKeyboardShortcuts();
   setEnabledForMedia(false);
   setPlaying(false);
@@ -107,20 +128,17 @@ void VideoControlsBar
 }
 
 void VideoControlsBar::applyUiStrings() {
-  if (playButton_) playButton_->setText(AppLocale::trUi("vc.play"));
-  if (pauseButton_) pauseButton_->setText(AppLocale::trUi("vc.pause"));
-  if (backButton_) backButton_->setText(AppLocale::trUi("vc.back"));
-  if (forwardButton_) forwardButton_->setText(AppLocale::trUi("vc.forward"));
-  if (slowerButton_) slowerButton_->setText(AppLocale::trUi("vc.slower"));
-  if (resetSpeedButton_) resetSpeedButton_->setText(AppLocale::trUi("vc.reset_speed"));
-  if (fasterButton_) fasterButton_->setText(AppLocale::trUi("vc.faster"));
-  if (playButton_) playButton_->setToolTip(AppLocale::trUi("vc.tt.play"));
-  if (pauseButton_) pauseButton_->setToolTip(AppLocale::trUi("vc.tt.pause"));
-  if (backButton_) backButton_->setToolTip(AppLocale::trUi("vc.tt.back"));
-  if (forwardButton_) forwardButton_->setToolTip(AppLocale::trUi("vc.tt.forward"));
-  if (slowerButton_) slowerButton_->setToolTip(AppLocale::trUi("vc.tt.slower"));
-  if (fasterButton_) fasterButton_->setToolTip(AppLocale::trUi("vc.tt.faster"));
-  if (resetSpeedButton_) resetSpeedButton_->setToolTip(AppLocale::trUi("vc.tt.reset"));
+  Q_ASSERT(playButton_ && pauseButton_ && backButton_ && forwardButton_
+           && slowerButton_ && resetSpeedButton_ && fasterButton_ && muteButton_
+           && speedLabel_);
+
+  applyButtonStrings(playButton_, "vc.play", "vc.tt.play");
+  applyButtonStrings(pauseButton_, "vc.pause", "vc.tt.pause");
+  applyButtonStrings(backButton_, "vc.back", "vc.tt.back");
+  applyButtonStrings(forwardButton_, "vc.forward", "vc.tt.forward");
+  applyButtonStrings(slowerButton_, "vc.slower", "vc.tt.slower");
+  applyButtonStrings(resetSpeedButton_, "vc.reset_speed", "vc.tt.reset");
+  applyButtonStrings(fasterButton_, "vc.faster", "vc.tt.faster");
   updateMuteButton();
   updateSpeedLabel();
 }
@@ -162,41 +180,51 @@ void VideoControlsBar::wireSignals() {
 void VideoControlsBar::buildKeyboardShortcuts() {
   Q_ASSERT(QApplication::instance() != nullptr);
 
-  togglePlayPauseAction_ = new QAction(this);
-  togglePlayPauseAction_->setShortcut(QKeySequence(Qt::Key_Space));
-  togglePlayPauseAction_->setShortcutContext(Qt::ApplicationShortcut);
+  auto makeGatedPlaybackShortcut = [this](const QList<QKeySequence>& shortcuts) {
+    auto* action = new QAction(this);
+    action->setShortcuts(shortcuts);
+    action->setShortcutContext(Qt::ApplicationShortcut);
+    action->setEnabled(false);
+    addAction(action);
+    return action;
+  };
+
+  togglePlayPauseAction_ = makeGatedPlaybackShortcut({QKeySequence(Qt::Key_Space)});
   connect(togglePlayPauseAction_, &QAction::triggered, this, [this]() {
     emit togglePlayPauseFromKeyboardShortcut();
   });
-  addAction(togglePlayPauseAction_);
 
-  slowerPlaybackAction_ = new QAction(this);
-  slowerPlaybackAction_->setShortcuts({
+  slowerPlaybackAction_ = makeGatedPlaybackShortcut({
       QKeySequence(Qt::Key_Minus),
       QKeySequence(Qt::Key_Minus | Qt::KeypadModifier),
   });
-  slowerPlaybackAction_->setShortcutContext(Qt::ApplicationShortcut);
   connect(slowerPlaybackAction_, &QAction::triggered, this, &VideoControlsBar::flashSlowerButton);
   connect(slowerPlaybackAction_, &QAction::triggered, this, &VideoControlsBar::slowerRequested);
-  addAction(slowerPlaybackAction_);
 
-  fasterPlaybackAction_ = new QAction(this);
-  fasterPlaybackAction_->setShortcuts({
+  fasterPlaybackAction_ = makeGatedPlaybackShortcut({
       QKeySequence(Qt::Key_Plus),
       QKeySequence(Qt::Key_Plus | Qt::KeypadModifier),
       QKeySequence(Qt::SHIFT | Qt::Key_Equal),
   });
-  fasterPlaybackAction_->setShortcutContext(Qt::ApplicationShortcut);
   connect(fasterPlaybackAction_, &QAction::triggered, this, &VideoControlsBar::flashFasterButton);
   connect(fasterPlaybackAction_, &QAction::triggered, this, &VideoControlsBar::fasterRequested);
-  addAction(fasterPlaybackAction_);
 
-  resetSpeedAction_ = new QAction(this);
-  resetSpeedAction_->setShortcut(QKeySequence(Qt::SHIFT | Qt::Key_BraceRight));
-  resetSpeedAction_->setShortcutContext(Qt::ApplicationShortcut);
+  resetSpeedAction_ = makeGatedPlaybackShortcut({
+      QKeySequence(Qt::SHIFT | Qt::Key_BraceRight),
+  });
   connect(resetSpeedAction_, &QAction::triggered, this, &VideoControlsBar::flashResetSpeedButton);
   connect(resetSpeedAction_, &QAction::triggered, this, &VideoControlsBar::resetSpeedRequested);
-  addAction(resetSpeedAction_);
+
+  // Shift+M: plain M is WorkWindow mode-cycle. Hardware mute is an extra no-conflict binding.
+  muteToggleAction_ = makeGatedPlaybackShortcut({
+      QKeySequence(Qt::SHIFT | Qt::Key_M),
+      QKeySequence(Qt::Key_VolumeMute),
+  });
+  connect(muteToggleAction_, &QAction::triggered, this, [this]() {
+    if (muteButton_ && muteButton_->isEnabled()) {
+      muteButton_->click();
+    }
+  });
 
   updatePlaybackShortcutEnablement();
 }
@@ -213,43 +241,42 @@ void VideoControlsBar::setPlaybackShortcutFocusGate(bool allowed) {
 
 void VideoControlsBar::updatePlaybackShortcutEnablement() {
   const bool shortcutsActive = playbackShortcutMediaGate_ && playbackShortcutFocusGate_;
-  if (togglePlayPauseAction_) {
-    togglePlayPauseAction_->setEnabled(shortcutsActive);
-  }
-  if (slowerPlaybackAction_) {
-    slowerPlaybackAction_->setEnabled(shortcutsActive);
-  }
-  if (fasterPlaybackAction_) {
-    fasterPlaybackAction_->setEnabled(shortcutsActive);
-  }
-  if (resetSpeedAction_) {
-    resetSpeedAction_->setEnabled(shortcutsActive);
+  const std::array<QAction*, 5> playbackShortcutActions = {
+    togglePlayPauseAction_,
+    slowerPlaybackAction_,
+    fasterPlaybackAction_,
+    resetSpeedAction_,
+    muteToggleAction_,
+  };
+  for (auto* action : playbackShortcutActions) {
+    if (action) {
+      action->setEnabled(shortcutsActive);
+    }
   }
 }
 
 void VideoControlsBar::setEnabledForMedia(bool enabled) {
   mediaEnabled_ = enabled;
-  backButton_->setEnabled(enabled);
-  forwardButton_->setEnabled(enabled);
-  slowerButton_->setEnabled(enabled);
-  fasterButton_->setEnabled(enabled);
-  resetSpeedButton_->setEnabled(enabled);
-  muteButton_->setEnabled(enabled);
-  updatePlayPauseButtonEnablement();
+  updateEnabledState();
 }
 
 void VideoControlsBar::setPlaying(bool playing) {
   playing_ = playing;
-  updatePlayPauseButtonEnablement();
+  updateEnabledState();
 }
 
-void VideoControlsBar::updatePlayPauseButtonEnablement() const {
-  if (playButton_) {
-    playButton_->setEnabled(mediaEnabled_ && !playing_);
-  }
-  if (pauseButton_) {
-    pauseButton_->setEnabled(mediaEnabled_ && playing_);
-  }
+void VideoControlsBar::updateEnabledState() const {
+  Q_ASSERT(playButton_ && pauseButton_ && backButton_ && forwardButton_
+           && slowerButton_ && fasterButton_ && resetSpeedButton_ && muteButton_);
+
+  playButton_->setEnabled(mediaEnabled_ && !playing_);
+  pauseButton_->setEnabled(mediaEnabled_ && playing_);
+  backButton_->setEnabled(mediaEnabled_);
+  forwardButton_->setEnabled(mediaEnabled_);
+  slowerButton_->setEnabled(mediaEnabled_);
+  fasterButton_->setEnabled(mediaEnabled_);
+  resetSpeedButton_->setEnabled(mediaEnabled_);
+  muteButton_->setEnabled(mediaEnabled_);
 }
 
 void VideoControlsBar::setPlaybackRate(double rate) {
@@ -271,9 +298,7 @@ void VideoControlsBar::setMuted(bool muted) {
 }
 
 void VideoControlsBar::updateMuteButton() const {
-  if (!muteButton_) {
-    return;
-  }
+  Q_ASSERT(muteButton_ != nullptr);
 
   muteButton_->setText(muted_ ? AppLocale::trUi("vc.unmute") : AppLocale::trUi("vc.mute"));
   muteButton_->setToolTip(muted_ ? AppLocale::trUi("vc.tt.unmute") : AppLocale::trUi("vc.tt.mute"));
@@ -288,29 +313,22 @@ void VideoControlsBar::updateSpeedLabel() {
 }
 
 void VideoControlsBar::flashButtonBorder(QPushButton* button) {
-  if (!button) return;
+  if (!button) {
+    return;
+  }
 
-  QTimer* timer = flashTimers_.value(button, nullptr);
+  auto* timer = button->findChild<QTimer*>(QStringLiteral("flashClearTimer"), Qt::FindDirectChildrenOnly);
   if (!timer) {
     timer = new QTimer(button);
+    timer->setObjectName(QStringLiteral("flashClearTimer"));
     timer->setSingleShot(true);
-    flashTimers_.insert(button, timer);
-
-    connect(timer, &QTimer::timeout, this, [button]() {
-      if (!button) return;
-      button->setProperty("flash", false);
-      button->style()->unpolish(button);
-      button->style()->polish(button);
-      button->update();
+    connect(timer, &QTimer::timeout, button, [buttonGuard = QPointer<QPushButton>(button)]() {
+      setButtonFlashState(buttonGuard, false);
     });
   }
 
-  button->setProperty("flash", true);
-  button->style()->unpolish(button);
-  button->style()->polish(button);
-  button->update();
-
-  timer->start(150);
+  setButtonFlashState(button, true);
+  timer->start(kFlashDurationMs);
 }
 
 void VideoControlsBar::flashPlayButton()       { flashButtonBorder(playButton_); }

@@ -1,0 +1,31 @@
+---
+description: Do not capture raw QObject pointers in delayed lambdas; parent timers to the widget and use QPointer plus a context object
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# Timer / delayed-lambda QObject safety
+
+A raw `T*` captured by a `QTimer` (or queued) lambda is not nulled when the object is destroyed. `if (!button) return;` does not prevent use-after-free. A `QHash<QWidget*, QTimer*>` also dangles if the widget dies while the map still lives (follow-up buttons, `deleteLater`).
+
+- Parent the timer to the widget so it dies with it. Do not keep a parallel raw timer map.
+- `connect(..., context, lambda)` with the **widget** as context so Qt drops the slot before destruction.
+- Capture `QPointer<T>` (or use a `QPointer` parameter) and return if it is null.
+- `destroyed()` may clear observer maps; it is not a substitute for `QPointer` + context.
+
+```cpp
+// BAD — raw capture; null check is a no-op after delete; map dangles
+connect(timer, &QTimer::timeout, this, [button]() {
+  if (!button) return;
+  button->setProperty("flash", false);
+});
+flashTimers_.insert(button, timer);
+
+// GOOD — timer is a child; context is the button; QPointer observes
+timer = new QTimer(button);
+connect(timer, &QTimer::timeout, button,
+        [buttonGuard = QPointer<QPushButton>(button)]() {
+          if (!buttonGuard) return;
+          buttonGuard->setProperty("flash", false);
+        });
+```

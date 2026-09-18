@@ -3,7 +3,6 @@
 #include <QWidget>
 #include <QStringList>
 #include <QList>
-#include <QHash>
 #include <QVector>
 
 #include "FollowUpState.h"
@@ -14,7 +13,6 @@ class QLabel;
 class QGridLayout;
 class QHBoxLayout;
 class QWidget;
-class QTimer;
 class QAction;
 class QKeyEvent;
 
@@ -165,7 +163,6 @@ protected:
   GamePhase gamePhase_ = GamePhase::NotStarted;
   QPushButton* activeMainButton_ = nullptr;
   QList<QPushButton*> followUpButtons_;
-  QHash<QPushButton*, QTimer*> flashTimers_;
 
   QString homeTeamFollowUpLabel_ = QStringLiteral("home");
   QString awayTeamFollowUpLabel_ = QStringLiteral("away");

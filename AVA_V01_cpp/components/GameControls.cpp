@@ -10,6 +10,7 @@
 #include <QPushButton>
 #include <QWidget>
 #include <QTimer>
+#include <QPointer>
 #include <QAction>
 #include <QKeySequence>
 #include <QKeyEvent>
@@ -21,6 +22,17 @@
 namespace {
 
 constexpr QLatin1StringView kDefaultTeamSelectedBorderHex("#18181b");
+constexpr int kFlashDurationMs = 150;
+
+void setButtonFlashState(QPushButton* button, bool flashing) {
+  if (!button) {
+    return;
+  }
+  button->setProperty("flash", flashing);
+  button->style()->unpolish(button);
+  button->style()->polish(button);
+  button->update();
+}
 
 QString normalizeTeamColorHex(const QString& hex) {
   QString hexClean = hex.trimmed();
@@ -718,16 +730,7 @@ void GameControls::presentFollowUpChoices(const QStringList& actions, FollowUpSt
 }
 
 void GameControls::hideFollowUpButtons() {
-  // Remove and delete all follow-up buttons
   for (auto* button : followUpButtons_) {
-    // Clean up any flash timers for this button
-    if (flashTimers_.contains(button)) {
-      QTimer* timer = flashTimers_.take(button);
-      if (timer) {
-        timer->stop();
-        timer->deleteLater();
-      }
-    }
     followUpLayout_->removeWidget(button);
     button->deleteLater();
   }
@@ -736,29 +739,22 @@ void GameControls::hideFollowUpButtons() {
 }
 
 void GameControls::flashButtonBorder(QPushButton* button) {
-  if (!button) return;
+  if (!button) {
+    return;
+  }
 
-  QTimer* timer = flashTimers_.value(button, nullptr);
+  auto* timer = button->findChild<QTimer*>(QStringLiteral("flashClearTimer"), Qt::FindDirectChildrenOnly);
   if (!timer) {
     timer = new QTimer(button);
+    timer->setObjectName(QStringLiteral("flashClearTimer"));
     timer->setSingleShot(true);
-    flashTimers_.insert(button, timer);
-
-    connect(timer, &QTimer::timeout, this, [button]() {
-      if (!button) return;
-      button->setProperty("flash", false);
-      button->style()->unpolish(button);
-      button->style()->polish(button);
-      button->update();
+    connect(timer, &QTimer::timeout, button, [buttonGuard = QPointer<QPushButton>(button)]() {
+      setButtonFlashState(buttonGuard, false);
     });
   }
 
-  button->setProperty("flash", true);
-  button->style()->unpolish(button);
-  button->style()->polish(button);
-  button->update();
-
-  timer->start(150);
+  setButtonFlashState(button, true);
+  timer->start(kFlashDurationMs);
 }
 
 QList<QPushButton*> GameControls::focusableButtonsOrder() const {

@@ -5,7 +5,6 @@
 
 class QPushButton;
 class QLabel;
-class QTimer;
 class QAction;
 
 class VideoControlsBar final : public QWidget {
@@ -14,6 +13,8 @@ class VideoControlsBar final : public QWidget {
 public:
   explicit VideoControlsBar(QWidget* parent = nullptr);
 
+  /// Media-loaded gate for transport controls. Play/pause exclusivity comes from
+  /// setPlaying(); either setter may be called in any order.
   void setEnabledForMedia(bool enabled);
 
   /// Media loaded and not temporarily disabled (e.g. export dialog); combined with focus gate for shortcuts.
@@ -22,6 +23,7 @@ public:
   /// WorkWindow focus / mode policy (text fields, other windows, setup screen).
   void setPlaybackShortcutFocusGate(bool allowed);
 
+  /// Play vs pause exclusivity. Buttons stay disabled while media is not enabled.
   void setPlaying(bool playing);
   void setPlaybackRate(double rate);
   void setMuted(bool muted);
@@ -53,13 +55,12 @@ private:
   void wireSignals();
   void buildKeyboardShortcuts();
   void updatePlaybackShortcutEnablement();
-  void updatePlayPauseButtonEnablement() const;
+  void updateEnabledState() const;
   void updateMuteButton() const;
   void updateSpeedLabel();
   void flashButtonBorder(QPushButton* button);
 
   QHash<QPushButton*, QString>    originalButtonStyles_;
-  QHash<QPushButton*, QTimer*>    flashTimers_;
   QPushButton* playButton_        = nullptr;
   QPushButton* pauseButton_       = nullptr;
   QPushButton* backButton_        = nullptr;
@@ -74,6 +75,7 @@ private:
   QAction* slowerPlaybackAction_ = nullptr;
   QAction* fasterPlaybackAction_ = nullptr;
   QAction* resetSpeedAction_ = nullptr;
+  QAction* muteToggleAction_ = nullptr;
 
   bool playbackShortcutMediaGate_ = false;
   bool playbackShortcutFocusGate_ = false;
