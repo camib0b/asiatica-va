@@ -62,6 +62,7 @@ signals:
 private slots:
     void onClipProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void onConcatProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
+    void onProcessError(QProcess::ProcessError error);
 
 private:
     void processNextClip();
@@ -69,6 +70,7 @@ private:
     void cleanup();
     void stopAndDiscardProcess();
     void finishExport(bool success, const QString& message);
+    void startFfmpegJob(const QStringList& arguments, bool concatenating);
     static QSize probeVideoDisplaySize(const QString& videoPath);
     static qreal computeOverlayScale(const QSize& videoSize);
     static QSize cappedOutputSize(const QSize& sourceSize);
@@ -88,7 +90,10 @@ private:
     QString outputPath_;
     QVector<ClipSegment> clips_;
 
-    QProcess* currentProcess_ = nullptr;
+    /// Unparented QObject; this unique_ptr is the only owner. Replace via
+    /// stopAndDiscardProcess() (release + deleteLater) so finished() cannot
+    /// delete the process on its own stack.
+    std::unique_ptr<QProcess> currentProcess_;
     std::unique_ptr<QTemporaryDir> tempDir_;
     int currentClipIndex_ = 0;
     bool cancelled_ = false;

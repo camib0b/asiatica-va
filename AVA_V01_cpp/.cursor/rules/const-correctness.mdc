@@ -1,25 +1,35 @@
 ---
-description: Apply const to C++ member functions that do not mutate logical object state
+description: Const-correct C++ — const methods, static no-this helpers, const& inputs, explicit lambda captures
 globs: **/*.{h,hpp,cpp}
 alwaysApply: false
 ---
 
-# Const-correctness for member functions
+# Const-correctness
 
-Mark a member function `const` when it does not change the object's logical state. This clarifies intent and allows calls from `const` contexts.
+Mark an **instance** method `const` when it does not change logical object state (including refresh helpers that only update child widgets). That enables calls from `const` contexts.
 
-Logical constness includes methods that only **read members** and **update child widgets** to reflect that state (refresh, sync, relabel). Pointer members stay usable because `const` makes the pointer const, not the pointee.
+If the function never uses `this`, do **not** add `const` to the method. Make it `static` or a free function in the anonymous namespace. `static` and `const` (on the method) are mutually exclusive.
 
 ```cpp
-// BAD — refresh only reads colorHex_ and paints child widgets
-void refreshWell();
+// BAD — static has no this; trailing const will not compile
+static QSize probeVideoDisplaySize(const QString& path) const;
 
-// GOOD
-void refreshWell() const;
+// GOOD — no this: static; callers pass const QString&
+static QSize probeVideoDisplaySize(const QString& path);
+QString color() const { return colorHex_; }  // instance, read-only
 ```
 
-Do **not** mark methods `const` when they assign to non-`mutable` members or change the object's own model/interaction state (setters, popup show/hide, signal emission of new values).
+Pass read-only objects as `const T&` (`QString`, `QSize`, structs). Pass cheap scalars by value; `const` on a by-value parameter in the definition documents non-mutation.
 
-If a method does not use `this` at all, `const` is the wrong tool: make it `static` or a free function in the anonymous namespace.
+Prefer `const` locals. Lambdas: capture only what you need. Capture `const T&` (or by value for cheap/const data) for reads; `&` only for locals the lambda mutates.
 
-Use `mutable` only for bookkeeping that is not logical state (reentrancy guards, caches). Example: `mutable bool syncingHexEdit_` so `syncHexEditFromColor() const` can suppress echo while writing a child `QLineEdit`.
+```cpp
+// BAD
+auto measure = [&](qreal scale) { return measureLayout(scale, data); };
+
+// GOOD
+auto measure = [&data, &homeScore](qreal scale) { return measureLayout(scale); };
+auto append = [&filterComplex, &stageCounter](int index, const QString& expr) { ... };
+```
+
+Do not mark methods `const` when they assign non-`mutable` members or change interaction state. Use `mutable` only for caches/reentrancy guards.

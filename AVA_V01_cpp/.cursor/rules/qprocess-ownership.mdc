@@ -1,25 +1,23 @@
 ---
-description: Stop and discard the previous QProcess before replacing the pointer
+description: Own QProcess with unique_ptr; never parent it and never overwrite a live pointer
 globs: **/*.{h,hpp,cpp}
 alwaysApply: false
 ---
 
-# Do not overwrite a live QProcess pointer
+# Exclusive QProcess ownership
 
-Never assign `process_ = new QProcess(...)` while a previous `QProcess` is still stored. The old process stays parented and running; its `finished()` can land on the new run's state and mix stderr into the wrong `errorMessage_`.
+`std::unique_ptr<QProcess>` is the only owner. Do not also pass `this` as a Qt parent. Never assign a new process while the previous one is still stored.
 
-Disconnect, kill if running, wait, then `deleteLater` and null the pointer before creating the next process. Share that cleanup with the destructor.
+`stopAndDiscardProcess()` must `release()`, disconnect, kill/wait if running, then `deleteLater()`. Share that cleanup with the destructor. Do not `unique_ptr::reset()` on the `finished()` stack.
 
 ```cpp
-// BAD
+// BAD — parented AND leaked on reuse; finished() can land on the next run
 process_ = new QProcess(this);
 process_->start(ffmpegPath, arguments);
 
 // GOOD
 stopAndDiscardProcess();
-process_ = new QProcess(this);
-connect(process_, &QProcess::finished, this, &Klass::onProcessFinished);
+process_ = std::make_unique<QProcess>();
+connect(process_.get(), &QProcess::finished, this, &Klass::onProcessFinished);
 process_->start(ffmpegPath, arguments);
 ```
-
-Parenting is not a substitute for exclusive ownership of one running job.

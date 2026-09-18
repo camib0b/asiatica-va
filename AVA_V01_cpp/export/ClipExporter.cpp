@@ -17,7 +17,6 @@
 #include <QtGlobal>
 
 #include <algorithm>
-#include <functional>
 #include <utility>
 
 namespace {
@@ -29,7 +28,7 @@ constexpr qreal kMinimumOverlayScale = 0.5;
 constexpr qreal kMaximumOverlayScale = 3.0;
 constexpr qreal kMaximumOverlayWidthFraction = 0.9;
 
-int evenDimension(int value) {
+int evenDimension(const int value) {
     const int floored = qMax(2, value);
     return floored - (floored % 2);
 }
@@ -55,30 +54,17 @@ public:
     }
 
 private:
-    qreal factor_;
+    const qreal factor_;
 };
 
-// Reduces scale until measured width fits maxWidth. Text advance is near-linear
-// in font size, so a few passes converge.
-qreal fitScaleToWidth(qreal startScale, int maxWidth,
-                      const std::function<int(qreal)>& measureImageWidth) {
-    if (maxWidth <= 0 || startScale <= 0.0) {
+// Text advance and padding scale nearly linearly with font size. Measure once
+// at startScale, then apply a single proportional shrink if the plate is too wide.
+qreal scaleToFitWidth(const qreal startScale, const int measuredWidth, const int maxWidth) {
+    if (maxWidth <= 0 || startScale <= 0.0 || measuredWidth <= maxWidth || measuredWidth <= 0) {
         return startScale;
     }
-
-    qreal scale = startScale;
-    for (int attempt = 0; attempt < 8; ++attempt) {
-        const int measuredWidth = measureImageWidth(scale);
-        if (measuredWidth <= maxWidth) {
-            return scale;
-        }
-        if (measuredWidth <= 0) {
-            return scale;
-        }
-        scale *= static_cast<qreal>(maxWidth) / static_cast<qreal>(measuredWidth);
-        scale = qMax(kMinimumOverlayScale * 0.25, scale);
-    }
-    return scale;
+    return qMax(kMinimumOverlayScale * 0.25,
+                startScale * static_cast<qreal>(maxWidth) / static_cast<qreal>(measuredWidth));
 }
 
 QSize parseSizeFromFfmpegStderr(const QString& stderrOutput) {
@@ -229,7 +215,6 @@ ClipExporter::ClipExporter(QObject* parent) : QObject(parent) {}
 ClipExporter::~ClipExporter() {
     cancelled_ = true;
     stopAndDiscardProcess();
-    cleanup();
 }
 
 QString ClipExporter::findFfmpeg() {
@@ -527,7 +512,7 @@ void ClipExporter::processNextClip() {
     int stageCounter = 0;
 
     auto appendOverlayStage = [&filterComplex, &currentVideoLabel, &stageCounter](
-                                  int inputIndex, const QString& overlayExpression) {
+                                  const int inputIndex, const QString& overlayExpression) {
         const QString nextLabel = QStringLiteral("ov%1").arg(stageCounter++);
         if (!filterComplex.isEmpty()) {
             filterComplex += QStringLiteral(";");
@@ -626,13 +611,7 @@ void ClipExporter::processNextClip() {
               << QStringLiteral("-movflags") << QStringLiteral("+faststart")
               << tempPath;
 
-    stopAndDiscardProcess();
-    currentProcess_ = new QProcess(this);
-    connect(currentProcess_,
-            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, &ClipExporter::onClipProcessFinished);
-
-    currentProcess_->start(ffmpegPath_, arguments);
+    startFfmpegJob(arguments, false);
 }
 
 void ClipExporter::onClipProcessFinished(int exitCode, QProcess::ExitStatus exitStatus) {
@@ -717,6 +696,13 @@ void ClipExporter::concatenateClips() {
     for (const QString& clipPath : tempClipPaths_) {
         stream << QStringLiteral("file '") << clipPath << QStringLiteral("'\n");
     }
+    stream.flush();
+    if (stream.status() != QTextStream::Ok) {
+        finishExport(false,
+            QStringLiteral("Failed to write concat file list at \"%1\": %2")
+                .arg(concatListPath, listFile.errorString()));
+        return;
+    }
     listFile.close();
 
     QStringList arguments;
@@ -727,13 +713,7 @@ void ClipExporter::concatenateClips() {
               << QStringLiteral("-c") << QStringLiteral("copy")
               << outputPath_;
 
-    stopAndDiscardProcess();
-    currentProcess_ = new QProcess(this);
-    connect(currentProcess_,
-            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, &ClipExporter::onConcatProcessFinished);
-
-    currentProcess_->start(ffmpegPath_, arguments);
+    startFfmpegJob(arguments, true);
 }
 
 void ClipExporter::onConcatProcessFinished(int exitCode, QProcess::ExitStatus exitStatus) {
@@ -760,6 +740,7 @@ void ClipExporter::onConcatProcessFinished(int exitCode, QProcess::ExitStatus ex
 }
 
 void ClipExporter::cleanup() {
+    stopAndDiscardProcess();
     tempDir_.reset();
     tempClipPaths_.clear();
     brandingImagePath_.clear();
@@ -777,13 +758,40 @@ void ClipExporter::finishExport(bool success, const QString& message) {
 
 void ClipExporter::stopAndDiscardProcess() {
     if (!currentProcess_) return;
-    currentProcess_->disconnect();
-    if (currentProcess_->state() != QProcess::NotRunning) {
-        currentProcess_->kill();
-        currentProcess_->waitForFinished(3000);
+    QProcess* dyingProcess = currentProcess_.release();
+    dyingProcess->disconnect();
+    if (dyingProcess->state() != QProcess::NotRunning) {
+        dyingProcess->kill();
+        dyingProcess->waitForFinished(3000);
     }
-    currentProcess_->deleteLater();
-    currentProcess_ = nullptr;
+    dyingProcess->deleteLater();
+}
+
+void ClipExporter::startFfmpegJob(const QStringList& arguments, bool concatenating) {
+    stopAndDiscardProcess();
+    currentProcess_ = std::make_unique<QProcess>();
+    if (concatenating) {
+        connect(currentProcess_.get(),
+                QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, &ClipExporter::onConcatProcessFinished);
+    } else {
+        connect(currentProcess_.get(),
+                QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, &ClipExporter::onClipProcessFinished);
+    }
+    connect(currentProcess_.get(), &QProcess::errorOccurred, this, &ClipExporter::onProcessError);
+    currentProcess_->start(ffmpegPath_, arguments);
+}
+
+void ClipExporter::onProcessError(QProcess::ProcessError error) {
+    if (cancelled_ || exportFinishedEmitted_) return;
+    if (error != QProcess::FailedToStart) return;
+
+    const QString errorString = currentProcess_ ? currentProcess_->errorString() : QString();
+    finishExport(false,
+        errorString.isEmpty()
+            ? QStringLiteral("Failed to start FFmpeg at \"%1\".").arg(ffmpegPath_)
+            : QStringLiteral("Failed to start FFmpeg at \"%1\": %2").arg(ffmpegPath_, errorString));
 }
 
 QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
@@ -795,7 +803,8 @@ QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
     const QString awayScoreStr = QString::number(data.awayGoals);
     const QString separator = QStringLiteral("\u2014");
 
-    auto measureLayout = [&](qreal scale) -> ScoreboardLayout {
+    auto measureLayout =
+        [&data, &homeScoreStr, &awayScoreStr, &separator](const qreal scale) -> ScoreboardLayout {
         ScoreboardLayout layout;
         layout.scaler = OverlayScaler(scale);
         layout.paddingH = layout.scaler.pixels(16 * kScoreboardScale);
@@ -841,12 +850,15 @@ QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
         return layout;
     };
 
-    const qreal fittedScale = fitScaleToWidth(
-        overlayScale, maxImageWidth,
-        [&](qreal scale) { return measureLayout(scale).imageWidth; });
-    const ScoreboardLayout layout = measureLayout(fittedScale);
+    ScoreboardLayout layout = measureLayout(overlayScale);
+    if (maxImageWidth > 0 && layout.imageWidth > maxImageWidth) {
+        layout = measureLayout(
+            scaleToFitWidth(overlayScale, layout.imageWidth, maxImageWidth));
+    }
 
+    if (layout.imageWidth <= 0 || layout.imageHeight <= 0) return {};
     QImage image(layout.imageWidth, layout.imageHeight, QImage::Format_ARGB32_Premultiplied);
+    if (image.isNull()) return {};
     image.fill(Qt::transparent);
 
     QPainter painter(&image);
@@ -859,14 +871,22 @@ QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
     painter.drawRoundedRect(image.rect(), layout.cornerRadius, layout.cornerRadius);
 
     auto parseColor = [](const QString& hex, const QColor& fallback) -> QColor {
-        QString h = hex.trimmed();
-        if (!h.isEmpty() && !h.startsWith(QLatin1Char('#'))) h.prepend(QLatin1Char('#'));
-        QColor c(h);
-        return c.isValid() ? c : fallback;
+        const QString trimmed = hex.trimmed();
+        const QString normalized =
+            (!trimmed.isEmpty() && !trimmed.startsWith(QLatin1Char('#')))
+                ? (QLatin1Char('#') + trimmed)
+                : trimmed;
+        const QColor parsed(normalized);
+        return parsed.isValid() ? parsed : fallback;
     };
 
     int x = layout.paddingH;
     const int centerY = layout.imageHeight / 2;
+    const int homeNameAdvance = layout.nameMetrics.horizontalAdvance(data.homeName);
+    const int awayNameAdvance = layout.nameMetrics.horizontalAdvance(data.awayName);
+    const int homeScoreAdvance = layout.scoreMetrics.horizontalAdvance(homeScoreStr);
+    const int awayScoreAdvance = layout.scoreMetrics.horizontalAdvance(awayScoreStr);
+    const int separatorAdvance = layout.sepMetrics.horizontalAdvance(separator);
 
     const QColor homeColor = parseColor(data.homeColorHex, QColor(96, 165, 250));
     painter.setBrush(homeColor);
@@ -879,39 +899,39 @@ QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
     painter.setPen(QColor(255, 255, 255, 170));
     const int nameH = layout.nameMetrics.height();
     painter.drawText(x, centerY - nameH / 2,
-                     layout.nameMetrics.horizontalAdvance(data.homeName), nameH,
+                     homeNameAdvance, nameH,
                      Qt::AlignLeft | Qt::AlignVCenter, data.homeName);
-    x += layout.nameMetrics.horizontalAdvance(data.homeName) + layout.elementSpacing;
+    x += homeNameAdvance + layout.elementSpacing;
 
     painter.setFont(layout.scoreFont);
     painter.setPen(QColor(255, 255, 255));
     const int scoreH = layout.scoreMetrics.height();
     painter.drawText(x, centerY - scoreH / 2,
-                     layout.scoreMetrics.horizontalAdvance(homeScoreStr), scoreH,
+                     homeScoreAdvance, scoreH,
                      Qt::AlignCenter, homeScoreStr);
-    x += layout.scoreMetrics.horizontalAdvance(homeScoreStr) + layout.scoreSpacing;
+    x += homeScoreAdvance + layout.scoreSpacing;
 
     painter.setFont(layout.sepFont);
     painter.setPen(QColor(255, 255, 255, 90));
     const int sepH = layout.sepMetrics.height();
     painter.drawText(x, centerY - sepH / 2,
-                     layout.sepMetrics.horizontalAdvance(separator), sepH,
+                     separatorAdvance, sepH,
                      Qt::AlignCenter, separator);
-    x += layout.sepMetrics.horizontalAdvance(separator) + layout.scoreSpacing;
+    x += separatorAdvance + layout.scoreSpacing;
 
     painter.setFont(layout.scoreFont);
     painter.setPen(QColor(255, 255, 255));
     painter.drawText(x, centerY - scoreH / 2,
-                     layout.scoreMetrics.horizontalAdvance(awayScoreStr), scoreH,
+                     awayScoreAdvance, scoreH,
                      Qt::AlignCenter, awayScoreStr);
-    x += layout.scoreMetrics.horizontalAdvance(awayScoreStr) + layout.elementSpacing;
+    x += awayScoreAdvance + layout.elementSpacing;
 
     painter.setFont(layout.nameFont);
     painter.setPen(QColor(255, 255, 255, 170));
     painter.drawText(x, centerY - nameH / 2,
-                     layout.nameMetrics.horizontalAdvance(data.awayName), nameH,
+                     awayNameAdvance, nameH,
                      Qt::AlignLeft | Qt::AlignVCenter, data.awayName);
-    x += layout.nameMetrics.horizontalAdvance(data.awayName) + layout.elementSpacing;
+    x += awayNameAdvance + layout.elementSpacing;
 
     const QColor awayColor = parseColor(data.awayColorHex, QColor(248, 113, 113));
     painter.setPen(Qt::NoPen);
@@ -933,6 +953,7 @@ QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
     const int compositeWidth = squareSide + quarterGap + layout.imageWidth;
 
     QImage composite(compositeWidth, layout.imageHeight, QImage::Format_ARGB32_Premultiplied);
+    if (composite.isNull()) return {};
     composite.fill(Qt::transparent);
 
     QPainter compositePainter(&composite);
@@ -976,8 +997,10 @@ QString ClipExporter::generateBrandingImage(const QString& outputPath,
 
     const int imageWidth = textBounds.width() + 2 * kPadding;
     const int imageHeight = metrics.height() + 2 * kPadding;
+    if (imageWidth <= 0 || imageHeight <= 0) return {};
 
     QImage image(imageWidth, imageHeight, QImage::Format_ARGB32_Premultiplied);
+    if (image.isNull()) return {};
     image.fill(Qt::transparent);
 
     QPainter painter(&image);
@@ -1010,7 +1033,8 @@ QString ClipExporter::generateOverlayImage(const QString& primaryText,
 
     const bool hasSecondary = !secondaryText.isEmpty();
 
-    auto measureLayout = [&](qreal scale) -> BottomOverlayLayout {
+    auto measureLayout =
+        [&primaryText, &secondaryText, hasSecondary](const qreal scale) -> BottomOverlayLayout {
         BottomOverlayLayout layout;
         layout.scaler = OverlayScaler(scale);
         layout.padding = layout.scaler.pixels(kDesignPadding);
@@ -1044,12 +1068,15 @@ QString ClipExporter::generateOverlayImage(const QString& primaryText,
         return layout;
     };
 
-    const qreal fittedScale = fitScaleToWidth(
-        overlayScale, maxImageWidth,
-        [&](qreal scale) { return measureLayout(scale).imageWidth; });
-    const BottomOverlayLayout layout = measureLayout(fittedScale);
+    BottomOverlayLayout layout = measureLayout(overlayScale);
+    if (maxImageWidth > 0 && layout.imageWidth > maxImageWidth) {
+        layout = measureLayout(
+            scaleToFitWidth(overlayScale, layout.imageWidth, maxImageWidth));
+    }
 
+    if (layout.imageWidth <= 0 || layout.imageHeight <= 0) return {};
     QImage image(layout.imageWidth, layout.imageHeight, QImage::Format_ARGB32_Premultiplied);
+    if (image.isNull()) return {};
     image.fill(Qt::transparent);
 
     QPainter painter(&image);

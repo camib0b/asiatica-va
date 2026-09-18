@@ -4,6 +4,8 @@
 #include <QProcess>
 #include <QString>
 
+#include <memory>
+
 class QWidget;
 
 /// Prepares source videos for in-app playback via QMediaPlayer (AVFoundation on macOS).
@@ -38,7 +40,10 @@ private slots:
 private:
   void stopAndDiscardProcess();
 
-  QProcess* process_ = nullptr;
+  /// Unparented QObject; this unique_ptr is the only owner. Replace via
+  /// stopAndDiscardProcess() (release + deleteLater) so finished() cannot
+  /// delete the process on its own stack.
+  std::unique_ptr<QProcess> process_;
   QString outputPath_;
   QString errorMessage_;
   bool finished_ = false;

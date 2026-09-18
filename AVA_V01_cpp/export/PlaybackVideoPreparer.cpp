@@ -8,7 +8,14 @@
 #include <QProcess>
 #include <QProgressDialog>
 
-PlaybackVideoPreparer::PlaybackVideoPreparer(QObject* parent) : QObject(parent) {}
+PlaybackVideoPreparer::PlaybackVideoPreparer(QObject* parent)
+    : QObject(parent),
+      process_(),
+      outputPath_(),
+      errorMessage_(),
+      finished_(false),
+      succeeded_(false),
+      cancelled_(false) {}
 
 PlaybackVideoPreparer::~PlaybackVideoPreparer() {
     stopAndDiscardProcess();
@@ -16,13 +23,13 @@ PlaybackVideoPreparer::~PlaybackVideoPreparer() {
 
 void PlaybackVideoPreparer::stopAndDiscardProcess() {
     if (!process_) return;
-    process_->disconnect();
-    if (process_->state() != QProcess::NotRunning) {
-        process_->kill();
-        process_->waitForFinished(3000);
+    QProcess* dyingProcess = process_.release();
+    dyingProcess->disconnect();
+    if (dyingProcess->state() != QProcess::NotRunning) {
+        dyingProcess->kill();
+        dyingProcess->waitForFinished(3000);
     }
-    process_->deleteLater();
-    process_ = nullptr;
+    dyingProcess->deleteLater();
 }
 
 bool PlaybackVideoPreparer::requiresTranscodeForPlayback(const QString& filePath) {
@@ -50,10 +57,10 @@ void PlaybackVideoPreparer::startPreparation(const QString& inputPath,
     errorMessage_.clear();
 
     stopAndDiscardProcess();
-    process_ = new QProcess(this);
-    connect(process_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+    process_ = std::make_unique<QProcess>();
+    connect(process_.get(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &PlaybackVideoPreparer::onProcessFinished);
-    connect(process_, &QProcess::errorOccurred, this, &PlaybackVideoPreparer::onProcessError);
+    connect(process_.get(), &QProcess::errorOccurred, this, &PlaybackVideoPreparer::onProcessError);
 
     QStringList arguments;
     arguments << QStringLiteral("-y")
