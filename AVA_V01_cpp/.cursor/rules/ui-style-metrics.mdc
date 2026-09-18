@@ -1,0 +1,27 @@
+---
+description: Ask QStyle for widget metrics instead of copying padding/border numbers from QSS
+globs: **/*.{h,hpp,cpp,qss}
+alwaysApply: false
+---
+
+# Do not duplicate stylesheet metrics in C++
+
+When C++ needs a pixel size, query the live style after polish. Do not copy padding, border, or radius values from `theme_light.qss`. Those tokens will drift and clip text.
+
+```cpp
+// BAD — lg padding 24+24 and a guessed focus ring
+constexpr int horizontalPaddingPx = 48;
+constexpr int focusBorderSlackPx = 4;
+return textWidth + horizontalPaddingPx + focusBorderSlackPx;
+
+// GOOD — QStyle applies current QSS box model (including :focus)
+button->ensurePolished();
+QStyleOptionButton option;
+option.initFrom(button);
+option.state |= QStyle::State_HasFocus;
+option.text = button->text();
+const QSize textSize = button->fontMetrics().size(Qt::TextShowMnemonic, button->text());
+return button->style()->sizeFromContents(QStyle::CT_PushButton, &option, textSize, button).width();
+```
+
+Recompute on `StyleChange` / `FontChange` / text changes. Prefer `sizeFromContents`, `pixelMetric`, or `contentsMargins()` over magic numbers. Keep visual tokens in QSS (`Style::setSize` / `setVariant`).

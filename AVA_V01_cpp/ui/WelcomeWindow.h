@@ -4,6 +4,7 @@
 
 class QLabel;
 class QPushButton;
+class QEvent;
 
 class WelcomeWindow final : public QWidget {
   Q_OBJECT
@@ -19,10 +20,14 @@ signals:
   void videoImportRequested();
   void enterLicenseRequested();
 
+protected:
+  void changeEvent(QEvent* event) override;
+
 private:
   void buildUi();
   void wireSignals();
   void buildKeyboardShortcuts();
+  void syncImportButtonMinimumWidth();
 
   QLabel* titleLabel_ = nullptr;
   QPushButton* importButton_ = nullptr;

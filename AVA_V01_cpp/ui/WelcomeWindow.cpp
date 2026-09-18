@@ -9,11 +9,13 @@
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QAction>
-#include <QFontMetrics>
 #include <QApplication>
 #include <QDateTime>
 #include <QTimeZone>
 #include <QSizePolicy>
+#include <QStyle>
+#include <QStyleOptionButton>
+#include <QEvent>
 
 
 WelcomeWindow::WelcomeWindow(QWidget* parent) : QWidget(parent) {
@@ -28,16 +30,29 @@ WelcomeWindow::WelcomeWindow(QWidget* parent) : QWidget(parent) {
 
 namespace {
 
-int welcomeImportButtonMinimumWidth(const QPushButton* button) {
+int styledPushButtonMinimumWidth(const QPushButton* button) {
     if (!button) return 0;
 
-    const QFontMetrics metrics(button->font());
-    const int textWidth =
-        metrics.boundingRect(0, 0, 0, 0, Qt::TextShowMnemonic, button->text()).width();
-    // Stylesheet padding is not included in QPushButton::sizeHint().
-    constexpr int horizontalPaddingPx = 48; // lg size: 24px left + 24px right
-    constexpr int focusBorderSlackPx = 4;   // 2px focus ring vs 1px normal border
-    return textWidth + horizontalPaddingPx + focusBorderSlackPx;
+    button->ensurePolished();
+
+    auto widthForFocus = [button](bool focused) {
+        QStyleOptionButton option;
+        option.initFrom(button);
+        if (focused) {
+            option.state |= QStyle::State_HasFocus;
+        } else {
+            option.state &= ~QStyle::State_HasFocus;
+        }
+        option.text = button->text();
+        option.icon = button->icon();
+        option.iconSize = button->iconSize();
+
+        const QSize textSize = button->fontMetrics().size(Qt::TextShowMnemonic, button->text());
+        return button->style()->sizeFromContents(QStyle::CT_PushButton, &option, textSize, button).width();
+    };
+
+    // :focus rules can thicken the border or change padding; size for both states.
+    return qMax(widthForFocus(false), widthForFocus(true));
 }
 
 } // namespace
@@ -46,7 +61,7 @@ void WelcomeWindow::applyUiStrings() {
     if (titleLabel_) titleLabel_->setText(QStringLiteral("ava"));
     if (importButton_) {
         importButton_->setText(AppLocale::trUi("welcome.import"));
-        importButton_->setMinimumWidth(welcomeImportButtonMinimumWidth(importButton_));
+        syncImportButtonMinimumWidth();
     }
     if (enterLicenseButton_) {
         enterLicenseButton_->setText(AppLocale::trUi("license.enter_key"));
@@ -106,6 +121,19 @@ void WelcomeWindow::buildUi() {
     // Center content container in outer layout
     outerLayout->addWidget(contentContainer, 0, Qt::AlignCenter);
     outerLayout->addStretch(1);
+}
+
+void WelcomeWindow::changeEvent(QEvent* event) {
+    QWidget::changeEvent(event);
+    if (!event) return;
+    if (event->type() == QEvent::StyleChange || event->type() == QEvent::FontChange) {
+        syncImportButtonMinimumWidth();
+    }
+}
+
+void WelcomeWindow::syncImportButtonMinimumWidth() {
+    if (!importButton_) return;
+    importButton_->setMinimumWidth(styledPushButtonMinimumWidth(importButton_));
 }
 
 void WelcomeWindow::wireSignals() {
