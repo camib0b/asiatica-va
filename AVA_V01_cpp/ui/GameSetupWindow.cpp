@@ -18,7 +18,10 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-GameSetupWindow::GameSetupWindow(QWidget* parent) : QWidget(parent) {
+GameSetupWindow::GameSetupWindow(QWidget* parent)
+    : QWidget(parent),
+      ignoreDateChange_(false),
+      dateEditedByUser_(false) {
   setObjectName("AppRoot");
   setAttribute(Qt::WA_StyledBackground, true);
   metadataSuggester_ = new GameMetadataSuggester(this);
@@ -109,6 +112,8 @@ void GameSetupWindow::applyUiStrings() {
 
 void GameSetupWindow::onLanguageComboChanged(int index) {
   AppLocale::setLanguage(index == 1 ? AppLocale::Language::Spanish : AppLocale::Language::English);
+  QSignalBlocker languageComboBlocker(languageCombo_);
+  applyUiStrings();
 }
 
 QString GameSetupWindow::deriveAbbreviationFromTeamName(const QString& teamName) {

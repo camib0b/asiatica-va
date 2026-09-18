@@ -13,21 +13,21 @@ C++ does not zero members just because a constructor exists. A `bool`, `int`, or
 In-class `= nullptr` / `= false` / `= Qt::gray` is a second line of defense, not a substitute for the init list.
 
 ```cpp
-// BAD — applyUiStrings() / refreshFromSession() read these before setTagSession()
-PresentationPanel::PresentationPanel(QWidget* parent) : QWidget(parent) {
+// BAD — ctor helpers read these; in-class `= false` is not a substitute
+GameSetupWindow::GameSetupWindow(QWidget* parent) : QWidget(parent) {
   buildUi();
   applyUiStrings();
+  updateOptionalFieldAppearance();  // reads dateEditedByUser_
 }
 
-// GOOD
-PresentationPanel::PresentationPanel(QWidget* parent)
+// GOOD — flags used as edit/reentrancy guards are in the init list
+GameSetupWindow::GameSetupWindow(QWidget* parent)
     : QWidget(parent),
-      tagSession_(nullptr),
-      selectedTagIndexSet_(),
-      currentTagSessionIndex_(-1),
-      populatingRows_(false) {
+      ignoreDateChange_(false),
+      dateEditedByUser_(false) {
   buildUi();
   applyUiStrings();
+  updateOptionalFieldAppearance();
 }
 ```
 
