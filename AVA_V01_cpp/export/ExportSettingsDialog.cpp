@@ -263,12 +263,16 @@ void ExportSettingsDialog::updateClipCount() {
 
 QString ExportSettingsDialog::suggestedBaseName() const {
     if (selectedOutputFormat() == ExportOutputFormat::Xml) {
+        if (!tagSession_) return QString();
         return ExportClipBuilder::xmlReportBaseName(tagSession_);
     }
     return ExportClipBuilder::compilationBaseName(tagSession_, queuedClips_);
 }
 
 QString ExportSettingsDialog::defaultSuggestedFilePath() const {
+    const QString baseName = suggestedBaseName();
+    if (baseName.isEmpty()) return QString();
+
     const QFileInfo sourceInfo(sourceVideoPath_);
     QString directoryPath = defaultOutputDirectoryPath_.trimmed();
     if (directoryPath.isEmpty()) {
@@ -277,12 +281,13 @@ QString ExportSettingsDialog::defaultSuggestedFilePath() const {
     const QString extension = selectedOutputFormat() == ExportOutputFormat::Xml
         ? QStringLiteral(".xml")
         : QStringLiteral(".mp4");
-    return QDir(directoryPath).filePath(suggestedBaseName() + extension);
+    return QDir(directoryPath).filePath(baseName + extension);
 }
 
 void ExportSettingsDialog::applySuggestedOutputPathFromForm() {
     if (!outputPathEdit_) return;
     const QString suggestedPath = defaultSuggestedFilePath();
+    if (suggestedPath.isEmpty()) return;
     {
         QSignalBlocker blocker(outputPathEdit_);
         outputPathEdit_->setText(suggestedPath);
@@ -292,6 +297,7 @@ void ExportSettingsDialog::applySuggestedOutputPathFromForm() {
 
 void ExportSettingsDialog::refreshOutputPathIfFollowingForm() {
     if (!outputPathEdit_ || sourceVideoPath_.isEmpty()) return;
+    if (selectedOutputFormat() == ExportOutputFormat::Xml && !tagSession_) return;
     const QString currentPath = outputPathEdit_->text();
     if (!currentPath.trimmed().isEmpty() && currentPath != lastAutoOutputPathSuggestion_) {
         return;
