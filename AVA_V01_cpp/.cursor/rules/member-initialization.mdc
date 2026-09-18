@@ -32,3 +32,15 @@ PresentationPanel::PresentationPanel(QWidget* parent)
 ```
 
 Keep in-class `= nullptr` / `= -1` / `= false` as a second line of defense. Init-list order must match declaration order.
+
+Members the constructor always assigns and never nulls (`stack_`, `workWindow_`, `tagSession_`) do not get `if (ptr_)` at use sites. A null check there is dead code and hides the real ownership rule.
+
+```cpp
+// BAD — ctor always sets stack_; it is never nulled
+void showWelcomeWindow() {
+  if (stack_) stack_->setCurrentWidget(welcomeWindow_);
+}
+
+// GOOD
+void showWelcomeWindow() { stack_->setCurrentWidget(welcomeWindow_); }
+```

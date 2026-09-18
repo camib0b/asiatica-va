@@ -232,6 +232,12 @@ void WorkWindow::setPendingConcatenation(std::unique_ptr<VideoConcatenator> conc
     pendingConcatenator_ = std::move(concatenator);
 }
 
+void WorkWindow::releaseTransientResources() {
+    cleanupPendingConcatenation();
+    cleanupConcatenatedVideo();
+    cleanupPlaybackPrepVideo();
+}
+
 void WorkWindow::cleanupConcatenatedVideo() {
     concatenatedVideoTempDir_.reset();
 }
@@ -1345,9 +1351,7 @@ void WorkWindow::onNextQuarterRequested() {
 }
 
 void WorkWindow::onGameSetupCancelled() {
-    cleanupPendingConcatenation();
-    cleanupConcatenatedVideo();
-    cleanupPlaybackPrepVideo();
+    releaseTransientResources();
     exportDefaultDirectoryPath_.clear();
     emit videoClosed();
 }
@@ -1527,8 +1531,7 @@ void WorkWindow::onCloseVideo() {
     if (tagsTable_) tagsTable_->hide();
     if (statsWindow_) statsWindow_->hide();
 
-    cleanupConcatenatedVideo();
-    cleanupPlaybackPrepVideo();
+    releaseTransientResources();
     exportDefaultDirectoryPath_.clear();
     emit videoClosed();
     refreshPlaybackShortcutFocusGate();

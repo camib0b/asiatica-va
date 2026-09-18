@@ -1,35 +1,34 @@
 ---
-description: Const-correct C++ — const methods, static no-this helpers, const& inputs, explicit lambda captures
+description: Const-correct C++ — const methods only when logical state is unchanged; static no-this helpers; const& inputs; explicit lambda captures
 globs: **/*.{h,hpp,cpp}
 alwaysApply: false
 ---
 
 # Const-correctness
 
-Mark an **instance** method `const` when it does not change logical object state (including refresh helpers that only update child widgets). That enables calls from `const` contexts.
+Mark an **instance** method `const` when it does not change logical object state. Refresh helpers that only re-apply strings or polish child widgets can be `const`.
 
-If the function never uses `this`, do **not** add `const` to the method. Make it `static` or a free function in the anonymous namespace. `static` and `const` (on the method) are mutually exclusive.
+Do **not** mark methods `const` when they change interaction state: which page is shown, session data, overlays, focus, or enabled actions. Calling non-const methods through a pointer member (`stack_->setCurrentWidget(...)`) is legal in a `const` method in C++ and is still a lie.
+
+If the function never uses `this`, do **not** add `const`. Make it `static` or a free function in the anonymous namespace. `static` and `const` (on the method) are mutually exclusive.
 
 ```cpp
 // BAD — static has no this; trailing const will not compile
 static QSize probeVideoDisplaySize(const QString& path) const;
 
-// GOOD — no this: static; callers pass const QString&
+// BAD — const lies; the stacked page is observable state
+void showWelcomeWindow() const { stack_->setCurrentWidget(welcomeWindow_); }
+
+// GOOD — no this: static; read-only inputs are const T&
 static QSize probeVideoDisplaySize(const QString& path);
-QString color() const { return colorHex_; }  // instance, read-only
+QString color() const { return colorHex_; }
+void showWorkWindowWithSetup(const QString& filePath, const QStringList& sourceVideoPaths);
+void showWelcomeWindow();  // switches the visible page
+void onVideoClosed();      // slot; clears session and navigates
 ```
 
-Pass read-only objects as `const T&` (`QString`, `QSize`, structs). Pass cheap scalars by value; `const` on a by-value parameter in the definition documents non-mutation.
+Pass read-only objects as `const T&` (`QString`, `QSize`, structs). Pass cheap scalars by value. Prefer `const` locals.
 
-Prefer `const` locals. Lambdas: capture only what you need. Capture `const T&` (or by value for cheap/const data) for reads; `&` only for locals the lambda mutates.
+Lambdas: capture only what you need. Capture `const T&` (or by value for cheap/const data) for reads; `&` only for locals the lambda mutates.
 
-```cpp
-// BAD
-auto measure = [&](qreal scale) { return measureLayout(scale, data); };
-
-// GOOD
-auto measure = [&data, &homeScore](qreal scale) { return measureLayout(scale); };
-auto append = [&filterComplex, &stageCounter](int index, const QString& expr) { ... };
-```
-
-Do not mark methods `const` when they assign non-`mutable` members or change interaction state. Use `mutable` only for caches/reentrancy guards.
+Use `mutable` only for caches/reentrancy guards.

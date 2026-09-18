@@ -55,6 +55,7 @@ public:
   void setExportDefaultDirectoryFromVideoPath(const QString& videoPath);
   void setConcatenatedVideoTempDir(std::unique_ptr<QTemporaryDir> dir);
   void setPendingConcatenation(std::unique_ptr<VideoConcatenator> concatenator);
+  void releaseTransientResources();
   Mode mode() const { return mode_; }
   void setMode(Mode m);
 

@@ -1,10 +1,8 @@
 #include "MainWindow.h"
 
-#include <QApplication>
 #include <QMessageBox>
 #include <QStackedWidget>
 #include <QTemporaryDir>
-#include <QWidget>
 
 #include <memory>
 
@@ -18,7 +16,13 @@
 #include "../export/VideoConcatenator.h"
 #include "../license/LicenseManager.h"
 
-MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
+MainWindow::MainWindow(QWidget* parent)
+    : QMainWindow(parent),
+      stack_(nullptr),
+      welcomeWindow_(nullptr),
+      workWindow_(nullptr),
+      licenseOverlay_(nullptr),
+      tagSession_(std::make_unique<TagSession>()) {
     setWindowTitle(AppLocale::trUi("app.title"));
     resize(1300, 800);
 
@@ -30,9 +34,8 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     welcomeWindow_ = new WelcomeWindow(this);
     workWindow_ = new WorkWindow(this);
     licenseOverlay_ = new LicenseLockOverlay(this);
-    tagSession_ = new TagSession(this);
 
-    workWindow_->setTagSession(tagSession_);
+    workWindow_->setTagSession(tagSession_.get());
 
     stack_->addWidget(welcomeWindow_);
     stack_->addWidget(workWindow_);
@@ -56,28 +59,32 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     });
     connect(&LocaleNotifier::instance(), &LocaleNotifier::languageChanged, welcomeWindow_,
             &WelcomeWindow::applyUiStrings);
+}
 
-    connect(qApp, &QCoreApplication::aboutToQuit, this, [this]() {
-        if (tagSession_) tagSession_->clear();
-        if (tagSession_) tagSession_->clearGameMetadata();
-    });
+MainWindow::~MainWindow() {
+    workWindow_->releaseTransientResources();
+    workWindow_->setTagSession(nullptr);
+    tagSession_.reset();
+}
+
+void MainWindow::resetTagSession() {
+    tagSession_->clear();
+    tagSession_->clearGameMetadata();
 }
 
 void MainWindow::showWelcomeWindow() {
-    if (stack_) stack_->setCurrentWidget(welcomeWindow_);
+    stack_->setCurrentWidget(welcomeWindow_);
 }
 
 void MainWindow::showWorkWindowWithSetup(const QString& filePath, const QStringList& sourceVideoPaths) {
-    if (workWindow_) workWindow_->showTeamSetupForVideo(filePath, sourceVideoPaths);
-    if (stack_) stack_->setCurrentWidget(workWindow_);
+    workWindow_->showTeamSetupForVideo(filePath, sourceVideoPaths);
+    stack_->setCurrentWidget(workWindow_);
 }
 
 void MainWindow::showLicenseOverlay(bool allowClose) {
-    if (licenseOverlay_) {
-        licenseOverlay_->setCloseAllowed(allowClose);
-        licenseOverlay_->applyUiStrings();
-    }
-    if (stack_) stack_->setCurrentWidget(licenseOverlay_);
+    licenseOverlay_->setCloseAllowed(allowClose);
+    licenseOverlay_->applyUiStrings();
+    stack_->setCurrentWidget(licenseOverlay_);
 }
 
 void MainWindow::onVideoImportRequested() {
@@ -117,21 +124,29 @@ void MainWindow::onVideoImportRequested() {
         return;
     }
 
-    const QString tempDirPath = tempDir->path();
-    const QString concatenatedPath = tempDir->filePath(QStringLiteral("concatenated.mp4"));
-
     auto concatenator = std::make_unique<VideoConcatenator>();
-    concatenator->startConcatenation(filePaths, tempDirPath);
+    concatenator->startConcatenation(filePaths, tempDir->path());
+
+    if (!concatenator->waitWithProgress(this)) {
+        const QString errorMsg = concatenator->errorMessage();
+        if (!errorMsg.isEmpty()) {
+            QMessageBox::warning(this, AppLocale::trUi("app.title"), errorMsg);
+        }
+        return;
+    }
+
+    const QString concatenatedPath = concatenator->outputPath();
+    concatenator.reset();
 
     workWindow_->setConcatenatedVideoTempDir(std::move(tempDir));
-    workWindow_->setPendingConcatenation(std::move(concatenator));
+    workWindow_->setPendingConcatenation(nullptr);
     showWorkWindowWithSetup(concatenatedPath, filePaths);
 }
 
 void MainWindow::onVideoClosed() {
-    if (tagSession_) tagSession_->clear();
-    if (tagSession_) tagSession_->clearGameMetadata();
-    if (LicenseManager::instance().isEntitled()) {
+    resetTagSession();
+    const bool entitled = LicenseManager::instance().isEntitled();
+    if (entitled) {
         showWelcomeWindow();
     } else {
         showLicenseOverlay(false);
@@ -139,11 +154,13 @@ void MainWindow::onVideoClosed() {
 }
 
 void MainWindow::onEnterLicenseRequested() {
-    showLicenseOverlay(LicenseManager::instance().isEntitled());
+    const bool entitled = LicenseManager::instance().isEntitled();
+    showLicenseOverlay(entitled);
 }
 
 void MainWindow::onLicenseOverlayClosed() {
-    if (LicenseManager::instance().isEntitled()) {
+    const bool entitled = LicenseManager::instance().isEntitled();
+    if (entitled) {
         showWelcomeWindow();
     } else {
         showLicenseOverlay(false);
@@ -151,12 +168,13 @@ void MainWindow::onLicenseOverlayClosed() {
 }
 
 void MainWindow::onLicenseEntitlementChanged() {
-    if (!LicenseManager::instance().isEntitled()) {
+    const bool entitled = LicenseManager::instance().isEntitled();
+    if (!entitled) {
         showLicenseOverlay(false);
         return;
     }
-    if (welcomeWindow_) welcomeWindow_->applyUiStrings();
-    if (stack_ && stack_->currentWidget() == licenseOverlay_) {
+    welcomeWindow_->applyUiStrings();
+    if (stack_->currentWidget() == licenseOverlay_) {
         showWelcomeWindow();
     }
 }
