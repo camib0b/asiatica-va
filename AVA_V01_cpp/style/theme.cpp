@@ -16,6 +16,13 @@ static QString loadTextFile(const QString& path) {
 }
 
 void ApplyLightTheme() {
+  const QString qssPath = QStringLiteral(":/style/theme_light.qss");
+  const QString qss = loadTextFile(qssPath);
+  if (qss.isEmpty()) {
+    qWarning() << "Failed to load theme QSS:" << qssPath;
+    return;
+  }
+
   QStyle* style = QStyleFactory::create(QStringLiteral("Fusion"));
   if (!style) {
     style = QStyleFactory::create(QStringLiteral("Windows"));
@@ -33,19 +40,6 @@ void ApplyLightTheme() {
   font.setPointSize(13);
   font.setHintingPreference(QFont::PreferNoHinting);
   QApplication::setFont(font);
-
-  const QString qssPath = ":/style/theme_light.qss";
-
-  QFile f(qssPath);
-  if (!f.exists()) qWarning() << "Theme resource missing:" << f.fileName();
-
-
-  const QString qss = loadTextFile(qssPath);
-
-  if (qss.isEmpty()) {
-    qWarning() << "Failed to load theme QSS:" << qssPath;
-    return;
-  }
 
   qApp->setStyleSheet(qss);
 }
