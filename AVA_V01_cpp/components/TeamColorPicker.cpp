@@ -2,6 +2,7 @@
 
 #include "../i18n/AppLocale.h"
 #include "../style/StyleProps.h"
+#include "../style/ThemeColors.h"
 
 #include <QAbstractButton>
 #include <QColor>
@@ -18,6 +19,9 @@
 #include <QPushButton>
 #include <QSizePolicy>
 #include <QVBoxLayout>
+
+#include <algorithm>
+#include <cmath>
 
 namespace {
 
@@ -39,17 +43,39 @@ constexpr PaletteEntry kPalette[] = {
     {"setup.color_pink", "#EC4899"},
 };
 
-bool colorLooksLight(const QColor& color) {
-  const double luminance =
-      (0.299 * color.redF()) + (0.587 * color.greenF()) + (0.114 * color.blueF());
-  return luminance > 0.65;
+double linearChannel(double channel) {
+  return channel <= 0.04045 ? channel / 12.92 : std::pow((channel + 0.055) / 1.055, 2.4);
+}
+
+double relativeLuminance(const QColor& color) {
+  return 0.2126 * linearChannel(color.redF()) + 0.7152 * linearChannel(color.greenF()) +
+         0.0722 * linearChannel(color.blueF());
+}
+
+double contrastRatio(const QColor& first, const QColor& second) {
+  const double firstLuminance = relativeLuminance(first);
+  const double secondLuminance = relativeLuminance(second);
+  const double lighter = std::max(firstLuminance, secondLuminance);
+  const double darker = std::min(firstLuminance, secondLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+QColor contrastingSwatchBorder(const QColor& fill) {
+  const QColor darkStroke = Style::ThemeColors::ring();
+  const QColor lightStroke = fill.lighter(160);
+  if (contrastRatio(fill, darkStroke) >= contrastRatio(fill, lightStroke)) {
+    return darkStroke;
+  }
+  return lightStroke;
+}
+
+QRectF strokeEllipseRect(const QRectF& bounds, qreal penWidth, qreal extraInset) {
+  const qreal inset = extraInset + penWidth / 2.0;
+  return bounds.adjusted(inset, inset, -inset, -inset);
 }
 
 QString colorToHex(const QColor& color) {
-  return QString("#%1%2%3")
-      .arg(color.red(), 2, 16, QChar('0'))
-      .arg(color.green(), 2, 16, QChar('0'))
-      .arg(color.blue(), 2, 16, QChar('0'));
+  return color.name(QColor::HexRgb).toUpper();
 }
 
 bool isHexDigit(QChar character) {
@@ -58,8 +84,8 @@ bool isHexDigit(QChar character) {
          (latin >= 'A' && latin <= 'F');
 }
 
-// Exactly 6 hex digits, optional leading '#'. QColor also accepts #rgb, names,
-// and #rgba; those must not commit here or live typing would rewrite the field.
+// Exactly 6 hex digits, optional leading '#', stored as #RRGGBB. Do not use
+// QColor here: it accepts #rgb, names, and #rgba and would rewrite while typing.
 QString normalizeHex(const QString& text) {
   QString digits = text.trimmed();
   if (digits.startsWith(QLatin1Char('#'))) {
@@ -69,9 +95,7 @@ QString normalizeHex(const QString& text) {
   for (const QChar digit : digits) {
     if (!isHexDigit(digit)) return {};
   }
-  const QColor parsed(QLatin1Char('#') + digits);
-  if (!parsed.isValid()) return {};
-  return colorToHex(parsed);
+  return QLatin1Char('#') + digits.toUpper();
 }
 
 class ColorCircleButton final : public QAbstractButton {
@@ -102,28 +126,41 @@ protected:
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
-    const int ringPad = showSelectionRing_ ? 3 : 2;
-    const QRectF circle = QRectF(rect()).adjusted(ringPad, ringPad, -ringPad, -ringPad);
+    const bool drawOutline = showSelectionRing_ || hasFocus();
+    const qreal outlineWidth = showSelectionRing_ ? 2.0 : (hasFocus() ? 1.5 : 0.0);
+    const bool emptySwatch = empty_ || !swatchColor_.isValid();
+    const qreal fillPenWidth = emptySwatch ? 1.25 : 1.0;
+    constexpr qreal antialiasPad = 0.5;
 
-    if (empty_ || !swatchColor_.isValid()) {
-      QPen dash(QColor(QStringLiteral("#a1a1aa")));
+    const QRectF bounds = QRectF(rect());
+    qreal fillExtraInset = antialiasPad;
+    if (drawOutline) {
+      fillExtraInset += outlineWidth + antialiasPad;
+    }
+    const QRectF fillCircle = strokeEllipseRect(bounds, fillPenWidth, fillExtraInset);
+
+    if (emptySwatch) {
+      QPen dash(Style::ThemeColors::faint());
       dash.setStyle(Qt::DashLine);
-      dash.setWidthF(1.25);
+      dash.setWidthF(fillPenWidth);
+      dash.setCapStyle(Qt::RoundCap);
       painter.setPen(dash);
       painter.setBrush(Qt::NoBrush);
-      painter.drawEllipse(circle);
+      painter.drawEllipse(fillCircle);
     } else {
-      const QColor border = colorLooksLight(swatchColor_) ? QColor(QStringLiteral("#d4d4d8"))
-                                                          : swatchColor_.darker(115);
-      painter.setPen(QPen(border, 1));
+      QPen fillPen(contrastingSwatchBorder(swatchColor_));
+      fillPen.setWidthF(fillPenWidth);
+      painter.setPen(fillPen);
       painter.setBrush(swatchColor_);
-      painter.drawEllipse(circle);
+      painter.drawEllipse(fillCircle);
     }
 
-    if (showSelectionRing_ || hasFocus()) {
-      painter.setPen(QPen(QColor(QStringLiteral("#18181b")), showSelectionRing_ ? 2 : 1.5));
+    if (drawOutline) {
+      QPen outlinePen(Style::ThemeColors::ring());
+      outlinePen.setWidthF(outlineWidth);
+      painter.setPen(outlinePen);
       painter.setBrush(Qt::NoBrush);
-      painter.drawEllipse(QRectF(rect()).adjusted(1, 1, -1, -1));
+      painter.drawEllipse(strokeEllipseRect(bounds, outlineWidth, antialiasPad));
     }
   }
 
@@ -341,16 +378,13 @@ void TeamColorPicker::onMoreColorsClicked() {
 }
 
 void TeamColorPicker::applyNormalizedColor(const QString& normalizedHex, bool emitChange) {
-  if (colorHex_.compare(normalizedHex, Qt::CaseInsensitive) == 0) {
-    refreshWell();
-    refreshSwatchSelection();
-    return;
-  }
+  const bool colorValueChanged =
+      colorHex_.compare(normalizedHex, Qt::CaseInsensitive) != 0;
   colorHex_ = normalizedHex;
   refreshWell();
   refreshSwatchSelection();
   syncHexEditFromColor();
-  if (emitChange) {
+  if (emitChange && colorValueChanged) {
     emit colorChanged(colorHex_);
   }
 }
