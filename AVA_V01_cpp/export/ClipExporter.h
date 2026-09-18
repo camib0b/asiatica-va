@@ -71,19 +71,6 @@ private:
     void stopAndDiscardProcess();
     void finishExport(bool success, const QString& message);
     void startFfmpegJob(const QStringList& arguments, bool concatenating);
-    static qreal computeOverlayScale(const QSize& videoSize);
-    static QSize cappedOutputSize(const QSize& sourceSize);
-    static QString generateOverlayImage(const QString& primaryText,
-                                        const QString& secondaryText,
-                                        const QString& outputPath,
-                                        qreal overlayScale,
-                                        int maxImageWidth);
-    static QString generateScoreboardImage(const ScoreboardOverlay& data,
-                                           const QString& outputPath,
-                                           qreal overlayScale,
-                                           int maxImageWidth);
-    static QString generateBrandingImage(const QString& outputPath,
-                                         qreal overlayScale);
 
     QString sourceVideoPath_;
     QString outputPath_;

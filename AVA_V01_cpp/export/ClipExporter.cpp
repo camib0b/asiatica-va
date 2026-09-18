@@ -33,6 +33,46 @@ int evenDimension(const int value) {
     return floored - (floored % 2);
 }
 
+QString findExecutable(const QString& executableName, const QStringList& commonPaths) {
+    const QString fromPath = QStandardPaths::findExecutable(executableName);
+    if (!fromPath.isEmpty()) {
+        return fromPath;
+    }
+
+    const auto foundPath = std::find_if(commonPaths.cbegin(), commonPaths.cend(),
+                                        [](const QString& candidate) {
+                                            return QFile::exists(candidate);
+                                        });
+    return foundPath != commonPaths.cend() ? *foundPath : QString{};
+}
+
+qreal computeOverlayScale(const QSize& videoSize) {
+    if (!videoSize.isValid() || videoSize.height() <= 0) {
+        return 1.0;
+    }
+    const qreal rawScale =
+        static_cast<qreal>(videoSize.height()) / static_cast<qreal>(kReferenceVideoHeight);
+    return qBound(kMinimumOverlayScale, rawScale, kMaximumOverlayScale);
+}
+
+QSize cappedOutputSize(const QSize& sourceSize) {
+    if (!sourceSize.isValid() || sourceSize.width() <= 0 || sourceSize.height() <= 0) {
+        return {};
+    }
+
+    const int sourceWidth = sourceSize.width();
+    const int sourceHeight = sourceSize.height();
+    const qreal widthScale =
+        static_cast<qreal>(kMaximumOutputWidth) / static_cast<qreal>(sourceWidth);
+    const qreal heightScale =
+        static_cast<qreal>(kMaximumOutputHeight) / static_cast<qreal>(sourceHeight);
+    const qreal fitScale = qMin(static_cast<qreal>(1.0), qMin(widthScale, heightScale));
+
+    const int outputWidth = evenDimension(static_cast<int>(sourceWidth * fitScale));
+    const int outputHeight = evenDimension(static_cast<int>(sourceHeight * fitScale));
+    return QSize(outputWidth, outputHeight);
+}
+
 // YouTube's standard 16:9 player paints chrome over the video itself:
 // - Bottom ~8% covers the progress bar and transport controls.
 // - Top ~8–10% covers the title / share / watch-later bar when visible (hover, pause, start).
@@ -175,16 +215,22 @@ VideoProbeResult probeWithFfprobe(const QString& ffprobePath, const QString& vid
 
     const QJsonArray sideDataList =
         stream.value(QStringLiteral("side_data_list")).toArray();
-    for (const QJsonValue& sideDataValue : sideDataList) {
-        if (!sideDataValue.isObject()) {
-            continue;
-        }
-        const QJsonValue rotationValue =
-            sideDataValue.toObject().value(QStringLiteral("rotation"));
-        if (rotationValue.isDouble() || rotationValue.isString()) {
-            result.rotationDegrees = qRound(rotationValue.toVariant().toDouble());
-            break;
-        }
+    const auto rotationSideData = std::find_if(sideDataList.begin(), sideDataList.end(),
+                                             [](const QJsonValue& sideDataValue) {
+                                                 if (!sideDataValue.isObject()) {
+                                                     return false;
+                                                 }
+                                                 const QJsonValue rotationValue =
+                                                     sideDataValue.toObject().value(
+                                                         QStringLiteral("rotation"));
+                                                 return rotationValue.isDouble()
+                                                     || rotationValue.isString();
+                                             });
+    if (rotationSideData != sideDataList.end()) {
+        result.rotationDegrees = qRound(rotationSideData->toObject()
+                                            .value(QStringLiteral("rotation"))
+                                            .toVariant()
+                                            .toDouble());
     }
 
     return result;
@@ -293,6 +339,17 @@ struct ScoreboardLayout {
         , sepMetrics(QFont()) {}
 };
 
+QString generateOverlayImage(const QString& primaryText,
+                             const QString& secondaryText,
+                             const QString& outputPath,
+                             qreal overlayScale,
+                             int maxImageWidth);
+QString generateScoreboardImage(const ScoreboardOverlay& data,
+                                const QString& outputPath,
+                                qreal overlayScale,
+                                int maxImageWidth);
+QString generateBrandingImage(const QString& outputPath, qreal overlayScale);
+
 }  // namespace
 
 ClipExporter::ClipExporter(QObject* parent) : QObject(parent) {}
@@ -303,60 +360,21 @@ ClipExporter::~ClipExporter() {
 }
 
 QString ClipExporter::findFfmpeg() {
-    const QString fromPath = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
-    if (!fromPath.isEmpty()) return fromPath;
-
-    const QStringList commonPaths = {
+    static const QStringList commonPaths = {
         QStringLiteral("/opt/homebrew/bin/ffmpeg"),
         QStringLiteral("/usr/local/bin/ffmpeg"),
         QStringLiteral("/usr/bin/ffmpeg"),
     };
-    for (const QString& candidate : commonPaths) {
-        if (QFile::exists(candidate)) return candidate;
-    }
-    return {};
+    return findExecutable(QStringLiteral("ffmpeg"), commonPaths);
 }
 
 QString ClipExporter::findFfprobe() {
-    const QString fromPath = QStandardPaths::findExecutable(QStringLiteral("ffprobe"));
-    if (!fromPath.isEmpty()) return fromPath;
-
-    const QStringList commonPaths = {
+    static const QStringList commonPaths = {
         QStringLiteral("/opt/homebrew/bin/ffprobe"),
         QStringLiteral("/usr/local/bin/ffprobe"),
         QStringLiteral("/usr/bin/ffprobe"),
     };
-    for (const QString& candidate : commonPaths) {
-        if (QFile::exists(candidate)) return candidate;
-    }
-    return {};
-}
-
-qreal ClipExporter::computeOverlayScale(const QSize& videoSize) {
-    if (!videoSize.isValid() || videoSize.height() <= 0) {
-        return 1.0;
-    }
-    const qreal rawScale =
-        static_cast<qreal>(videoSize.height()) / static_cast<qreal>(kReferenceVideoHeight);
-    return qBound(kMinimumOverlayScale, rawScale, kMaximumOverlayScale);
-}
-
-QSize ClipExporter::cappedOutputSize(const QSize& sourceSize) {
-    if (!sourceSize.isValid() || sourceSize.width() <= 0 || sourceSize.height() <= 0) {
-        return {};
-    }
-
-    const int sourceWidth = sourceSize.width();
-    const int sourceHeight = sourceSize.height();
-    const qreal widthScale =
-        static_cast<qreal>(kMaximumOutputWidth) / static_cast<qreal>(sourceWidth);
-    const qreal heightScale =
-        static_cast<qreal>(kMaximumOutputHeight) / static_cast<qreal>(sourceHeight);
-    const qreal fitScale = qMin(static_cast<qreal>(1.0), qMin(widthScale, heightScale));
-
-    const int outputWidth = evenDimension(static_cast<int>(sourceWidth * fitScale));
-    const int outputHeight = evenDimension(static_cast<int>(sourceHeight * fitScale));
-    return QSize(outputWidth, outputHeight);
+    return findExecutable(QStringLiteral("ffprobe"), commonPaths);
 }
 
 void ClipExporter::setSourceVideo(const QString& path) { sourceVideoPath_ = path; }
@@ -875,7 +893,9 @@ void ClipExporter::onProcessError(QProcess::ProcessError error) {
             : QStringLiteral("Failed to start FFmpeg at \"%1\": %2").arg(ffmpegPath_, errorString));
 }
 
-QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
+namespace {
+
+QString generateScoreboardImage(const ScoreboardOverlay& data,
                                                const QString& outputPath,
                                                qreal overlayScale,
                                                int maxImageWidth) {
@@ -1070,7 +1090,7 @@ QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
     return outputPath;
 }
 
-QString ClipExporter::generateBrandingImage(const QString& outputPath,
+QString generateBrandingImage(const QString& outputPath,
                                              qreal overlayScale) {
     constexpr double kBrandingScale = 1.3225;
     const OverlayScaler scaler(overlayScale);
@@ -1111,7 +1131,7 @@ QString ClipExporter::generateBrandingImage(const QString& outputPath,
     return outputPath;
 }
 
-QString ClipExporter::generateOverlayImage(const QString& primaryText,
+QString generateOverlayImage(const QString& primaryText,
                                             const QString& secondaryText,
                                             const QString& outputPath,
                                             qreal overlayScale,
@@ -1199,3 +1219,5 @@ QString ClipExporter::generateOverlayImage(const QString& primaryText,
     if (!image.save(outputPath, "PNG")) return {};
     return outputPath;
 }
+
+}  // namespace
