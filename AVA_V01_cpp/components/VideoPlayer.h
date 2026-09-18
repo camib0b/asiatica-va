@@ -79,6 +79,9 @@ private:
   void setPlaybackRateAndPlay(double rate);
   void setupPlaybackReliabilityHooks();
   void updateStallMonitorForPlaybackState(QMediaPlayer::PlaybackState state);
+  void onPlaybackStallTimeout();
+  void recoverFromPlaybackBackendError(QMediaPlayer::Error error);
+  void resetPlaybackStallWatchdog();
   void nudgePlaybackAfterBackendStall();
   void reloadCurrentMediaFromDisk();
   /// Force the AVFoundation/QMediaPlayer pipeline to be rebuilt, restoring the supplied
@@ -122,6 +125,7 @@ private:
   qint64 lastStallCheckPositionMs_ = -1;
   int consecutivePlaybackStallTicks_ = 0;
   bool userRequestedPlaying_ = false;
+  int pipelineReloadsWithoutProgress_ = 0;
 
   // State snapshot captured on will-sleep so did-wake can restore it after rebuilding the pipeline.
   bool sleepRecoveryPending_ = false;

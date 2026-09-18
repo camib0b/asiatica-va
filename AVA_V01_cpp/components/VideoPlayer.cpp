@@ -35,6 +35,16 @@ namespace {
   
     constexpr qint64 kSeekSmallMs = 250;
     constexpr qint64 kSeekBigMs   = 3000;
+
+    // AVFoundation often freezes position a few hundred ms before duration while still
+    // reporting PlayingState. Treat that window as natural EOF, not a backend stall.
+    constexpr qint64 kPlaybackEndGuardMs = 400;
+    constexpr int kStallTicksBeforeReload = 2;
+    constexpr int kMaxPipelineReloadsWithoutProgress = 1;
+
+    bool isNearPlaybackEnd(qint64 positionMs, qint64 durationMs) {
+        return durationMs > 0 && positionMs >= durationMs - kPlaybackEndGuardMs;
+    }
 } // namespace
 
 VideoPlayer::VideoPlayer(QWidget* parent)
@@ -47,6 +57,7 @@ VideoPlayer::VideoPlayer(QWidget* parent)
       lastStallCheckPositionMs_(-1),
       consecutivePlaybackStallTicks_(0),
       userRequestedPlaying_(false),
+      pipelineReloadsWithoutProgress_(0),
       sleepRecoveryPending_(false),
       sleepRecoveryWasPlaying_(false),
       sleepRecoveryPositionMs_(0),
@@ -60,6 +71,7 @@ VideoPlayer::VideoPlayer(QWidget* parent)
 }
 
 VideoPlayer::~VideoPlayer() {
+    sleepRecoveryPending_ = false;
     unregisterSystemPowerObservers();
     avaEndPlaybackUserActivity();
 }
@@ -338,30 +350,7 @@ void VideoPlayer::setPlaybackRateAndPlay(double rate) {
 void VideoPlayer::setupPlaybackReliabilityHooks() {
     playbackStallTimer_ = new QTimer(this);
     playbackStallTimer_->setInterval(3500);
-    connect(playbackStallTimer_, &QTimer::timeout, this, [this]() {
-        if (!player_ || loadedSourcePath_.isEmpty()) return;
-        if (player_->playbackState() != QMediaPlayer::PlayingState) return;
-
-        const qint64 dur = player_->duration();
-        const qint64 pos = player_->position();
-        if (dur > 0 && pos >= dur - 400) return;
-
-        if (lastStallCheckPositionMs_ < 0) {
-            lastStallCheckPositionMs_ = pos;
-            return;
-        }
-        if (pos == lastStallCheckPositionMs_) {
-            ++consecutivePlaybackStallTicks_;
-            nudgePlaybackAfterBackendStall();
-            if (consecutivePlaybackStallTicks_ >= 2) {
-                reloadCurrentMediaFromDisk();
-                consecutivePlaybackStallTicks_ = 0;
-            }
-        } else {
-            consecutivePlaybackStallTicks_ = 0;
-        }
-        lastStallCheckPositionMs_ = pos;
-    });
+    connect(playbackStallTimer_, &QTimer::timeout, this, &VideoPlayer::onPlaybackStallTimeout);
 
     if (QGuiApplication::instance() != nullptr) {
         connect(qGuiApp, &QGuiApplication::applicationStateChanged, this,
@@ -371,15 +360,14 @@ void VideoPlayer::setupPlaybackReliabilityHooks() {
                         player_->playbackState() != QMediaPlayer::PlayingState) {
                         player_->play();
                     }
-                    consecutivePlaybackStallTicks_ = 0;
-                    lastStallCheckPositionMs_ = -1;
+                    resetPlaybackStallWatchdog();
+                    pipelineReloadsWithoutProgress_ = 0;
                 });
     }
 
     connect(player_, &QMediaPlayer::errorOccurred, this,
             [this](QMediaPlayer::Error error, const QString& /*errorString*/) {
-                if (error == QMediaPlayer::NoError || loadedSourcePath_.isEmpty()) return;
-                nudgePlaybackAfterBackendStall();
+                recoverFromPlaybackBackendError(error);
             });
 }
 
@@ -387,36 +375,125 @@ void VideoPlayer::updateStallMonitorForPlaybackState(QMediaPlayer::PlaybackState
     if (!playbackStallTimer_) return;
     userRequestedPlaying_ = (state == QMediaPlayer::PlayingState);
     if (state == QMediaPlayer::PlayingState) {
+        // Resample on the next tick so a recovery play() is not compared against the
+        // frozen pre-nudge position. Do not clear consecutivePlaybackStallTicks_ here:
+        // nudge/play would wipe the counter and the reload path would never run.
         lastStallCheckPositionMs_ = -1;
-        consecutivePlaybackStallTicks_ = 0;
         playbackStallTimer_->start();
     } else {
         playbackStallTimer_->stop();
     }
 }
 
+void VideoPlayer::resetPlaybackStallWatchdog() {
+    consecutivePlaybackStallTicks_ = 0;
+    lastStallCheckPositionMs_ = -1;
+}
+
+void VideoPlayer::onPlaybackStallTimeout() {
+    if (!player_ || loadedSourcePath_.isEmpty()) return;
+    if (player_->playbackState() != QMediaPlayer::PlayingState) return;
+
+    const qint64 durationMs = player_->duration();
+    const qint64 positionMs = player_->position();
+    if (durationMs <= 0) return;
+
+    if (player_->mediaStatus() == QMediaPlayer::EndOfMedia ||
+        isNearPlaybackEnd(positionMs, durationMs)) {
+        resetPlaybackStallWatchdog();
+        pipelineReloadsWithoutProgress_ = 0;
+        return;
+    }
+
+    if (lastStallCheckPositionMs_ < 0) {
+        lastStallCheckPositionMs_ = positionMs;
+        return;
+    }
+
+    if (positionMs != lastStallCheckPositionMs_) {
+        resetPlaybackStallWatchdog();
+        pipelineReloadsWithoutProgress_ = 0;
+        lastStallCheckPositionMs_ = positionMs;
+        return;
+    }
+
+    if (pipelineReloadsWithoutProgress_ >= kMaxPipelineReloadsWithoutProgress) return;
+
+    ++consecutivePlaybackStallTicks_;
+    if (consecutivePlaybackStallTicks_ >= kStallTicksBeforeReload) {
+        reloadCurrentMediaFromDisk();
+    } else {
+        nudgePlaybackAfterBackendStall();
+    }
+}
+
+void VideoPlayer::recoverFromPlaybackBackendError(QMediaPlayer::Error error) {
+    if (error == QMediaPlayer::NoError || !player_ || loadedSourcePath_.isEmpty()) return;
+
+    const qint64 durationMs = player_->duration();
+    const qint64 positionMs = player_->position();
+    if (durationMs <= 0) return;
+    if (player_->mediaStatus() == QMediaPlayer::EndOfMedia ||
+        isNearPlaybackEnd(positionMs, durationMs)) {
+        resetPlaybackStallWatchdog();
+        pipelineReloadsWithoutProgress_ = 0;
+        return;
+    }
+
+    if (pipelineReloadsWithoutProgress_ >= kMaxPipelineReloadsWithoutProgress) return;
+
+    if (consecutivePlaybackStallTicks_ == 0) {
+        consecutivePlaybackStallTicks_ = 1;
+        nudgePlaybackAfterBackendStall();
+        return;
+    }
+    reloadCurrentMediaFromDisk();
+}
+
 void VideoPlayer::nudgePlaybackAfterBackendStall() {
     if (!player_ || loadedSourcePath_.isEmpty()) return;
+
+    const qint64 positionMs = player_->position();
+    const qint64 durationMs = player_->duration();
+    if (isNearPlaybackEnd(positionMs, durationMs)) {
+        resetPlaybackStallWatchdog();
+        pipelineReloadsWithoutProgress_ = 0;
+        return;
+    }
 
     // pause() emits playbackStateChanged synchronously, and
     // updateStallMonitorForPlaybackState() would otherwise clear userRequestedPlaying_
     // before we can resume. Snapshot intent the same way scrub does.
     const bool wasPlayingBeforeNudge =
         userRequestedPlaying_ || player_->playbackState() == QMediaPlayer::PlayingState;
-    const qint64 pos = player_->position();
-    const qint64 dur = player_->duration();
-    qint64 bumpMs = 1;
-    if (dur > 0 && pos >= dur - 5) bumpMs = 0;
+    qint64 bumpedPositionMs = positionMs + 1;
+    if (durationMs > 0) {
+        bumpedPositionMs = std::min(bumpedPositionMs, durationMs);
+    }
 
     player_->pause();
-    player_->setPosition(pos + bumpMs);
+    player_->setPosition(bumpedPositionMs);
     userRequestedPlaying_ = wasPlayingBeforeNudge;
     if (wasPlayingBeforeNudge) player_->play();
 }
 
 void VideoPlayer::reloadCurrentMediaFromDisk() {
-    if (!player_) return;
-    reloadCurrentMediaFromDisk(player_->position(), playbackRate_, userRequestedPlaying_);
+    if (!player_ || loadedSourcePath_.isEmpty()) return;
+
+    const qint64 resumePositionMs = player_->position();
+    const qint64 durationMs = player_->duration();
+    if (isNearPlaybackEnd(resumePositionMs, durationMs)) {
+        resetPlaybackStallWatchdog();
+        pipelineReloadsWithoutProgress_ = 0;
+        return;
+    }
+    if (pipelineReloadsWithoutProgress_ >= kMaxPipelineReloadsWithoutProgress) {
+        resetPlaybackStallWatchdog();
+        return;
+    }
+
+    ++pipelineReloadsWithoutProgress_;
+    reloadCurrentMediaFromDisk(resumePositionMs, playbackRate_, userRequestedPlaying_);
 }
 
 void VideoPlayer::reloadCurrentMediaFromDisk(qint64 resumePositionMs, double rate, bool resumePlaying) {
@@ -437,8 +514,7 @@ void VideoPlayer::reloadCurrentMediaFromDisk(qint64 resumePositionMs, double rat
 
     // Reset stall watchdog so the freshly rebuilt pipeline is not flagged as stalled
     // due to stale position samples from before the reload.
-    consecutivePlaybackStallTicks_ = 0;
-    lastStallCheckPositionMs_ = -1;
+    resetPlaybackStallWatchdog();
 }
 
 void VideoPlayer::registerSystemPowerObservers() {
@@ -478,27 +554,22 @@ void VideoPlayer::onSystemWillSleep() {
 }
 
 void VideoPlayer::onSystemDidWake() {
-    if (!player_ || loadedSourcePath_.isEmpty()) {
+    // Will-sleep captures the snapshot while the pipeline is still healthy. If did-wake
+    // arrives first (observer installed mid-sleep), capture now so recovery never reads
+    // live player fields that were only initialized in the constructor.
+    if (!sleepRecoveryPending_) {
+        onSystemWillSleep();
+    }
+    if (!sleepRecoveryPending_ || !player_ || loadedSourcePath_.isEmpty()) {
         sleepRecoveryPending_ = false;
         return;
     }
 
-    qint64 targetPositionMs;
-    double targetRate;
-    bool resumePlaying;
-    if (sleepRecoveryPending_) {
-        targetPositionMs = sleepRecoveryPositionMs_;
-        targetRate = sleepRecoveryRate_;
-        resumePlaying = sleepRecoveryWasPlaying_;
-    } else {
-        // Defensive fallback for the rare case did-wake fires without a paired will-sleep
-        // (e.g. the observer was installed mid-sleep). Use the last-known intent and
-        // current position; even a stale position is preferable to leaving the user stuck.
-        targetPositionMs = player_->position();
-        targetRate = playbackRate_;
-        resumePlaying = userRequestedPlaying_;
-    }
+    const qint64 targetPositionMs = sleepRecoveryPositionMs_;
+    const double targetRate = sleepRecoveryRate_;
+    const bool resumePlaying = sleepRecoveryWasPlaying_;
     sleepRecoveryPending_ = false;
+    pipelineReloadsWithoutProgress_ = 0;
 
     // Defer the rebuild briefly so CoreAudio and the AVFoundation render pipeline have time
     // to come back online after wake before we hand them a new source. Reloading immediately
@@ -524,6 +595,8 @@ void VideoPlayer::loadVideoFromFile(const QString& filePath) {
     // Reset timeline UI immediately; durationChanged will set real range later
     durationMs_ = 0;
     wasPlayingBeforeScrub_ = false;
+    resetPlaybackStallWatchdog();
+    pipelineReloadsWithoutProgress_ = 0;
     
     if (videoTimelineBar_) videoTimelineBar_->reset();
     audioOutput_->setMuted(false);
