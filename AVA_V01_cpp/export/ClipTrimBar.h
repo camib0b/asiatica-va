@@ -36,6 +36,7 @@ private:
     QRect startHandleRect() const;
     QRect endHandleRect() const;
     qint64 effectiveMinClipDurationMs() const;
+    void normalizeClipInterval();
     qint64 clampedClipStartMs(qint64 proposedStartMs) const;
     qint64 clampedClipEndMs(qint64 proposedEndMs) const;
     static QString formatMs(qint64 ms);

@@ -1,0 +1,33 @@
+---
+description: Clamp clip intervals and map ms↔pixels safely in timeline trim widgets
+globs: export/ClipTrimBar.{h,cpp}
+alwaysApply: false
+---
+
+# Clip trim widget invariants
+
+`ClipTrimBar` maps milliseconds to track pixels and paints draggable handles. Every **write** path (`configure`, drag handlers) must leave `clipStartMs_` / `clipEndMs_` inside `[windowStartMs_, windowEndMs_]` with `end >= start + effectiveMinClipDurationMs()`. Do not assign caller values directly and paint.
+
+`msToX` and `xToMs` are inverses: clamp the normalized fraction to `[0.0, 1.0]` in **both** directions, and return `windowStartMs_` when `windowEndMs_ <= windowStartMs_` or the track width is zero.
+
+Painting must tolerate degenerate geometry: use `std::min` / `std::abs` for highlight width (Qt ignores negative `drawRect` widths), and skip zero-width highlights.
+
+```cpp
+// BAD — raw assign; msToX fraction unclamped; negative highlight width
+clipStartMs_ = startMs;
+clipEndMs_ = endMs;
+playheadMs_ = startMs;
+return trackLeft + static_cast<int>(fraction * trackWidth);
+painter.drawRect(startX, 0, endX - startX, kTrackHeight);
+
+// GOOD — one normalizer for configure; symmetric ms↔x; safe paint
+clipStartMs_ = startMs;
+clipEndMs_ = endMs;
+normalizeClipInterval();
+const double clamped = std::clamp(fraction, 0.0, 1.0);
+const int highlightLeft = std::min(startX, endX);
+const int highlightWidth = std::abs(endX - startX);
+if (highlightWidth > 0) painter.drawRect(highlightLeft, 0, highlightWidth, kTrackHeight);
+```
+
+Reuse `normalizeClipInterval()` (or equivalent) instead of duplicating clamp logic between `configure` and drag clamp helpers.

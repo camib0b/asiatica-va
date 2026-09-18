@@ -18,18 +18,12 @@ void ClipTrimBar::configure(qint64 markMs, qint64 startMs, qint64 endMs,
     markMs_ = markMs;
     windowStartMs_ = windowStartMs;
     windowEndMs_ = std::max(windowEndMs, windowStartMs);
+    clipStartMs_ = startMs;
+    clipEndMs_ = endMs;
+    normalizeClipInterval();
+    markMs_ = std::clamp(markMs_, clipStartMs_, clipEndMs_);
 
-    const qint64 minDurationMs = effectiveMinClipDurationMs();
-    clipStartMs_ = std::max(startMs, windowStartMs_);
-    clipEndMs_ = std::min(endMs, windowEndMs_);
-    if (clipEndMs_ < clipStartMs_ + minDurationMs) {
-        clipEndMs_ = std::min(windowEndMs_, clipStartMs_ + minDurationMs);
-        if (clipEndMs_ < clipStartMs_ + minDurationMs) {
-            clipStartMs_ = std::max(windowStartMs_, clipEndMs_ - minDurationMs);
-        }
-    }
-
-    playheadMs_ = clipStartMs_;
+    playheadMs_ = std::clamp(clipStartMs_, windowStartMs_, windowEndMs_);
     dragTarget_ = DragTarget::None;
     update();
 }
@@ -51,14 +45,15 @@ int ClipTrimBar::msToX(qint64 ms) const {
     if (windowEndMs_ <= windowStartMs_ || trackWidth <= 0) return trackLeft;
     const double fraction =
         static_cast<double>(ms - windowStartMs_) / (windowEndMs_ - windowStartMs_);
-    return trackLeft + static_cast<int>(fraction * trackWidth);
+    const double clamped = std::clamp(fraction, 0.0, 1.0);
+    return trackLeft + static_cast<int>(clamped * trackWidth);
 }
 
 qint64 ClipTrimBar::xToMs(int x) const {
     const int trackLeft = kMargin;
     const int trackRight = width() - kMargin;
     const int trackWidth = trackRight - trackLeft;
-    if (trackWidth <= 0) return windowStartMs_;
+    if (trackWidth <= 0 || windowEndMs_ <= windowStartMs_) return windowStartMs_;
     const double fraction =
         static_cast<double>(x - trackLeft) / trackWidth;
     const double clamped = std::clamp(fraction, 0.0, 1.0);
@@ -80,6 +75,22 @@ qint64 ClipTrimBar::effectiveMinClipDurationMs() const {
     const qint64 windowDurationMs = windowEndMs_ - windowStartMs_;
     if (windowDurationMs <= 0) return 0;
     return std::min(kMinClipDurationMs, windowDurationMs);
+}
+
+void ClipTrimBar::normalizeClipInterval() {
+    clipStartMs_ = std::clamp(clipStartMs_, windowStartMs_, windowEndMs_);
+    clipEndMs_ = std::clamp(clipEndMs_, windowStartMs_, windowEndMs_);
+
+    const qint64 minDurationMs = effectiveMinClipDurationMs();
+    if (clipEndMs_ < clipStartMs_ + minDurationMs) {
+        clipEndMs_ = std::min(windowEndMs_, clipStartMs_ + minDurationMs);
+        if (clipEndMs_ < clipStartMs_ + minDurationMs) {
+            clipStartMs_ = std::max(windowStartMs_, clipEndMs_ - minDurationMs);
+        }
+    }
+    if (clipStartMs_ > clipEndMs_) {
+        clipStartMs_ = clipEndMs_;
+    }
 }
 
 qint64 ClipTrimBar::clampedClipStartMs(qint64 proposedStartMs) const {
@@ -137,10 +148,14 @@ void ClipTrimBar::paintEvent(QPaintEvent*) {
 
     const int startX = msToX(clipStartMs_);
     const int endX = msToX(clipEndMs_);
+    const int highlightLeft = std::min(startX, endX);
+    const int highlightWidth = std::abs(endX - startX);
 
     // Selected range highlight
     painter.setBrush(Style::ThemeColors::playheadHighlight(50));
-    painter.drawRect(startX, 0, endX - startX, kTrackHeight);
+    if (highlightWidth > 0) {
+        painter.drawRect(highlightLeft, 0, highlightWidth, kTrackHeight);
+    }
 
     // Event-mark marker (thin dashed line)
     const int markX = msToX(markMs_);
