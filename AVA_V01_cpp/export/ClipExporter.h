@@ -68,6 +68,7 @@ private:
     void concatenateClips();
     void cleanup();
     void stopAndDiscardProcess();
+    void finishExport(bool success, const QString& message);
     static QSize probeVideoDisplaySize(const QString& videoPath);
     static qreal computeOverlayScale(const QSize& videoSize);
     static QSize cappedOutputSize(const QSize& sourceSize);
@@ -91,6 +92,7 @@ private:
     std::unique_ptr<QTemporaryDir> tempDir_;
     int currentClipIndex_ = 0;
     bool cancelled_ = false;
+    bool exportFinishedEmitted_ = false;
     QStringList tempClipPaths_;
     QString ffmpegPath_;
     QString brandingImagePath_;

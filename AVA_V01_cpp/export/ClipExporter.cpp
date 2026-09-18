@@ -326,15 +326,24 @@ void ClipExporter::setIncludeBrandingOverlay(bool includeBrandingOverlay) {
 }
 
 void ClipExporter::startExport() {
+    exportFinishedEmitted_ = false;
     ffmpegPath_ = findFfmpeg();
     if (ffmpegPath_.isEmpty()) {
-        emit exportFinished(false,
+        finishExport(false,
             QStringLiteral("FFmpeg not found. Please install FFmpeg to export clips."));
         return;
     }
 
-    if (sourceVideoPath_.isEmpty() || outputPath_.isEmpty() || clips_.isEmpty()) {
-        emit exportFinished(false, QStringLiteral("Invalid export configuration."));
+    if (sourceVideoPath_.isEmpty()) {
+        finishExport(false, QStringLiteral("Source video path is empty."));
+        return;
+    }
+    if (outputPath_.isEmpty()) {
+        finishExport(false, QStringLiteral("Output path is empty."));
+        return;
+    }
+    if (clips_.isEmpty()) {
+        finishExport(false, QStringLiteral("No clips were provided for export."));
         return;
     }
 
@@ -344,20 +353,37 @@ void ClipExporter::startExport() {
 
     cleanup();
     tempDir_ = std::make_unique<QTemporaryDir>();
-    if (!tempDir_->isValid()) {
-        emit exportFinished(false, QStringLiteral("Failed to create temporary directory."));
-        cleanup();
+    if (!tempDir_ || !tempDir_->isValid()) {
+        finishExport(false, QStringLiteral("Failed to create temporary directory."));
         return;
     }
 
     sourceVideoSize_ = probeVideoDisplaySize(sourceVideoPath_);
+    if (!sourceVideoSize_.isValid()) {
+        finishExport(false,
+            QStringLiteral("Failed to probe source video dimensions for \"%1\".")
+                .arg(sourceVideoPath_));
+        return;
+    }
+
     outputVideoSize_ = cappedOutputSize(sourceVideoSize_);
+    if (!outputVideoSize_.isValid()) {
+        finishExport(false,
+            QStringLiteral("Could not compute an output size from %1x%2.")
+                .arg(sourceVideoSize_.width())
+                .arg(sourceVideoSize_.height()));
+        return;
+    }
     overlayScale_ = computeOverlayScale(outputVideoSize_);
 
     if (includeBrandingOverlay_) {
         brandingImagePath_ = generateBrandingImage(
             tempDir_->filePath(QStringLiteral("branding.png")),
             overlayScale_);
+        if (brandingImagePath_.isEmpty()) {
+            finishExport(false, QStringLiteral("Failed to write branding overlay image."));
+            return;
+        }
     }
 
     processNextClip();
@@ -373,8 +399,12 @@ void ClipExporter::cancelExport() {
 
 void ClipExporter::processNextClip() {
     if (cancelled_) {
-        cleanup();
-        emit exportFinished(false, QStringLiteral("Export cancelled."));
+        finishExport(false, QStringLiteral("Export cancelled."));
+        return;
+    }
+
+    if (!tempDir_ || !outputVideoSize_.isValid()) {
+        finishExport(false, QStringLiteral("Export state is missing a temp directory or output size."));
         return;
     }
 
@@ -386,15 +416,22 @@ void ClipExporter::processNextClip() {
     emit progressChanged(currentClipIndex_ + 1, clips_.size());
 
     const ClipSegment& clip = clips_.at(currentClipIndex_);
-    const double startSeconds = clip.startMs / 1000.0;
+    if (clip.durationMs <= 0) {
+        finishExport(false,
+            QStringLiteral("Clip %1 has invalid duration (%2 ms).")
+                .arg(currentClipIndex_ + 1)
+                .arg(clip.durationMs));
+        return;
+    }
+
+    const double startSeconds = qMax(qint64{0}, clip.startMs) / 1000.0;
     const double durationSeconds = clip.durationMs / 1000.0;
 
     const QString tempPath = tempDir_->filePath(
         QStringLiteral("clip_%1.mp4").arg(currentClipIndex_, 4, 10, QChar('0')));
 
-    const int maxImageWidth = outputVideoSize_.isValid()
-        ? qRound(outputVideoSize_.width() * kMaximumOverlayWidthFraction)
-        : 0;
+    const int maxImageWidth =
+        qRound(outputVideoSize_.width() * kMaximumOverlayWidthFraction);
 
     const bool includeBottomOverlay =
         !clip.overlayText.trimmed().isEmpty() || !clip.secondaryOverlayText.trimmed().isEmpty();
@@ -402,8 +439,14 @@ void ClipExporter::processNextClip() {
     if (includeBottomOverlay) {
         overlayImagePath = tempDir_->filePath(
             QStringLiteral("overlay_%1.png").arg(currentClipIndex_, 4, 10, QChar('0')));
-        generateOverlayImage(clip.overlayText, clip.secondaryOverlayText, overlayImagePath,
-                             overlayScale_, maxImageWidth);
+        if (generateOverlayImage(clip.overlayText, clip.secondaryOverlayText, overlayImagePath,
+                                 overlayScale_, maxImageWidth)
+                .isEmpty()) {
+            finishExport(false,
+                QStringLiteral("Failed to write overlay image for clip %1.")
+                    .arg(currentClipIndex_ + 1));
+            return;
+        }
     }
 
     const int scoreboardCount = clip.scoreboards.size();
@@ -414,8 +457,15 @@ void ClipExporter::processNextClip() {
             QStringLiteral("scoreboard_%1_%2.png")
                 .arg(currentClipIndex_, 4, 10, QChar('0'))
                 .arg(s));
-        generateScoreboardImage(clip.scoreboards[s].scoreboard, path,
-                                overlayScale_, maxImageWidth);
+        if (generateScoreboardImage(clip.scoreboards[s].scoreboard, path,
+                                    overlayScale_, maxImageWidth)
+                .isEmpty()) {
+            finishExport(false,
+                QStringLiteral("Failed to write scoreboard image %1 for clip %2.")
+                    .arg(s + 1)
+                    .arg(currentClipIndex_ + 1));
+            return;
+        }
         scoreboardImagePaths.append(path);
     }
 
@@ -441,6 +491,10 @@ void ClipExporter::processNextClip() {
     }
 
     if (includeBrandingOverlay_) {
+        if (brandingImagePath_.isEmpty()) {
+            finishExport(false, QStringLiteral("Branding overlay image is missing."));
+            return;
+        }
         arguments << QStringLiteral("-loop") << QStringLiteral("1")
                   << QStringLiteral("-i") << brandingImagePath_;
     }
@@ -467,8 +521,8 @@ void ClipExporter::processNextClip() {
 
     QString filterComplex = QStringLiteral(
         "[0:v]scale=%1:%2:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1[scaled]")
-                                .arg(kMaximumOutputWidth)
-                                .arg(kMaximumOutputHeight);
+                                .arg(outputVideoSize_.width())
+                                .arg(outputVideoSize_.height());
     QString currentVideoLabel = QStringLiteral("scaled");
     int stageCounter = 0;
 
@@ -583,21 +637,31 @@ void ClipExporter::processNextClip() {
 
 void ClipExporter::onClipProcessFinished(int exitCode, QProcess::ExitStatus exitStatus) {
     if (cancelled_) {
-        cleanup();
-        emit exportFinished(false, QStringLiteral("Export cancelled."));
+        finishExport(false, QStringLiteral("Export cancelled."));
         return;
     }
 
     if (exitStatus != QProcess::NormalExit || exitCode != 0) {
         const QString stderrOutput = currentProcess_
-            ? QString::fromUtf8(currentProcess_->readAllStandardError())
+            ? QString::fromUtf8(currentProcess_->readAllStandardError()).trimmed()
             : QString();
-        const QString truncated = stderrOutput.right(500);
-        cleanup();
-        emit exportFinished(false,
-            QStringLiteral("FFmpeg failed on clip %1:\n%2")
+        const QString detail = stderrOutput.isEmpty()
+            ? QStringLiteral("no FFmpeg stderr (exit %1, status %2)")
+                  .arg(exitCode)
+                  .arg(exitStatus == QProcess::CrashExit ? QStringLiteral("crashed")
+                                                         : QStringLiteral("failed"))
+            : stderrOutput.right(1500);
+        finishExport(false,
+            QStringLiteral("FFmpeg failed on clip %1 of %2:\n%3")
                 .arg(currentClipIndex_ + 1)
-                .arg(truncated));
+                .arg(clips_.size())
+                .arg(detail));
+        return;
+    }
+
+    if (!tempDir_) {
+        finishExport(false, QStringLiteral("Temporary directory was removed before clip %1 finished.")
+                                .arg(currentClipIndex_ + 1));
         return;
     }
 
@@ -611,28 +675,41 @@ void ClipExporter::onClipProcessFinished(int exitCode, QProcess::ExitStatus exit
 
 void ClipExporter::concatenateClips() {
     if (cancelled_) {
-        cleanup();
-        emit exportFinished(false, QStringLiteral("Export cancelled."));
+        finishExport(false, QStringLiteral("Export cancelled."));
+        return;
+    }
+
+    if (tempClipPaths_.isEmpty()) {
+        finishExport(false, QStringLiteral("No rendered clips were available to concatenate."));
         return;
     }
 
     if (tempClipPaths_.size() == 1) {
-        if (QFile::exists(outputPath_)) QFile::remove(outputPath_);
-        if (QFile::copy(tempClipPaths_.first(), outputPath_)) {
-            cleanup();
-            emit exportFinished(true, {});
-        } else {
-            cleanup();
-            emit exportFinished(false, QStringLiteral("Failed to copy output file."));
+        if (QFile::exists(outputPath_) && !QFile::remove(outputPath_)) {
+            finishExport(false,
+                QStringLiteral("Could not replace existing output file:\n%1").arg(outputPath_));
+            return;
         }
+        if (QFile::copy(tempClipPaths_.first(), outputPath_)) {
+            finishExport(true, {});
+        } else {
+            finishExport(false,
+                QStringLiteral("Failed to copy clip to output path:\n%1").arg(outputPath_));
+        }
+        return;
+    }
+
+    if (!tempDir_) {
+        finishExport(false, QStringLiteral("Temporary directory was removed before concatenation."));
         return;
     }
 
     const QString concatListPath = tempDir_->filePath(QStringLiteral("concat_list.txt"));
     QFile listFile(concatListPath);
     if (!listFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        cleanup();
-        emit exportFinished(false, QStringLiteral("Failed to create concat file list."));
+        finishExport(false,
+            QStringLiteral("Failed to create concat file list at \"%1\": %2")
+                .arg(concatListPath, listFile.errorString()));
         return;
     }
 
@@ -661,29 +738,41 @@ void ClipExporter::concatenateClips() {
 
 void ClipExporter::onConcatProcessFinished(int exitCode, QProcess::ExitStatus exitStatus) {
     if (cancelled_) {
-        cleanup();
-        emit exportFinished(false, QStringLiteral("Export cancelled."));
+        finishExport(false, QStringLiteral("Export cancelled."));
         return;
     }
 
     if (exitStatus != QProcess::NormalExit || exitCode != 0) {
         const QString stderrOutput = currentProcess_
-            ? QString::fromUtf8(currentProcess_->readAllStandardError())
+            ? QString::fromUtf8(currentProcess_->readAllStandardError()).trimmed()
             : QString();
-        cleanup();
-        emit exportFinished(false,
-            QStringLiteral("FFmpeg concat failed:\n%1").arg(stderrOutput.right(500)));
+        const QString detail = stderrOutput.isEmpty()
+            ? QStringLiteral("no FFmpeg stderr (exit %1, status %2)")
+                  .arg(exitCode)
+                  .arg(exitStatus == QProcess::CrashExit ? QStringLiteral("crashed")
+                                                         : QStringLiteral("failed"))
+            : stderrOutput.right(1500);
+        finishExport(false, QStringLiteral("FFmpeg concat failed:\n%1").arg(detail));
         return;
     }
 
-    cleanup();
-    emit exportFinished(true, {});
+    finishExport(true, {});
 }
 
 void ClipExporter::cleanup() {
     tempDir_.reset();
     tempClipPaths_.clear();
     brandingImagePath_.clear();
+}
+
+void ClipExporter::finishExport(bool success, const QString& message) {
+    if (exportFinishedEmitted_) {
+        cleanup();
+        return;
+    }
+    exportFinishedEmitted_ = true;
+    emit exportFinished(success, message);
+    cleanup();
 }
 
 void ClipExporter::stopAndDiscardProcess() {
@@ -835,7 +924,7 @@ QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
 
     const QString quarterText = data.periodLabel.trimmed();
     if (quarterText.isEmpty()) {
-        image.save(outputPath, "PNG");
+        if (!image.save(outputPath, "PNG")) return {};
         return outputPath;
     }
 
@@ -865,7 +954,7 @@ QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
     compositePainter.drawImage(squareSide + quarterGap, 0, image);
     compositePainter.end();
 
-    composite.save(outputPath, "PNG");
+    if (!composite.save(outputPath, "PNG")) return {};
     return outputPath;
 }
 
@@ -904,7 +993,7 @@ QString ClipExporter::generateBrandingImage(const QString& outputPath,
     painter.drawText(image.rect(), Qt::AlignCenter, brandingText);
 
     painter.end();
-    image.save(outputPath, "PNG");
+    if (!image.save(outputPath, "PNG")) return {};
     return outputPath;
 }
 
@@ -989,6 +1078,6 @@ QString ClipExporter::generateOverlayImage(const QString& primaryText,
     }
 
     painter.end();
-    image.save(outputPath, "PNG");
+    if (!image.save(outputPath, "PNG")) return {};
     return outputPath;
 }
