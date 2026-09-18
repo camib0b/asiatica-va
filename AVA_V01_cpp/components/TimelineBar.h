@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QElapsedTimer>
 #include <QWidget>
 #include <QtGlobal>
 
@@ -32,6 +33,8 @@ private:
   void beginTimeEntry();
   void commitTimeEntry();
   void cancelTimeEntry();
+  void beginSeekCommitWait(qint64 pendingMs);
+  void clearSeekCommitWait();
   void updateLabel(qint64 posMs, qint64 durMs);
   static bool parseTimeEntryMs(const QString& text, qint64* outMs);
   static QString formatMs(qint64 ms);
@@ -46,6 +49,7 @@ private:
   bool isEditingTimeEntry_ = false;
   qint64 pendingSeekMs_ = -1;
   bool waitingForSeekCommit_ = false;
+  QElapsedTimer seekCommitElapsed_;
   QTimer* scrubSeekThrottleTimer_ = nullptr;
   qint64 pendingScrubSeekMs_ = -1;
   qint64 lastDisplayedPosSeconds_ = -1;

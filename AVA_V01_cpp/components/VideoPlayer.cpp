@@ -37,7 +37,20 @@ namespace {
     constexpr qint64 kSeekBigMs   = 3000;
 } // namespace
 
-VideoPlayer::VideoPlayer(QWidget* parent) : QWidget(parent) {
+VideoPlayer::VideoPlayer(QWidget* parent)
+    : QWidget(parent),
+      mediaControlsEnabled_(false),
+      playbackKeyboardShortcutsEnabled_(true),
+      playbackRate_(1.0),
+      wasPlayingBeforeScrub_(false),
+      durationMs_(0),
+      lastStallCheckPositionMs_(-1),
+      consecutivePlaybackStallTicks_(0),
+      userRequestedPlaying_(false),
+      sleepRecoveryPending_(false),
+      sleepRecoveryWasPlaying_(false),
+      sleepRecoveryPositionMs_(0),
+      sleepRecoveryRate_(1.0) {
     buildUi();
     wireSignals();
     setupPlaybackReliabilityHooks();

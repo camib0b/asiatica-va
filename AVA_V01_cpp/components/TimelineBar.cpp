@@ -12,10 +12,35 @@
 #include <QStyle>
 #include <QStyleOptionSlider>
 
+#include <limits>
+
 
 namespace {
 constexpr qint64 kScrubThrottleMs = 33; // ~30Hz
 constexpr qint64 kSeekCommitToleranceMs = 250;
+constexpr qint64 kSeekCommitTimeoutMs = 2000;
+constexpr qint64 kMaxTimelineSeconds = std::numeric_limits<qint64>::max() / 1000;
+
+bool parseNonNegativeInt64(const QString& text, qint64* outValue) {
+  if (!outValue || text.isEmpty()) return false;
+  for (const QChar ch : text) {
+    if (ch < QLatin1Char('0') || ch > QLatin1Char('9')) return false;
+  }
+  bool ok = false;
+  const qint64 value = text.toLongLong(&ok);
+  if (!ok || value < 0) return false;
+  *outValue = value;
+  return true;
+}
+
+bool addTimeUnits(qint64* totalSeconds, qint64 value, qint64 secondsPerUnit) {
+  if (!totalSeconds || value < 0 || secondsPerUnit <= 0) return false;
+  if (value > 0 && secondsPerUnit > kMaxTimelineSeconds / value) return false;
+  const qint64 increment = value * secondsPerUnit;
+  if (*totalSeconds > kMaxTimelineSeconds - increment) return false;
+  *totalSeconds += increment;
+  return true;
+}
 
 // Click-to-seek slider (keeps your "real player" feel).
 class ClickSeekSlider final : public QSlider {
@@ -103,8 +128,7 @@ void TimelineBar::wireSignals() {
 
   connect(slider_, &QSlider::sliderPressed, this, [this]() {
     isScrubbing_ = true;
-    waitingForSeekCommit_ = false;
-    pendingSeekMs_ = -1;
+    clearSeekCommitWait();
     pendingScrubSeekMs_ = -1;
     scrubSeekThrottleTimer_->stop();
     emit scrubStarted();
@@ -122,11 +146,11 @@ void TimelineBar::wireSignals() {
 
   connect(slider_, &QSlider::sliderReleased, this, [this]() {
     const qint64 releasedPosMs = static_cast<qint64>(slider_->value());
-    waitingForSeekCommit_ = true;
-    pendingSeekMs_ = releasedPosMs;
+    beginSeekCommitWait(releasedPosMs);
     pendingScrubSeekMs_ = -1;
     scrubSeekThrottleTimer_->stop();
     isScrubbing_ = false;
+    lastKnownPositionMs_ = releasedPosMs;
     updateLabel(releasedPosMs, durationMs_);
     emit scrubFinished(releasedPosMs);
   });
@@ -152,8 +176,7 @@ void TimelineBar::reset() {
   lastKnownPositionMs_ = 0;
   isScrubbing_ = false;
   isEditingTimeEntry_ = false;
-  waitingForSeekCommit_ = false;
-  pendingSeekMs_ = -1;
+  clearSeekCommitWait();
   pendingScrubSeekMs_ = -1;
   lastDisplayedPosSeconds_ = -1;
   lastDisplayedDurSeconds_ = -1;
@@ -180,16 +203,30 @@ void TimelineBar::setDurationMs(qint64 durMs) {
   updateLabel(slider_->value(), durationMs_);
 }
 
+void TimelineBar::beginSeekCommitWait(qint64 pendingMs) {
+  waitingForSeekCommit_ = true;
+  pendingSeekMs_ = pendingMs;
+  seekCommitElapsed_.restart();
+}
+
+void TimelineBar::clearSeekCommitWait() {
+  waitingForSeekCommit_ = false;
+  pendingSeekMs_ = -1;
+  seekCommitElapsed_.invalidate();
+}
+
 void TimelineBar::setPositionMs(qint64 posMs) {
   posMs = std::max<qint64>(0, std::min(posMs, durationMs_));
   if (waitingForSeekCommit_ && pendingSeekMs_ >= 0) {
-    if (qAbs(posMs - pendingSeekMs_) <= kSeekCommitToleranceMs) {
-      waitingForSeekCommit_ = false;
-      pendingSeekMs_ = -1;
-    } else {
+    const bool seekCommitted = qAbs(posMs - pendingSeekMs_) <= kSeekCommitToleranceMs;
+    const bool waitTimedOut = !seekCommitElapsed_.isValid()
+        || seekCommitElapsed_.elapsed() >= kSeekCommitTimeoutMs;
+    if (!seekCommitted && !waitTimedOut) {
+      lastKnownPositionMs_ = pendingSeekMs_;
       updateLabel(pendingSeekMs_, durationMs_);
       return;
     }
+    clearSeekCommitWait();
   }
   if (!isScrubbing_) {
     slider_->setValue(static_cast<int>(posMs));
@@ -238,8 +275,7 @@ void TimelineBar::beginTimeEntry() {
 
   emit timeEntryStarted();
   isEditingTimeEntry_ = true;
-  waitingForSeekCommit_ = false;
-  pendingSeekMs_ = -1;
+  clearSeekCommitWait();
 
   const qint64 currentMs = static_cast<qint64>(slider_->value());
   timeEntry_->setText(formatMs(currentMs));
@@ -259,8 +295,7 @@ void TimelineBar::commitTimeEntry() {
   }
 
   targetMs = std::max<qint64>(0, std::min(targetMs, durationMs_));
-  waitingForSeekCommit_ = true;
-  pendingSeekMs_ = targetMs;
+  beginSeekCommitWait(targetMs);
   isEditingTimeEntry_ = false;
 
   slider_->setValue(static_cast<int>(targetMs));
@@ -284,43 +319,55 @@ bool TimelineBar::parseTimeEntryMs(const QString& text, qint64* outMs) {
   const QString trimmed = text.trimmed();
   if (trimmed.isEmpty()) return false;
 
-  auto isAllDigits = [](const QString& value) {
-    for (const QChar c : value) {
-      if (!c.isDigit()) return false;
-    }
-    return !value.isEmpty();
-  };
+  qint64 hours = 0;
+  qint64 minutes = 0;
+  qint64 seconds = 0;
 
-  qint64 totalSeconds = 0;
   if (trimmed.contains(QLatin1Char(':'))) {
     const QStringList parts = trimmed.split(QLatin1Char(':'), Qt::KeepEmptyParts);
     if (parts.isEmpty() || parts.size() > 3) return false;
-    for (const QString& part : parts) {
-      if (!isAllDigits(part.trimmed())) return false;
-    }
+
+    qint64 components[3] = {0, 0, 0};
     const int partCount = parts.size();
     for (int i = 0; i < partCount; ++i) {
-      const qint64 value = parts.at(i).trimmed().toLongLong();
-      const int power = partCount - 1 - i;
-      if (power == 2) totalSeconds += value * 3600;
-      else if (power == 1) totalSeconds += value * 60;
-      else totalSeconds += value;
+      if (!parseNonNegativeInt64(parts.at(i).trimmed(), &components[i])) return false;
     }
-  } else {
-    if (!isAllDigits(trimmed)) return false;
-    if (trimmed.size() <= 2) {
-      totalSeconds = trimmed.toLongLong();
-    } else if (trimmed.size() <= 4) {
-      const QString secondsPart = trimmed.right(2);
-      const QString minutesPart = trimmed.left(trimmed.size() - 2);
-      totalSeconds = minutesPart.toLongLong() * 60 + secondsPart.toLongLong();
+
+    if (partCount == 3) {
+      hours = components[0];
+      minutes = components[1];
+      seconds = components[2];
+    } else if (partCount == 2) {
+      minutes = components[0];
+      seconds = components[1];
     } else {
-      const QString secondsPart = trimmed.right(2);
-      const QString minutesPart = trimmed.mid(trimmed.size() - 4, 2);
-      const QString hoursPart = trimmed.left(trimmed.size() - 4);
-      totalSeconds = hoursPart.toLongLong() * 3600 + minutesPart.toLongLong() * 60 + secondsPart.toLongLong();
+      seconds = components[0];
+    }
+
+    if (minutes > 59 || seconds > 59) return false;
+  } else {
+    qint64 compactValue = 0;
+    if (!parseNonNegativeInt64(trimmed, &compactValue)) return false;
+    Q_UNUSED(compactValue);
+
+    if (trimmed.size() <= 2) {
+      if (!parseNonNegativeInt64(trimmed, &seconds)) return false;
+    } else if (trimmed.size() <= 4) {
+      if (!parseNonNegativeInt64(trimmed.left(trimmed.size() - 2), &minutes)) return false;
+      if (!parseNonNegativeInt64(trimmed.right(2), &seconds)) return false;
+      if (minutes > 59 || seconds > 59) return false;
+    } else {
+      if (!parseNonNegativeInt64(trimmed.left(trimmed.size() - 4), &hours)) return false;
+      if (!parseNonNegativeInt64(trimmed.mid(trimmed.size() - 4, 2), &minutes)) return false;
+      if (!parseNonNegativeInt64(trimmed.right(2), &seconds)) return false;
+      if (minutes > 59 || seconds > 59) return false;
     }
   }
+
+  qint64 totalSeconds = 0;
+  if (!addTimeUnits(&totalSeconds, hours, 3600)) return false;
+  if (!addTimeUnits(&totalSeconds, minutes, 60)) return false;
+  if (!addTimeUnits(&totalSeconds, seconds, 1)) return false;
 
   *outMs = totalSeconds * 1000;
   return true;
