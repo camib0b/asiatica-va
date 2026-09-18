@@ -90,13 +90,21 @@ void configureFollowUpButton(QPushButton* button, const QString& canonicalKey,
 }
 } // namespace
 
-GameControls::GameControls(QWidget* parent) : QWidget(parent) {
+GameControls::GameControls(QWidget* parent)
+    : QWidget(parent),
+      currentMainEvent_(),
+      currentFirstFollowUp_(),
+      currentSecondFollowUp_(),
+      followUpStage_(FollowUpStage::None),
+      gamePhase_(GamePhase::NotStarted),
+      activeMainButton_(nullptr),
+      teamSideSelection_(TeamSideSelection::None) {
   setMinimumWidth(kMinimumPanelWidthPx);
   buildUi();
   wireSignals();
   buildKeyboardShortcuts();
   hideFollowUpButtons();
-  updateGameTimeButtonsUi();
+  resetGameTimeState();
   applyUiLanguage();
   installEventFilter(this);
   for (auto* btn : {startGameButton_, nextQuarterButton_, homeTeamButton_, awayTeamButton_,

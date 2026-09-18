@@ -16,11 +16,20 @@ ClipTrimBar::ClipTrimBar(QWidget* parent) : QWidget(parent) {
 void ClipTrimBar::configure(qint64 markMs, qint64 startMs, qint64 endMs,
                             qint64 windowStartMs, qint64 windowEndMs) {
     markMs_ = markMs;
-    clipStartMs_ = startMs;
-    clipEndMs_ = endMs;
     windowStartMs_ = windowStartMs;
-    windowEndMs_ = windowEndMs;
-    playheadMs_ = startMs;
+    windowEndMs_ = std::max(windowEndMs, windowStartMs);
+
+    const qint64 minDurationMs = effectiveMinClipDurationMs();
+    clipStartMs_ = std::max(startMs, windowStartMs_);
+    clipEndMs_ = std::min(endMs, windowEndMs_);
+    if (clipEndMs_ < clipStartMs_ + minDurationMs) {
+        clipEndMs_ = std::min(windowEndMs_, clipStartMs_ + minDurationMs);
+        if (clipEndMs_ < clipStartMs_ + minDurationMs) {
+            clipStartMs_ = std::max(windowStartMs_, clipEndMs_ - minDurationMs);
+        }
+    }
+
+    playheadMs_ = clipStartMs_;
     dragTarget_ = DragTarget::None;
     update();
 }
@@ -65,6 +74,30 @@ QRect ClipTrimBar::startHandleRect() const {
 QRect ClipTrimBar::endHandleRect() const {
     const int x = msToX(clipEndMs_);
     return {x - kHandleWidth / 2, 0, kHandleWidth, kTrackHeight};
+}
+
+qint64 ClipTrimBar::effectiveMinClipDurationMs() const {
+    const qint64 windowDurationMs = windowEndMs_ - windowStartMs_;
+    if (windowDurationMs <= 0) return 0;
+    return std::min(kMinClipDurationMs, windowDurationMs);
+}
+
+qint64 ClipTrimBar::clampedClipStartMs(qint64 proposedStartMs) const {
+    const qint64 latestStartMs = clipEndMs_ - effectiveMinClipDurationMs();
+    const qint64 lo = windowStartMs_;
+    const qint64 hi = latestStartMs;
+    // std::clamp requires lo <= hi; a window shorter than the minimum duration (or a
+    // start that cannot stay in-window without crossing the end) has no legal range.
+    if (hi < lo) return clipStartMs_;
+    return std::clamp(proposedStartMs, lo, hi);
+}
+
+qint64 ClipTrimBar::clampedClipEndMs(qint64 proposedEndMs) const {
+    const qint64 earliestEndMs = clipStartMs_ + effectiveMinClipDurationMs();
+    const qint64 lo = earliestEndMs;
+    const qint64 hi = windowEndMs_;
+    if (lo > hi) return clipEndMs_;
+    return std::clamp(proposedEndMs, lo, hi);
 }
 
 QString ClipTrimBar::formatMs(qint64 ms) {
@@ -204,8 +237,7 @@ void ClipTrimBar::mouseMoveEvent(QMouseEvent* event) {
     const qint64 rawMs = xToMs(event->pos().x());
 
     if (dragTarget_ == DragTarget::ClipStart) {
-        const qint64 latestStartMs = clipEndMs_ - kMinClipDurationMs;
-        const qint64 clamped = std::clamp(rawMs, windowStartMs_, latestStartMs);
+        const qint64 clamped = clampedClipStartMs(rawMs);
         if (clamped != clipStartMs_) {
             clipStartMs_ = clamped;
             update();
@@ -213,8 +245,7 @@ void ClipTrimBar::mouseMoveEvent(QMouseEvent* event) {
             emit seekRequested(clipStartMs_);
         }
     } else if (dragTarget_ == DragTarget::ClipEnd) {
-        const qint64 earliestEndMs = clipStartMs_ + kMinClipDurationMs;
-        const qint64 clamped = std::clamp(rawMs, earliestEndMs, windowEndMs_);
+        const qint64 clamped = clampedClipEndMs(rawMs);
         if (clamped != clipEndMs_) {
             clipEndMs_ = clamped;
             update();

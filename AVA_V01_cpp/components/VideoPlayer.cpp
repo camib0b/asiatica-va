@@ -384,6 +384,12 @@ void VideoPlayer::updateStallMonitorForPlaybackState(QMediaPlayer::PlaybackState
 
 void VideoPlayer::nudgePlaybackAfterBackendStall() {
     if (!player_ || loadedSourcePath_.isEmpty()) return;
+
+    // pause() emits playbackStateChanged synchronously, and
+    // updateStallMonitorForPlaybackState() would otherwise clear userRequestedPlaying_
+    // before we can resume. Snapshot intent the same way scrub does.
+    const bool wasPlayingBeforeNudge =
+        userRequestedPlaying_ || player_->playbackState() == QMediaPlayer::PlayingState;
     const qint64 pos = player_->position();
     const qint64 dur = player_->duration();
     qint64 bumpMs = 1;
@@ -391,7 +397,8 @@ void VideoPlayer::nudgePlaybackAfterBackendStall() {
 
     player_->pause();
     player_->setPosition(pos + bumpMs);
-    if (userRequestedPlaying_) player_->play();
+    userRequestedPlaying_ = wasPlayingBeforeNudge;
+    if (wasPlayingBeforeNudge) player_->play();
 }
 
 void VideoPlayer::reloadCurrentMediaFromDisk() {

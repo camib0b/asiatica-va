@@ -41,6 +41,7 @@ void PlaybackVideoPreparer::startPreparation(const QString& inputPath,
     process_ = new QProcess(this);
     connect(process_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &PlaybackVideoPreparer::onProcessFinished);
+    connect(process_, &QProcess::errorOccurred, this, &PlaybackVideoPreparer::onProcessError);
 
     QStringList arguments;
     arguments << QStringLiteral("-y")
@@ -70,7 +71,7 @@ void PlaybackVideoPreparer::cancel() {
 }
 
 void PlaybackVideoPreparer::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus) {
-    if (cancelled_) return;
+    if (cancelled_ || finished_) return;
 
     finished_ = true;
     succeeded_ = (exitStatus == QProcess::NormalExit && exitCode == 0);
@@ -80,6 +81,20 @@ void PlaybackVideoPreparer::onProcessFinished(int exitCode, QProcess::ExitStatus
             : AppLocale::trUi("playback_prep.error_failed");
     }
     emit preparationFinished(succeeded_);
+}
+
+void PlaybackVideoPreparer::onProcessError(QProcess::ProcessError error) {
+    if (cancelled_ || finished_) return;
+    // Crashes and I/O errors still emit finished(); FailedToStart does not.
+    if (error != QProcess::FailedToStart) return;
+
+    finished_ = true;
+    succeeded_ = false;
+    errorMessage_ = AppLocale::trUi("playback_prep.error_failed");
+    if (process_ && !process_->errorString().isEmpty()) {
+        errorMessage_ += QLatin1Char('\n') + process_->errorString();
+    }
+    emit preparationFinished(false);
 }
 
 bool PlaybackVideoPreparer::waitWithProgress(QWidget* parentWidget) {

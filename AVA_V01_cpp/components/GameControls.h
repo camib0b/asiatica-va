@@ -167,9 +167,9 @@ protected:
   QList<QAction*> followUpNumberActions_;
   QAction* escapeAction_ = nullptr;
 
-  QString currentMainEvent_;
-  QString currentFirstFollowUp_;
-  QString currentSecondFollowUp_;
+  QString currentMainEvent_{};
+  QString currentFirstFollowUp_{};
+  QString currentSecondFollowUp_{};
   FollowUpStage followUpStage_ = FollowUpStage::None;
   GamePhase gamePhase_ = GamePhase::NotStarted;
   QPushButton* activeMainButton_ = nullptr;
