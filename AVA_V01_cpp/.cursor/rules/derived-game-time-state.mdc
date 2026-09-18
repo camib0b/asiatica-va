@@ -1,0 +1,29 @@
+---
+description: Derive TagSession game-time phase and period labels from one restore pass
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# Keep derived game-time state in sync with tags
+
+`TagSession` quarter phase, current quarter, start-anchor time, **and closed Q1–Q4 spans** are derived from TimeCodes tags in `restoreGameTimeStateFromTags()`. Call that after `addTag` / `removeTag` / `setTagInterval` / `importTags`, before emitting.
+
+`periodLabelAtTimestampMs()` only **reads** that cached state. Do not walk or sort `tags_` on every label lookup, and do not keep a second quarter parser.
+
+Phase follows the contiguous closed prefix Q1..Qn (a missing Q2 does not skip to Q3 or end the game). Labels must still work when:
+
+- Q1 is in progress and no quarter tag is closed yet (`currentQuarterIndex_` + `currentQuarterStartMs_`)
+- the game has ended and the timestamp is after Q4’s recorded end (still Q4)
+
+```cpp
+// BAD — rebuild/sort closed quarters on every playhead query
+QString TagSession::periodLabelAtTimestampMs(qint64 positionMs) const {
+  return periodLabelFromSnapshot(collectGameTimeFromTags(tags_), positionMs);
+}
+
+// GOOD — restore fills closedQuarters_ / phase; labels read members only
+void TagSession::restoreGameTimeStateFromTags();  // writes closedQuarters_ + phase
+QString TagSession::periodLabelAtTimestampMs(qint64 positionMs) const;  // reads them
+```
+
+Listeners (`restoreGamePhase`) must run on `tagsChanged`, not only on `tagsImported`.

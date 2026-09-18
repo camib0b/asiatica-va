@@ -1,0 +1,25 @@
+---
+description: Keep TagSession markMs inside [startMs, endMs] on every write path
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# Clip interval invariant
+
+Every stored `GameTag` must satisfy `startMs >= 0`, `endMs >= startMs`, and `startMs <= markMs <= endMs`. Flooring `startMs` at 0 (lead time before t=0) or shrinking `endMs` can push `markMs` outside that range. Clamp `markMs` into the interval on **every** write path, not only `importTags()`.
+
+```cpp
+// BAD — addTag seeds start/end from mark, clamps start to 0, leaves mark unchanged
+qint64 start = stored.markMs - duration.leadMs;
+if (start < 0) start = 0;
+stored.startMs = start;
+stored.endMs = stored.markMs + duration.lagMs;
+// markMs can still be < startMs (negative mark) or > endMs after later end clamps
+
+// GOOD — same clamp helper as importTags after seed or explicit interval
+stored.startMs = stored.markMs - duration.leadMs;
+stored.endMs = stored.markMs + duration.lagMs;
+clampTagInterval(stored);  // start>=0, end>=start, mark inside [start, end]
+```
+
+Do not duplicate clamp logic in `addTag` and `importTags`. One helper, both callers.

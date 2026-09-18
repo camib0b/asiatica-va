@@ -106,7 +106,8 @@ public:
   void clearCurrentQuarter();
   void resetGameTimeState();
 
-  /// Quarter label from TimeCodes tags (Q1–Q4) and live quarter state; empty if unknown.
+  /// Quarter label from restored game-time state (closed Q1–Q4 spans plus the
+  /// in-progress or ended quarter). Empty if the timestamp is before the game.
   QString periodLabelAtTimestampMs(qint64 positionMs) const;
 
   const QVector<GameTag>& tags() const { return tags_; }
@@ -124,7 +125,18 @@ signals:
   void tagsChanged();
 
 private:
+  static constexpr int kQuarterCount = 4;
+
+  struct ClosedQuarterSpan {
+    bool present = false;
+    qint64 startMs = 0;
+    qint64 endMs = 0;
+  };
+
   void rebuildEventCountsFromTags();
+  /// Rebuilds phase, current quarter, start anchor, and closed-quarter spans from
+  /// TimeCodes tags. Call after any mutation of tags_ that can add, remove, or
+  /// retimestamp start-anchor or quarter tags — not only after import/clear.
   void restoreGameTimeStateFromTags();
   void assignStableId(GameTag& tag);
   QVector<GameTag> tags_;
@@ -144,5 +156,6 @@ private:
   int currentQuarterIndex_ = -1;
   qint64 currentQuarterStartMs_ = 0;
   QuarterPhase quarterPhase_ = QuarterPhase::NotStarted;
+  ClosedQuarterSpan closedQuarters_[kQuarterCount] = {};
 };
 

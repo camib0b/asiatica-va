@@ -33,6 +33,28 @@ GameSetupWindow::GameSetupWindow(QWidget* parent)
 
 Keep in-class `= nullptr` / `= -1` / `= false` as a second line of defense. Init-list order must match declaration order.
 
+A `clear()`, `reset()`, or `import()` helper is not constructor initialization. If callers can use the object before those run, every member they read must start in a valid state from construction — not from a lifecycle method they may never call.
+
+```cpp
+// BAD — quarterPhase_ / gameStartAnchorMs_ only set in clear() or resetGameTimeState()
+TagSession::TagSession(QObject* parent) : QObject(parent) {}
+
+bool TagSession::hasGameStartAnchor() const {
+  return gameStartAnchorMs_ >= 0;  // UB if constructed but clear() never ran
+}
+
+// GOOD — same defaults as clear() / resetGameTimeState(), visible in the ctor
+TagSession::TagSession(QObject* parent)
+    : QObject(parent),
+      nextTagId_(1),
+      gameStartAnchorMs_(-1),
+      currentQuarterIndex_(-1),
+      currentQuarterStartMs_(0),
+      quarterPhase_(QuarterPhase::NotStarted) {}
+```
+
+Widget observers are `QPointer<T>`, not raw `T*`. List them as `nullptr` in the constructor initializer (declaration order) even though `buildUi()` assigns them later. `QPointer` auto-nulls if Qt deletes the child first; a raw `T*` in a row struct plus `delete` is use-after-free. Null-check `QPointer` members at use sites.
+
 Members the constructor always assigns and never nulls (`stack_`, `workWindow_`, `tagSession_`) do not get `if (ptr_)` at use sites. A null check there is dead code and hides the real ownership rule.
 
 ```cpp

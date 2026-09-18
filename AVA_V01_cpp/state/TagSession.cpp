@@ -4,7 +4,46 @@
 
 #include <algorithm>
 
-TagSession::TagSession(QObject* parent) : QObject(parent) {}
+namespace {
+
+constexpr int kQuarterCount = 4;
+
+int quarterIndexForMainEvent(const QString& mainEvent) {
+  for (int quarterIndex = 0; quarterIndex < kQuarterCount; ++quarterIndex) {
+    if (mainEvent == EventDefaults::quarterCode(quarterIndex)) return quarterIndex;
+  }
+  return -1;
+}
+
+/// Enforces start >= 0, end >= start, and start <= mark <= end.
+/// When \p videoDurationMs is >= 0, start and end are also capped to that duration.
+/// Returns true when any of the three timestamps changed.
+bool clampTagInterval(TagSession::GameTag& tag, qint64 videoDurationMs = -1) {
+  const qint64 originalStartMs = tag.startMs;
+  const qint64 originalEndMs = tag.endMs;
+  const qint64 originalMarkMs = tag.markMs;
+
+  if (tag.startMs < 0) tag.startMs = 0;
+  if (videoDurationMs >= 0 && tag.startMs > videoDurationMs) tag.startMs = videoDurationMs;
+  if (tag.endMs < tag.startMs) tag.endMs = tag.startMs;
+  if (videoDurationMs >= 0 && tag.endMs > videoDurationMs) tag.endMs = videoDurationMs;
+  if (tag.markMs < tag.startMs) tag.markMs = tag.startMs;
+  if (tag.markMs > tag.endMs) tag.markMs = tag.endMs;
+
+  return tag.startMs != originalStartMs || tag.endMs != originalEndMs ||
+         tag.markMs != originalMarkMs;
+}
+
+}  // namespace
+
+TagSession::TagSession(QObject* parent)
+    : QObject(parent),
+      nextTagId_(1),
+      gameStartAnchorMs_(-1),
+      currentQuarterIndex_(-1),
+      currentQuarterStartMs_(0),
+      quarterPhase_(QuarterPhase::NotStarted),
+      closedQuarters_{} {}
 
 void TagSession::clear() {
   tags_.clear();
@@ -67,11 +106,10 @@ void TagSession::addTag(const GameTag& tag) {
     const auto duration = EventDefaults::defaultFor(stored.mainEvent);
     qint64 start = stored.markMs - duration.leadMs;
     qint64 end = stored.markMs + duration.lagMs;
-    if (start < 0) start = 0;
-    if (end < start) end = start;
     stored.startMs = start;
     stored.endMs = end;
   }
+  clampTagInterval(stored);
   tags_.push_back(stored);
 
   const int nextMainCount = mainEventCounts_.value(stored.mainEvent, 0) + 1;
@@ -83,6 +121,7 @@ void TagSession::addTag(const GameTag& tag) {
     followUps.insert(stored.followUpEvent, nextFollowUpCount);
   }
 
+  restoreGameTimeStateFromTags();
   emit tagAdded(stored);
   emit tagsChanged();
 }
@@ -104,34 +143,7 @@ TagSession::ImportResult TagSession::importTags(const QVector<GameTag>& tags,
   for (const GameTag& incoming : tags) {
     GameTag stored = incoming;
     assignStableId(stored);
-    bool clamped = false;
-
-    if (stored.startMs < 0) {
-      stored.startMs = 0;
-      clamped = true;
-    }
-    if (videoDurationMs >= 0 && stored.startMs > videoDurationMs) {
-      stored.startMs = videoDurationMs;
-      clamped = true;
-    }
-    if (stored.endMs < stored.startMs) {
-      stored.endMs = stored.startMs;
-      clamped = true;
-    }
-    if (videoDurationMs >= 0 && stored.endMs > videoDurationMs) {
-      stored.endMs = videoDurationMs;
-      clamped = true;
-    }
-    if (stored.markMs < stored.startMs) {
-      stored.markMs = stored.startMs;
-      clamped = true;
-    }
-    if (stored.markMs > stored.endMs) {
-      stored.markMs = stored.endMs;
-      clamped = true;
-    }
-
-    if (clamped) ++result.clampedCount;
+    if (clampTagInterval(stored, videoDurationMs)) ++result.clampedCount;
     tags_.push_back(stored);
     ++result.importedCount;
   }
@@ -168,65 +180,37 @@ void TagSession::restoreGameTimeStateFromTags() {
   currentQuarterIndex_ = -1;
   currentQuarterStartMs_ = 0;
   quarterPhase_ = QuarterPhase::NotStarted;
+  for (int quarterIndex = 0; quarterIndex < kQuarterCount; ++quarterIndex) {
+    closedQuarters_[quarterIndex] = ClosedQuarterSpan{};
+  }
 
   for (const GameTag& tag : tags_) {
     if (tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kStartAnchor)) {
-      gameStartAnchorMs_ = tag.startMs;
-      break;
+      if (gameStartAnchorMs_ < 0) gameStartAnchorMs_ = tag.startMs;
+      continue;
     }
+    const int quarterIndex = quarterIndexForMainEvent(tag.mainEvent);
+    if (quarterIndex < 0) continue;
+    closedQuarters_[quarterIndex].present = true;
+    closedQuarters_[quarterIndex].startMs = tag.startMs;
+    closedQuarters_[quarterIndex].endMs = tag.endMs;
   }
 
-  bool hasClosedQuarter[4] = {false, false, false, false};
-  qint64 quarterStartMs[4] = {0, 0, 0, 0};
-  qint64 quarterEndMs[4] = {0, 0, 0, 0};
-
-  for (const GameTag& tag : tags_) {
-    for (int i = 0; i < 4; ++i) {
-      if (tag.mainEvent == EventDefaults::quarterCode(i)) {
-        hasClosedQuarter[i] = true;
-        quarterStartMs[i] = tag.startMs;
-        quarterEndMs[i] = tag.endMs;
-        break;
-      }
-    }
+  int closedPrefixCount = 0;
+  while (closedPrefixCount < kQuarterCount && closedQuarters_[closedPrefixCount].present) {
+    ++closedPrefixCount;
   }
 
-  if (hasClosedQuarter[3]) {
+  if (closedPrefixCount == kQuarterCount) {
     quarterPhase_ = QuarterPhase::GameEnded;
-    return;
-  }
-
-  int lastClosedIndex = -1;
-  for (int i = 3; i >= 0; --i) {
-    if (hasClosedQuarter[i]) {
-      lastClosedIndex = i;
-      break;
-    }
-  }
-
-  if (lastClosedIndex >= 0 && lastClosedIndex < 3) {
-    const int nextIndex = lastClosedIndex + 1;
+  } else if (closedPrefixCount > 0) {
     quarterPhase_ = QuarterPhase::QuarterInProgress;
-    currentQuarterIndex_ = nextIndex;
-    currentQuarterStartMs_ = quarterEndMs[lastClosedIndex];
-    return;
-  }
-
-  if (lastClosedIndex == -1 && gameStartAnchorMs_ >= 0) {
+    currentQuarterIndex_ = closedPrefixCount;
+    currentQuarterStartMs_ = closedQuarters_[closedPrefixCount - 1].endMs;
+  } else if (gameStartAnchorMs_ >= 0) {
     quarterPhase_ = QuarterPhase::QuarterInProgress;
     currentQuarterIndex_ = 0;
     currentQuarterStartMs_ = gameStartAnchorMs_;
-    return;
-  }
-
-  for (int i = 0; i < 4; ++i) {
-    if (hasClosedQuarter[i]) continue;
-    if (i == 0 && gameStartAnchorMs_ >= 0) {
-      quarterPhase_ = QuarterPhase::QuarterInProgress;
-      currentQuarterIndex_ = 0;
-      currentQuarterStartMs_ = gameStartAnchorMs_;
-      return;
-    }
   }
 }
 
@@ -260,6 +244,7 @@ void TagSession::removeTag(int index) {
   }
 
   tags_.removeAt(index);
+  restoreGameTimeStateFromTags();
   emit tagsChanged();
 }
 
@@ -298,6 +283,7 @@ void TagSession::setTagInterval(int index, qint64 startMs, qint64 endMs) {
   if (tag.startMs == startMs && tag.endMs == endMs) return;
   tag.startMs = startMs;
   tag.endMs = endMs;
+  restoreGameTimeStateFromTags();
   emit tagIntervalChanged(index);
 }
 
@@ -338,43 +324,41 @@ void TagSession::resetGameTimeState() {
   currentQuarterIndex_ = -1;
   currentQuarterStartMs_ = 0;
   quarterPhase_ = QuarterPhase::NotStarted;
+  for (int quarterIndex = 0; quarterIndex < kQuarterCount; ++quarterIndex) {
+    closedQuarters_[quarterIndex] = ClosedQuarterSpan{};
+  }
 }
 
 QString TagSession::periodLabelAtTimestampMs(qint64 positionMs) const {
-  struct QuarterSpan {
-    QString label;
-    qint64 startMs = 0;
-    qint64 endMs = 0;
-  };
+  int matchingQuarterIndex = -1;
+  qint64 matchingStartMs = 0;
+  qint64 matchingEndMs = 0;
+  for (int quarterIndex = 0; quarterIndex < kQuarterCount; ++quarterIndex) {
+    const ClosedQuarterSpan& closedQuarter = closedQuarters_[quarterIndex];
+    if (!closedQuarter.present) continue;
+    if (positionMs < closedQuarter.startMs || positionMs > closedQuarter.endMs) continue;
+    const bool isBetterMatch =
+        matchingQuarterIndex < 0 || closedQuarter.startMs < matchingStartMs ||
+        (closedQuarter.startMs == matchingStartMs && closedQuarter.endMs < matchingEndMs);
+    if (!isBetterMatch) continue;
+    matchingQuarterIndex = quarterIndex;
+    matchingStartMs = closedQuarter.startMs;
+    matchingEndMs = closedQuarter.endMs;
+  }
+  if (matchingQuarterIndex >= 0) return EventDefaults::quarterCode(matchingQuarterIndex);
 
-  QVector<QuarterSpan> closedQuarterSpans;
-  closedQuarterSpans.reserve(4);
-  for (const GameTag& tag : tags_) {
-    const bool isQuarterTag =
-        tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kQuarter1) ||
-        tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kQuarter2) ||
-        tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kQuarter3) ||
-        tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kQuarter4);
-    if (!isQuarterTag) continue;
-    closedQuarterSpans.append({tag.mainEvent, tag.startMs, tag.endMs});
+  // Q1 (or later) in progress: no closed span covers this timestamp yet.
+  if (quarterPhase_ == QuarterPhase::QuarterInProgress &&
+      currentQuarterIndex_ >= 0 && currentQuarterIndex_ < kQuarterCount &&
+      positionMs >= currentQuarterStartMs_) {
+    return EventDefaults::quarterCode(currentQuarterIndex_);
   }
 
-  std::sort(closedQuarterSpans.begin(), closedQuarterSpans.end(),
-            [](const QuarterSpan& lhs, const QuarterSpan& rhs) {
-              if (lhs.startMs == rhs.startMs) return lhs.endMs < rhs.endMs;
-              return lhs.startMs < rhs.startMs;
-            });
-
-  for (const QuarterSpan& quarterSpan : closedQuarterSpans) {
-    if (positionMs >= quarterSpan.startMs && positionMs <= quarterSpan.endMs) {
-      return quarterSpan.label;
-    }
-  }
-
-  if (quarterPhase_ == QuarterPhase::QuarterInProgress) {
-    const int quarterIndex = currentQuarterIndex_;
-    if (quarterIndex >= 0 && quarterIndex < 4 && positionMs >= currentQuarterStartMs_) {
-      return EventDefaults::quarterCode(quarterIndex);
+  // Game over: timestamps after Q4's recorded end still belong to Q4.
+  if (quarterPhase_ == QuarterPhase::GameEnded) {
+    const ClosedQuarterSpan& finalQuarter = closedQuarters_[kQuarterCount - 1];
+    if (finalQuarter.present && positionMs >= finalQuarter.startMs) {
+      return EventDefaults::quarterCode(kQuarterCount - 1);
     }
   }
 
