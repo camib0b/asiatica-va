@@ -7,6 +7,7 @@
 #include <QFileInfo>
 #include <QProcess>
 #include <QProgressDialog>
+#include <QSignalBlocker>
 
 PlaybackVideoPreparer::PlaybackVideoPreparer(QObject* parent)
     : QObject(parent),
@@ -78,7 +79,7 @@ void PlaybackVideoPreparer::startPreparation(const QString& inputPath,
 }
 
 void PlaybackVideoPreparer::cancel() {
-    if (finished_ && succeeded_) return;
+    if (finished_) return;
 
     cancelled_ = true;
     if (process_ && process_->state() != QProcess::NotRunning) {
@@ -87,6 +88,7 @@ void PlaybackVideoPreparer::cancel() {
     finished_ = true;
     succeeded_ = false;
     errorMessage_.clear();
+    emit preparationFinished(false);
 }
 
 void PlaybackVideoPreparer::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus) {
@@ -131,11 +133,7 @@ bool PlaybackVideoPreparer::waitWithProgress(QWidget* parentWidget) {
 
     connect(this, &PlaybackVideoPreparer::preparationFinished,
             &loop, &QEventLoop::quit);
-
-    connect(&progress, &QProgressDialog::canceled, this, [this, &loop]() {
-        cancel();
-        loop.quit();
-    });
+    connect(&progress, &QProgressDialog::canceled, this, &PlaybackVideoPreparer::cancel);
 
     progress.show();
 
@@ -143,6 +141,7 @@ bool PlaybackVideoPreparer::waitWithProgress(QWidget* parentWidget) {
         loop.exec();
     }
 
+    const QSignalBlocker closeGuard(&progress);
     const bool preparationOk = succeeded_;
     progress.close();
     return preparationOk;
