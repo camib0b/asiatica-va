@@ -8,6 +8,8 @@
 #include <QVector>
 #include <QtGlobal>
 
+#include <memory>
+
 class QTemporaryDir;
 
 struct ScoreboardOverlay {
@@ -65,6 +67,7 @@ private:
     void processNextClip();
     void concatenateClips();
     void cleanup();
+    void stopAndDiscardProcess();
     static QSize probeVideoDisplaySize(const QString& videoPath);
     static qreal computeOverlayScale(const QSize& videoSize);
     static QSize cappedOutputSize(const QSize& sourceSize);
@@ -85,7 +88,7 @@ private:
     QVector<ClipSegment> clips_;
 
     QProcess* currentProcess_ = nullptr;
-    QTemporaryDir* tempDir_ = nullptr;
+    std::unique_ptr<QTemporaryDir> tempDir_;
     int currentClipIndex_ = 0;
     bool cancelled_ = false;
     QStringList tempClipPaths_;

@@ -227,7 +227,8 @@ struct ScoreboardLayout {
 ClipExporter::ClipExporter(QObject* parent) : QObject(parent) {}
 
 ClipExporter::~ClipExporter() {
-    cancelExport();
+    cancelled_ = true;
+    stopAndDiscardProcess();
     cleanup();
 }
 
@@ -342,7 +343,7 @@ void ClipExporter::startExport() {
     tempClipPaths_.clear();
 
     cleanup();
-    tempDir_ = new QTemporaryDir();
+    tempDir_ = std::make_unique<QTemporaryDir>();
     if (!tempDir_->isValid()) {
         emit exportFinished(false, QStringLiteral("Failed to create temporary directory."));
         cleanup();
@@ -571,9 +572,7 @@ void ClipExporter::processNextClip() {
               << QStringLiteral("-movflags") << QStringLiteral("+faststart")
               << tempPath;
 
-    if (currentProcess_) {
-        currentProcess_->deleteLater();
-    }
+    stopAndDiscardProcess();
     currentProcess_ = new QProcess(this);
     connect(currentProcess_,
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
@@ -651,9 +650,7 @@ void ClipExporter::concatenateClips() {
               << QStringLiteral("-c") << QStringLiteral("copy")
               << outputPath_;
 
-    if (currentProcess_) {
-        currentProcess_->deleteLater();
-    }
+    stopAndDiscardProcess();
     currentProcess_ = new QProcess(this);
     connect(currentProcess_,
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
@@ -684,12 +681,20 @@ void ClipExporter::onConcatProcessFinished(int exitCode, QProcess::ExitStatus ex
 }
 
 void ClipExporter::cleanup() {
-    if (tempDir_) {
-        delete tempDir_;
-        tempDir_ = nullptr;
-    }
+    tempDir_.reset();
     tempClipPaths_.clear();
     brandingImagePath_.clear();
+}
+
+void ClipExporter::stopAndDiscardProcess() {
+    if (!currentProcess_) return;
+    currentProcess_->disconnect();
+    if (currentProcess_->state() != QProcess::NotRunning) {
+        currentProcess_->kill();
+        currentProcess_->waitForFinished(3000);
+    }
+    currentProcess_->deleteLater();
+    currentProcess_ = nullptr;
 }
 
 QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,

@@ -1,0 +1,28 @@
+---
+description: Own QTemporaryDir with unique_ptr; do not new/delete Qt resources by hand
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# RAII for temp dirs and processes
+
+Own `QTemporaryDir` with `std::unique_ptr`. Resetting the pointer (or destroying the exporter) removes the directory via `QTemporaryDir`'s destructor. Do not `new`/`delete` it on every error path.
+
+`QProcess` may stay parented to the `QObject`, but still discard the previous job before starting another (`disconnect`, kill, wait, `deleteLater`).
+
+```cpp
+// BAD
+tempDir_ = new QTemporaryDir();
+...
+delete tempDir_;
+tempDir_ = nullptr;
+
+// GOOD
+tempDir_ = std::make_unique<QTemporaryDir>();
+if (!tempDir_->isValid()) {
+    cleanup();  // tempDir_.reset()
+    return;
+}
+```
+
+Manual `cleanup()` should only reset smart pointers and clear related paths, not scatter `delete`.
