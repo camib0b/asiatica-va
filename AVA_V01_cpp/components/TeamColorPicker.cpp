@@ -129,7 +129,7 @@ void TeamColorPicker::setFallbackPreviewColor(const QColor& color) {
   fallbackPreviewColor_ = color.isValid() ? color : QColor(Qt::gray);
 }
 
-void TeamColorPicker::applyUiStrings() {
+void TeamColorPicker::applyUiStrings() const {
   if (hexEdit_) {
     hexEdit_->setPlaceholderText(AppLocale::trUi("setup.placeholder_hex"));
   }
@@ -313,7 +313,7 @@ void TeamColorPicker::applyNormalizedColor(const QString& normalizedHex, bool em
   }
 }
 
-void TeamColorPicker::refreshWell() {
+void TeamColorPicker::refreshWell() const {
   auto* well = static_cast<ColorCircleButton*>(wellButton_);
   if (!well) return;
 
@@ -340,7 +340,7 @@ void TeamColorPicker::refreshWell() {
   well->setToolTip(tooltip);
 }
 
-void TeamColorPicker::refreshSwatchSelection() {
+void TeamColorPicker::refreshSwatchSelection() const {
   for (QAbstractButton* button : swatchButtons_) {
     auto* swatch = static_cast<ColorCircleButton*>(button);
     const QString paletteHex = swatch->property("paletteHex").toString();
@@ -350,7 +350,7 @@ void TeamColorPicker::refreshSwatchSelection() {
   }
 }
 
-void TeamColorPicker::syncHexEditFromColor() {
+void TeamColorPicker::syncHexEditFromColor() const {
   if (!hexEdit_) return;
   syncingHexEdit_ = true;
   hexEdit_->setText(colorHex_);

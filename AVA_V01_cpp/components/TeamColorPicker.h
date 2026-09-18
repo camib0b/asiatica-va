@@ -24,7 +24,7 @@ public:
 
   void setColorDialogTitle(const QString& title);
   void setFallbackPreviewColor(const QColor& color);
-  void applyUiStrings();
+  void applyUiStrings() const;
 
 signals:
   void colorChanged(const QString& hex);
@@ -44,9 +44,9 @@ private:
   void showPalettePopup();
   void hidePalettePopup();
   void applyNormalizedColor(const QString& normalizedHex, bool emitChange);
-  void refreshWell();
-  void refreshSwatchSelection();
-  void syncHexEditFromColor();
+  void refreshWell() const;
+  void refreshSwatchSelection() const;
+  void syncHexEditFromColor() const;
   QColor dialogSeedColor() const;
 
   static QString colorToHex(const QColor& color);
@@ -56,7 +56,7 @@ private:
   QString colorDialogTitle_;
   QColor fallbackPreviewColor_ = QColor(Qt::gray);
   bool popupJustClosed_ = false;
-  bool syncingHexEdit_ = false;
+  mutable bool syncingHexEdit_ = false;
 
   QAbstractButton* wellButton_ = nullptr;
   QFrame* popup_ = nullptr;
