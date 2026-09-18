@@ -1,0 +1,23 @@
+---
+description: Apply const to C++ member functions that do not mutate logical object state
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# Const-correctness for member functions
+
+Mark a member function `const` when it does not change the object's logical state. This clarifies intent and allows calls from `const` contexts.
+
+Logical constness includes methods that only **read members** and **update child widgets** to reflect that state (refresh, sync, relabel). Pointer members stay usable because `const` makes the pointer const, not the pointee.
+
+```cpp
+// BAD — refresh only reads colorHex_ and paints child widgets
+void refreshWell();
+
+// GOOD
+void refreshWell() const;
+```
+
+Do **not** mark methods `const` when they assign to non-`mutable` members or change the object's own model/interaction state (setters, popup show/hide, signal emission of new values).
+
+Use `mutable` only for bookkeeping that is not logical state (reentrancy guards, caches). Example: `mutable bool syncingHexEdit_` so `syncHexEditFromColor() const` can suppress echo while writing a child `QLineEdit`.
