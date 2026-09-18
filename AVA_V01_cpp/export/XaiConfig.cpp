@@ -6,6 +6,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
+#include <QByteArray>
+#include <QString>
 
 namespace {
 
@@ -75,10 +77,17 @@ bool writeApiKeyToConfigFile(const QString& filePath, const QString& apiKey) {
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         return false;
     }
-    if (file.write(document.toJson(QJsonDocument::Indented)) < 0) {
+    if (!file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner)) {
+        file.close();
+        QFile::remove(filePath);
         return false;
     }
-    file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+    const QByteArray jsonData = document.toJson(QJsonDocument::Indented);
+    if (file.write(jsonData) != jsonData.size()) {
+        file.close();
+        QFile::remove(filePath);
+        return false;
+    }
     return true;
 }
 

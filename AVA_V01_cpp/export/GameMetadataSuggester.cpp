@@ -245,7 +245,7 @@ GameMetadataSuggester::GameMetadataSuggester(QObject* parent) : QObject(parent) 
 }
 
 GameMetadataSuggester::~GameMetadataSuggester() {
-    abort();
+    abortActiveWork();
 }
 
 void GameMetadataSuggester::startSuggestionFromVideoPaths(const QStringList& sourceVideoPaths) {
@@ -256,6 +256,7 @@ void GameMetadataSuggester::startSuggestionFromVideoPaths(const QStringList& sou
     namesDone_ = false;
     thumbnailDone_ = false;
     colorStatusEmitted_ = false;
+    colorsRequested_ = false;
     finishedEmitted_ = false;
     suggestedHomeName_.clear();
     suggestedAwayName_.clear();
@@ -287,8 +288,11 @@ void GameMetadataSuggester::startSuggestionFromVideoPaths(const QStringList& sou
 }
 
 void GameMetadataSuggester::abort() {
+    const bool wasRunning = running_;
     abortActiveWork();
-    running_ = false;
+    if (wasRunning) {
+        finishQuietly();
+    }
 }
 
 void GameMetadataSuggester::abortActiveWork() {
@@ -301,20 +305,20 @@ void GameMetadataSuggester::abortActiveWork() {
         reply->deleteLater();
     }
 
-    if (thumbnailProcess_) {
-        QProcess* process = thumbnailProcess_;
-        thumbnailProcess_ = nullptr;
-        if (process->state() != QProcess::NotRunning) {
-            process->kill();
-            process->waitForFinished(1000);
-        }
-        process->deleteLater();
-    }
+    stopAndDiscardThumbnailProcess();
+    thumbnailDir_.reset();
+}
 
-    if (thumbnailDir_) {
-        delete thumbnailDir_;
-        thumbnailDir_ = nullptr;
+void GameMetadataSuggester::stopAndDiscardThumbnailProcess() {
+    if (!thumbnailProcess_) {
+        return;
     }
+    QProcess* dyingProcess = thumbnailProcess_.release();
+    dyingProcess->disconnect();
+    if (dyingProcess->state() != QProcess::NotRunning) {
+        dyingProcess->kill();
+    }
+    dyingProcess->deleteLater();
 }
 
 void GameMetadataSuggester::finishQuietly() {
@@ -326,8 +330,8 @@ void GameMetadataSuggester::finishQuietly() {
     emit finished();
 }
 
-void GameMetadataSuggester::notifyColorDetectionStarted() {
-    if (colorStatusEmitted_ || aborted_) {
+void GameMetadataSuggester::maybeNotifyColorDetectionStarted() {
+    if (aborted_ || !running_ || colorStatusEmitted_ || !namesDone_) {
         return;
     }
     colorStatusEmitted_ = true;
@@ -338,6 +342,7 @@ void GameMetadataSuggester::startNameDateRequest(const QStringList& fileNames) {
     const QString apiKey = XaiConfig::apiKey();
     if (apiKey.isEmpty()) {
         namesDone_ = true;
+        startColorsOrFinish();
         return;
     }
 
@@ -379,10 +384,9 @@ void GameMetadataSuggester::startThumbnailFfmpeg(int seekSeconds, bool isRetry) 
     }
 
     if (!thumbnailDir_) {
-        thumbnailDir_ = new QTemporaryDir();
+        thumbnailDir_ = std::make_unique<QTemporaryDir>();
         if (!thumbnailDir_->isValid()) {
-            delete thumbnailDir_;
-            thumbnailDir_ = nullptr;
+            thumbnailDir_.reset();
             thumbnailDone_ = true;
             startColorsOrFinish();
             return;
@@ -392,9 +396,10 @@ void GameMetadataSuggester::startThumbnailFfmpeg(int seekSeconds, bool isRetry) 
     const QString outputPath = thumbnailDir_->filePath(QStringLiteral("frame.jpg"));
     QFile::remove(outputPath);
 
-    thumbnailProcess_ = new QProcess(this);
+    stopAndDiscardThumbnailProcess();
+    thumbnailProcess_ = std::make_unique<QProcess>();
     const int generation = generation_;
-    connect(thumbnailProcess_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+    connect(thumbnailProcess_.get(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, [this, generation, isRetry](int, QProcess::ExitStatus) {
                 onThumbnailProcessFinished(generation, isRetry);
             });
@@ -417,12 +422,12 @@ void GameMetadataSuggester::onThumbnailProcessFinished(int generation, bool isRe
         return;
     }
 
-    QProcess* process = thumbnailProcess_;
-    thumbnailProcess_ = nullptr;
+    QProcess* process = thumbnailProcess_.release();
     const bool succeeded = process
         && process->exitStatus() == QProcess::NormalExit
         && process->exitCode() == 0;
     if (process) {
+        process->disconnect();
         process->deleteLater();
     }
 
@@ -470,9 +475,7 @@ void GameMetadataSuggester::onChatReplyFinished(int generation, ChatKind kind) {
             handleNameDateResponse(responseBody);
         }
         namesDone_ = true;
-        if (!thumbnailDone_) {
-            notifyColorDetectionStarted();
-        }
+        maybeNotifyColorDetectionStarted();
         startColorsOrFinish();
         return;
     }
@@ -526,17 +529,21 @@ void GameMetadataSuggester::startColorsOrFinish() {
         finishQuietly();
         return;
     }
+    if (colorsRequested_) {
+        return;
+    }
+    maybeNotifyColorDetectionStarted();
     startColorRequest();
 }
 
 void GameMetadataSuggester::startColorRequest() {
+    colorsRequested_ = true;
+
     const QString apiKey = XaiConfig::apiKey();
     if (apiKey.isEmpty() || thumbnailJpeg_.isEmpty()) {
         finishQuietly();
         return;
     }
-
-    notifyColorDetectionStarted();
 
     const QString dataUrl = QStringLiteral("data:image/jpeg;base64,")
         + QString::fromLatin1(thumbnailJpeg_.toBase64());

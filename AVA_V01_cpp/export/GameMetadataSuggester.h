@@ -6,6 +6,8 @@
 #include <QString>
 #include <QStringList>
 
+#include <memory>
+
 class QNetworkAccessManager;
 class QNetworkReply;
 class QProcess;
@@ -42,18 +44,19 @@ private:
     void startThumbnailFfmpeg(int seekSeconds, bool isRetry);
     void startColorRequest();
     void startColorsOrFinish();
-    void notifyColorDetectionStarted();
+    void maybeNotifyColorDetectionStarted();
     void onChatReplyFinished(int generation, ChatKind kind);
     void onThumbnailProcessFinished(int generation, bool isRetry);
     void handleNameDateResponse(const QByteArray& responseBody);
     void handleColorResponse(const QByteArray& responseBody);
     void finishQuietly();
     void abortActiveWork();
+    void stopAndDiscardThumbnailProcess();
 
     QNetworkAccessManager* networkManager_ = nullptr;
     QNetworkReply* activeReply_ = nullptr;
-    QProcess* thumbnailProcess_ = nullptr;
-    QTemporaryDir* thumbnailDir_ = nullptr;
+    std::unique_ptr<QProcess> thumbnailProcess_;
+    std::unique_ptr<QTemporaryDir> thumbnailDir_;
     QString thumbnailSourcePath_;
 
     bool running_ = false;
@@ -61,6 +64,7 @@ private:
     bool namesDone_ = false;
     bool thumbnailDone_ = false;
     bool colorStatusEmitted_ = false;
+    bool colorsRequested_ = false;
     bool finishedEmitted_ = false;
     int generation_ = 0;
 
