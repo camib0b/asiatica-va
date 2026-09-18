@@ -55,6 +55,7 @@
 #include <QIcon>
 #include <QFrame>
 #include <QBoxLayout>
+#include <QLayout>
 #include <QFileInfo>
 #include <QTimer>
 #include <QDialog>
@@ -83,17 +84,26 @@ bool isTextInteractionFocusWidget(const QWidget* widget) {
     return false;
 }
 
-void detachWidgetFromParent(QWidget* widget) {
-    if (!widget) return;
-    if (qobject_cast<QSplitter*>(widget->parentWidget())) {
-        widget->setParent(nullptr);
-        return;
+bool removeWidgetFromLayoutTree(QLayout* layout, QWidget* widget) {
+    if (!layout || !widget) {
+        return false;
     }
-    if (QWidget* parent = widget->parentWidget()) {
-        if (QLayout* layout = parent->layout()) {
-            layout->removeWidget(widget);
+    if (layout->indexOf(widget) >= 0) {
+        layout->removeWidget(widget);
+        return true;
+    }
+    for (int index = 0; index < layout->count(); ++index) {
+        QLayoutItem* item = layout->itemAt(index);
+        if (!item) {
+            continue;
+        }
+        if (QLayout* childLayout = item->layout()) {
+            if (removeWidgetFromLayoutTree(childLayout, widget)) {
+                return true;
+            }
         }
     }
+    return false;
 }
 
 QString formatTimestampMs(qint64 milliseconds) {
@@ -191,6 +201,8 @@ WorkWindow::WorkWindow(QWidget* parent) : QWidget(parent) {
 
 WorkWindow::~WorkWindow() {
     detachPresentationKeyboardShortcuts();
+    disconnectTagSessionSignals();
+    tagSession_ = nullptr;
 }
 
 bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(const QWidget* focusWidget) const {
@@ -250,6 +262,13 @@ void WorkWindow::cleanupPendingConcatenation() {
     pendingConcatenator_.reset();
 }
 
+void WorkWindow::abortVideoOpen(const QString& errorMessage) {
+    if (!errorMessage.isEmpty()) {
+        QMessageBox::warning(this, AppLocale::trUi("app.title"), errorMessage);
+    }
+    onCloseVideo();
+}
+
 void WorkWindow::applyUiStrings() const {
     if (modeTaggingBtn_) {
         modeTaggingBtn_->setText(AppLocale::trUi("mode.tagging"));
@@ -305,9 +324,17 @@ void WorkWindow::onApplicationLanguageChanged() {
     updateFilterIndicator();
 }
 
+void WorkWindow::disconnectTagSessionSignals() {
+    for (const QMetaObject::Connection& connection : tagSessionConnections_) {
+        QObject::disconnect(connection);
+    }
+    tagSessionConnections_.clear();
+}
+
 void WorkWindow::setTagSession(TagSession* session) {
     if (tagSession_ == session) return;
-    if (tagSession_) disconnect(tagSession_, nullptr, this, nullptr);
+
+    disconnectTagSessionSignals();
 
     tagSession_ = session;
     if (statsWindow_) statsWindow_->setTagSession(tagSession_);
@@ -332,22 +359,35 @@ void WorkWindow::setTagSession(TagSession* session) {
         gameControls_->setInitialTeamSide(true);
     }
 
-    connect(tagSession_, &TagSession::cleared, this, [this]() {
+    tagSessionConnections_.append(connect(tagSession_, &TagSession::cleared, this, [this]() {
+        if (!tagSession_) return;
         rebuildFilterMenu();
         rebuildTagsList();
-    });
+    }));
 
-    connect(tagSession_, &TagSession::tagsChanged, this, [this]() {
+    tagSessionConnections_.append(connect(tagSession_, &TagSession::tagsChanged, this, [this]() {
+        if (!tagSession_) return;
         rebuildFilterMenu();
         rebuildTagsList();
-    });
+        if (gameControls_) {
+            gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
+                                            tagSession_->currentQuarterIndex());
+        }
+        if (tagSession_->currentQuarterIndex() >= 0) {
+            contextPeriod_ = EventDefaults::quarterCode(tagSession_->currentQuarterIndex());
+        } else {
+            contextPeriod_.clear();
+        }
+    }));
 
-    connect(tagSession_, &TagSession::tagAdded, this, [this](const TagSession::GameTag&) {
+    tagSessionConnections_.append(connect(tagSession_, &TagSession::tagAdded, this, [this](const TagSession::GameTag&) {
+        if (!tagSession_) return;
         rebuildFilterMenu();
         rebuildTagsList();
         flashNewTagRow();
-    });
-    connect(tagSession_, &TagSession::tagsImported, this, [this]() {
+    }));
+    tagSessionConnections_.append(connect(tagSession_, &TagSession::tagsImported, this, [this]() {
+        if (!tagSession_) return;
         rebuildFilterMenu();
         rebuildTagsList();
         if (gameControls_) {
@@ -357,8 +397,8 @@ void WorkWindow::setTagSession(TagSession* session) {
         if (tagSession_->currentQuarterIndex() >= 0) {
             contextPeriod_ = EventDefaults::quarterCode(tagSession_->currentQuarterIndex());
         }
-    });
-    connect(tagSession_, &TagSession::tagNoteChanged, this, [this](int changedIndex) {
+    }));
+    tagSessionConnections_.append(connect(tagSession_, &TagSession::tagNoteChanged, this, [this](int changedIndex) {
         if (!notesEdit_ || !tagSession_) return;
         if (notesEdit_->hasFocus()) return;
         const QTableWidgetItem* item = selectedTagRowTimeItem();
@@ -368,11 +408,12 @@ void WorkWindow::setTagSession(TagSession* session) {
         const QString noteText = tagSession_->tagNote(changedIndex);
         if (notesEdit_->toPlainText() == noteText) return;
         loadNoteForSelectedTag();
-    });
-    connect(tagSession_, &TagSession::matchNoteChanged, this, [this]() {
+    }));
+    tagSessionConnections_.append(connect(tagSession_, &TagSession::matchNoteChanged, this, [this]() {
+        if (!tagSession_) return;
         if (matchNotesEditor_ && matchNotesEditor_->hasFocus()) return;
         loadMatchNote();
-    });
+    }));
 }
 
 void WorkWindow::setMode(Mode m) {
@@ -408,6 +449,9 @@ TagSession::GameTag WorkWindow::pendingTagPeriodAndTeam() const {
 
 void WorkWindow::buildUi() {
     setObjectName("AppRoot");
+    detachedWidgetHost_ = new QWidget(this);
+    detachedWidgetHost_->hide();
+
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
@@ -785,6 +829,27 @@ void WorkWindow::buildPresentationUi() {
             [this](qint64) { savePresentationClipIntervalFromClipBar(); });
 }
 
+void WorkWindow::detachWidgetFromParent(QWidget* widget) {
+    if (!widget || !detachedWidgetHost_ || widget == detachedWidgetHost_) {
+        return;
+    }
+
+    QWidget* parent = widget->parentWidget();
+    if (!parent || parent == detachedWidgetHost_) {
+        return;
+    }
+
+    if (qobject_cast<QSplitter*>(parent)) {
+        widget->setParent(detachedWidgetHost_);
+        return;
+    }
+
+    if (QLayout* layout = parent->layout()) {
+        removeWidgetFromLayoutTree(layout, widget);
+    }
+    widget->setParent(detachedWidgetHost_);
+}
+
 void WorkWindow::applyTaggingLayout() {
     mode_ = Mode::Tagging;
     if (analyzingMainSplitter_) analyzingMainSplitter_->hide();
@@ -828,7 +893,7 @@ void WorkWindow::applyTaggingLayout() {
 
     if (taggingVideoTagsSplitter_) {
         while (taggingVideoTagsSplitter_->count() > 0) {
-            taggingVideoTagsSplitter_->widget(0)->setParent(nullptr);
+            detachWidgetFromParent(taggingVideoTagsSplitter_->widget(0));
         }
         taggingVideoTagsSplitter_->addWidget(taggingMainRow_);
         taggingVideoTagsSplitter_->addWidget(tagsSection_);
@@ -895,13 +960,13 @@ void WorkWindow::applyAnalyzingLayout() {
     if (videoTimelineRow_) videoTimelineRow_->hide();
 
     while (analyzingTagsControlsSplitter_->count() > 0) {
-        analyzingTagsControlsSplitter_->widget(0)->setParent(nullptr);
+        detachWidgetFromParent(analyzingTagsControlsSplitter_->widget(0));
     }
     while (analyzingLeftSplitter_->count() > 0) {
-        analyzingLeftSplitter_->widget(0)->setParent(nullptr);
+        detachWidgetFromParent(analyzingLeftSplitter_->widget(0));
     }
     while (analyzingRightSplitter_->count() > 0) {
-        analyzingRightSplitter_->widget(0)->setParent(nullptr);
+        detachWidgetFromParent(analyzingRightSplitter_->widget(0));
     }
 
     timeline->setMinimumHeight(44);
@@ -1278,17 +1343,12 @@ void WorkWindow::onGameSetupConfirmed(const QString& filePath,
                                        const QString& awayAbbrev) {
     if (pendingConcatenator_) {
         const bool concatOk = pendingConcatenator_->waitWithProgress(this);
+        const QString errorMessage = pendingConcatenator_->errorMessage();
         if (!concatOk) {
-            const QString errorMsg = pendingConcatenator_->errorMessage();
-            cleanupPendingConcatenation();
-            cleanupConcatenatedVideo();
-            if (!errorMsg.isEmpty()) {
-                QMessageBox::warning(this, AppLocale::trUi("app.title"), errorMsg);
-            }
-            emit videoClosed();
+            abortVideoOpen(errorMessage);
             return;
         }
-        pendingConcatenator_.reset();
+        cleanupPendingConcatenation();
     }
 
     if (tagSession_) {
@@ -1351,9 +1411,7 @@ void WorkWindow::onNextQuarterRequested() {
 }
 
 void WorkWindow::onGameSetupCancelled() {
-    releaseTransientResources();
-    exportDefaultDirectoryPath_.clear();
-    emit videoClosed();
+    onCloseVideo();
 }
 
 void WorkWindow::loadVideoFromFile(const QString& filePath) {
@@ -1365,25 +1423,19 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     if (PlaybackVideoPreparer::requiresTranscodeForPlayback(filePath)) {
         auto tempDir = std::make_unique<QTemporaryDir>();
         if (!tempDir->isValid()) {
-            QMessageBox::warning(this,
-                                 AppLocale::trUi("app.title"),
-                                 AppLocale::trUi("playback_prep.error_failed"));
-            emit videoClosed();
+            abortVideoOpen(AppLocale::trUi("playback_prep.error_failed"));
             return;
         }
 
         auto preparer = std::make_unique<PlaybackVideoPreparer>();
         preparer->startPreparation(filePath, tempDir->path());
         const bool prepOk = preparer->waitWithProgress(this);
-        const QString errorMsg = preparer->errorMessage();
+        const QString errorMessage = preparer->errorMessage();
         const QString preparedPath = preparer->outputPath();
         preparer.reset();
 
         if (!prepOk) {
-            if (!errorMsg.isEmpty()) {
-                QMessageBox::warning(this, AppLocale::trUi("app.title"), errorMsg);
-            }
-            emit videoClosed();
+            abortVideoOpen(errorMessage);
             return;
         }
 
@@ -1461,9 +1513,7 @@ void WorkWindow::onReplaceVideo() {
     if (filePaths.isEmpty()) return;
 
     if (filePaths.size() == 1) {
-        cleanupPendingConcatenation();
-        cleanupConcatenatedVideo();
-        cleanupPlaybackPrepVideo();
+        releaseTransientResources();
         setExportDefaultDirectoryFromVideoPath(filePaths.first());
         loadVideoFromFile(filePaths.first());
         return;
@@ -1485,11 +1535,11 @@ void WorkWindow::onReplaceVideo() {
     concatenator->startConcatenation(filePaths, tempDir->path());
 
     if (!concatenator->waitWithProgress(this)) {
-        const QString errorMsg = concatenator->errorMessage();
+        const QString errorMessage = concatenator->errorMessage();
         concatenator.reset();
         tempDir.reset();
-        if (!errorMsg.isEmpty()) {
-            QMessageBox::warning(this, AppLocale::trUi("app.title"), errorMsg);
+        if (!errorMessage.isEmpty()) {
+            QMessageBox::warning(this, AppLocale::trUi("app.title"), errorMessage);
         }
         return;
     }
@@ -1497,8 +1547,7 @@ void WorkWindow::onReplaceVideo() {
     const QString outputPath = concatenator->outputPath();
     concatenator.reset();
 
-    cleanupPendingConcatenation();
-    cleanupConcatenatedVideo();
+    releaseTransientResources();
     concatenatedVideoTempDir_ = std::move(tempDir);
     loadVideoFromFile(outputPath);
 }

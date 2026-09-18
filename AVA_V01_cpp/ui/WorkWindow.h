@@ -118,6 +118,7 @@ private:
   void applyTaggingLayout();
   void applyAnalyzingLayout();
   void applyPresentationLayout();
+  void detachWidgetFromParent(QWidget* widget);
   void applyAnalyzingSplitterGeometry();
   void applyTaggingSplitterGeometry();
   void applyPresentationSplitterGeometry();
@@ -145,6 +146,7 @@ private:
   void detachPresentationKeyboardShortcuts();
   void captureTaggingModeUiStateForRestore();
   void restoreTaggingModeUiStateAfterLayout();
+  void disconnectTagSessionSignals();
   void rebuildTagsList();
   void rebuildFilterMenu();
   void updateFilterIndicator() const;
@@ -167,6 +169,8 @@ private:
   void cleanupConcatenatedVideo();
   void cleanupPlaybackPrepVideo();
   void cleanupPendingConcatenation();
+  /// Drops concat/prep temps, resets session UI, and emits videoClosed().
+  void abortVideoOpen(const QString& errorMessage);
 
   /// Whether Space and playback-speed keys should control the main video player (same rules for all).
   bool shouldDeliverPlaybackKeyboardToVideoPlayer(const QWidget* focusWidget) const;
@@ -177,6 +181,9 @@ private:
   Mode mode_ = Mode::Tagging;
   QStackedWidget* contentStack_ = nullptr;
   QWidget* mainContentContainer_ = nullptr;
+  /// Hidden parent for widgets taken out of a layout or splitter so they never become
+  /// top-level windows and stay in this object's tree until reinserted.
+  QWidget* detachedWidgetHost_ = nullptr;
   GameSetupWindow* gameSetupWidget_ = nullptr;
   QWidget* videoControlsRow_ = nullptr;
   QWidget* videoTimelineRow_ = nullptr;
@@ -256,6 +263,7 @@ private:
   qint64 lastPlayheadPositionForSideEffectsMs_ = 0;
 
   TagSession* tagSession_ = nullptr;
+  QVector<QMetaObject::Connection> tagSessionConnections_;
   QHash<QString, QAction*> filterActionByMainEvent_;
   QString activeEventPathMainEvent_;
   QString activeEventPathFollowUp_;
