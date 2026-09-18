@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QPointer>
 #include <QWidget>
 
 class QVBoxLayout;
@@ -16,6 +17,6 @@ public:
 private:
     void rebuildRows();
 
-    ExportJobManager* manager_ = nullptr;
+    QPointer<ExportJobManager> manager_;
     QVBoxLayout* rowsLayout_ = nullptr;
 };
