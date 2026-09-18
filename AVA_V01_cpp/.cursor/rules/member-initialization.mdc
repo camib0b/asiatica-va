@@ -1,0 +1,32 @@
+---
+description: Initialize C++ members in the constructor initializer list before the body runs
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# Initialize members before the constructor body
+
+If the constructor body (or helpers it calls) **reads** a member, initialize that member in the constructor initializer list. Do not rely on later setters, or on the reader noticing an in-class default.
+
+Uninitialized scalars and pointers are undefined behavior. Even with in-class defaults, the init list makes the starting state visible at the construction site.
+
+```cpp
+// BAD — applyUiStrings() / refreshFromSession() read these before setTagSession()
+PresentationPanel::PresentationPanel(QWidget* parent) : QWidget(parent) {
+  buildUi();
+  applyUiStrings();
+}
+
+// GOOD
+PresentationPanel::PresentationPanel(QWidget* parent)
+    : QWidget(parent),
+      tagSession_(nullptr),
+      selectedTagIndexSet_(),
+      currentTagSessionIndex_(-1),
+      populatingRows_(false) {
+  buildUi();
+  applyUiStrings();
+}
+```
+
+Keep in-class `= nullptr` / `= -1` / `= false` as a second line of defense. Init-list order must match declaration order.

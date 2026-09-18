@@ -67,7 +67,12 @@ QDoubleSpinBox* makeLeadLagSpinBox(QWidget* parent) {
 
 } // namespace
 
-PresentationPanel::PresentationPanel(QWidget* parent) : QWidget(parent) {
+PresentationPanel::PresentationPanel(QWidget* parent)
+    : QWidget(parent),
+      tagSession_(nullptr),
+      selectedTagIndexSet_(),
+      currentTagSessionIndex_(-1),
+      populatingRows_(false) {
   setObjectName(QStringLiteral("PresentationPanel"));
   buildUi();
   applyUiStrings();

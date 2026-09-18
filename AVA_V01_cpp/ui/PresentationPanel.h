@@ -92,7 +92,7 @@ private:
   QPushButton* exportButton_ = nullptr;
   QLabel* keyboardHintLabel_ = nullptr;
 
-  QSet<int> selectedTagIndexSet_;
+  QSet<int> selectedTagIndexSet_{};
   int currentTagSessionIndex_ = -1;
   bool populatingRows_ = false;
 };
