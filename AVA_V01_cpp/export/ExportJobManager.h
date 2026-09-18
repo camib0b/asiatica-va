@@ -81,7 +81,9 @@ private:
         int currentClip = 0;
         int totalClips = 0;
         /// Unparented QObject; this unique_ptr is the only owner. Do not parent it
-        /// to the manager. Destroy from exportFinished via discardExporter().
+        /// to the manager. Destroy via discardExporter() (release, disconnect,
+        /// cancel, deleteLater). Job must outlive a connected exporter: never
+        /// erase a Job from jobs_ while exporter is non-null.
         std::unique_ptr<ClipExporter> exporter;
     };
 

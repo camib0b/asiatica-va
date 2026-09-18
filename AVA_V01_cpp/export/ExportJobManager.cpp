@@ -16,10 +16,11 @@ ExportJobManager::ExportJobManager(QObject* parent)
 }
 
 ExportJobManager::~ExportJobManager() {
+    // Drop exporter connections before member destruction. ~QObject runs after
+    // jobs_ is destroyed, so leaving ClipExporter unique_ptrs connected would
+    // let a destructor-time signal touch a Job already being deleted.
     for (const std::unique_ptr<Job>& job : jobs_) {
-        if (!job || !job->exporter) continue;
-        job->exporter->disconnect();
-        job->exporter->cancelExport();
+        if (job) discardExporter(*job);
     }
 }
 
@@ -106,12 +107,14 @@ void ExportJobManager::updateExportingStatus(Job& job) {
 
 void ExportJobManager::discardExporter(Job& job) {
     if (!job.exporter) return;
-    ClipExporter* dying = job.exporter.release();
-    dying->disconnect();
-    dying->deleteLater();
+    ClipExporter* dyingExporter = job.exporter.release();
+    dyingExporter->disconnect();
+    dyingExporter->cancelExport();
+    dyingExporter->deleteLater();
 }
 
 void ExportJobManager::finishJob(Job& job, JobState state, const QString& message) {
+    if (job.state != JobState::Exporting) return;
     job.state = state;
     job.statusText = message;
     discardExporter(job);
@@ -200,28 +203,30 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
     exporter->setIncludeAudioTrack(request.includeAudioTrack);
     exporter->setIncludeBrandingOverlay(request.includeBrandingOverlay);
 
-    const int jobId = job->id;
-    connect(exporter, &ClipExporter::progressChanged, this,
-            [this, jobId](int currentClip, int totalClips) {
-        Job* currentJob = jobById(jobId);
-        if (!currentJob) return;
-        currentJob->currentClip = currentClip;
-        currentJob->totalClips = totalClips;
-        updateExportingStatus(*currentJob);
+    // Heap address is stable across unique_ptr move into jobs_. Use the
+    // exporter as context so Qt drops these slots when discardExporter()
+    // disconnects or deleteLater() runs. Job is not a QObject, so QPointer
+    // cannot observe it; Job must outlive a connected exporter.
+    Job* const jobPointer = job.get();
+    connect(exporter, &ClipExporter::progressChanged, exporter,
+            [this, jobPointer](int currentClip, int totalClips) {
+        if (jobPointer->state != JobState::Exporting) return;
+        jobPointer->currentClip = currentClip;
+        jobPointer->totalClips = totalClips;
+        updateExportingStatus(*jobPointer);
         emit jobsChanged();
     });
-    connect(exporter, &ClipExporter::exportFinished, this,
-            [this, jobId](bool success, const QString& message) {
-        Job* currentJob = jobById(jobId);
-        if (!currentJob) return;
+    connect(exporter, &ClipExporter::exportFinished, exporter,
+            [this, jobPointer](bool success, const QString& message) {
+        if (jobPointer->state != JobState::Exporting) return;
         if (!success) {
             const bool cancelled = message.contains(QStringLiteral("cancelled"), Qt::CaseInsensitive);
-            finishJob(*currentJob,
+            finishJob(*jobPointer,
                       cancelled ? JobState::Cancelled : JobState::Failed,
                       cancelled ? AppLocale::trUi("export.job_cancelled") : message);
             return;
         }
-        finishJob(*currentJob, JobState::Succeeded, AppLocale::trUi("export.done"));
+        finishJob(*jobPointer, JobState::Succeeded, AppLocale::trUi("export.done"));
     });
 
     jobs_.push_back(std::move(job));
@@ -234,8 +239,6 @@ void ExportJobManager::cancelJob(int jobId) {
     Job* job = jobById(jobId);
     if (!job) return;
     if (job->state != JobState::Exporting) return;
-
-    if (job->exporter) job->exporter->cancelExport();
     finishJob(*job, JobState::Cancelled, AppLocale::trUi("export.job_cancelled"));
 }
 
@@ -243,7 +246,7 @@ void ExportJobManager::dismissJob(int jobId) {
     for (int index = 0; index < jobs_.size(); ++index) {
         Job* job = jobs_.at(index).get();
         if (!job || job->id != jobId) continue;
-        if (job->state == JobState::Exporting) return;
+        if (job->state == JobState::Exporting || job->exporter) return;
         jobs_.erase(jobs_.begin() + index);
         emit jobsChanged();
         return;

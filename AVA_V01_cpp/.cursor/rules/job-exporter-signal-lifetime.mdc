@@ -1,0 +1,33 @@
+---
+description: Bind exporter signals to a stable Job* with the exporter as context; never look up jobs by id from those slots
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# Job + exporter signal lifetime
+
+`Job` is a non-QObject owned by `unique_ptr`. `QPointer<Job>` will not compile. Do not re-identify the job with `jobById(id)` inside exporter lambdas: a queued `progressChanged` / `exportFinished` can run after `dismissJob` or during manager teardown.
+
+- Capture the `Job*` (heap address is stable after `jobs_.push_back`).
+- Pass the **exporter** as the `connect` context so Qt drops the slot on `disconnect()` / `deleteLater()`.
+- Guard with `job->state == Exporting`. Make `finishJob` a no-op if already terminal.
+- `discardExporter()` must `release()`, `disconnect()`, `cancelExport()`, `deleteLater()`. Call it from `finishJob` **and** the manager destructor. Do not leave `unique_ptr<ClipExporter>` connected until member destruction (`~QObject` runs after `jobs_`).
+- Never `erase` a Job while `exporter` is non-null. `Job` outlives a connected exporter.
+- Do not make `Job` a `QObject` just for `QPointer`; keep it a plain struct (`qt-raii.mdc`).
+
+```cpp
+// BAD — id lookup; slot lives on the manager after the Job is gone
+connect(exporter, &ClipExporter::progressChanged, this, [this, jobId](int current, int total) {
+  Job* job = jobById(jobId);
+  if (!job) return;
+  job->currentClip = current;
+});
+
+// GOOD — exporter context dies with the worker; Job* is valid until then
+connect(exporter, &ClipExporter::progressChanged, exporter,
+        [this, jobPointer](int current, int total) {
+  if (jobPointer->state != JobState::Exporting) return;
+  jobPointer->currentClip = current;
+  jobPointer->totalClips = total;
+});
+```

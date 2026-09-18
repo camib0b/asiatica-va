@@ -54,7 +54,7 @@ public:
     }
 
 private:
-    const qreal factor_;
+    qreal factor_;
 };
 
 // Text advance and padding scale nearly linearly with font size. Measure once
@@ -65,6 +65,42 @@ qreal scaleToFitWidth(const qreal startScale, const int measuredWidth, const int
     }
     return qMax(kMinimumOverlayScale * 0.25,
                 startScale * static_cast<qreal>(maxWidth) / static_cast<qreal>(measuredWidth));
+}
+
+struct VideoProbeResult {
+    QSize rawSize;
+    int rotationDegrees = 0;
+
+    bool isValid() const {
+        return rawSize.isValid() && rawSize.width() > 0 && rawSize.height() > 0;
+    }
+
+    QSize displaySize() const {
+        if (!isValid()) {
+            return {};
+        }
+        int width = rawSize.width();
+        int height = rawSize.height();
+        const int absoluteRotation = qAbs(rotationDegrees) % 360;
+        if (absoluteRotation == 90 || absoluteRotation == 270) {
+            std::swap(width, height);
+        }
+        return QSize(width, height);
+    }
+};
+
+QString rotationCorrectionFilter(const int rotationDegrees) {
+    const int normalizedRotation = ((rotationDegrees % 360) + 360) % 360;
+    switch (normalizedRotation) {
+    case 90:
+        return QStringLiteral("transpose=1");
+    case 180:
+        return QStringLiteral("hflip,vflip");
+    case 270:
+        return QStringLiteral("transpose=2");
+    default:
+        return {};
+    }
 }
 
 QSize parseSizeFromFfmpegStderr(const QString& stderrOutput) {
@@ -84,7 +120,21 @@ QSize parseSizeFromFfmpegStderr(const QString& stderrOutput) {
     return QSize(width, height);
 }
 
-QSize probeWithFfprobe(const QString& ffprobePath, const QString& videoPath) {
+int parseRotationFromFfmpegStderr(const QString& stderrOutput) {
+    static const QRegularExpression rotationPatterns[] = {
+        QRegularExpression(QStringLiteral(R"((?:rotate|rotation)\s*:\s*(-?\d+(?:\.\d+)?))")),
+        QRegularExpression(QStringLiteral(R"(rotation of (-?\d+(?:\.\d+)?) degrees)")),
+    };
+    for (const QRegularExpression& pattern : rotationPatterns) {
+        const QRegularExpressionMatch match = pattern.match(stderrOutput);
+        if (match.hasMatch()) {
+            return qRound(match.captured(1).toDouble());
+        }
+    }
+    return 0;
+}
+
+VideoProbeResult probeWithFfprobe(const QString& ffprobePath, const QString& videoPath) {
     QProcess process;
     process.start(ffprobePath, {
         QStringLiteral("-v"), QStringLiteral("error"),
@@ -114,13 +164,15 @@ QSize probeWithFfprobe(const QString& ffprobePath, const QString& videoPath) {
     }
 
     const QJsonObject stream = streams.at(0).toObject();
-    int width = stream.value(QStringLiteral("width")).toInt();
-    int height = stream.value(QStringLiteral("height")).toInt();
+    const int width = stream.value(QStringLiteral("width")).toInt();
+    const int height = stream.value(QStringLiteral("height")).toInt();
     if (width <= 0 || height <= 0) {
         return {};
     }
 
-    int rotationDegrees = 0;
+    VideoProbeResult result;
+    result.rawSize = QSize(width, height);
+
     const QJsonArray sideDataList =
         stream.value(QStringLiteral("side_data_list")).toArray();
     for (const QJsonValue& sideDataValue : sideDataList) {
@@ -130,20 +182,15 @@ QSize probeWithFfprobe(const QString& ffprobePath, const QString& videoPath) {
         const QJsonValue rotationValue =
             sideDataValue.toObject().value(QStringLiteral("rotation"));
         if (rotationValue.isDouble() || rotationValue.isString()) {
-            rotationDegrees = qRound(rotationValue.toVariant().toDouble());
+            result.rotationDegrees = qRound(rotationValue.toVariant().toDouble());
             break;
         }
     }
 
-    const int absoluteRotation = qAbs(rotationDegrees) % 360;
-    if (absoluteRotation == 90 || absoluteRotation == 270) {
-        std::swap(width, height);
-    }
-
-    return QSize(width, height);
+    return result;
 }
 
-QSize probeWithFfmpeg(const QString& ffmpegPath, const QString& videoPath) {
+VideoProbeResult probeWithFfmpeg(const QString& ffmpegPath, const QString& videoPath) {
     QProcess process;
     process.start(ffmpegPath, {
         QStringLiteral("-hide_banner"),
@@ -156,7 +203,41 @@ QSize probeWithFfmpeg(const QString& ffmpegPath, const QString& videoPath) {
     }
     // ffmpeg -i exits non-zero when no output is specified; stderr still has stream info.
     const QString stderrOutput = QString::fromUtf8(process.readAllStandardError());
-    return parseSizeFromFfmpegStderr(stderrOutput);
+    const QSize rawSize = parseSizeFromFfmpegStderr(stderrOutput);
+    if (!rawSize.isValid()) {
+        return {};
+    }
+
+    VideoProbeResult result;
+    result.rawSize = rawSize;
+    result.rotationDegrees = parseRotationFromFfmpegStderr(stderrOutput);
+    return result;
+}
+
+VideoProbeResult probeSourceVideo(const QString& videoPath) {
+    if (videoPath.isEmpty()) {
+        return {};
+    }
+
+    const QString ffprobePath = ClipExporter::findFfprobe();
+    if (!ffprobePath.isEmpty()) {
+        const VideoProbeResult probedResult = probeWithFfprobe(ffprobePath, videoPath);
+        if (probedResult.isValid()) {
+            return probedResult;
+        }
+    }
+
+    const QString ffmpegPath = ClipExporter::findFfmpeg();
+    if (!ffmpegPath.isEmpty()) {
+        const VideoProbeResult fallbackResult = probeWithFfmpeg(ffmpegPath, videoPath);
+        if (fallbackResult.isValid()) {
+            return fallbackResult;
+        }
+    }
+
+    qWarning("ClipExporter: failed to probe video dimensions for %s",
+             qPrintable(videoPath));
+    return {};
 }
 
 struct BottomOverlayLayout {
@@ -200,9 +281,13 @@ struct ScoreboardLayout {
     int rowHeight = 0;
     int imageWidth = 0;
     int imageHeight = 0;
+    bool hasQuarter = false;
+    int quarterGap = 0;
+    int squareSide = 0;
+    int totalWidth = 0;
 
-    ScoreboardLayout()
-        : scaler(1.0)
+    explicit ScoreboardLayout(qreal scale = 1.0)
+        : scaler(scale)
         , nameMetrics(QFont())
         , scoreMetrics(QFont())
         , sepMetrics(QFont()) {}
@@ -244,32 +329,6 @@ QString ClipExporter::findFfprobe() {
     for (const QString& candidate : commonPaths) {
         if (QFile::exists(candidate)) return candidate;
     }
-    return {};
-}
-
-QSize ClipExporter::probeVideoDisplaySize(const QString& videoPath) {
-    if (videoPath.isEmpty()) {
-        return {};
-    }
-
-    const QString ffprobePath = findFfprobe();
-    if (!ffprobePath.isEmpty()) {
-        const QSize probedSize = probeWithFfprobe(ffprobePath, videoPath);
-        if (probedSize.isValid()) {
-            return probedSize;
-        }
-    }
-
-    const QString ffmpegPath = findFfmpeg();
-    if (!ffmpegPath.isEmpty()) {
-        const QSize fallbackSize = probeWithFfmpeg(ffmpegPath, videoPath);
-        if (fallbackSize.isValid()) {
-            return fallbackSize;
-        }
-    }
-
-    qWarning("ClipExporter: failed to probe video dimensions for %s",
-             qPrintable(videoPath));
     return {};
 }
 
@@ -343,10 +402,18 @@ void ClipExporter::startExport() {
         return;
     }
 
-    sourceVideoSize_ = probeVideoDisplaySize(sourceVideoPath_);
-    if (!sourceVideoSize_.isValid()) {
+    const VideoProbeResult sourceProbe = probeSourceVideo(sourceVideoPath_);
+    if (!sourceProbe.isValid()) {
         finishExport(false,
             QStringLiteral("Failed to probe source video dimensions for \"%1\".")
+                .arg(sourceVideoPath_));
+        return;
+    }
+    sourceRotationDegrees_ = sourceProbe.rotationDegrees;
+    sourceVideoSize_ = sourceProbe.displaySize();
+    if (!sourceVideoSize_.isValid()) {
+        finishExport(false,
+            QStringLiteral("Failed to compute display size for \"%1\".")
                 .arg(sourceVideoPath_));
         return;
     }
@@ -467,6 +534,7 @@ void ClipExporter::processNextClip() {
 
     QStringList arguments;
     arguments << QStringLiteral("-y")
+              << QStringLiteral("-noautorotate")
               << QStringLiteral("-ss") << QString::number(startSeconds, 'f', 3)
               << QStringLiteral("-i") << sourceVideoPath_;
 
@@ -504,10 +572,20 @@ void ClipExporter::processNextClip() {
         firstScoreboardInput = nextInputIndex;
     }
 
-    QString filterComplex = QStringLiteral(
-        "[0:v]scale=%1:%2:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1[scaled]")
-                                .arg(outputVideoSize_.width())
-                                .arg(outputVideoSize_.height());
+    const QString rotationFilter = rotationCorrectionFilter(sourceRotationDegrees_);
+    QString filterComplex;
+    if (rotationFilter.isEmpty()) {
+        filterComplex = QStringLiteral(
+            "[0:v]scale=%1:%2:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1[scaled]")
+                            .arg(outputVideoSize_.width())
+                            .arg(outputVideoSize_.height());
+    } else {
+        filterComplex = QStringLiteral(
+            "[0:v]%1,scale=%2:%3:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1[scaled]")
+                            .arg(rotationFilter)
+                            .arg(outputVideoSize_.width())
+                            .arg(outputVideoSize_.height());
+    }
     QString currentVideoLabel = QStringLiteral("scaled");
     int stageCounter = 0;
 
@@ -538,58 +616,61 @@ void ClipExporter::processNextClip() {
                                .arg(topSafeY));
     }
 
+    auto scoreboardEnableExpression =
+        [&clip](const int index, const int count) -> QString {
+            const double thisOffset = clip.scoreboards[index].activationOffsetSeconds;
+            if (count == 1) {
+                if (thisOffset <= 0.0) {
+                    return {};
+                }
+                return QStringLiteral("gte(t,%1)")
+                    .arg(QString::number(thisOffset, 'f', 3));
+            }
+            if (index == count - 1) {
+                return QStringLiteral("gte(t,%1)")
+                    .arg(QString::number(thisOffset, 'f', 3));
+            }
+            const double nextOffset = clip.scoreboards[index + 1].activationOffsetSeconds;
+            return QStringLiteral("gte(t,%1)*lt(t,%2)")
+                .arg(QString::number(thisOffset, 'f', 3))
+                .arg(QString::number(nextOffset, 'f', 3));
+        };
+
     if (scoreboardCount == 0) {
         if (!filterComplex.isEmpty()) {
             filterComplex += QStringLiteral(";");
         }
         filterComplex += QStringLiteral("[%1]null[v]").arg(currentVideoLabel);
-    } else if (scoreboardCount == 1) {
-        if (!filterComplex.isEmpty()) {
-            filterComplex += QStringLiteral(";");
-        }
-        filterComplex += QStringLiteral("[%1][%2:v]overlay=%3:%4[v]")
-            .arg(currentVideoLabel)
-            .arg(firstScoreboardInput)
-            .arg(cornerMargin)
-            .arg(topSafeY);
     } else {
+        // Scoreboard timing uses clip-local seconds (t=0 at clip in-point via -ss). Phase i is
+        // visible on [activationOffsetSeconds[i], activationOffsetSeconds[i+1]); the last phase
+        // stays on until clip end.
         for (int s = 0; s < scoreboardCount; ++s) {
             const int inputIndex = firstScoreboardInput + s;
             const QString outputLabel = (s == scoreboardCount - 1)
                 ? QStringLiteral("v")
                 : QStringLiteral("sb%1").arg(s);
-
-            QString enableExpr;
-            if (s == 0) {
-                const double nextOffset =
-                    clip.scoreboards[1].activationOffsetSeconds;
-                enableExpr = QStringLiteral("lt(t,%1)")
-                    .arg(QString::number(nextOffset, 'f', 3));
-            } else if (s == scoreboardCount - 1) {
-                const double thisOffset =
-                    clip.scoreboards[s].activationOffsetSeconds;
-                enableExpr = QStringLiteral("gte(t,%1)")
-                    .arg(QString::number(thisOffset, 'f', 3));
-            } else {
-                const double thisOffset =
-                    clip.scoreboards[s].activationOffsetSeconds;
-                const double nextOffset =
-                    clip.scoreboards[s + 1].activationOffsetSeconds;
-                enableExpr = QStringLiteral("gte(t,%1)*lt(t,%2)")
-                    .arg(QString::number(thisOffset, 'f', 3))
-                    .arg(QString::number(nextOffset, 'f', 3));
-            }
+            const QString enableExpr = scoreboardEnableExpression(s, scoreboardCount);
 
             if (!filterComplex.isEmpty()) {
                 filterComplex += QStringLiteral(";");
             }
-            filterComplex += QStringLiteral("[%1][%2:v]overlay=%3:%4:enable='%5'[%6]")
-                .arg(currentVideoLabel)
-                .arg(inputIndex)
-                .arg(cornerMargin)
-                .arg(topSafeY)
-                .arg(enableExpr)
-                .arg(outputLabel);
+            if (enableExpr.isEmpty()) {
+                filterComplex += QStringLiteral("[%1][%2:v]overlay=%3:%4[%5]")
+                    .arg(currentVideoLabel)
+                    .arg(inputIndex)
+                    .arg(cornerMargin)
+                    .arg(topSafeY)
+                    .arg(outputLabel);
+            } else {
+                filterComplex += QStringLiteral("[%1][%2:v]overlay=%3:%4:enable='%5'[%6]")
+                    .arg(currentVideoLabel)
+                    .arg(inputIndex)
+                    .arg(cornerMargin)
+                    .arg(topSafeY)
+                    .arg(enableExpr)
+                    .arg(outputLabel);
+            }
             currentVideoLabel = outputLabel;
         }
     }
@@ -805,8 +886,7 @@ QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
 
     auto measureLayout =
         [&data, &homeScoreStr, &awayScoreStr, &separator](const qreal scale) -> ScoreboardLayout {
-        ScoreboardLayout layout;
-        layout.scaler = OverlayScaler(scale);
+        ScoreboardLayout layout(scale);
         layout.paddingH = layout.scaler.pixels(16 * kScoreboardScale);
         layout.paddingV = layout.scaler.pixels(10 * kScoreboardScale);
         layout.swatchWidth = layout.scaler.pixels(5 * kScoreboardScale);
@@ -847,13 +927,25 @@ QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
         layout.rowHeight = qMax(layout.nameMetrics.height(), layout.scoreMetrics.height());
         layout.imageWidth = layout.contentWidth + 2 * layout.paddingH;
         layout.imageHeight = layout.rowHeight + 2 * layout.paddingV;
+        layout.totalWidth = layout.imageWidth;
+        layout.hasQuarter = !data.periodLabel.trimmed().isEmpty();
+        if (layout.hasQuarter) {
+            layout.quarterGap = layout.scaler.pixels(10 * kScoreboardScale);
+            layout.squareSide = layout.imageHeight;
+            layout.totalWidth = layout.squareSide + layout.quarterGap + layout.imageWidth;
+        }
         return layout;
     };
 
-    ScoreboardLayout layout = measureLayout(overlayScale);
-    if (maxImageWidth > 0 && layout.imageWidth > maxImageWidth) {
-        layout = measureLayout(
-            scaleToFitWidth(overlayScale, layout.imageWidth, maxImageWidth));
+    qreal fittedScale = overlayScale;
+    ScoreboardLayout layout = measureLayout(fittedScale);
+    if (maxImageWidth > 0 && layout.totalWidth > maxImageWidth) {
+        fittedScale = scaleToFitWidth(fittedScale, layout.totalWidth, maxImageWidth);
+        layout = measureLayout(fittedScale);
+        if (layout.totalWidth > maxImageWidth) {
+            fittedScale = scaleToFitWidth(fittedScale, layout.totalWidth, maxImageWidth);
+            layout = measureLayout(fittedScale);
+        }
     }
 
     if (layout.imageWidth <= 0 || layout.imageHeight <= 0) return {};
@@ -942,17 +1034,12 @@ QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
 
     painter.end();
 
-    const QString quarterText = data.periodLabel.trimmed();
-    if (quarterText.isEmpty()) {
+    if (!layout.hasQuarter) {
         if (!image.save(outputPath, "PNG")) return {};
         return outputPath;
     }
 
-    const int quarterGap = layout.scaler.pixels(10 * kScoreboardScale);
-    const int squareSide = layout.imageHeight;
-    const int compositeWidth = squareSide + quarterGap + layout.imageWidth;
-
-    QImage composite(compositeWidth, layout.imageHeight, QImage::Format_ARGB32_Premultiplied);
+    QImage composite(layout.totalWidth, layout.imageHeight, QImage::Format_ARGB32_Premultiplied);
     if (composite.isNull()) return {};
     composite.fill(Qt::transparent);
 
@@ -962,17 +1049,21 @@ QString ClipExporter::generateScoreboardImage(const ScoreboardOverlay& data,
 
     compositePainter.setPen(Qt::NoPen);
     compositePainter.setBrush(QColor(15, 23, 42, kScoreboardBackgroundAlpha));
-    compositePainter.drawRoundedRect(0, 0, squareSide, squareSide,
+    compositePainter.drawRoundedRect(0, 0, layout.squareSide, layout.squareSide,
                                      layout.cornerRadius, layout.cornerRadius);
 
     QFont quarterFont(QStringLiteral("Helvetica"));
     quarterFont.setWeight(QFont::Bold);
-    quarterFont.setPixelSize(qMax(11, qRound(static_cast<double>(squareSide) * 0.34)));
+    const int scaledQuarterFontPx = layout.scaler.pixels(16 * kScoreboardScale);
+    const int maxQuarterFontPx =
+        qMax(11, qRound(static_cast<qreal>(layout.squareSide) * 0.45));
+    quarterFont.setPixelSize(qBound(11, scaledQuarterFontPx, maxQuarterFontPx));
     compositePainter.setFont(quarterFont);
     compositePainter.setPen(QColor(255, 255, 255));
-    compositePainter.drawText(QRect(0, 0, squareSide, squareSide), Qt::AlignCenter, quarterText);
+    compositePainter.drawText(QRect(0, 0, layout.squareSide, layout.squareSide),
+                              Qt::AlignCenter, data.periodLabel.trimmed());
 
-    compositePainter.drawImage(squareSide + quarterGap, 0, image);
+    compositePainter.drawImage(layout.squareSide + layout.quarterGap, 0, image);
     compositePainter.end();
 
     if (!composite.save(outputPath, "PNG")) return {};

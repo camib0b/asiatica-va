@@ -71,7 +71,6 @@ private:
     void stopAndDiscardProcess();
     void finishExport(bool success, const QString& message);
     void startFfmpegJob(const QStringList& arguments, bool concatenating);
-    static QSize probeVideoDisplaySize(const QString& videoPath);
     static qreal computeOverlayScale(const QSize& videoSize);
     static QSize cappedOutputSize(const QSize& sourceSize);
     static QString generateOverlayImage(const QString& primaryText,
@@ -102,6 +101,7 @@ private:
     QString ffmpegPath_;
     QString brandingImagePath_;
     QSize sourceVideoSize_;
+    int sourceRotationDegrees_ = 0;
     QSize outputVideoSize_;
     qreal overlayScale_ = 1.0;
     bool includeAudioTrack_ = true;
