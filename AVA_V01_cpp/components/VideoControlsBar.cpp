@@ -22,7 +22,14 @@ namespace {
 constexpr qint64 kSeekStepMs = 2000;
 }
 
-VideoControlsBar::VideoControlsBar(QWidget* parent): QWidget(parent) {
+VideoControlsBar::VideoControlsBar(QWidget* parent)
+    : QWidget(parent),
+      playbackShortcutMediaGate_(false),
+      playbackShortcutFocusGate_(false),
+      mediaEnabled_(false),
+      playing_(false),
+      muted_(false),
+      playbackRate_(1.0) {
   buildUi();
   wireSignals();
   buildKeyboardShortcuts();
@@ -107,8 +114,6 @@ void VideoControlsBar::applyUiStrings() {
   if (slowerButton_) slowerButton_->setText(AppLocale::trUi("vc.slower"));
   if (resetSpeedButton_) resetSpeedButton_->setText(AppLocale::trUi("vc.reset_speed"));
   if (fasterButton_) fasterButton_->setText(AppLocale::trUi("vc.faster"));
-  const bool muted = muteButton_ && muteButton_->isChecked();
-  if (muteButton_) muteButton_->setText(muted ? AppLocale::trUi("vc.unmute") : AppLocale::trUi("vc.mute"));
   if (playButton_) playButton_->setToolTip(AppLocale::trUi("vc.tt.play"));
   if (pauseButton_) pauseButton_->setToolTip(AppLocale::trUi("vc.tt.pause"));
   if (backButton_) backButton_->setToolTip(AppLocale::trUi("vc.tt.back"));
@@ -116,6 +121,7 @@ void VideoControlsBar::applyUiStrings() {
   if (slowerButton_) slowerButton_->setToolTip(AppLocale::trUi("vc.tt.slower"));
   if (fasterButton_) fasterButton_->setToolTip(AppLocale::trUi("vc.tt.faster"));
   if (resetSpeedButton_) resetSpeedButton_->setToolTip(AppLocale::trUi("vc.tt.reset"));
+  updateMuteButton();
   updateSpeedLabel();
 }
 
@@ -144,9 +150,13 @@ void VideoControlsBar::wireSignals() {
   connect(resetSpeedButton_, &QPushButton::clicked, this, &VideoControlsBar::flashResetSpeedButton);
   connect(resetSpeedButton_, &QPushButton::clicked, this, &VideoControlsBar::resetSpeedRequested);
 
-  // Mute: flash on click, emit state on toggled
+  // Mute: flash on click; keep label/tooltip in sync, then notify the player.
   connect(muteButton_, &QPushButton::clicked, this, &VideoControlsBar::flashMuteButton);
-  connect(muteButton_, &QPushButton::toggled, this, &VideoControlsBar::muteToggled);
+  connect(muteButton_, &QPushButton::toggled, this, [this](bool muted) {
+    muted_ = muted;
+    updateMuteButton();
+    emit muteToggled(muted);
+  });
 }
 
 void VideoControlsBar::buildKeyboardShortcuts() {
@@ -218,19 +228,28 @@ void VideoControlsBar::updatePlaybackShortcutEnablement() {
 }
 
 void VideoControlsBar::setEnabledForMedia(bool enabled) {
-  playButton_->setEnabled(enabled);
-  pauseButton_->setEnabled(enabled);
+  mediaEnabled_ = enabled;
   backButton_->setEnabled(enabled);
   forwardButton_->setEnabled(enabled);
   slowerButton_->setEnabled(enabled);
   fasterButton_->setEnabled(enabled);
   resetSpeedButton_->setEnabled(enabled);
   muteButton_->setEnabled(enabled);
+  updatePlayPauseButtonEnablement();
 }
 
 void VideoControlsBar::setPlaying(bool playing) {
-  playButton_->setEnabled(!playing);
-  pauseButton_->setEnabled(playing);
+  playing_ = playing;
+  updatePlayPauseButtonEnablement();
+}
+
+void VideoControlsBar::updatePlayPauseButtonEnablement() const {
+  if (playButton_) {
+    playButton_->setEnabled(mediaEnabled_ && !playing_);
+  }
+  if (pauseButton_) {
+    pauseButton_->setEnabled(mediaEnabled_ && playing_);
+  }
 }
 
 void VideoControlsBar::setPlaybackRate(double rate) {
@@ -247,10 +266,20 @@ void VideoControlsBar::setPlaybackRate(double rate) {
 }
 
 void VideoControlsBar::setMuted(bool muted) {
-  muteButton_->blockSignals(true);
-  muteButton_->setChecked(muted);
-  muteButton_->setText(muted ? AppLocale::trUi("vc.unmute") : AppLocale::trUi("vc.mute"));
-  muteButton_->blockSignals(false);
+  muted_ = muted;
+  updateMuteButton();
+}
+
+void VideoControlsBar::updateMuteButton() const {
+  if (!muteButton_) {
+    return;
+  }
+
+  muteButton_->setText(muted_ ? AppLocale::trUi("vc.unmute") : AppLocale::trUi("vc.mute"));
+  muteButton_->setToolTip(muted_ ? AppLocale::trUi("vc.tt.unmute") : AppLocale::trUi("vc.tt.mute"));
+  if (muteButton_->isChecked() != muted_) {
+    muteButton_->setChecked(muted_);
+  }
 }
 
 void VideoControlsBar::updateSpeedLabel() {

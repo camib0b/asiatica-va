@@ -53,6 +53,8 @@ private:
   void wireSignals();
   void buildKeyboardShortcuts();
   void updatePlaybackShortcutEnablement();
+  void updatePlayPauseButtonEnablement() const;
+  void updateMuteButton() const;
   void updateSpeedLabel();
   void flashButtonBorder(QPushButton* button);
 
@@ -75,6 +77,9 @@ private:
 
   bool playbackShortcutMediaGate_ = false;
   bool playbackShortcutFocusGate_ = false;
+  bool mediaEnabled_ = false;
+  bool playing_ = false;
+  bool muted_ = false;
 
   double playbackRate_ = 1.0;
 };
