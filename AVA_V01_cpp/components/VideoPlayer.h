@@ -63,9 +63,7 @@ signals:
 private slots:
   void onPlayClicked();
   void onPauseClicked();
-  void onFasterClicked();
-  void onSlowerClicked();
-  void onResetSpeedClicked();
+  void onPlaybackRateRequested(double rate);
   void onMuteToggled(bool muted);
   void onTogglePlayPause();
   void onSeekSmallBackward();
@@ -100,6 +98,7 @@ private:
   void installWindowMoveTracking();
 
   void seekByMs(qint64 deltaMs);
+  void applyPlaybackRate(double rate);
   void setPlaybackRateAndPlay(double rate);
   void setupPlaybackReliabilityHooks();
   void updateStallMonitorForPlaybackState(QMediaPlayer::PlaybackState state);

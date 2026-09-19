@@ -1,11 +1,10 @@
 #pragma once
 
 #include <QWidget>
-#include <QHash>
 
 class QPushButton;
-class QLabel;
 class QAction;
+class PlaybackSpeedometer;
 
 class VideoControlsBar final : public QWidget {
   Q_OBJECT
@@ -34,18 +33,16 @@ public:
   void flashPauseButton();
   void flashSeekBackButton();
   void flashSeekForwardButton();
-  void flashSlowerButton();
-  void flashFasterButton();
-  void flashResetSpeedButton();
+  void flashSpeedometer();
   void flashMuteButton();
 
 signals:
   void playRequested();
   void pauseRequested();
   void seekRequestedMs(qint64 deltaMs);
-  void slowerRequested();
-  void fasterRequested();
-  void resetSpeedRequested();
+  void playbackRateRequested(double rate);
+  void speedDragStarted();
+  void speedDragFinished();
   void muteToggled(bool muted);
 
   void togglePlayPauseFromKeyboardShortcut();
@@ -57,19 +54,15 @@ private:
   void updatePlaybackShortcutEnablement();
   void updateEnabledState() const;
   void updateMuteButton() const;
-  void updateSpeedLabel();
+  void updateSpeedometerTooltip() const;
   void flashButtonBorder(QPushButton* button);
 
-  QHash<QPushButton*, QString>    originalButtonStyles_;
   QPushButton* playButton_        = nullptr;
   QPushButton* pauseButton_       = nullptr;
   QPushButton* backButton_        = nullptr;
   QPushButton* forwardButton_     = nullptr;
-  QPushButton* slowerButton_      = nullptr;
-  QPushButton* fasterButton_      = nullptr;
-  QPushButton* resetSpeedButton_  = nullptr;
   QPushButton* muteButton_        = nullptr;
-  QLabel* speedLabel_             = nullptr;
+  PlaybackSpeedometer* speedometer_ = nullptr;
 
   QAction* togglePlayPauseAction_ = nullptr;
   QAction* slowerPlaybackAction_ = nullptr;

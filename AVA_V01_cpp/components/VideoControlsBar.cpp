@@ -1,9 +1,10 @@
 #include "VideoControlsBar.h"
+#include "PlaybackRates.h"
+#include "PlaybackSpeedometer.h"
 #include "../style/StyleProps.h"
 #include "../i18n/AppLocale.h"
 
 #include <QHBoxLayout>
-#include <QLabel>
 #include <QPushButton>
 #include <QSizePolicy>
 
@@ -14,8 +15,6 @@
 
 #include <QTimer>
 #include <QPointer>
-#include <QPalette>
-#include <QColor>
 
 #include <array>
 
@@ -48,7 +47,7 @@ VideoControlsBar::VideoControlsBar(QWidget* parent)
       mediaEnabled_(false),
       playing_(false),
       muted_(false),
-      playbackRate_(1.0) {
+      playbackRate_(PlaybackRates::kResetRate) {
   buildUi();
   wireSignals();
   setPlaybackShortcutMediaGate(false);
@@ -56,7 +55,7 @@ VideoControlsBar::VideoControlsBar(QWidget* parent)
   buildKeyboardShortcuts();
   setEnabledForMedia(false);
   setPlaying(false);
-  setPlaybackRate(1.0);
+  setPlaybackRate(PlaybackRates::kResetRate);
   setMuted(false);
   applyUiStrings();
 }
@@ -71,23 +70,18 @@ void VideoControlsBar
   layout->setContentsMargins(8, 6, 8, 6);
   layout->setSpacing(8);
 
-  playButton_       = new QPushButton(this);
-  pauseButton_      = new QPushButton(this);
-  backButton_       = new QPushButton(this);
-  forwardButton_    = new QPushButton(this);
-  slowerButton_     = new QPushButton(this);
-  resetSpeedButton_ = new QPushButton(this);
-  fasterButton_     = new QPushButton(this);
-  muteButton_       = new QPushButton(this);
+  playButton_    = new QPushButton(this);
+  pauseButton_   = new QPushButton(this);
+  backButton_    = new QPushButton(this);
+  forwardButton_ = new QPushButton(this);
+  muteButton_    = new QPushButton(this);
+  speedometer_   = new PlaybackSpeedometer(this);
 
-  std::array<QPushButton*, 8> videoControlButtons = {
+  std::array<QPushButton*, 5> videoControlButtons = {
     playButton_,
     pauseButton_,
-    backButton_, 
+    backButton_,
     forwardButton_,
-    slowerButton_,
-    resetSpeedButton_,
-    fasterButton_,
     muteButton_
   };
 
@@ -101,18 +95,9 @@ void VideoControlsBar
   Style::setVariant(pauseButton_, "secondary");
   Style::setVariant(backButton_, "outline");
   Style::setVariant(forwardButton_, "outline");
-  Style::setVariant(slowerButton_, "ghost");
-  Style::setVariant(resetSpeedButton_, "ghost");
-  Style::setVariant(fasterButton_, "ghost");
   Style::setVariant(muteButton_, "outline");
 
-
-  
   muteButton_->setCheckable(true);
-  
-  speedLabel_ = new QLabel(this);
-  Style::setRole(speedLabel_, "muted");
-  updateSpeedLabel();
 
   layout->addWidget(playButton_);
   layout->addWidget(pauseButton_);
@@ -120,57 +105,45 @@ void VideoControlsBar
   layout->addWidget(backButton_);
   layout->addWidget(forwardButton_);
   layout->addSpacing(8);
-  layout->addWidget(slowerButton_);
-  layout->addWidget(resetSpeedButton_);
-  layout->addWidget(fasterButton_);
-  layout->addSpacing(8);
-  layout->addWidget(speedLabel_);
+  layout->addWidget(speedometer_);
   layout->addSpacing(8);
   layout->addWidget(muteButton_);
 }
 
 void VideoControlsBar::applyUiStrings() {
   Q_ASSERT(playButton_ && pauseButton_ && backButton_ && forwardButton_
-           && slowerButton_ && resetSpeedButton_ && fasterButton_ && muteButton_
-           && speedLabel_);
+           && muteButton_ && speedometer_);
 
   applyButtonStrings(playButton_, "vc.play", "vc.tt.play");
   applyButtonStrings(pauseButton_, "vc.pause", "vc.tt.pause");
   applyButtonStrings(backButton_, "vc.back", "vc.tt.back");
   applyButtonStrings(forwardButton_, "vc.forward", "vc.tt.forward");
-  applyButtonStrings(slowerButton_, "vc.slower", "vc.tt.slower");
-  applyButtonStrings(resetSpeedButton_, "vc.reset_speed", "vc.tt.reset");
-  applyButtonStrings(fasterButton_, "vc.faster", "vc.tt.faster");
   updateMuteButton();
-  updateSpeedLabel();
+  updateSpeedometerTooltip();
 }
 
 void VideoControlsBar::wireSignals() {
-  // Play / Pause
   connect(playButton_,  &QPushButton::clicked, this, &VideoControlsBar::flashPlayButton);
   connect(playButton_,  &QPushButton::clicked, this, &VideoControlsBar::playRequested);
 
   connect(pauseButton_, &QPushButton::clicked, this, &VideoControlsBar::flashPauseButton);
   connect(pauseButton_, &QPushButton::clicked, this, &VideoControlsBar::pauseRequested);
 
-  // Seek back / forward
   connect(backButton_,  &QPushButton::clicked, this, &VideoControlsBar::flashSeekBackButton);
   connect(backButton_,  &QPushButton::clicked, this, [this]() { emit seekRequestedMs(-kSeekStepMs); });
 
   connect(forwardButton_, &QPushButton::clicked, this, &VideoControlsBar::flashSeekForwardButton);
   connect(forwardButton_, &QPushButton::clicked, this, [this]() { emit seekRequestedMs(+kSeekStepMs); });
 
-  // Speed controls
-  connect(slowerButton_, &QPushButton::clicked, this, &VideoControlsBar::flashSlowerButton);
-  connect(slowerButton_, &QPushButton::clicked, this, &VideoControlsBar::slowerRequested);
+  connect(speedometer_, &PlaybackSpeedometer::rateChanged, this, [this](double rate) {
+    playbackRate_ = rate;
+    emit playbackRateRequested(rate);
+  });
+  connect(speedometer_, &PlaybackSpeedometer::interactionStarted, this,
+          &VideoControlsBar::speedDragStarted);
+  connect(speedometer_, &PlaybackSpeedometer::interactionFinished, this,
+          &VideoControlsBar::speedDragFinished);
 
-  connect(fasterButton_, &QPushButton::clicked, this, &VideoControlsBar::flashFasterButton);
-  connect(fasterButton_, &QPushButton::clicked, this, &VideoControlsBar::fasterRequested);
-
-  connect(resetSpeedButton_, &QPushButton::clicked, this, &VideoControlsBar::flashResetSpeedButton);
-  connect(resetSpeedButton_, &QPushButton::clicked, this, &VideoControlsBar::resetSpeedRequested);
-
-  // Mute: flash on click; keep label/tooltip in sync, then notify the player.
   connect(muteButton_, &QPushButton::clicked, this, &VideoControlsBar::flashMuteButton);
   connect(muteButton_, &QPushButton::toggled, this, [this](bool muted) {
     muted_ = muted;
@@ -200,24 +173,29 @@ void VideoControlsBar::buildKeyboardShortcuts() {
       QKeySequence(Qt::Key_Minus),
       QKeySequence(Qt::Key_Minus | Qt::KeypadModifier),
   });
-  connect(slowerPlaybackAction_, &QAction::triggered, this, &VideoControlsBar::flashSlowerButton);
-  connect(slowerPlaybackAction_, &QAction::triggered, this, &VideoControlsBar::slowerRequested);
+  connect(slowerPlaybackAction_, &QAction::triggered, this, [this]() {
+    flashSpeedometer();
+    emit playbackRateRequested(PlaybackRates::slower(playbackRate_));
+  });
 
   fasterPlaybackAction_ = makeGatedPlaybackShortcut({
       QKeySequence(Qt::Key_Plus),
       QKeySequence(Qt::Key_Plus | Qt::KeypadModifier),
       QKeySequence(Qt::SHIFT | Qt::Key_Equal),
   });
-  connect(fasterPlaybackAction_, &QAction::triggered, this, &VideoControlsBar::flashFasterButton);
-  connect(fasterPlaybackAction_, &QAction::triggered, this, &VideoControlsBar::fasterRequested);
+  connect(fasterPlaybackAction_, &QAction::triggered, this, [this]() {
+    flashSpeedometer();
+    emit playbackRateRequested(PlaybackRates::faster(playbackRate_));
+  });
 
   resetSpeedAction_ = makeGatedPlaybackShortcut({
       QKeySequence(Qt::SHIFT | Qt::Key_BraceRight),
   });
-  connect(resetSpeedAction_, &QAction::triggered, this, &VideoControlsBar::flashResetSpeedButton);
-  connect(resetSpeedAction_, &QAction::triggered, this, &VideoControlsBar::resetSpeedRequested);
+  connect(resetSpeedAction_, &QAction::triggered, this, [this]() {
+    flashSpeedometer();
+    emit playbackRateRequested(PlaybackRates::kResetRate);
+  });
 
-  // Shift+M: plain M is WorkWindow mode-cycle. Hardware mute is an extra no-conflict binding.
   muteToggleAction_ = makeGatedPlaybackShortcut({
       QKeySequence(Qt::SHIFT | Qt::Key_M),
       QKeySequence(Qt::Key_VolumeMute),
@@ -269,28 +247,20 @@ void VideoControlsBar::setPlaying(bool playing) {
 
 void VideoControlsBar::updateEnabledState() const {
   Q_ASSERT(playButton_ && pauseButton_ && backButton_ && forwardButton_
-           && slowerButton_ && fasterButton_ && resetSpeedButton_ && muteButton_);
+           && muteButton_ && speedometer_);
 
   playButton_->setEnabled(mediaEnabled_ && !playing_);
   pauseButton_->setEnabled(mediaEnabled_ && playing_);
   backButton_->setEnabled(mediaEnabled_);
   forwardButton_->setEnabled(mediaEnabled_);
-  slowerButton_->setEnabled(mediaEnabled_);
-  fasterButton_->setEnabled(mediaEnabled_);
-  resetSpeedButton_->setEnabled(mediaEnabled_);
+  speedometer_->setEnabled(mediaEnabled_);
   muteButton_->setEnabled(mediaEnabled_);
 }
 
 void VideoControlsBar::setPlaybackRate(double rate) {
-  playbackRate_ = rate;
-  updateSpeedLabel();
-  
-  // Highlight Slower button when rate < 1.0, Faster button when rate > 1.0
-  if (slowerButton_) {
-    Style::setState(slowerButton_, "speedActive", (rate < 1.0));
-  }
-  if (fasterButton_) {
-    Style::setState(fasterButton_, "speedActive", (rate > 1.0));
+  playbackRate_ = PlaybackRates::snap(rate);
+  if (speedometer_) {
+    speedometer_->setRate(playbackRate_);
   }
 }
 
@@ -309,9 +279,11 @@ void VideoControlsBar::updateMuteButton() const {
   }
 }
 
-void VideoControlsBar::updateSpeedLabel() {
-  const QString rateStr = QString::number(playbackRate_, 'f', 2) + QLatin1Char('x');
-  speedLabel_->setText(AppLocale::trUi("vc.speed_label").arg(rateStr));
+void VideoControlsBar::updateSpeedometerTooltip() const {
+  if (!speedometer_) {
+    return;
+  }
+  speedometer_->setToolTip(AppLocale::trUi("vc.tt.speed"));
 }
 
 void VideoControlsBar::flashButtonBorder(QPushButton* button) {
@@ -337,7 +309,9 @@ void VideoControlsBar::flashPlayButton()       { flashButtonBorder(playButton_);
 void VideoControlsBar::flashPauseButton()      { flashButtonBorder(pauseButton_); }
 void VideoControlsBar::flashSeekBackButton()   { flashButtonBorder(backButton_); }
 void VideoControlsBar::flashSeekForwardButton(){ flashButtonBorder(forwardButton_); }
-void VideoControlsBar::flashSlowerButton()     { flashButtonBorder(slowerButton_); }
-void VideoControlsBar::flashFasterButton()     { flashButtonBorder(fasterButton_); }
-void VideoControlsBar::flashResetSpeedButton() { flashButtonBorder(resetSpeedButton_); }
+void VideoControlsBar::flashSpeedometer() {
+  if (speedometer_) {
+    speedometer_->flash();
+  }
+}
 void VideoControlsBar::flashMuteButton()       { flashButtonBorder(muteButton_); }

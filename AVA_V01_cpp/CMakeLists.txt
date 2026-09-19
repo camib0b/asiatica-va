@@ -35,6 +35,7 @@ qt_add_executable(AVA
   state/PresentationQueue.cpp
   state/TagSession.cpp
   components/VideoControlsBar.cpp
+  components/PlaybackSpeedometer.cpp
   components/TimelineBar.cpp
   components/GameControls.cpp
   components/FollowUpCatalog.cpp

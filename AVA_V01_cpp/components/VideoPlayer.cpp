@@ -1,5 +1,6 @@
 #include "VideoPlayer.h"
 #include "VideoControlsBar.h"
+#include "PlaybackRates.h"
 #include "TimelineBar.h"
 
 #ifdef Q_OS_MACOS
@@ -39,10 +40,6 @@ static void avaRemoveSystemPowerObservers(void*) {}
 #include <algorithm>
 
 namespace {
-    constexpr double kMinRate  = 0.25;
-    constexpr double kMaxRate  = 4.0;
-    constexpr double kRateStep = 0.25;
-  
     constexpr qint64 kSeekSmallMs = 250;
     constexpr qint64 kSeekBigMs   = 3000;
 
@@ -303,9 +300,8 @@ void VideoPlayer::leaveEvent(QEvent* event) {
 void VideoPlayer::wireSignals() {
     connect(videoControlsBar_, &VideoControlsBar::playRequested, this, &VideoPlayer::onPlayClicked);
     connect(videoControlsBar_, &VideoControlsBar::pauseRequested, this, &VideoPlayer::onPauseClicked);
-    connect(videoControlsBar_, &VideoControlsBar::slowerRequested, this, &VideoPlayer::onSlowerClicked);
-    connect(videoControlsBar_, &VideoControlsBar::fasterRequested, this, &VideoPlayer::onFasterClicked);
-    connect(videoControlsBar_, &VideoControlsBar::resetSpeedRequested, this, &VideoPlayer::onResetSpeedClicked);
+    connect(videoControlsBar_, &VideoControlsBar::playbackRateRequested, this,
+            &VideoPlayer::onPlaybackRateRequested);
     connect(videoControlsBar_, &VideoControlsBar::muteToggled, this, &VideoPlayer::onMuteToggled);
 
     connect(videoControlsBar_, &VideoControlsBar::seekRequestedMs, this, [this](qint64 deltaMs) {
@@ -318,9 +314,16 @@ void VideoPlayer::wireSignals() {
     connect(videoControlsBar_, &VideoControlsBar::seekRequestedMs, this, [this](qint64) {
         revealControls();
     });
-    connect(videoControlsBar_, &VideoControlsBar::slowerRequested, this, &VideoPlayer::revealControls);
-    connect(videoControlsBar_, &VideoControlsBar::fasterRequested, this, &VideoPlayer::revealControls);
-    connect(videoControlsBar_, &VideoControlsBar::resetSpeedRequested, this, &VideoPlayer::revealControls);
+    connect(videoControlsBar_, &VideoControlsBar::playbackRateRequested, this, [this](double) {
+        revealControls();
+    });
+    connect(videoControlsBar_, &VideoControlsBar::speedDragStarted, this, [this]() {
+        revealControls();
+        if (controlsIdleTimer_) controlsIdleTimer_->stop();
+    });
+    connect(videoControlsBar_, &VideoControlsBar::speedDragFinished, this, [this]() {
+        startControlsIdleTimer();
+    });
     connect(videoControlsBar_, &VideoControlsBar::muteToggled, this, [this](bool) {
         revealControls();
     });
@@ -492,22 +495,15 @@ void VideoPlayer::onSeekSmallForward() { seekByMs(+kSeekSmallMs); }
 void VideoPlayer::onSeekBigBackward() { seekByMs(-kSeekBigMs); }
 void VideoPlayer::onSeekBigForward() { seekByMs(+kSeekBigMs); }
 
-void VideoPlayer::onSlowerClicked() {
-    playbackRate_ = std::max(kMinRate, playbackRate_ - kRateStep);
+void VideoPlayer::applyPlaybackRate(double rate) {
+    if (!player_) return;
+    playbackRate_ = PlaybackRates::snap(rate);
     player_->setPlaybackRate(playbackRate_);
     if (videoControlsBar_) videoControlsBar_->setPlaybackRate(playbackRate_);
 }
 
-void VideoPlayer::onResetSpeedClicked() {
-    playbackRate_ = 1.0;
-    player_->setPlaybackRate(playbackRate_);
-    if (videoControlsBar_) videoControlsBar_->setPlaybackRate(playbackRate_);
-}
-
-void VideoPlayer::onFasterClicked() {
-    playbackRate_ = std::min(kMaxRate, playbackRate_ + kRateStep);
-    player_->setPlaybackRate(playbackRate_);
-    if (videoControlsBar_) videoControlsBar_->setPlaybackRate(playbackRate_);
+void VideoPlayer::onPlaybackRateRequested(double rate) {
+    applyPlaybackRate(rate);
 }
 
 void VideoPlayer::onMuteToggled(bool muted) {
@@ -554,26 +550,24 @@ void VideoPlayer::pauseWithControlFlash() {
 
 void VideoPlayer::playbackSlowerWithControlFlash() {
     revealControls();
-    if (videoControlsBar_) videoControlsBar_->flashSlowerButton();
-    onSlowerClicked();
+    if (videoControlsBar_) videoControlsBar_->flashSpeedometer();
+    applyPlaybackRate(PlaybackRates::slower(playbackRate_));
 }
 
 void VideoPlayer::playbackFasterWithControlFlash() {
     revealControls();
-    if (videoControlsBar_) videoControlsBar_->flashFasterButton();
-    onFasterClicked();
+    if (videoControlsBar_) videoControlsBar_->flashSpeedometer();
+    applyPlaybackRate(PlaybackRates::faster(playbackRate_));
 }
 
 void VideoPlayer::playbackResetSpeedWithControlFlash() {
     revealControls();
-    if (videoControlsBar_) videoControlsBar_->flashResetSpeedButton();
-    onResetSpeedClicked();
+    if (videoControlsBar_) videoControlsBar_->flashSpeedometer();
+    applyPlaybackRate(PlaybackRates::kResetRate);
 }
 
 void VideoPlayer::setPlaybackRateAndPlay(double rate) {
-    playbackRate_ = rate;
-    player_->setPlaybackRate(playbackRate_);
-    if (videoControlsBar_) videoControlsBar_->setPlaybackRate(playbackRate_);
+    applyPlaybackRate(rate);
     player_->play();
 }
 
@@ -778,7 +772,7 @@ void VideoPlayer::finalizePendingMediaSession() {
     const PendingMediaSession session = pendingMediaSession_;
     pendingMediaSession_.active = false;
 
-    playbackRate_ = session.playbackRate;
+    playbackRate_ = PlaybackRates::snap(session.playbackRate);
     player_->setPlaybackRate(playbackRate_);
     if (videoControlsBar_) videoControlsBar_->setPlaybackRate(playbackRate_);
 
@@ -888,7 +882,7 @@ void VideoPlayer::loadVideoFromFile(const QString& filePath) {
     audioOutput_->setMuted(false);
     if (videoControlsBar_) videoControlsBar_->setMuted(false);
     
-    playbackRate_ = 1.0;
+    playbackRate_ = PlaybackRates::kResetRate;
     if (videoControlsBar_) videoControlsBar_->setPlaybackRate(playbackRate_);
     
     loadedSourcePath_ = filePath;
