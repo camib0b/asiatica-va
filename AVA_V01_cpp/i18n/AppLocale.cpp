@@ -164,9 +164,9 @@ const QHash<QString, QString>& spanishEventMap() {
     QHash<QString, QString> built;
     built.reserve(static_cast<int>(kSpanishEventEntries.size()));
     for (const SpanishEventEntry& entry : kSpanishEventEntries) {
-      const QString key = QString::fromLatin1(entry.canonical);
+      const QString key = QString::fromUtf8(entry.canonical);
       Q_ASSERT(!built.contains(key));
-      built.insert(key, QString::fromLatin1(entry.spanish));
+      built.insert(key, QString::fromUtf8(entry.spanish));
     }
     Q_ASSERT(built.size() == static_cast<int>(kSpanishEventEntries.size()));
     return built;

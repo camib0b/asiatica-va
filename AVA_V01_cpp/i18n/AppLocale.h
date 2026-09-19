@@ -9,7 +9,9 @@ class QSettings;
 namespace AppLocale {
 
 /// Separator between compound follow-up path segments (canonical storage and display).
-inline constexpr QLatin1StringView kCompoundPathSeparator(" → ");
+/// Must be a Unicode QString: the arrow is not in Latin-1, so QLatin1StringView would
+/// treat the UTF-8 bytes as three separate characters.
+inline const QString kCompoundPathSeparator = QStringLiteral(" \u2192 ");
 
 enum class Language {
   English,
