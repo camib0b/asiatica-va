@@ -189,7 +189,6 @@ private:
   QWidget* detachedWidgetHost_ = nullptr;
   GameSetupWindow* gameSetupWidget_ = nullptr;
   QWidget* videoControlsRow_ = nullptr;
-  QWidget* videoTimelineRow_ = nullptr;
   QWidget* taggingMainRow_ = nullptr;
   QWidget* taggingVideoCol_ = nullptr;
   QWidget* taggingRightCol_ = nullptr;

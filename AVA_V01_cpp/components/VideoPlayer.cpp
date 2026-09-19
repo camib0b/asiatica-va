@@ -29,6 +29,7 @@ static void avaRemoveSystemPowerObservers(void*) {}
 #include <QPropertyAnimation>
 #include <QResizeEvent>
 #include <QShowEvent>
+#include <QSizePolicy>
 #include <QTimer>
 #include <QUrl>
 #include <QVideoWidget>
@@ -131,6 +132,11 @@ void VideoPlayer::buildUi() {
 
     videoControlsBar_ = new VideoControlsBar(this);
     videoTimelineBar_ = new TimelineBar(this);
+    videoTimelineBar_->setMinimumHeight(44);
+    videoTimelineBar_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    videoTimelineBar_->setAttribute(Qt::WA_StyledBackground, true);
+    videoTimelineBar_->setStyleSheet(QStringLiteral("background-color: #FFFFFF;"));
+    stageLayout->addWidget(videoTimelineBar_, 0);
     setupControlsOverlay();
 
     player_ = new QMediaPlayer(this);
@@ -202,8 +208,12 @@ void VideoPlayer::updateControlsOverlayGeometry() {
 
     videoControlsBar_->adjustSize();
     const QSize barSize = videoControlsBar_->sizeHint();
-    const int x = qMax(0, (width() - barSize.width()) / 2);
-    const int y = qMax(0, height() - barSize.height() - kControlsOverlayBottomMarginPx);
+    const QRect overlayAnchorRect = (videoWidget_ && videoWidget_->isVisible())
+        ? videoWidget_->geometry()
+        : rect();
+    const int x = overlayAnchorRect.x() + qMax(0, (overlayAnchorRect.width() - barSize.width()) / 2);
+    const int y = overlayAnchorRect.y()
+        + qMax(0, overlayAnchorRect.height() - barSize.height() - kControlsOverlayBottomMarginPx);
     const QPoint globalTopLeft = mapToGlobal(QPoint(x, y));
     videoControlsBar_->setGeometry(QRect(globalTopLeft, barSize));
     raiseControlsOverlay();

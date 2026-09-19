@@ -717,6 +717,13 @@ QWidget#WorkModeToggleGroup {
   border-radius: 6px;
 }
 
+QToolButton#WorkModeTaggingButton,
+QToolButton#WorkModeAnalyzingButton,
+QToolButton#WorkModePresentingButton {
+  min-width: 100px;
+  border: 1px solid #f4f4f5;
+}
+
 QToolButton#WorkModeTaggingButton:checked,
 QToolButton#WorkModeAnalyzingButton:checked,
 QToolButton#WorkModePresentingButton:checked {
@@ -735,6 +742,7 @@ QToolButton#WorkModeTaggingButton:!checked:hover,
 QToolButton#WorkModeAnalyzingButton:!checked:hover,
 QToolButton#WorkModePresentingButton:!checked:hover {
   background: rgba(255, 255, 255, 0.55);
+  border: 1px solid #f4f4f5;
 }
 
 /* =========================

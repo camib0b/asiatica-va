@@ -26,7 +26,6 @@
 #include "XmlEventMappingDialog.h"
 
 #include "VideoControlsBar.h"
-#include "TimelineBar.h"
 
 #include <QLabel>
 #include <QLineEdit>
@@ -39,7 +38,6 @@
 #include <QHBoxLayout>
 #include <QTemporaryDir>
 #include <QToolButton>
-#include <QFontMetrics>
 #include <QMenu>
 #include <QVideoWidget>
 #include <QAbstractItemView>
@@ -212,32 +210,6 @@ QString followUpForEventColumn(const QString& followUpEvent, const TagSession* s
     }
     return AppLocale::followUpPathWithoutTeamSegments(followUpEvent, session->homeTeamName(), session->awayTeamName());
 }
-
-void syncWorkModeToggleButtonSizes(QToolButton* taggingButton, QToolButton* analyzingButton,
-                                   QToolButton* presentingButton) {
-    if (!taggingButton || !analyzingButton || !presentingButton) return;
-
-    int maxWidth = 0;
-    for (QToolButton* button : {taggingButton, analyzingButton, presentingButton}) {
-        QFont boldFont = button->font();
-        boldFont.setWeight(QFont::DemiBold);
-        const QFontMetrics metrics(boldFont);
-        const int horizontalPadding = 24;
-        maxWidth = qMax(maxWidth, metrics.horizontalAdvance(button->text()) + horizontalPadding);
-    }
-
-    for (QToolButton* button : {taggingButton, analyzingButton, presentingButton}) {
-        button->setMinimumWidth(maxWidth);
-        button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    }
-}
-
-void configureTimelineForVideoColumn(QWidget* timeline) {
-    if (!timeline) return;
-    timeline->setMinimumHeight(44);
-    timeline->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    timeline->show();
-}
 } // namespace
 
 WorkWindow::WorkWindow(QWidget* parent) : QWidget(parent) {
@@ -322,18 +294,13 @@ void WorkWindow::abortVideoOpen(const QString& errorMessage) {
 void WorkWindow::applyUiStrings() const {
     if (modeTaggingBtn_) {
         modeTaggingBtn_->setText(AppLocale::trUi("mode.tagging"));
-        modeTaggingBtn_->setToolTip(AppLocale::trUi("tooltip.mode_tagging"));
     }
     if (modeAnalyzingBtn_) {
         modeAnalyzingBtn_->setText(AppLocale::trUi("mode.analyzing"));
-        modeAnalyzingBtn_->setToolTip(AppLocale::trUi("tooltip.mode_analyzing"));
     }
     if (modePresentingBtn_) {
         modePresentingBtn_->setText(AppLocale::trUi("mode.presenting"));
-        modePresentingBtn_->setToolTip(AppLocale::trUi("tooltip.mode_presenting"));
     }
-    syncWorkModeToggleButtonSizes(modeTaggingBtn_, modeAnalyzingBtn_, modePresentingBtn_);
-    if (videoMenuButton_) videoMenuButton_->setToolTip(AppLocale::trUi("tooltip.video_menu"));
     if (replaceVideoAction_) replaceVideoAction_->setText(AppLocale::trUi("menu.replace_video"));
     if (closeVideoAction_) closeVideoAction_->setText(AppLocale::trUi("menu.close_video"));
     if (importXmlAction_) importXmlAction_->setText(AppLocale::trUi("menu.import_xml"));
@@ -534,10 +501,9 @@ void WorkWindow::buildUi() {
     mainContentContainer_ = new QWidget(this);
     auto* mainContentLayout = new QVBoxLayout(mainContentContainer_);
     mainContentLayout->setContentsMargins(12, 12, 12, 12);
-    // Tight spacing between timeline and video/content so vertical space is not wasted above the video.
     mainContentLayout->setSpacing(4);
 
-    // Top row: mode toggle | video controls | settings icon
+    // Top row: mode toggle | settings icon
     auto* topRow = new QWidget(mainContentContainer_);
     auto* topLayout = new QHBoxLayout(topRow);
     topLayout->setContentsMargins(0, 0, 0, 0);
@@ -612,14 +578,6 @@ void WorkWindow::buildUi() {
     topLayout->addWidget(videoControlsRow_, 1);
 
     mainContentLayout->addWidget(topRow);
-
-    videoTimelineRow_ = new QWidget(mainContentContainer_);
-    videoTimelineRow_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    auto* timelineLayout = new QHBoxLayout(videoTimelineRow_);
-    timelineLayout->setContentsMargins(0, 0, 0, 0);
-    timelineLayout->addWidget(videoPlayer_->timelineBar(), 1);
-    // Bootstrap parent only; tagging/presenting/analyzing layouts reparent the timeline and hide this row.
-    mainContentLayout->addWidget(videoTimelineRow_, 0);
 
     contentArea_ = new QWidget(mainContentContainer_);
     contentLayout_ = new QVBoxLayout(contentArea_);
@@ -929,28 +887,14 @@ void WorkWindow::applyTaggingLayout() {
     if (analyzingMainSplitter_) analyzingMainSplitter_->hide();
     if (presentationSplitter_) presentationSplitter_->hide();
 
-    QWidget* timeline = videoPlayer_ ? videoPlayer_->timelineBar() : nullptr;
     detachWidgetFromParent(videoPlayer_);
-    if (timeline) {
-        detachWidgetFromParent(timeline);
-    }
     detachWidgetFromParent(tagsSection_);
     detachWidgetFromParent(gameControls_);
     detachWidgetFromParent(analyzingTagsControlsSplitter_);
     detachWidgetFromParent(statsWindow_);
     if (notesColumn_) detachWidgetFromParent(notesColumn_);
 
-    // Keep the timeline in the video column so its width matches the player and the
-    // tagging panel can use the vertical space the old full-width timeline row occupied.
-    if (videoTimelineRow_) {
-        videoTimelineRow_->hide();
-    }
-
     auto* taggingVideoLayout = static_cast<QBoxLayout*>(taggingVideoCol_->layout());
-    if (timeline) {
-        configureTimelineForVideoColumn(timeline);
-        taggingVideoLayout->addWidget(timeline, 0);
-    }
     taggingVideoLayout->addWidget(videoPlayer_, 1);
     videoPlayer_->show();
     auto* rightLayout = static_cast<QBoxLayout*>(taggingRightCol_->layout());
@@ -1017,8 +961,7 @@ void WorkWindow::applyAnalyzingLayout() {
         delete item;  // widget stays in tree; do not setParent(nullptr)
     }
 
-    QWidget* timeline = videoPlayer_ ? videoPlayer_->timelineBar() : nullptr;
-    if (!videoPlayer_ || !timeline || !analyzingMainSplitter_ || !analyzingLeftSplitter_ || !analyzingRightSplitter_ ||
+    if (!videoPlayer_ || !analyzingMainSplitter_ || !analyzingLeftSplitter_ || !analyzingRightSplitter_ ||
         !analyzingTagsControlsSplitter_) {
         rebuildTagsList();
         return;
@@ -1029,8 +972,6 @@ void WorkWindow::applyAnalyzingLayout() {
     detachWidgetFromParent(gameControls_);
     detachWidgetFromParent(statsWindow_);
     if (notesColumn_) detachWidgetFromParent(notesColumn_);
-    detachWidgetFromParent(timeline);
-    if (videoTimelineRow_) videoTimelineRow_->hide();
 
     while (analyzingTagsControlsSplitter_->count() > 0) {
         detachWidgetFromParent(analyzingTagsControlsSplitter_->widget(0));
@@ -1042,8 +983,6 @@ void WorkWindow::applyAnalyzingLayout() {
         detachWidgetFromParent(analyzingRightSplitter_->widget(0));
     }
 
-    timeline->setMinimumHeight(44);
-    timeline->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     tagsSection_->setMinimumWidth(160);
     tagsSection_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     if (notesColumn_) {
@@ -1055,7 +994,6 @@ void WorkWindow::applyAnalyzingLayout() {
 
     analyzingLeftSplitter_->addWidget(videoPlayer_);
     videoPlayer_->show();
-    analyzingLeftSplitter_->addWidget(timeline);
     analyzingLeftSplitter_->addWidget(analyzingTagsControlsSplitter_);
 
     analyzingRightSplitter_->addWidget(statsWindow_);
@@ -1063,8 +1001,7 @@ void WorkWindow::applyAnalyzingLayout() {
     analyzingMainSplitter_->setStretchFactor(0, 2);
     analyzingMainSplitter_->setStretchFactor(1, 1);
     analyzingLeftSplitter_->setStretchFactor(0, 5);
-    analyzingLeftSplitter_->setStretchFactor(1, 0);
-    analyzingLeftSplitter_->setStretchFactor(2, 3);
+    analyzingLeftSplitter_->setStretchFactor(1, 3);
     analyzingTagsControlsSplitter_->setStretchFactor(0, 1);
     analyzingTagsControlsSplitter_->setStretchFactor(1, 1);
     analyzingRightSplitter_->setStretchFactor(0, 1);
@@ -1093,7 +1030,6 @@ void WorkWindow::applyPresentationLayout() {
     if (taggingMainRow_) taggingMainRow_->hide();
     if (taggingVideoTagsSplitter_) taggingVideoTagsSplitter_->hide();
     if (analyzingMainSplitter_) analyzingMainSplitter_->hide();
-    QWidget* timeline = videoPlayer_ ? videoPlayer_->timelineBar() : nullptr;
     if (!videoPlayer_ || !presentationSplitter_ || !presentationStageColumn_) {
         return;
     }
@@ -1104,30 +1040,14 @@ void WorkWindow::applyPresentationLayout() {
     detachWidgetFromParent(statsWindow_);
     if (notesColumn_) detachWidgetFromParent(notesColumn_);
     detachWidgetFromParent(analyzingTagsControlsSplitter_);
-    if (timeline) {
-        detachWidgetFromParent(timeline);
-    }
 
     while (QLayoutItem* item = contentLayout_->takeAt(0)) {
         delete item;  // widget stays in tree; do not setParent(nullptr)
     }
 
-    // Keep the full-video timeline in the stage column (same width as the player) so the
-    // presentation panel can use the height the old full-width timeline row occupied.
-    if (videoTimelineRow_) {
-        videoTimelineRow_->hide();
-    }
-
-    // Banner, full-video timeline, video, then clip bar. The timeline stays available so
-    // the presenter can roam outside the clip window.
+    // Banner, video (timeline is stacked under the picture inside VideoPlayer), then clip bar.
     auto* stageLayout = static_cast<QBoxLayout*>(presentationStageColumn_->layout());
-    if (timeline) {
-        configureTimelineForVideoColumn(timeline);
-        stageLayout->insertWidget(1, timeline, 0);
-        stageLayout->insertWidget(2, videoPlayer_, 1);
-    } else {
-        stageLayout->insertWidget(1, videoPlayer_, 1);
-    }
+    stageLayout->insertWidget(1, videoPlayer_, 1);
     videoPlayer_->show();
 
     // These panels have no slot in the presentation layout; without an explicit hide they would
@@ -1175,12 +1095,11 @@ void WorkWindow::applyAnalyzingSplitterGeometry() {
 
     const int leftH = analyzingLeftSplitter_ ? analyzingLeftSplitter_->height() : 0;
     if (analyzingLeftSplitter_ && leftH >= 120) {
-        const int handleTotal = analyzingLeftSplitter_->handleWidth() * 2;
+        const int handleTotal = analyzingLeftSplitter_->handleWidth();
         const int inner = leftH - handleTotal;
-        const int videoH = qMax(140, inner * 45 / 100);
-        const int timelineH = qMax(44, inner * 12 / 100);
-        const int tagsControlsRowH = qMax(120, inner - videoH - timelineH);
-        analyzingLeftSplitter_->setSizes({videoH, timelineH, tagsControlsRowH});
+        const int videoH = qMax(180, inner * 57 / 100);
+        const int tagsControlsRowH = qMax(120, inner - videoH);
+        analyzingLeftSplitter_->setSizes({videoH, tagsControlsRowH});
     }
 
     const int tagsNotesRowW = analyzingTagsControlsSplitter_ ? analyzingTagsControlsSplitter_->width() : 0;
@@ -1239,7 +1158,7 @@ void WorkWindow::wireSignals() {
     // Video file management
     connect(replaceVideoAction_, &QAction::triggered, this, &WorkWindow::onReplaceVideo);
     connect(closeVideoAction_, &QAction::triggered, this, &WorkWindow::onCloseVideo);
-    
+
     // Connect VideoPlayer's videoClosed signal to WorkWindow's signal
     connect(videoPlayer_, &VideoPlayer::videoClosed, this, &WorkWindow::videoClosed);
 
@@ -1378,7 +1297,7 @@ void WorkWindow::wireSignals() {
         // Presentation playhead and clip-end stop must not be debounced.
         updatePresentationPlayhead(positionMs);
     });
-    
+
     // Backspace to delete selected tag
     auto* deleteTagAction = new QAction(this);
     deleteTagAction->setShortcut(QKeySequence(Qt::Key_Backspace));
@@ -2381,7 +2300,7 @@ void WorkWindow::onDeleteSelectedTag() {
 
     auto* item = selectedTagRowTimeItem();
     if (!item) return;
-    
+
     const quint64 tagId = tagIdFromItem(item);
     int tagIndex = tagSession_->indexOfTagId(tagId);
     if (tagIndex < 0) {
