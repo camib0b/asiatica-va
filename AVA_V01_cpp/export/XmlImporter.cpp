@@ -69,6 +69,9 @@ public:
     if (scope_ == Scope::Instance || scope_ == Scope::Label) {
       return fail(QStringLiteral("XML ended while an <instance> was still open."));
     }
+    if (scope_ != Scope::Document) {
+      return fail(QStringLiteral("XML ended with unclosed elements."));
+    }
     if (parsed_.isEmpty()) {
       return fail(QStringLiteral("No instances found in XML file."));
     }
@@ -79,7 +82,7 @@ public:
   }
 
 private:
-  enum class Scope { Document, AllInstances, Instance, Label };
+  enum class Scope { Document, File, AllInstances, Instance, Label };
 
   bool fail(const QString& message) {
     if (errorMessage_) *errorMessage_ = message;
@@ -100,11 +103,21 @@ private:
   bool onStartElement() {
     const QString name = reader_.name().toString();
 
-    if (name == QStringLiteral("ALL_INSTANCES")) {
+    if (name == QStringLiteral("file")) {
       if (scope_ != Scope::Document) {
+        reader_.skipCurrentElement();
+        return true;
+      }
+      scope_ = Scope::File;
+      return true;
+    }
+
+    if (name == QStringLiteral("ALL_INSTANCES")) {
+      if (scope_ != Scope::Document && scope_ != Scope::File) {
         return fail(QStringLiteral("Unexpected nested <ALL_INSTANCES> at line %1.")
                         .arg(reader_.lineNumber()));
       }
+      allInstancesParentScope_ = scope_;
       scope_ = Scope::AllInstances;
       return true;
     }
@@ -119,7 +132,7 @@ private:
       return true;
     }
 
-    if (scope_ == Scope::Document) {
+    if (scope_ == Scope::Document || scope_ == Scope::File) {
       reader_.skipCurrentElement();
       return true;
     }
@@ -173,7 +186,14 @@ private:
       if (scope_ == Scope::Instance || scope_ == Scope::Label) {
         return fail(QStringLiteral("Unclosed <instance> inside <ALL_INSTANCES>."));
       }
-      scope_ = Scope::Document;
+      scope_ = allInstancesParentScope_;
+      return true;
+    }
+
+    if (name == QStringLiteral("file")) {
+      if (scope_ == Scope::File) {
+        scope_ = Scope::Document;
+      }
     }
     return true;
   }
@@ -300,6 +320,7 @@ private:
   QXmlStreamReader& reader_;
   QString* errorMessage_ = nullptr;
   Scope scope_ = Scope::Document;
+  Scope allInstancesParentScope_ = Scope::Document;
   InstanceDraft draft_;
   QVector<ParsedInstance> parsed_;
 };
