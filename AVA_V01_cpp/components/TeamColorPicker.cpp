@@ -151,6 +151,15 @@ public:
   }
 
 protected:
+  void keyPressEvent(QKeyEvent* event) override {
+    if ((event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) && !event->isAutoRepeat()) {
+      animateClick();
+      event->accept();
+      return;
+    }
+    QAbstractButton::keyPressEvent(event);
+  }
+
   void paintEvent(QPaintEvent*) override {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
@@ -470,6 +479,13 @@ bool TeamColorPicker::eventFilter(QObject* watched, QEvent* event) {
 
   if (isForwardTabKey(*keyEvent) || isBackwardTabKey(*keyEvent)) {
     return movePopupKeyboardFocus(isForwardTabKey(*keyEvent));
+  }
+
+  if (watched == moreColorsButton_ &&
+      (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) &&
+      !keyEvent->isAutoRepeat()) {
+    moreColorsButton_->click();
+    return true;
   }
 
   return QWidget::eventFilter(watched, event);
