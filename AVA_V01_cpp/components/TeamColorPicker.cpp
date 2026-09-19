@@ -17,6 +17,7 @@
 #include <QPaintEvent>
 #include <QPointer>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QSizePolicy>
 #include <QVBoxLayout>
 
@@ -78,24 +79,22 @@ QString colorToHex(const QColor& color) {
   return color.name(QColor::HexRgb).toUpper();
 }
 
-bool isHexDigit(QChar character) {
-  const char latin = character.toLatin1();
-  return (latin >= '0' && latin <= '9') || (latin >= 'a' && latin <= 'f') ||
-         (latin >= 'A' && latin <= 'F');
-}
-
-// Exactly 6 hex digits, optional leading '#', stored as #RRGGBB. Do not use
-// QColor here: it accepts #rgb, names, and #rgba and would rewrite while typing.
+// Exactly 6 hex digits, optional leading '#', stored as #RRGGBB. Regex rejects
+// shorthand (#rgb), names, and #rgba before QColor runs; partial typing still
+// no-ops because the pattern requires all six digits.
 QString normalizeHex(const QString& text) {
-  QString digits = text.trimmed();
-  if (digits.startsWith(QLatin1Char('#'))) {
-    digits.remove(0, 1);
+  const QString trimmed = text.trimmed();
+  static const QRegularExpression hexPattern(QStringLiteral("^#?[0-9a-fA-F]{6}$"));
+  if (!hexPattern.match(trimmed).hasMatch()) {
+    return {};
   }
-  if (digits.size() != 6) return {};
-  for (const QChar digit : digits) {
-    if (!isHexDigit(digit)) return {};
+  const QString withHash =
+      trimmed.startsWith(QLatin1Char('#')) ? trimmed : QLatin1Char('#') + trimmed;
+  const QColor color(withHash);
+  if (!color.isValid()) {
+    return {};
   }
-  return QLatin1Char('#') + digits.toUpper();
+  return colorToHex(color);
 }
 
 class ColorCircleButton final : public QAbstractButton {

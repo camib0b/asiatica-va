@@ -11,9 +11,9 @@
 #include <QWidget>
 #include <QTimer>
 #include <QPointer>
-#include <QAction>
-#include <QKeySequence>
 #include <QKeyEvent>
+#include <algorithm>
+#include <climits>
 #include <QEvent>
 #include <QApplication>
 #include <QLabel>
@@ -90,6 +90,7 @@ void configureFollowUpButton(QPushButton* button, const QString& canonicalKey,
   layout->setContentsMargins(6, 4, 6, 4);
   layout->setSpacing(2);
   auto* titleLabel = new QLabel(AppLocale::trEvent(canonicalKey), button);
+  titleLabel->setProperty("gameEventName", canonicalKey);
   titleLabel->setAlignment(Qt::AlignCenter);
   titleLabel->setWordWrap(true);
   Style::setRole(titleLabel, "gameControlTitle");
@@ -100,6 +101,100 @@ void configureFollowUpButton(QPushButton* button, const QString& canonicalKey,
   shortcutLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
   layout->addWidget(titleLabel);
   layout->addWidget(shortcutLabel);
+}
+
+struct FocusNavEntry {
+  QPushButton* button = nullptr;
+  int row = 0;
+  int col = 0;
+};
+
+QVector<FocusNavEntry> buildFocusNavEntries(QPushButton* homeTeamButton,
+                                            QPushButton* awayTeamButton,
+                                            QGridLayout* mainGridLayout,
+                                            const QList<QPushButton*>& followUpButtons) {
+  QVector<FocusNavEntry> entries;
+  if (homeTeamButton) {
+    entries.append({homeTeamButton, -1, 0});
+  }
+  if (awayTeamButton) {
+    entries.append({awayTeamButton, -1, 1});
+  }
+  if (mainGridLayout) {
+    for (int row = 0; row < mainGridLayout->rowCount(); ++row) {
+      for (int col = 0; col < mainGridLayout->columnCount(); ++col) {
+        QLayoutItem* item = mainGridLayout->itemAtPosition(row, col);
+        auto* button = qobject_cast<QPushButton*>(item ? item->widget() : nullptr);
+        if (button) {
+          entries.append({button, row, col});
+        }
+      }
+    }
+  }
+  const int followUpRow = mainGridLayout ? mainGridLayout->rowCount() : 0;
+  for (int index = 0; index < followUpButtons.size(); ++index) {
+    QPushButton* button = followUpButtons.at(index);
+    if (button && button->isVisible()) {
+      entries.append({button, followUpRow, index});
+    }
+  }
+  return entries;
+}
+
+QPushButton* closestButtonInRow(const QVector<FocusNavEntry>& entries, int row, int preferredCol) {
+  QPushButton* bestButton = nullptr;
+  int bestDistance = INT_MAX;
+  for (const FocusNavEntry& entry : entries) {
+    if (entry.row != row || !entry.button) {
+      continue;
+    }
+    const int distance = std::abs(entry.col - preferredCol);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestButton = entry.button;
+    }
+  }
+  return bestButton;
+}
+
+QPushButton* focusDownFromEntry(const QVector<FocusNavEntry>& entries, const FocusNavEntry& current) {
+  if (current.row == -1) {
+    return current.col == 0 ? closestButtonInRow(entries, 0, 0)
+                            : closestButtonInRow(entries, 0, 1);
+  }
+  if (current.row >= 0 && current.row < 2) {
+    return closestButtonInRow(entries, current.row + 1, current.col);
+  }
+  if (current.row == 2) {
+    const int targetCol = current.col == 0 ? 0 : 1;
+    return closestButtonInRow(entries, 3, targetCol);
+  }
+  if (current.row == 3) {
+    const int followUpRow = current.row + 1;
+    QPushButton* followUpButton = closestButtonInRow(entries, followUpRow, 0);
+    return followUpButton ? followUpButton : closestButtonInRow(entries, 0, 0);
+  }
+  return closestButtonInRow(entries, 0, 0);
+}
+
+QPushButton* focusUpFromEntry(const QVector<FocusNavEntry>& entries, const FocusNavEntry& current,
+                              QPushButton* homeTeamButton, QPushButton* awayTeamButton) {
+  if (current.row == 0) {
+    if (current.col == 0) {
+      return homeTeamButton;
+    }
+    return awayTeamButton;
+  }
+  if (current.row >= 1 && current.row <= 2) {
+    return closestButtonInRow(entries, current.row - 1, current.col);
+  }
+  if (current.row == 3) {
+    return closestButtonInRow(entries, 2, current.col);
+  }
+  if (current.col == 0) {
+    return closestButtonInRow(entries, 3, 0);
+  }
+  return homeTeamButton;
 }
 } // namespace
 
@@ -112,16 +207,20 @@ GameControls::GameControls(QWidget* parent)
   setMinimumWidth(kMinimumPanelWidthPx);
   buildUi();
   wireSignals();
-  buildKeyboardShortcuts();
   hideFollowUpButtons();
   resetGameTimeState();
   applyUiLanguage();
   installEventFilter(this);
+  qApp->installEventFilter(this);
   for (auto* btn : {startGameButton_, nextQuarterButton_, homeTeamButton_, awayTeamButton_,
                     sixteenYardButton_, fiftyYardButton_, seventyFiveYardButton_,
                     pcButton_, circleEntryButton_, pcFoulButton_, shotButton_, goalButton_, passButton_,
                     specialButton_, turnoverButton_, cardButton_, shootoutButton_, psButton_})
     if (btn) btn->installEventFilter(this);
+}
+
+GameControls::~GameControls() {
+  qApp->removeEventFilter(this);
 }
 
 void GameControls::setSessionTeamNames(const QString& homeName, const QString& awayName,
@@ -130,9 +229,8 @@ void GameControls::setSessionTeamNames(const QString& homeName, const QString& a
   const QString awayTrimmed = awayName.trimmed();
   homeTeamFollowUpLabel_ = homeTrimmed.isEmpty() ? QStringLiteral("home") : homeTrimmed;
   awayTeamFollowUpLabel_ = awayTrimmed.isEmpty() ? QStringLiteral("away") : awayTrimmed;
-  homeTeamColorHex_ = homeColorHex.trimmed();
-  awayTeamColorHex_ = awayColorHex.trimmed();
-  teamSideSelection_ = TeamSideSelection::None;
+  homeTeamColorHex_ = normalizeTeamColorHex(homeColorHex);
+  awayTeamColorHex_ = normalizeTeamColorHex(awayColorHex);
   if (homeTeamButton_) homeTeamButton_->setText(homeTeamFollowUpLabel_);
   if (awayTeamButton_) awayTeamButton_->setText(awayTeamFollowUpLabel_);
   updateTeamButtonSelectionVisual();
@@ -200,6 +298,14 @@ void GameControls::applyUiLanguage() {
     if (!titleLabel) continue;
     const QString key = titleLabel->property("gameEventName").toString();
     titleLabel->setText(AppLocale::trEvent(key));
+  }
+  for (QPushButton* followUpButton : followUpButtons_) {
+    if (!followUpButton) continue;
+    for (QLabel* titleLabel : followUpButton->findChildren<QLabel*>()) {
+      const QString key = titleLabel->property("gameEventName").toString();
+      if (key.isEmpty()) continue;
+      titleLabel->setText(AppLocale::trEvent(key));
+    }
   }
   updateGameTimeButtonsUi();
 }
@@ -524,98 +630,79 @@ void GameControls::wireSignals() {
   connectMain(psButton_);
 }
 
-void GameControls::buildKeyboardShortcuts() {
-  Q_ASSERT(QApplication::instance() != nullptr);
-
-  auto makeAction = [this](int key, auto handler) -> QAction* {
-    auto* act = new QAction(this);
-    act->setShortcut(QKeySequence(key));
-    act->setShortcutContext(Qt::ApplicationShortcut);
-    connect(act, &QAction::triggered, this, handler);
-    this->addAction(act);
-    return act;
-  };
-
-  // Main grid matches QWERTY geometry: Q W E R | A S D F | Z X C V N | B (PS)
-  sixteenYardAction_ = makeAction(Qt::Key_Q, [this]() {
-    if (sixteenYardButton_ && sixteenYardButton_->isVisible() && sixteenYardButton_->isEnabled()) sixteenYardButton_->click();
-  });
-  fiftyYardAction_ = makeAction(Qt::Key_W, [this]() {
-    if (fiftyYardButton_ && fiftyYardButton_->isVisible() && fiftyYardButton_->isEnabled()) fiftyYardButton_->click();
-  });
-  seventyFiveYardAction_ = makeAction(Qt::Key_E, [this]() {
-    if (seventyFiveYardButton_ && seventyFiveYardButton_->isVisible() && seventyFiveYardButton_->isEnabled()) seventyFiveYardButton_->click();
-  });
-  pcAction_ = makeAction(Qt::Key_R, [this]() {
-    if (pcButton_ && pcButton_->isVisible() && pcButton_->isEnabled()) pcButton_->click();
-  });
-  circleEntryAction_ = makeAction(Qt::Key_A, [this]() {
-    if (circleEntryButton_ && circleEntryButton_->isVisible() && circleEntryButton_->isEnabled()) circleEntryButton_->click();
-  });
-  pcFoulAction_ = makeAction(Qt::Key_S, [this]() {
-    if (pcFoulButton_ && pcFoulButton_->isVisible() && pcFoulButton_->isEnabled()) pcFoulButton_->click();
-  });
-  shotAction_ = makeAction(Qt::Key_D, [this]() {
-    if (shotButton_ && shotButton_->isVisible() && shotButton_->isEnabled()) shotButton_->click();
-  });
-  goalAction_ = makeAction(Qt::Key_F, [this]() {
-    if (goalButton_ && goalButton_->isVisible() && goalButton_->isEnabled()) goalButton_->click();
-  });
-  passAction_ = makeAction(Qt::Key_Z, [this]() {
-    if (passButton_ && passButton_->isVisible() && passButton_->isEnabled()) passButton_->click();
-  });
-  specialAction_ = makeAction(Qt::Key_X, [this]() {
-    if (specialButton_ && specialButton_->isVisible() && specialButton_->isEnabled()) specialButton_->click();
-  });
-  turnoverAction_ = makeAction(Qt::Key_C, [this]() {
-    if (turnoverButton_ && turnoverButton_->isVisible() && turnoverButton_->isEnabled()) turnoverButton_->click();
-  });
-  cardAction_ = makeAction(Qt::Key_V, [this]() {
-    if (cardButton_ && cardButton_->isVisible() && cardButton_->isEnabled()) cardButton_->click();
-  });
-  shootoutAction_ = makeAction(Qt::Key_N, [this]() {
-    if (shootoutButton_ && shootoutButton_->isVisible() && shootoutButton_->isEnabled()) shootoutButton_->click();
-  });
-  psAction_ = makeAction(Qt::Key_B, [this]() {
-    if (psButton_ && psButton_->isVisible() && psButton_->isEnabled()) psButton_->click();
-  });
-
-  // Game-time shortcuts: G starts the game, H advances to the next quarter.
-  startGameAction_ = makeAction(Qt::Key_G, [this]() {
-    if (startGameButton_ && startGameButton_->isVisible() && startGameButton_->isEnabled())
-      startGameButton_->click();
-  });
-  nextQuarterAction_ = makeAction(Qt::Key_H, [this]() {
-    if (nextQuarterButton_ && nextQuarterButton_->isVisible() && nextQuarterButton_->isEnabled())
-      nextQuarterButton_->click();
-  });
-
-  // Follow-ups: map visible follow-up buttons to 1..9
-  followUpNumberActions_.clear();
-  for (int i = 1; i <= 9; ++i) {
-    const int key = (i == 1) ? Qt::Key_1
-                  : (i == 2) ? Qt::Key_2
-                  : (i == 3) ? Qt::Key_3
-                  : (i == 4) ? Qt::Key_4
-                  : (i == 5) ? Qt::Key_5
-                  : (i == 6) ? Qt::Key_6
-                  : (i == 7) ? Qt::Key_7
-                  : (i == 8) ? Qt::Key_8
-                             : Qt::Key_9;
-
-    auto* act = makeAction(key, [this, i]() {
-      if (!followUpContainer_ || !followUpContainer_->isVisible()) return;
-      const int idx = i - 1;
-      if (idx < 0 || idx >= followUpButtons_.size()) return;
-      auto* btn = followUpButtons_.at(idx);
-      if (!btn || !btn->isVisible() || !btn->isEnabled()) return;
-      btn->click();
-    });
-    followUpNumberActions_.append(act);
+bool GameControls::handleApplicationShortcut(QKeyEvent* event) {
+  if (!event || !isVisible() || event->modifiers() != Qt::NoModifier) {
+    return false;
   }
 
-  // Escape: discard follow-ups and save with empty follow-up
-  escapeAction_ = makeAction(Qt::Key_Escape, [this]() { cancelFollowUpFlow(); });
+  auto clickIfReady = [](QPushButton* button) -> bool {
+    if (!button || !button->isVisible() || !button->isEnabled()) {
+      return false;
+    }
+    button->click();
+    return true;
+  };
+
+  switch (event->key()) {
+    case Qt::Key_Q:
+      return clickIfReady(sixteenYardButton_);
+    case Qt::Key_W:
+      return clickIfReady(fiftyYardButton_);
+    case Qt::Key_E:
+      return clickIfReady(seventyFiveYardButton_);
+    case Qt::Key_R:
+      return clickIfReady(pcButton_);
+    case Qt::Key_A:
+      return clickIfReady(circleEntryButton_);
+    case Qt::Key_S:
+      return clickIfReady(pcFoulButton_);
+    case Qt::Key_D:
+      return clickIfReady(shotButton_);
+    case Qt::Key_F:
+      return clickIfReady(goalButton_);
+    case Qt::Key_Z:
+      return clickIfReady(passButton_);
+    case Qt::Key_X:
+      return clickIfReady(specialButton_);
+    case Qt::Key_C:
+      return clickIfReady(turnoverButton_);
+    case Qt::Key_V:
+      return clickIfReady(cardButton_);
+    case Qt::Key_N:
+      return clickIfReady(shootoutButton_);
+    case Qt::Key_B:
+      return clickIfReady(psButton_);
+    case Qt::Key_G:
+      return clickIfReady(startGameButton_);
+    case Qt::Key_H:
+      return clickIfReady(nextQuarterButton_);
+    case Qt::Key_1:
+    case Qt::Key_2:
+    case Qt::Key_3:
+    case Qt::Key_4:
+    case Qt::Key_5:
+    case Qt::Key_6:
+    case Qt::Key_7:
+    case Qt::Key_8:
+    case Qt::Key_9: {
+      if (!followUpContainer_ || !followUpContainer_->isVisible()) {
+        return false;
+      }
+      const int followUpIndex = event->key() - Qt::Key_1;
+      if (followUpIndex < 0 || followUpIndex >= followUpButtons_.size()) {
+        return false;
+      }
+      return clickIfReady(followUpButtons_.at(followUpIndex));
+    }
+    case Qt::Key_Escape:
+      if (followUpState_.isIdle()) {
+        return false;
+      }
+      cancelFollowUpFlow();
+      return true;
+    default:
+      return false;
+  }
 }
 
 void GameControls::onMainButtonClicked() {
@@ -623,6 +710,7 @@ void GameControls::onMainButtonClicked() {
   if (!button) return;
 
   if (teamSideSelection_ == TeamSideSelection::None) {
+    clearActiveMainButton();
     flashButtonBorder(homeTeamButton_);
     flashButtonBorder(awayTeamButton_);
     return;
@@ -749,6 +837,9 @@ void GameControls::flashButtonBorder(QPushButton* button) {
     timer->setObjectName(QStringLiteral("flashClearTimer"));
     timer->setSingleShot(true);
     connect(timer, &QTimer::timeout, button, [buttonGuard = QPointer<QPushButton>(button)]() {
+      if (!buttonGuard) {
+        return;
+      }
       setButtonFlashState(buttonGuard, false);
     });
   }
@@ -758,92 +849,67 @@ void GameControls::flashButtonBorder(QPushButton* button) {
 }
 
 QList<QPushButton*> GameControls::focusableButtonsOrder() const {
-  QList<QPushButton*> list;
-  list << homeTeamButton_ << awayTeamButton_
-       << sixteenYardButton_ << fiftyYardButton_ << seventyFiveYardButton_ << pcButton_
-       << circleEntryButton_ << pcFoulButton_ << shotButton_ << goalButton_
-       << passButton_ << specialButton_ << turnoverButton_ << cardButton_
-       << psButton_ << shootoutButton_;
-  for (auto* btn : followUpButtons_) {
-    if (btn && btn->isVisible()) list << btn;
+  QList<QPushButton*> buttons;
+  for (const FocusNavEntry& entry :
+       buildFocusNavEntries(homeTeamButton_, awayTeamButton_, mainGridLayout_, followUpButtons_)) {
+    if (entry.button) {
+      buttons.append(entry.button);
+    }
   }
-  return list;
+  return buttons;
 }
 
 void GameControls::focusNextInDirection(Qt::Key key) {
-  QList<QPushButton*> list = focusableButtonsOrder();
-  if (list.isEmpty()) return;
-
-  QWidget* focus = focusWidget();
-  int idx = -1;
-  for (int i = 0; i < list.size(); ++i) {
-    if (list.at(i) == focus) { idx = i; break; }
-  }
-  if (idx < 0) {
-    list.first()->setFocus(Qt::OtherFocusReason);
+  const QVector<FocusNavEntry> entries =
+      buildFocusNavEntries(homeTeamButton_, awayTeamButton_, mainGridLayout_, followUpButtons_);
+  if (entries.isEmpty()) {
     return;
   }
 
-  // Indices 0–1: team row; 2–13: rows 0–2 (4 cols each); 14–15: row 3 (PS, S.O.); follow-ups after
-  const int kTeamCount = 2;
-  const int kMainStart = 2;
-  const int kMainGridCols = 4;
-  const int kNumMainButtons = 14;
-  const int kRow3Start = kMainStart + 12;   // idx 14 = PS (col 0)
-  const int kShootoutIndex = kRow3Start + 1; // idx 15 = S.O. (col 1)
-  const int kFirstFollowUpIndex = kTeamCount + kNumMainButtons;
-  int next = idx;
-
-  if (key == Qt::Key_Right) {
-    next = (idx + 1) % list.size();
-  } else if (key == Qt::Key_Left) {
-    next = (idx - 1 + list.size()) % list.size();
-  } else if (key == Qt::Key_Down) {
-    if (idx == 0) {
-      next = kMainStart;
-    } else if (idx == 1) {
-      next = kMainStart + 1;
-    } else if (idx >= kMainStart && idx < kRow3Start) {
-      const int mainIdx = idx - kMainStart;
-      const int row = mainIdx / kMainGridCols;
-      if (row < 2) {
-        next = idx + kMainGridCols;
-      } else {
-        const int col = mainIdx % kMainGridCols;
-        next = (col <= 0) ? kRow3Start : kShootoutIndex;
-      }
-    } else if (idx == kRow3Start || idx == kShootoutIndex) {
-      next = (list.size() > kFirstFollowUpIndex) ? kFirstFollowUpIndex : kMainStart;
-    } else {
-      next = (idx + 1) % list.size();
-    }
-  } else if (key == Qt::Key_Up) {
-    if (idx >= kMainStart && idx <= kMainStart + 3) {
-      if (idx == kMainStart)
-        next = 0;
-      else if (idx == kMainStart + 1)
-        next = 1;
-      else if (idx == kMainStart + 2 || idx == kMainStart + 3)
-        next = 1;
-    } else if (idx >= kMainStart + 4 && idx < kRow3Start) {
-      next = idx - kMainGridCols;
-    } else if (idx == kRow3Start) {
-      next = kMainStart + 8;
-    } else if (idx == kShootoutIndex) {
-      next = kMainStart + 9;
-    } else if (idx == kFirstFollowUpIndex) {
-      next = kRow3Start;
-    } else if (idx > kFirstFollowUpIndex) {
-      next = 0;
-    } else {
-      next = (idx - 1 + list.size()) % list.size();
+  QWidget* focus = focusWidget();
+  int currentIndex = -1;
+  for (int index = 0; index < entries.size(); ++index) {
+    if (entries.at(index).button == focus) {
+      currentIndex = index;
+      break;
     }
   }
+  if (currentIndex < 0) {
+    if (entries.first().button) {
+      entries.first().button->setFocus(Qt::OtherFocusReason);
+    }
+    return;
+  }
 
-  if (next < 0) next = 0;
-  if (next >= list.size()) next = list.size() - 1;
-  if (QPushButton* btn = list.value(next))
-    btn->setFocus(Qt::TabFocusReason);
+  const FocusNavEntry& current = entries.at(currentIndex);
+  QPushButton* nextButton = nullptr;
+  if (key == Qt::Key_Right || key == Qt::Key_Left) {
+    QVector<int> sameRowIndexes;
+    for (int index = 0; index < entries.size(); ++index) {
+      if (entries.at(index).row == current.row) {
+        sameRowIndexes.append(index);
+      }
+    }
+    std::sort(sameRowIndexes.begin(), sameRowIndexes.end(),
+              [&](int leftIndex, int rightIndex) {
+                return entries.at(leftIndex).col < entries.at(rightIndex).col;
+              });
+    const int positionInRow = sameRowIndexes.indexOf(currentIndex);
+    if (positionInRow >= 0) {
+      const int delta = key == Qt::Key_Right ? 1 : -1;
+      const int nextPosition =
+          (positionInRow + delta + sameRowIndexes.size()) % sameRowIndexes.size();
+      nextButton = entries.at(sameRowIndexes.at(nextPosition)).button;
+    }
+  } else if (key == Qt::Key_Down) {
+    nextButton = focusDownFromEntry(entries, current);
+  } else if (key == Qt::Key_Up) {
+    nextButton = focusUpFromEntry(entries, current, homeTeamButton_, awayTeamButton_);
+  }
+
+  if (nextButton) {
+    nextButton->setFocus(Qt::TabFocusReason);
+  }
 }
 
 void GameControls::applyTeamOnlyTabNavigation(bool forwardTab) {
@@ -872,6 +938,9 @@ void GameControls::applyTeamOnlyTabNavigation(bool forwardTab) {
 bool GameControls::eventFilter(QObject* obj, QEvent* event) {
   if (event->type() == QEvent::KeyPress) {
     QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+    if (handleApplicationShortcut(keyEvent)) {
+      return true;
+    }
     const bool shiftTab = (keyEvent->key() == Qt::Key_Backtab) ||
                           (keyEvent->key() == Qt::Key_Tab && (keyEvent->modifiers() & Qt::ShiftModifier));
     const bool forwardTab =

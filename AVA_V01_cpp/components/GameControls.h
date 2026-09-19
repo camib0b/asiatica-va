@@ -13,7 +13,6 @@ class QLabel;
 class QGridLayout;
 class QHBoxLayout;
 class QWidget;
-class QAction;
 class QKeyEvent;
 
 class GameControls final : public QWidget {
@@ -24,6 +23,7 @@ public:
   static constexpr int kMinimumPanelWidthPx = 255;
 
   explicit GameControls(QWidget* parent = nullptr);
+  ~GameControls() override;
 
   /// Sets home/away team names and jersey colors on the top row (from game setup).
   /// Empty names use "home"/"away"; empty colors keep the default selected border.
@@ -74,7 +74,7 @@ private slots:
 private:
   void buildUi();
   void wireSignals();
-  void buildKeyboardShortcuts();
+  bool handleApplicationShortcut(QKeyEvent* event);
   void showFirstLevelFollowUps();
   void presentFollowUpChoices(const QStringList& actions, FollowUpState::Stage stage);
   void hideFollowUpButtons();
@@ -138,26 +138,6 @@ protected:
   QPushButton* cardButton_ = nullptr;
   QPushButton* shootoutButton_ = nullptr;
   QPushButton* psButton_ = nullptr;
-
-  // keyboard shortcuts (same row-major order as on-screen grid):
-  QAction* sixteenYardAction_ = nullptr;
-  QAction* fiftyYardAction_ = nullptr;
-  QAction* seventyFiveYardAction_ = nullptr;
-  QAction* pcAction_ = nullptr;
-  QAction* circleEntryAction_ = nullptr;
-  QAction* pcFoulAction_ = nullptr;
-  QAction* shotAction_ = nullptr;
-  QAction* goalAction_ = nullptr;
-  QAction* passAction_ = nullptr;
-  QAction* specialAction_ = nullptr;
-  QAction* turnoverAction_ = nullptr;
-  QAction* cardAction_ = nullptr;
-  QAction* shootoutAction_ = nullptr;
-  QAction* psAction_ = nullptr;
-  QAction* startGameAction_ = nullptr;
-  QAction* nextQuarterAction_ = nullptr;
-  QList<QAction*> followUpNumberActions_;
-  QAction* escapeAction_ = nullptr;
 
   FollowUpState followUpState_{};
   GamePhase gamePhase_ = GamePhase::NotStarted;
