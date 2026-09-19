@@ -45,6 +45,32 @@ bool addTimeUnits(qint64* totalSeconds, qint64 value, qint64 secondsPerUnit) {
   return true;
 }
 
+int sliderMaximumForDurationMs(qint64 durationMs) {
+  if (durationMs <= 0) return 0;
+  if (durationMs <= std::numeric_limits<int>::max()) {
+    return static_cast<int>(durationMs);
+  }
+  return std::numeric_limits<int>::max();
+}
+
+int sliderValueForPositionMs(qint64 positionMs, qint64 durationMs) {
+  if (durationMs <= 0) return 0;
+  const qint64 clampedPositionMs = std::max<qint64>(0, std::min(positionMs, durationMs));
+  if (durationMs <= std::numeric_limits<int>::max()) {
+    return static_cast<int>(clampedPositionMs);
+  }
+  return static_cast<int>((clampedPositionMs * static_cast<qint64>(std::numeric_limits<int>::max()))
+                          / durationMs);
+}
+
+qint64 positionMsForSliderValue(int sliderValue, qint64 durationMs) {
+  if (durationMs <= 0) return 0;
+  if (durationMs <= std::numeric_limits<int>::max()) {
+    return static_cast<qint64>(sliderValue);
+  }
+  return (static_cast<qint64>(sliderValue) * durationMs) / std::numeric_limits<int>::max();
+}
+
 // Click-to-seek slider (keeps your "real player" feel).
 class ClickSeekSlider final : public QSlider {
 public:
@@ -143,7 +169,7 @@ void TimelineBar::wireSignals() {
   });
 
   connect(slider_, &QSlider::sliderMoved, this, [this](int value) {
-    const qint64 posMs = static_cast<qint64>(value);
+    const qint64 posMs = positionMsForSliderValue(value, durationMs_);
     updateLabel(posMs, durationMs_);
 
     pendingScrubSeekMs_ = posMs;
@@ -153,7 +179,7 @@ void TimelineBar::wireSignals() {
   });
 
   connect(slider_, &QSlider::sliderReleased, this, [this]() {
-    const qint64 releasedPosMs = static_cast<qint64>(slider_->value());
+    const qint64 releasedPosMs = positionMsForSliderValue(slider_->value(), durationMs_);
     beginSeekCommitWait(releasedPosMs);
     pendingScrubSeekMs_ = -1;
     scrubSeekThrottleTimer_->stop();
@@ -175,7 +201,7 @@ void TimelineBar::wireSignals() {
   connect(slider_, &QSlider::valueChanged, this, [this](int v) {
     if (isScrubbing_) return;
     // Keep label in sync even for click-to-seek
-    updateLabel(v, durationMs_);
+    updateLabel(positionMsForSliderValue(v, durationMs_), durationMs_);
   });
 }
 
@@ -204,9 +230,9 @@ void TimelineBar::setEnabledForMedia(bool on) {
 
 void TimelineBar::setDurationMs(qint64 durMs) {
   durationMs_ = std::max<qint64>(0, durMs);
-  slider_->setRange(0, static_cast<int>(durationMs_));
+  slider_->setRange(0, sliderMaximumForDurationMs(durationMs_));
   slider_->setEnabled(durationMs_ > 0);
-  updateLabel(slider_->value(), durationMs_);
+  updateLabel(positionMsForSliderValue(slider_->value(), durationMs_), durationMs_);
 }
 
 void TimelineBar::beginSeekCommitWait(qint64 pendingMs) {
@@ -235,7 +261,7 @@ void TimelineBar::setPositionMs(qint64 posMs) {
     clearSeekCommitWait();
   }
   if (!isScrubbing_) {
-    slider_->setValue(static_cast<int>(posMs));
+    slider_->setValue(sliderValueForPositionMs(posMs, durationMs_));
   }
   lastKnownPositionMs_ = posMs;
   updateLabel(posMs, durationMs_);
@@ -299,7 +325,7 @@ void TimelineBar::beginTimeEntry() {
   isEditingTimeEntry_ = true;
   clearSeekCommitWait();
 
-  const qint64 currentMs = static_cast<qint64>(slider_->value());
+  const qint64 currentMs = positionMsForSliderValue(slider_->value(), durationMs_);
   timeEntry_->setText(formatMs(currentMs));
   label_->hide();
   timeEntry_->show();
@@ -325,7 +351,7 @@ void TimelineBar::commitTimeEntry() {
   isEditingTimeEntry_ = false;
   restoreTimeEntryUi();
 
-  slider_->setValue(static_cast<int>(targetMs));
+  slider_->setValue(sliderValueForPositionMs(targetMs, durationMs_));
   lastKnownPositionMs_ = targetMs;
   updateLabel(targetMs, durationMs_);
   timeEntryTransition_ = false;

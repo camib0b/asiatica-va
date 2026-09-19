@@ -50,7 +50,7 @@ ExportJobsBar::ExportJobsBar(ExportJobManager* manager, QWidget* parent)
     hide();
 }
 
-void ExportJobsBar::applyUiStrings() {
+void ExportJobsBar::applyUiStrings() const {
     for (const JobRowWidgets& widgets : rowsByJobId_) {
         applyRowUiStrings(widgets);
     }
@@ -163,7 +163,7 @@ void ExportJobsBar::updateRow(JobRowWidgets& widgets, const ExportJobSnapshot& s
     if (widgets.dismissButton) widgets.dismissButton->setVisible(snapshot.canDismiss);
 }
 
-void ExportJobsBar::applyRowUiStrings(const JobRowWidgets& widgets) {
+void ExportJobsBar::applyRowUiStrings(const JobRowWidgets& widgets) const {
     if (widgets.cancelButton) {
         widgets.cancelButton->setText(AppLocale::trUi("export.cancel"));
     }

@@ -34,7 +34,7 @@ public:
   void beginMetadataSuggestion(const QStringList& sourceVideoPaths);
   void setInitialFocus();
 
-  void applyUiStrings();
+  void applyUiStrings() const;
 
 signals:
   void gameSetupConfirmed(const QString& filePath,
@@ -63,13 +63,13 @@ private:
   void wireSignals();
   void onContinue();
   void onBack();
-  void updateOptionalFieldAppearance();
+  void updateOptionalFieldAppearance() const;
   enum class OptionalDateCommit {
     Placeholder,
     Chosen,
   };
   void applyOptionalDate(const QDate& date, OptionalDateCommit commit);
-  void updateContinueButtonEnabled();
+  void updateContinueButtonEnabled() const;
   struct SetupFormValues {
     QString homeName;
     QString awayName;

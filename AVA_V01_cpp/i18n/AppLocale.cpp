@@ -146,9 +146,9 @@ constexpr std::array<SpanishEventEntry, 63> kSpanishEventEntries{{
     {"Stick", "Palo"},
     {"Danger", "Peligro"},
     {"Other", "Otro"},
-    {"Converted", "convertido"},
-    {"Missed", "no convertido"},
-    {"Replay", "repite"},
+    {"Converted", "Convertido"},
+    {"Missed", "No convertido"},
+    {"Replay", "Repite"},
     {"Left", "Izquierda"},
     {"Middle", "Centro"},
     {"Right", "Derecha"},
@@ -177,7 +177,7 @@ const QHash<QString, QString>& spanishEventMap() {
 QString translateEventForLanguage(const QString& canonicalToken, AppLocale::Language language) {
   const QString key = canonicalToken.trimmed();
   if (key.isEmpty()) return key;
-  if (key == QStringLiteral("Special")) {
+  if (QString::compare(key, QStringLiteral("Special"), Qt::CaseInsensitive) == 0) {
     return QStringLiteral("☆");
   }
   if (language != AppLocale::Language::Spanish) return key;

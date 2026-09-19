@@ -329,7 +329,12 @@ void GameControls::restoreGamePhase(TagSession::QuarterPhase phase, int currentQ
         case 1: gamePhase_ = GamePhase::Q2; break;
         case 2: gamePhase_ = GamePhase::Q3; break;
         case 3: gamePhase_ = GamePhase::Q4; break;
-        default: gamePhase_ = GamePhase::NotStarted; break;
+        default:
+          qWarning("GameControls::restoreGamePhase: unexpected quarter index %d",
+                   currentQuarterIndex);
+          Q_ASSERT(currentQuarterIndex >= 0 && currentQuarterIndex < 4);
+          gamePhase_ = GamePhase::NotStarted;
+          break;
       }
       break;
   }

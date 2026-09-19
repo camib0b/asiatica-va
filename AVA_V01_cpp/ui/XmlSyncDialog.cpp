@@ -9,6 +9,8 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
+#include <algorithm>
+
 namespace {
 
 QString formatMs(qint64 ms) {
@@ -166,20 +168,18 @@ void XmlSyncDialog::updatePreview() const {
 }
 
 int XmlSyncDialog::countClampedBeforeZero() const {
-  int count = 0;
-  for (const XmlImporter::ParsedInstance& instance : instances_) {
-    if (instance.startMs + offsetMs_ < 0) ++count;
-  }
-  return count;
+  return static_cast<int>(std::count_if(instances_.begin(), instances_.end(),
+                                        [this](const XmlImporter::ParsedInstance& instance) {
+                                          return instance.startMs + offsetMs_ < 0;
+                                        }));
 }
 
 int XmlSyncDialog::countClampedAfterDuration() const {
   if (!videoPlayer_) return 0;
   const qint64 durationMs = videoPlayer_->durationMs();
   if (durationMs <= 0) return 0;
-  int count = 0;
-  for (const XmlImporter::ParsedInstance& instance : instances_) {
-    if (instance.endMs + offsetMs_ > durationMs) ++count;
-  }
-  return count;
+  return static_cast<int>(std::count_if(instances_.begin(), instances_.end(),
+                                        [durationMs, this](const XmlImporter::ParsedInstance& instance) {
+                                          return instance.endMs + offsetMs_ > durationMs;
+                                        }));
 }

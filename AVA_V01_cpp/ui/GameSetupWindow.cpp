@@ -93,7 +93,7 @@ void GameSetupWindow::setInitialFocus() {
   if (homeNameEdit_) homeNameEdit_->setFocus();
 }
 
-void GameSetupWindow::applyUiStrings() {
+void GameSetupWindow::applyUiStrings() const {
   if (titleLabel_) titleLabel_->setText(AppLocale::trUi("setup.title"));
   if (homeTeamLabel_) homeTeamLabel_->setText(AppLocale::trUi("setup.home_team"));
   if (awayTeamLabel_) awayTeamLabel_->setText(AppLocale::trUi("setup.away_team"));
@@ -184,7 +184,7 @@ void GameSetupWindow::applyOptionalDate(const QDate& date, OptionalDateCommit co
   updateOptionalFieldAppearance();
 }
 
-void GameSetupWindow::updateOptionalFieldAppearance() {
+void GameSetupWindow::updateOptionalFieldAppearance() const {
   if (!gameDateEdit_ || !dateLabel_) return;
   const char* dateState = optionalDateChosen_ ? "active" : "stale";
   Style::setProp(gameDateEdit_, "optionalState", dateState);
@@ -469,7 +469,7 @@ void GameSetupWindow::onMetadataSuggestionFinished() {
   setSuggestionStatusKey(nullptr);
 }
 
-void GameSetupWindow::updateContinueButtonEnabled() {
+void GameSetupWindow::updateContinueButtonEnabled() const {
   if (!continueButton_) return;
   const bool canContinue = hasRequiredSetupFields(collectSetupFormValues());
   continueButton_->setEnabled(canContinue);

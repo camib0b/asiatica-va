@@ -17,7 +17,7 @@ class ExportJobsBar final : public QWidget {
 public:
     explicit ExportJobsBar(ExportJobManager* manager, QWidget* parent = nullptr);
 
-    void applyUiStrings();
+    void applyUiStrings() const;
 
 private:
     struct JobRowWidgets {
@@ -33,7 +33,7 @@ private:
     void clearAllRows();
     JobRowWidgets createRow(const ExportJobSnapshot& snapshot);
     void updateRow(JobRowWidgets& widgets, const ExportJobSnapshot& snapshot);
-    void applyRowUiStrings(const JobRowWidgets& widgets);
+    void applyRowUiStrings(const JobRowWidgets& widgets) const;
 
     QPointer<ExportJobManager> manager_;
     QVBoxLayout* rowsLayout_ = nullptr;

@@ -8,7 +8,6 @@
 #include <QFileDevice>
 #include <QHash>
 #include <QSaveFile>
-#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <QVector>
@@ -30,10 +29,20 @@ QString neutralPassThroughCode(const QString& canonicalMainEvent) {
 }
 
 QString secondsString(qint64 ms) {
-  // The reference XML uses very high precision; we keep enough fractional digits to
-  // represent millisecond inputs without loss while staying under 16 chars total.
+  const qint64 wholeSeconds = ms / 1000;
+  const qint64 millisPart = ms % 1000;
+  if (millisPart == 0) {
+    return QString::number(wholeSeconds);
+  }
+  int precision = 3;
+  if (millisPart % 10 == 0) {
+    precision = 2;
+  }
+  if (millisPart % 100 == 0) {
+    precision = 1;
+  }
   const double seconds = static_cast<double>(ms) / 1000.0;
-  return QString::number(seconds, 'f', 3);
+  return QString::number(seconds, 'f', precision);
 }
 
 /// Keeps only characters allowed in XML 1.0 text nodes. QXmlStreamWriter already escapes
@@ -441,10 +450,7 @@ bool writeAllInstances(const TagSession* session,
   // ---- <ALL_INSTANCES> ----
   writer.writeStartElement(QStringLiteral("ALL_INSTANCES"));
 
-  // Track every unique <code> we emit so the <ROWS> palette can list them all.
-  QSet<QString> emittedCodes;
-  // Preserve emission order so the palette rows appear in the same order as the codes
-  // first appeared in the timeline (matches the reference XML's ordering).
+  // Unique codes in first-seen timeline order for the <ROWS> palette.
   QStringList emittedCodesOrder;
 
   int nextInstanceId = 1;
@@ -463,8 +469,7 @@ bool writeAllInstances(const TagSession* session,
       writer.writeTextElement(QStringLiteral("end"), secondsString(instance.endMs));
       writeXmlTextElement(writer, QStringLiteral("code"), instance.code);
 
-      if (!emittedCodes.contains(instance.code)) {
-        emittedCodes.insert(instance.code);
+      if (!emittedCodesOrder.contains(instance.code)) {
         emittedCodesOrder.append(instance.code);
       }
 

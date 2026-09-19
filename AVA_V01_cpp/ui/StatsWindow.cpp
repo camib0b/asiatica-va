@@ -11,15 +11,20 @@
 #include <QButtonGroup>
 #include <QToolButton>
 #include <algorithm>
-#include <cmath>
 
 namespace {
 QString formatCountAndPercent(int count, int mainCount) {
-    const double pct = (mainCount > 0) ? (100.0 * double(count) / double(mainCount)) : 0.0;
-    const QString pctStr = (std::abs(pct - std::round(pct)) < 1e-9)
-        ? QString::number(static_cast<int>(std::round(pct)))
-        : QString::number(pct, 'f', 1);
-    return QString("%1 (%2%)").arg(count).arg(pctStr);
+    if (mainCount <= 0) {
+        return QStringLiteral("%1 (0%)").arg(count);
+    }
+    if ((count * 100) % mainCount == 0) {
+        return QStringLiteral("%1 (%2%)").arg(count).arg((count * 100) / mainCount);
+    }
+    const int roundedTenths = (count * 1000 + mainCount / 2) / mainCount;
+    return QStringLiteral("%1 (%2.%3%)")
+        .arg(count)
+        .arg(roundedTenths / 10)
+        .arg(roundedTenths % 10);
 }
 } // namespace
 
