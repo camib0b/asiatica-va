@@ -1,5 +1,8 @@
 #include "ClipExporter.h"
 
+#include "AppLocale.h"
+#include "FfmpegLocator.h"
+
 #include <QDir>
 #include <QFile>
 #include <QFont>
@@ -11,7 +14,6 @@
 #include <QPainter>
 #include <QProcess>
 #include <QRegularExpression>
-#include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTextStream>
 #include <QtGlobal>
@@ -31,19 +33,6 @@ constexpr qreal kMaximumOverlayWidthFraction = 0.9;
 int evenDimension(const int value) {
     const int floored = qMax(2, value);
     return floored - (floored % 2);
-}
-
-QString findExecutable(const QString& executableName, const QStringList& commonPaths) {
-    const QString fromPath = QStandardPaths::findExecutable(executableName);
-    if (!fromPath.isEmpty()) {
-        return fromPath;
-    }
-
-    const auto foundPath = std::find_if(commonPaths.cbegin(), commonPaths.cend(),
-                                        [](const QString& candidate) {
-                                            return QFile::exists(candidate);
-                                        });
-    return foundPath != commonPaths.cend() ? *foundPath : QString{};
 }
 
 qreal computeOverlayScale(const QSize& videoSize) {
@@ -265,7 +254,7 @@ VideoProbeResult probeSourceVideo(const QString& videoPath) {
         return {};
     }
 
-    const QString ffprobePath = ClipExporter::findFfprobe();
+    const QString ffprobePath = FfmpegLocator::findFfprobe();
     if (!ffprobePath.isEmpty()) {
         const VideoProbeResult probedResult = probeWithFfprobe(ffprobePath, videoPath);
         if (probedResult.isValid()) {
@@ -273,7 +262,7 @@ VideoProbeResult probeSourceVideo(const QString& videoPath) {
         }
     }
 
-    const QString ffmpegPath = ClipExporter::findFfmpeg();
+    const QString ffmpegPath = FfmpegLocator::findFfmpeg();
     if (!ffmpegPath.isEmpty()) {
         const VideoProbeResult fallbackResult = probeWithFfmpeg(ffmpegPath, videoPath);
         if (fallbackResult.isValid()) {
@@ -360,21 +349,11 @@ ClipExporter::~ClipExporter() {
 }
 
 QString ClipExporter::findFfmpeg() {
-    static const QStringList commonPaths = {
-        QStringLiteral("/opt/homebrew/bin/ffmpeg"),
-        QStringLiteral("/usr/local/bin/ffmpeg"),
-        QStringLiteral("/usr/bin/ffmpeg"),
-    };
-    return findExecutable(QStringLiteral("ffmpeg"), commonPaths);
+    return FfmpegLocator::findFfmpeg();
 }
 
 QString ClipExporter::findFfprobe() {
-    static const QStringList commonPaths = {
-        QStringLiteral("/opt/homebrew/bin/ffprobe"),
-        QStringLiteral("/usr/local/bin/ffprobe"),
-        QStringLiteral("/usr/bin/ffprobe"),
-    };
-    return findExecutable(QStringLiteral("ffprobe"), commonPaths);
+    return FfmpegLocator::findFfprobe();
 }
 
 void ClipExporter::setSourceVideo(const QString& path) { sourceVideoPath_ = path; }
@@ -389,10 +368,9 @@ void ClipExporter::setIncludeBrandingOverlay(bool includeBrandingOverlay) {
 
 void ClipExporter::startExport() {
     exportFinishedEmitted_ = false;
-    ffmpegPath_ = findFfmpeg();
+    ffmpegPath_ = FfmpegLocator::findFfmpeg();
     if (ffmpegPath_.isEmpty()) {
-        finishExport(false,
-            QStringLiteral("FFmpeg not found. Please install FFmpeg to export clips."));
+        finishExport(false, AppLocale::trUi("export.ffmpeg_not_found"));
         return;
     }
 

@@ -1,7 +1,7 @@
 #include "ExportSettingsDialog.h"
 
-#include "ClipExporter.h"
 #include "ExportClipBuilder.h"
+#include "FfmpegLocator.h"
 #include "TagSession.h"
 #include "AppLocale.h"
 #include "StyleProps.h"
@@ -373,7 +373,7 @@ void ExportSettingsDialog::onExportClicked() {
         return;
     }
 
-    if (format != ExportOutputFormat::Xml && ClipExporter::findFfmpeg().isEmpty()) {
+    if (format != ExportOutputFormat::Xml && FfmpegLocator::findFfmpeg().isEmpty()) {
         QMessageBox::critical(this,
             AppLocale::trUi("export.title"),
             AppLocale::trUi("export.ffmpeg_not_found"));

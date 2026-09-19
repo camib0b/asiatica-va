@@ -2,6 +2,8 @@
 # Build a distributable AVA.app on Camila's Mac (Qt must be installed).
 # This does NOT sign or notarize. Gatekeeper will still warn until she runs
 # scripts/sign_and_notarize.sh with her Apple Developer ID.
+# Bundles static ffmpeg/ffprobe into Contents/Helpers after macdeployqt
+# (run scripts/vendor_ffmpeg_macos.sh first, or this script will invoke it).
 #
 # Usage (from anywhere):
 #   ./AVA_V01_cpp/scripts/package_macos.sh
@@ -82,6 +84,58 @@ if [[ -f "$ROOT/config/license_server.json" ]]; then
 fi
 
 "$MACDEPLOYQT_BIN" "$DIST/AVA.app" -verbose=1
+
+# Copy static ffmpeg/ffprobe after macdeployqt so they stay in Contents/Helpers
+# (not next to the Qt executable, which confuses macdeployqt).
+HELPERS_DIR="$DIST/AVA.app/Contents/Helpers"
+VENDOR_FFMPEG_ROOT="$ROOT/third_party/ffmpeg/macos"
+HOST_ARCH="$(uname -m)"
+
+resolve_vendored_helper() {
+  local tool_name="$1"
+  if [[ -x "$VENDOR_FFMPEG_ROOT/universal/$tool_name" ]]; then
+    echo "$VENDOR_FFMPEG_ROOT/universal/$tool_name"
+    return 0
+  fi
+  if [[ -x "$VENDOR_FFMPEG_ROOT/$HOST_ARCH/$tool_name" ]]; then
+    echo "$VENDOR_FFMPEG_ROOT/$HOST_ARCH/$tool_name"
+    return 0
+  fi
+  return 1
+}
+
+FFMPEG_SRC=""
+FFPROBE_SRC=""
+FFMPEG_SRC="$(resolve_vendored_helper ffmpeg)" || true
+FFPROBE_SRC="$(resolve_vendored_helper ffprobe)" || true
+if [[ -z "$FFMPEG_SRC" || -z "$FFPROBE_SRC" ]]; then
+  echo "Vendored FFmpeg not found for $HOST_ARCH. Running vendor_ffmpeg_macos.sh..."
+  "$ROOT/scripts/vendor_ffmpeg_macos.sh"
+  FFMPEG_SRC="$(resolve_vendored_helper ffmpeg)"
+  FFPROBE_SRC="$(resolve_vendored_helper ffprobe)"
+fi
+if [[ -z "$FFMPEG_SRC" || -z "$FFPROBE_SRC" ]]; then
+  echo "Missing third_party/ffmpeg/macos/$HOST_ARCH/ffmpeg and ffprobe after vendoring." >&2
+  echo "Run: $ROOT/scripts/vendor_ffmpeg_macos.sh" >&2
+  exit 1
+fi
+
+mkdir -p "$HELPERS_DIR"
+cp "$FFMPEG_SRC" "$HELPERS_DIR/ffmpeg"
+cp "$FFPROBE_SRC" "$HELPERS_DIR/ffprobe"
+chmod 755 "$HELPERS_DIR/ffmpeg" "$HELPERS_DIR/ffprobe"
+xattr -cr "$HELPERS_DIR/ffmpeg" "$HELPERS_DIR/ffprobe" 2>/dev/null || true
+
+print_helper_version_line() {
+  local helper_path="$1"
+  local version_output
+  version_output="$("$helper_path" -version 2>&1)"
+  echo "  ${version_output%%$'\n'*}"
+}
+
+echo "Bundled FFmpeg helpers into Contents/Helpers (after macdeployqt):"
+print_helper_version_line "$HELPERS_DIR/ffmpeg"
+print_helper_version_line "$HELPERS_DIR/ffprobe"
 
 ditto -c -k --keepParent "$DIST/AVA.app" "$DIST/AVA.app.zip"
 

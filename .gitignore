@@ -70,6 +70,12 @@ dist/
 .coverage
 htmlcov/
 
+# --- Vendored static FFmpeg (scripts/vendor_ffmpeg_macos.sh; not committed) ---
+AVA_V01_cpp/third_party/ffmpeg/macos/arm64/
+AVA_V01_cpp/third_party/ffmpeg/macos/x86_64/
+AVA_V01_cpp/third_party/ffmpeg/macos/universal/
+AVA_V01_cpp/third_party/ffmpeg/macos/.download/
+
 # --- Secrets / local API credentials ---
 **/license_server.json
 license-server/.dev.vars

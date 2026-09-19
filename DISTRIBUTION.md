@@ -57,10 +57,17 @@ xcrun notarytool store-credentials "ava-notarize" \
 export AVA_LICENSE_SIGNING_SECRET='your-long-random-secret'
 export AVA_LICENSE_API_URL='https://ava-license.YOUR_SUBDOMAIN.workers.dev'
 
-# 3) Build a .app that coaches can run without installing Qt
+# 3) Download pinned static ffmpeg/ffprobe (not in git; arm64 + x86_64)
+#    Pins: AVA_V01_cpp/third_party/ffmpeg/macos/SHA256PINS
+./AVA_V01_cpp/scripts/vendor_ffmpeg_macos.sh
+
+# 4) Build a .app that coaches can run without installing Qt or Homebrew
+#    Copies host-arch ffmpeg+ffprobe into dist/AVA.app/Contents/Helpers/ after macdeployqt
 ./AVA_V01_cpp/scripts/package_macos.sh
 
-# 4) Sign + notarize (skip this and Gatekeeper will scare coaches)
+# 5) Sign helpers individually, then the .app, then notarize
+#    Nested Contents/Helpers binaries need their own codesign --options runtime
+#    before the bundle; --deep is not enough under hardened runtime.
 export AVA_CODESIGN_IDENTITY='Developer ID Application: Camila Escudero (TEAMID)'
 ./AVA_V01_cpp/scripts/sign_and_notarize.sh
 ```
@@ -89,7 +96,6 @@ Local API: copy `.dev.vars.example` → `.dev.vars` and `npx wrangler dev`.
 | Host the `.dmg` | No store listing in this PR |
 | Take payment (transfer, Stripe, MercadoPago) | Keys first; payments are an extension point |
 | Email keys to coaches | `issue-license` prints the token; it does not send mail |
-| Install FFmpeg on coach Macs for export | `brew install ffmpeg` — bundling FFmpeg is a follow-up |
 | Replace the in-repo HMAC secret before shipping | Default secret is public in git; anyone can mint keys until you rebuild |
 
 ## Honest limits

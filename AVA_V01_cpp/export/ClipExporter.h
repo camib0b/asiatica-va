@@ -52,6 +52,7 @@ public:
     void startExport();
     void cancelExport();
 
+    /// Delegates to FfmpegLocator (bundled Helpers, then Homebrew/usr, then PATH).
     static QString findFfmpeg();
     static QString findFfprobe();
 

@@ -1,6 +1,6 @@
 #include "GameMetadataSuggester.h"
 
-#include "ClipExporter.h"
+#include "FfmpegLocator.h"
 #include "XaiConfig.h"
 
 #include <QColor>
@@ -319,7 +319,7 @@ void GameMetadataSuggester::startSuggestionFromVideoPaths(const QStringList& sou
     }
 
     const QString sourceVideoPath = firstExistingVideoPath(sourceVideoPaths);
-    if (sourceVideoPath.isEmpty() || ClipExporter::findFfmpeg().isEmpty()) {
+    if (sourceVideoPath.isEmpty() || FfmpegLocator::findFfmpeg().isEmpty()) {
         thumbnailDone_ = true;
     } else {
         startThumbnailExtraction(sourceVideoPath);
@@ -423,7 +423,7 @@ void GameMetadataSuggester::startThumbnailFfmpeg(int seekSeconds, bool isRetry) 
         return;
     }
 
-    const QString ffmpegPath = ClipExporter::findFfmpeg();
+    const QString ffmpegPath = FfmpegLocator::findFfmpeg();
     if (ffmpegPath.isEmpty() || thumbnailSourcePath_.isEmpty()) {
         thumbnailDone_ = true;
         startColorsOrFinish();

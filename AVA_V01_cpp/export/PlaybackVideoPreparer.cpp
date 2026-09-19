@@ -1,5 +1,5 @@
 #include "PlaybackVideoPreparer.h"
-#include "ClipExporter.h"
+#include "FfmpegLocator.h"
 #include "../i18n/AppLocale.h"
 #include "../style/StyleProps.h"
 
@@ -56,7 +56,7 @@ bool PlaybackVideoPreparer::requiresTranscodeForPlayback(const QString& filePath
 
 void PlaybackVideoPreparer::startPreparation(const QString& inputPath,
                                              const QString& outputDir) {
-    const QString ffmpegPath = ClipExporter::findFfmpeg();
+    const QString ffmpegPath = FfmpegLocator::findFfmpeg();
     if (ffmpegPath.isEmpty()) {
         finished_ = true;
         succeeded_ = false;

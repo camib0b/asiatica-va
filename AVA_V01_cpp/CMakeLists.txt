@@ -43,6 +43,7 @@ qt_add_executable(AVA
   components/MatchNotesEditor.cpp
   components/VideoPlayer.cpp
   export/ClipExporter.cpp
+  export/FfmpegLocator.cpp
   export/ClipTrimBar.cpp
   export/ExportClipBuilder.cpp
   export/ExportJobManager.cpp

@@ -3,6 +3,7 @@
 #include "AppLocale.h"
 #include "ClipExporter.h"
 #include "ExportClipBuilder.h"
+#include "FfmpegLocator.h"
 #include "TagSession.h"
 #include "XmlExporter.h"
 
@@ -179,7 +180,7 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
             setError(AppLocale::trUi("export.no_clips_selected"));
             return false;
         }
-        if (ClipExporter::findFfmpeg().isEmpty()) {
+        if (FfmpegLocator::findFfmpeg().isEmpty()) {
             setError(AppLocale::trUi("export.ffmpeg_not_found"));
             return false;
         }

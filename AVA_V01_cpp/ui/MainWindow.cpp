@@ -12,7 +12,7 @@
 #include "../state/TagSession.h"
 #include "../i18n/AppLocale.h"
 #include "../i18n/LocaleNotifier.h"
-#include "../export/ClipExporter.h"
+#include "../export/FfmpegLocator.h"
 #include "../export/VideoConcatenator.h"
 #include "../license/LicenseManager.h"
 
@@ -108,7 +108,7 @@ void MainWindow::onVideoImportRequested() {
     if (!VideoConcatenator::showFileOrderDialog(filePaths, this)) return;
     workWindow_->setExportDefaultDirectoryFromVideoPath(filePaths.first());
 
-    const QString ffmpegPath = ClipExporter::findFfmpeg();
+    const QString ffmpegPath = FfmpegLocator::findFfmpeg();
     if (ffmpegPath.isEmpty()) {
         QMessageBox::warning(this,
                              AppLocale::trUi("app.title"),

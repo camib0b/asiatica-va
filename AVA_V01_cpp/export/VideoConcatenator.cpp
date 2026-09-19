@@ -1,5 +1,5 @@
 #include "VideoConcatenator.h"
-#include "ClipExporter.h"
+#include "FfmpegLocator.h"
 #include "ConcatFileOrderDialog.h"
 #include "../i18n/AppLocale.h"
 #include "../style/StyleProps.h"
@@ -156,7 +156,7 @@ void VideoConcatenator::startConcatenation(const QStringList& inputPaths,
 
     beginNewJob();
 
-    const QString ffmpegPath = ClipExporter::findFfmpeg();
+    const QString ffmpegPath = FfmpegLocator::findFfmpeg();
     if (ffmpegPath.isEmpty()) {
         failWith(AppLocale::trUi("concat.error_ffmpeg"));
         return;

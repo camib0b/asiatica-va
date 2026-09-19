@@ -38,12 +38,31 @@ if [[ -z "$IDENTITY" ]]; then
   exit 1
 fi
 
+echo "Signing nested FFmpeg helpers (hardened runtime; --deep is not enough)"
+HELPERS_DIR="$APP/Contents/Helpers"
+if [[ ! -x "$HELPERS_DIR/ffmpeg" || ! -x "$HELPERS_DIR/ffprobe" ]]; then
+  echo "Missing $HELPERS_DIR/ffmpeg or ffprobe."
+  echo "Re-run ./AVA_V01_cpp/scripts/package_macos.sh after vendor_ffmpeg_macos.sh."
+  exit 1
+fi
+for helper in "$HELPERS_DIR"/*; do
+  [[ -f "$helper" && -x "$helper" ]] || continue
+  echo "  codesign $helper"
+  xattr -cr "$helper" 2>/dev/null || true
+  # Static Martin Riedl builds only need runtime + timestamp. If a helper is
+  # killed at spawn after notarization, re-sign it with an entitlements plist
+  # that contains com.apple.security.cs.disable-library-validation.
+  codesign --force --options runtime --timestamp --sign "$IDENTITY" "$helper"
+done
+
 echo "Signing AVA.app with $IDENTITY"
 codesign --force --deep --options runtime --timestamp \
   --sign "$IDENTITY" \
   "$APP"
 
 codesign --verify --deep --strict --verbose=2 "$APP"
+codesign --verify --strict --verbose=2 "$HELPERS_DIR/ffmpeg"
+codesign --verify --strict --verbose=2 "$HELPERS_DIR/ffprobe"
 
 echo "Submitting to Apple notarization (profile: $PROFILE)"
 rm -f "$ZIP"
