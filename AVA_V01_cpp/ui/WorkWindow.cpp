@@ -40,6 +40,9 @@
 #include <QTemporaryDir>
 #include <QToolButton>
 #include <QMenu>
+#include <QTimer>
+#include <QPointer>
+#include <QIcon>
 #include <QVideoWidget>
 #include <QAbstractItemView>
 #include <QHeaderView>
@@ -48,6 +51,20 @@
 #include <QAction>
 #include <QKeySequence>
 #include <QBrush>
+
+namespace {
+constexpr int kVideoMuteFlashDurationMs = 150;
+
+void setToolButtonFlashState(QToolButton* button, bool flashing) {
+  if (!button) {
+    return;
+  }
+  button->setProperty("flash", flashing);
+  button->style()->unpolish(button);
+  button->style()->polish(button);
+  button->update();
+}
+}  // namespace
 #include <QColor>
 #include <QPlainTextEdit>
 #include <QScrollArea>
@@ -172,6 +189,61 @@ void WorkWindow::refreshPlaybackShortcutFocusGate() const {
     onApplicationFocusWidgetChanged(nullptr, QApplication::focusWidget());
 }
 
+void WorkWindow::updateVideoMuteButton(bool muted) const {
+    if (!videoMuteButton_) {
+        return;
+    }
+
+    const QIcon volumeIcon = QIcon::fromTheme(QStringLiteral("audio-volume-high"));
+    const QIcon mutedIcon = QIcon::fromTheme(QStringLiteral("audio-volume-muted"));
+    if (muted) {
+        if (!mutedIcon.isNull()) {
+            videoMuteButton_->setIcon(mutedIcon);
+            videoMuteButton_->setText(QString());
+        } else {
+            videoMuteButton_->setIcon(QIcon());
+            videoMuteButton_->setText(QString::fromUtf8("\u{1F507}"));
+        }
+    } else {
+        if (!volumeIcon.isNull()) {
+            videoMuteButton_->setIcon(volumeIcon);
+            videoMuteButton_->setText(QString());
+        } else {
+            videoMuteButton_->setIcon(QIcon());
+            videoMuteButton_->setText(QString::fromUtf8("\u{1F50A}"));
+        }
+    }
+
+    videoMuteButton_->setChecked(muted);
+    videoMuteButton_->setToolTip(muted ? AppLocale::trUi("vc.tt.unmute") : AppLocale::trUi("vc.tt.mute"));
+}
+
+void WorkWindow::setVideoMuteButtonEnabled(bool enabled) const {
+    if (videoMuteButton_) {
+        videoMuteButton_->setEnabled(enabled);
+    }
+}
+
+void WorkWindow::flashVideoMuteButton() {
+    if (!videoMuteButton_) {
+        return;
+    }
+
+    auto* timer = videoMuteButton_->findChild<QTimer*>(QStringLiteral("flashClearTimer"),
+                                                       Qt::FindDirectChildrenOnly);
+    if (!timer) {
+        timer = new QTimer(videoMuteButton_);
+        timer->setObjectName(QStringLiteral("flashClearTimer"));
+        timer->setSingleShot(true);
+        connect(timer, &QTimer::timeout, this, [buttonGuard = QPointer<QToolButton>(videoMuteButton_)]() {
+            setToolButtonFlashState(buttonGuard, false);
+        });
+    }
+
+    setToolButtonFlashState(videoMuteButton_, true);
+    timer->start(kVideoMuteFlashDurationMs);
+}
+
 void WorkWindow::setConcatenatedVideoTempDir(std::unique_ptr<QTemporaryDir> dir) {
     concatenatedVideoTempDir_ = std::move(dir);
 }
@@ -243,6 +315,11 @@ void WorkWindow::applyUiStrings() const {
     if (tagsModel_) {
         tagsModel_->setColumnHeaders({AppLocale::trUi("tags.col_time"), AppLocale::trUi("tags.col_team"),
                                       AppLocale::trUi("tags.col_event")});
+    }
+    if (videoMuteButton_) {
+        updateVideoMuteButton(videoPlayer_ && videoPlayer_->controlsBar()
+                                  ? videoPlayer_->controlsBar()->muted()
+                                  : false);
     }
     if (statsOverlayAction_) statsOverlayAction_->setToolTip(AppLocale::trUi("stats_overlay.tooltip"));
     if (statsOverlayDialog_) statsOverlayDialog_->setWindowTitle(AppLocale::trUi("stats.overlay_title"));
@@ -498,6 +575,17 @@ void WorkWindow::buildUi() {
     videoControlsLayout->setContentsMargins(0, 0, 0, 0);
     videoControlsLayout->setSpacing(8);
     videoControlsLayout->addStretch(1);
+    videoMuteButton_ = new QToolButton(this);
+    videoMuteButton_->setObjectName(QStringLiteral("VideoMuteButton"));
+    videoMuteButton_->setCheckable(true);
+    videoMuteButton_->setMinimumWidth(36);
+    Style::setVariant(videoMuteButton_, "ghost");
+    Style::setSize(videoMuteButton_, "sm");
+    videoMuteButton_->setCursor(Qt::PointingHandCursor);
+    videoMuteButton_->setEnabled(false);
+    updateVideoMuteButton(false);
+    videoControlsLayout->addWidget(videoMuteButton_, 0, Qt::AlignRight | Qt::AlignVCenter);
+
     videoMenuButton_ = new QToolButton(this);
     QIcon settingsIcon = QIcon::fromTheme("preferences-system");
     if (!settingsIcon.isNull()) {
@@ -796,6 +884,11 @@ void WorkWindow::wireSignals() {
 
     // Connect VideoPlayer's videoClosed signal to WorkWindow's signal
     connect(videoPlayer_, &VideoPlayer::videoClosed, this, &WorkWindow::videoClosed);
+    connect(videoMuteButton_, &QToolButton::clicked, this, [this]() {
+        if (videoPlayer_) videoPlayer_->toggleMuteWithControlFlash();
+    });
+    connect(videoPlayer_, &VideoPlayer::muteStateChanged, this, &WorkWindow::updateVideoMuteButton);
+    connect(videoPlayer_, &VideoPlayer::muteToolbarFlashRequested, this, &WorkWindow::flashVideoMuteButton);
 
     connect(importXmlAction_, &QAction::triggered, this, &WorkWindow::onImportXml);
     connect(clipDurationSettingsAction_, &QAction::triggered, this,
@@ -1083,6 +1176,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     if (videoPlayer_) {
         videoPlayer_->loadVideoFromFile(playbackPath);
         videoPlayer_->setControlsVisible(true);
+        setVideoMuteButtonEnabled(true);
     }
 
     if (gameControls_) {
@@ -1168,6 +1262,8 @@ void WorkWindow::onCloseVideo() {
         presentationAutoPauseArmed_ = false;
     }
     if (videoPlayer_) videoPlayer_->setControlsVisible(false);
+    setVideoMuteButtonEnabled(false);
+    updateVideoMuteButton(false);
     if (gameControls_) gameControls_->resetGameTimeState();
     if (workOuterSplitter_) workOuterSplitter_->hide();
     if (modeTaggingBtn_) modeTaggingBtn_->hide();

@@ -26,15 +26,15 @@ public:
   void setPlaying(bool playing);
   void setPlaybackRate(double rate);
   void setMuted(bool muted);
+  bool muted() const { return muted_; }
+  void toggleMute();
 
   void applyUiStrings();
 
-  void flashPlayButton();
-  void flashPauseButton();
+  void flashPlayPauseButton();
   void flashSeekBackButton();
   void flashSeekForwardButton();
   void flashSpeedometer();
-  void flashMuteButton();
 
 signals:
   void playRequested();
@@ -46,6 +46,7 @@ signals:
   void muteToggled(bool muted);
 
   void togglePlayPauseFromKeyboardShortcut();
+  void toggleMuteFromKeyboardShortcut();
 
 private:
   void buildUi();
@@ -53,15 +54,13 @@ private:
   void buildKeyboardShortcuts();
   void updatePlaybackShortcutEnablement();
   void updateEnabledState() const;
-  void updateMuteButton() const;
+  void updatePlayPauseButton() const;
   void updateSpeedometerTooltip() const;
   void flashButtonBorder(QPushButton* button);
 
-  QPushButton* playButton_        = nullptr;
-  QPushButton* pauseButton_       = nullptr;
+  QPushButton* playPauseButton_   = nullptr;
   QPushButton* backButton_        = nullptr;
   QPushButton* forwardButton_     = nullptr;
-  QPushButton* muteButton_        = nullptr;
   PlaybackSpeedometer* speedometer_ = nullptr;
 
   QAction* togglePlayPauseAction_ = nullptr;

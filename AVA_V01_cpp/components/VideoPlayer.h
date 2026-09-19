@@ -55,10 +55,13 @@ public:
   void playbackSlowerWithControlFlash();
   void playbackFasterWithControlFlash();
   void playbackResetSpeedWithControlFlash();
+  void toggleMuteWithControlFlash();
 
 signals:
   void videoClosed();
   void positionChangedMs(qint64 positionMs);
+  void muteStateChanged(bool muted);
+  void muteToolbarFlashRequested();
 
 private slots:
   void onPlayClicked();

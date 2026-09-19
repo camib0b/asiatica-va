@@ -319,6 +319,8 @@ void VideoPlayer::wireSignals() {
     });
     connect(videoControlsBar_, &VideoControlsBar::togglePlayPauseFromKeyboardShortcut, this,
             &VideoPlayer::togglePlayPauseWithControlFlash);
+    connect(videoControlsBar_, &VideoControlsBar::toggleMuteFromKeyboardShortcut, this,
+            &VideoPlayer::toggleMuteWithControlFlash);
     connect(videoControlsBar_, &VideoControlsBar::playRequested, this, &VideoPlayer::revealControls);
     connect(videoControlsBar_, &VideoControlsBar::pauseRequested, this, &VideoPlayer::revealControls);
     connect(videoControlsBar_, &VideoControlsBar::seekRequestedMs, this, [this](qint64) {
@@ -518,7 +520,14 @@ void VideoPlayer::onPlaybackRateRequested(double rate) {
 
 void VideoPlayer::onMuteToggled(bool muted) {
     audioOutput_->setMuted(muted);
-    if (videoControlsBar_) videoControlsBar_->setMuted(muted); 
+    if (videoControlsBar_) videoControlsBar_->setMuted(muted);
+    emit muteStateChanged(muted);
+}
+
+void VideoPlayer::toggleMuteWithControlFlash() {
+    if (!videoControlsBar_ || !mediaControlsEnabled_) return;
+    emit muteToolbarFlashRequested();
+    videoControlsBar_->toggleMute();
 }
 
 void VideoPlayer::onTogglePlayPause() {
@@ -532,8 +541,7 @@ void VideoPlayer::togglePlayPauseWithControlFlash() {
     revealControls();
     const auto state = player_->playbackState();
     if (videoControlsBar_) {
-        (state == QMediaPlayer::PlayingState) ? videoControlsBar_->flashPauseButton()
-                                              : videoControlsBar_->flashPlayButton();
+        videoControlsBar_->flashPlayPauseButton();
     }
     onTogglePlayPause();
 }
@@ -546,7 +554,7 @@ void VideoPlayer::playWithControlFlash() {
     if (!player_) return;
     if (player_->playbackState() == QMediaPlayer::PlayingState) return;
     revealControls();
-    if (videoControlsBar_) videoControlsBar_->flashPlayButton();
+    if (videoControlsBar_) videoControlsBar_->flashPlayPauseButton();
     onPlayClicked();
 }
 
@@ -554,7 +562,7 @@ void VideoPlayer::pauseWithControlFlash() {
     if (!player_) return;
     if (player_->playbackState() != QMediaPlayer::PlayingState) return;
     revealControls();
-    if (videoControlsBar_) videoControlsBar_->flashPauseButton();
+    if (videoControlsBar_) videoControlsBar_->flashPlayPauseButton();
     onPauseClicked();
 }
 
@@ -891,6 +899,7 @@ void VideoPlayer::loadVideoFromFile(const QString& filePath) {
     if (videoTimelineBar_) videoTimelineBar_->reset();
     audioOutput_->setMuted(false);
     if (videoControlsBar_) videoControlsBar_->setMuted(false);
+    emit muteStateChanged(false);
     
     playbackRate_ = PlaybackRates::kResetRate;
     if (videoControlsBar_) videoControlsBar_->setPlaybackRate(playbackRate_);

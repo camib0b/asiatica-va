@@ -698,6 +698,11 @@ QToolButton[variant="ghost"]:pressed {
   background: #e4e4e7;
 }
 
+QToolButton#VideoMuteButton[flash="true"] {
+  border: 1px solid #18181b;
+  background: #f4f4f5;
+}
+
 /* Stats team filter – checked state (white chip, dark text for readability) */
 QWidget#StatsTeamFilterRow QToolButton[variant="ghost"]:checked {
   background: #FFFFFF;
@@ -989,6 +994,12 @@ QWidget#VideoControlsBar QPushButton:focus {
   border: none;
   outline: none;
   padding: 4px 8px;
+}
+
+QWidget#VideoControlsBar QPushButton#PlayPauseButton {
+  min-width: 28px;
+  max-width: 28px;
+  padding: 4px 0;
 }
 
 QWidget#VideoControlsBar QPushButton[variant="primary"] {

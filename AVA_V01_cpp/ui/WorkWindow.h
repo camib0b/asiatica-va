@@ -168,6 +168,9 @@ private:
   bool shouldDeliverPlaybackKeyboardToVideoPlayer(const QWidget* focusWidget) const;
   void onApplicationFocusWidgetChanged(QWidget* oldFocus, QWidget* newFocus) const;
   void refreshPlaybackShortcutFocusGate() const;
+  void updateVideoMuteButton(bool muted) const;
+  void setVideoMuteButtonEnabled(bool enabled) const;
+  void flashVideoMuteButton();
 
   // Mode and layout
   Mode mode_ = Mode::Tagging;
@@ -208,6 +211,7 @@ private:
   qint64 lastPresentationPlayheadMs_ = -1;
 
   // close or swap video files:
+  QToolButton* videoMuteButton_ = nullptr;
   QToolButton* videoMenuButton_ = nullptr;
   QMenu* videoMenu_ = nullptr;
   QAction* replaceVideoAction_ = nullptr;
