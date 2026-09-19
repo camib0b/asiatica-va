@@ -9,6 +9,8 @@ Canonical field-hockey **event tokens stay English** in session data and code. S
 
 ---
 
+
+
 ## Voice and tone
 
 AVA speaks to coaches and video analysts. Copy is short, direct, and practical—not marketing.
@@ -26,6 +28,8 @@ AVA speaks to coaches and video analysts. Copy is short, direct, and practical�
 **Avoid:** promotional fluff, long explanations in buttons, inventing synonyms when a glossary term already exists.
 
 ---
+
+
 
 ## Core product glossary
 
@@ -45,6 +49,8 @@ AVA speaks to coaches and video analysts. Copy is short, direct, and practical�
 | Session XML report              | XML report                       | reporte XML                        |                                                          |
 
 
+
+
 ### Good / avoid examples
 
 
@@ -59,6 +65,8 @@ AVA speaks to coaches and video analysts. Copy is short, direct, and practical�
 
 
 ---
+
+
 
 ## Field-hockey event terminology
 
@@ -81,6 +89,8 @@ Event **canonical** tokens remain English in data. Translate only for display vi
 | PC Foul             | Falta PC        |
 
 
+
+
 ### Keep English in Spanish UI
 
 Flick, Push, S.O.
@@ -96,7 +106,7 @@ Flick, Push, S.O.
 | Sweep / Swept                          | Barrida                    |
 | Hit                                    | Pegada                     |
 | Dragflick                              | Arrastre                   |
-| Dribling                               | Conducción                 |
+| Dribbling                              | Conducción                 |
 | Tackle                                 | Quite                      |
 | Good / Bad                             | Positivo / Negativo        |
 | Referee                                | Arbitraje                  |
@@ -112,6 +122,8 @@ Flick, Push, S.O.
 Full map: `spanishEventMap()` in `AppLocale.cpp`. Prefer that map over inventing a new translation.
 
 ---
+
+
 
 ## UI microcopy patterns
 
@@ -136,7 +148,11 @@ Use the Unicode ellipsis `…`, not three ASCII dots `...`, when matching existi
 
 ---
 
+
+
 ## Mode-specific cheat sheet
+
+
 
 ### Tagging — Etiquetado
 
@@ -145,11 +161,15 @@ Use the Unicode ellipsis `…`, not three ASCII dots `...`, when matching existi
 - EN examples: `Tags`, `Remove most recent tag`, `Note for selected tag…`
 - ES examples: `Marcas`, `Quitar la última marca`
 
+
+
 ### Analyzing — Análisis
 
 - Focus: stats and notes.
 - EN: `Stats`, `Stats and notes (M)`
 - ES: `Estadísticas`, `Estadísticas y notas (M)`
+
+
 
 ### Presentation — Presentación
 
@@ -167,6 +187,8 @@ Lead/lag in this mode:
 
 ---
 
+
+
 ## Consistency traps (do not invent a third variant)
 
 1. **tag vs clip** — A *tag* is the timed mark; a *clip* is the playable/exportable segment around it. In Spanish, prefer **marca** for the mark and **clip** for the segment. If you edit an existing string that mixes them (e.g. ES note placeholder saying “clip” while EN says “tag”), align the pair to this glossary rather than inventing a new synonym.
@@ -177,6 +199,8 @@ Lead/lag in this mode:
 6. **Always ship both languages** — Every new `trUi` key needs an English entry and a Spanish entry in `AppLocale.cpp`.
 
 ---
+
+
 
 ## Quick checklist for new UI copy
 
