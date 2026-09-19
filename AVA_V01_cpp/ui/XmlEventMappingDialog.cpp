@@ -58,6 +58,40 @@ void prependAbbrevIfAbsent(QStringList& choices, const QString& abbrev) {
   choices.prepend(abbrev);
 }
 
+QString teamSideDisplayLabel(const QString& teamKey,
+                             const QString& sessionHomeAbbrev,
+                             const QString& sessionAwayAbbrev) {
+  if (teamKey == QStringLiteral("Home")) {
+    if (!sessionHomeAbbrev.isEmpty()) return sessionHomeAbbrev;
+    return AppLocale::trUi("export.team_home_default");
+  }
+  if (teamKey == QStringLiteral("Away")) {
+    if (!sessionAwayAbbrev.isEmpty()) return sessionAwayAbbrev;
+    return AppLocale::trUi("export.team_away_default");
+  }
+  return QString();
+}
+
+QString abbrevMappingLabel(const QString& sessionAbbrev, const char* defaultTranslationKey) {
+  if (sessionAbbrev.isEmpty()) return AppLocale::trUi(defaultTranslationKey);
+  return AppLocale::trUi("xml_import.mapping_abbrev_for_team").arg(sessionAbbrev);
+}
+
+void applyTeamComboLabels(QComboBox* teamCombo,
+                          const QString& homeLabel,
+                          const QString& awayLabel) {
+  if (!teamCombo) return;
+  QSignalBlocker blocker(teamCombo);
+  const int noneIndex = teamCombo->findData(QString());
+  if (noneIndex >= 0) {
+    teamCombo->setItemText(noneIndex, AppLocale::trUi("xml_import.mapping_team_none"));
+  }
+  const int homeIndex = teamCombo->findData(QStringLiteral("Home"));
+  if (homeIndex >= 0) teamCombo->setItemText(homeIndex, homeLabel);
+  const int awayIndex = teamCombo->findData(QStringLiteral("Away"));
+  if (awayIndex >= 0) teamCombo->setItemText(awayIndex, awayLabel);
+}
+
 std::unique_ptr<QComboBox, QtParentDeleter> makeAbbrevComboWidget(QWidget* parent) {
   auto combo = makeQtPtr<QComboBox>(parent);
   Style::setVariant(combo.get(), "abbrev");
@@ -333,6 +367,10 @@ void XmlEventMappingDialog::populateRows() {
   rows_.reserve(static_cast<int>(codeCounts.size()));
 
   const QStringList events = eventChoices();
+  const QString homeLabel =
+      teamSideDisplayLabel(QStringLiteral("Home"), sessionHomeAbbrev_, sessionAwayAbbrev_);
+  const QString awayLabel =
+      teamSideDisplayLabel(QStringLiteral("Away"), sessionHomeAbbrev_, sessionAwayAbbrev_);
 
   int row = 0;
   for (const auto& [code, count] : codeCounts) {
@@ -352,8 +390,8 @@ void XmlEventMappingDialog::populateRows() {
     auto teamCombo = makeTableComboWidget(mappingTable_);
     mappingRow.teamCombo = teamCombo.get();
     teamCombo->addItem(AppLocale::trUi("xml_import.mapping_team_none"), QString());
-    teamCombo->addItem(AppLocale::trUi("export.team_home_default"), QStringLiteral("Home"));
-    teamCombo->addItem(AppLocale::trUi("export.team_away_default"), QStringLiteral("Away"));
+    teamCombo->addItem(homeLabel, QStringLiteral("Home"));
+    teamCombo->addItem(awayLabel, QStringLiteral("Away"));
     embedTableCombo(mappingTable_, row, kColTeam, teamCombo.get());
 
     mappingRow.importItem = makeImportCheckItem();
@@ -685,10 +723,12 @@ void XmlEventMappingDialog::applyUiStrings() {
   instructionsLabel_->setText(AppLocale::trUi("xml_import.mapping_instructions"));
   abbrevHeaderLabel_->setText(AppLocale::trUi("xml_import.mapping_abbrev_header"));
   if (homeAbbrevLabel_) {
-    homeAbbrevLabel_->setText(AppLocale::trUi("xml_import.mapping_home_abbrev"));
+    homeAbbrevLabel_->setText(
+        abbrevMappingLabel(sessionHomeAbbrev_, "xml_import.mapping_home_abbrev"));
   }
   if (awayAbbrevLabel_) {
-    awayAbbrevLabel_->setText(AppLocale::trUi("xml_import.mapping_away_abbrev"));
+    awayAbbrevLabel_->setText(
+        abbrevMappingLabel(sessionAwayAbbrev_, "xml_import.mapping_away_abbrev"));
   }
   importButton_->setText(AppLocale::trUi("xml_import.import"));
   cancelButton_->setText(AppLocale::trUi("xml_import.cancel"));
@@ -700,4 +740,12 @@ void XmlEventMappingDialog::applyUiStrings() {
       AppLocale::trUi("xml_import.mapping_col_team"),
       AppLocale::trUi("xml_import.mapping_col_import"),
   });
+
+  const QString homeLabel =
+      teamSideDisplayLabel(QStringLiteral("Home"), sessionHomeAbbrev_, sessionAwayAbbrev_);
+  const QString awayLabel =
+      teamSideDisplayLabel(QStringLiteral("Away"), sessionHomeAbbrev_, sessionAwayAbbrev_);
+  for (const MappingRow& row : rows_) {
+    applyTeamComboLabels(row.teamCombo, homeLabel, awayLabel);
+  }
 }
