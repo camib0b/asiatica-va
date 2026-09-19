@@ -167,13 +167,13 @@ WorkWindow::~WorkWindow() {
 }
 
 bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(const QWidget* focusWidget) const {
-    if (!focusWidget) return false;
+    if (!contentStack_ || contentStack_->currentIndex() != 1) return false;
+    if (!videoPlayer_ || !videoPlayer_->isMediaKeyboardControlActive()) return false;
+    if (!focusWidget) return true;
     if (focusWidget->window() != window()) return false;
     if (!isAncestorOf(focusWidget)) return false;
-    if (!contentStack_ || contentStack_->currentIndex() != 1) return false;
     if (mode_ == Mode::Analyzing && notesEdit_ && focusWidget == notesEdit_) return false;
     if (isTextInteractionFocusWidget(focusWidget)) return false;
-    if (!videoPlayer_ || !videoPlayer_->isMediaKeyboardControlActive()) return false;
     return true;
 }
 
@@ -582,6 +582,7 @@ void WorkWindow::buildUi() {
     Style::setVariant(videoMuteButton_, "ghost");
     Style::setSize(videoMuteButton_, "sm");
     videoMuteButton_->setCursor(Qt::PointingHandCursor);
+    videoMuteButton_->setFocusPolicy(Qt::NoFocus);
     videoMuteButton_->setEnabled(false);
     updateVideoMuteButton(false);
     videoControlsLayout->addWidget(videoMuteButton_, 0, Qt::AlignRight | Qt::AlignVCenter);
@@ -599,6 +600,7 @@ void WorkWindow::buildUi() {
     Style::setSize(videoMenuButton_, "sm");
     videoMenuButton_->setPopupMode(QToolButton::InstantPopup);
     videoMenuButton_->setCursor(Qt::PointingHandCursor);
+    videoMenuButton_->setFocusPolicy(Qt::NoFocus);
     videoMenu_ = new QMenu(videoMenuButton_);
     replaceVideoAction_ = videoMenu_->addAction(QString());
     closeVideoAction_ = videoMenu_->addAction(QString());
