@@ -39,6 +39,7 @@ private:
     void normalizeClipInterval();
     qint64 clampedClipStartMs(qint64 proposedStartMs) const;
     qint64 clampedClipEndMs(qint64 proposedEndMs) const;
+    void updateCursorFromPosition(const QPoint& pos);
     static QString formatMs(qint64 ms);
 
     qint64 windowStartMs_ = 0;

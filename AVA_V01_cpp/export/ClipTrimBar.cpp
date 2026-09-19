@@ -143,7 +143,7 @@ void ClipTrimBar::paintEvent(QPaintEvent*) {
 
     // Track background
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(50, 50, 50));
+    painter.setBrush(Style::ThemeColors::clipTrimTrackBackground());
     painter.drawRoundedRect(trackLeft, 0, trackWidth, kTrackHeight, 4, 4);
 
     const int startX = msToX(clipStartMs_);
@@ -159,27 +159,27 @@ void ClipTrimBar::paintEvent(QPaintEvent*) {
 
     // Event-mark marker (thin dashed line)
     const int markX = msToX(markMs_);
-    painter.setPen(QPen(QColor(255, 200, 50, 180), 1, Qt::DashLine));
+    painter.setPen(QPen(Style::ThemeColors::clipTrimMarkLine(), 1, Qt::DashLine));
     painter.drawLine(markX, 2, markX, kTrackHeight - 2);
 
     // Playhead
     if (playheadMs_ >= windowStartMs_ && playheadMs_ <= windowEndMs_) {
         const int phX = msToX(playheadMs_);
-        painter.setPen(QPen(QColor(255, 255, 255), 2));
+        painter.setPen(QPen(Style::ThemeColors::clipTrimPlayhead(), 2));
         painter.drawLine(phX, 0, phX, kTrackHeight);
     }
 
     // Start handle
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(72, 199, 142));
+    painter.setBrush(Style::ThemeColors::clipTrimStartHandle());
     painter.drawRoundedRect(startHandleRect(), 3, 3);
 
     // End handle
-    painter.setBrush(QColor(248, 113, 113));
+    painter.setBrush(Style::ThemeColors::clipTrimEndHandle());
     painter.drawRoundedRect(endHandleRect(), 3, 3);
 
     // Time labels below track
-    painter.setPen(QColor(160, 160, 160));
+    painter.setPen(Style::ThemeColors::faint());
     QFont labelFont = font();
     labelFont.setPointSizeF(9.0);
     painter.setFont(labelFont);
@@ -235,17 +235,20 @@ void ClipTrimBar::mousePressEvent(QMouseEvent* event) {
     }
 }
 
+void ClipTrimBar::updateCursorFromPosition(const QPoint& pos) {
+    const int hitTolerance = 6;
+    const QRect startRect = startHandleRect().adjusted(-hitTolerance, 0, hitTolerance, 0);
+    const QRect endRect = endHandleRect().adjusted(-hitTolerance, 0, hitTolerance, 0);
+    if (startRect.contains(pos) || endRect.contains(pos)) {
+        setCursor(Qt::SizeHorCursor);
+    } else {
+        setCursor(Qt::ArrowCursor);
+    }
+}
+
 void ClipTrimBar::mouseMoveEvent(QMouseEvent* event) {
     if (dragTarget_ == DragTarget::None) {
-        const QPoint pos = event->pos();
-        const int hitTolerance = 6;
-        const QRect startRect = startHandleRect().adjusted(-hitTolerance, 0, hitTolerance, 0);
-        const QRect endRect = endHandleRect().adjusted(-hitTolerance, 0, hitTolerance, 0);
-        if (startRect.contains(pos) || endRect.contains(pos)) {
-            setCursor(Qt::SizeHorCursor);
-        } else {
-            setCursor(Qt::ArrowCursor);
-        }
+        updateCursorFromPosition(event->pos());
         return;
     }
 
@@ -273,6 +276,7 @@ void ClipTrimBar::mouseMoveEvent(QMouseEvent* event) {
 void ClipTrimBar::mouseReleaseEvent(QMouseEvent* event) {
     if (event->button() == Qt::LeftButton) {
         dragTarget_ = DragTarget::None;
+        updateCursorFromPosition(event->pos());
     }
     QWidget::mouseReleaseEvent(event);
 }
