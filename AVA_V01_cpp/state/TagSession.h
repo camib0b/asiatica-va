@@ -22,7 +22,7 @@ public:
     qint64 endMs = 0;       // Clip interval end (used by exporters).
     QString note;
     QString period;   // e.g. "Q1", "Q2", "Q3", "Q4"
-    QString team;    // e.g. "Home", "Away"
+    QString team;  ///< TeamSide key: "Home" or "Away" (see teamSideFromKey).
     bool intervalManuallyEdited = false; // true when the user trimmed start/end away from defaults
   };
 
@@ -39,6 +39,16 @@ public:
     Replace,
     Merge,
   };
+
+  /// Stored in GameTag::team. Unspecified covers empty, Neutral, and any other value.
+  enum class TeamSide {
+    Unspecified,
+    Home,
+    Away,
+  };
+
+  /// Interprets GameTag::team. Trims whitespace and matches "Home"/"Away" case-insensitively.
+  static TeamSide teamSideFromKey(const QString& teamKey);
 
   /// Outcome of importTags(). Skipping happens in XmlEventMappingDialog before
   /// tags reach this API; importTags stores every remaining tag (clamping intervals).

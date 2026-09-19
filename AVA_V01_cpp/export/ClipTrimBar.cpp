@@ -7,6 +7,7 @@
 #include <QPen>
 
 #include <algorithm>
+#include <cmath>
 
 ClipTrimBar::ClipTrimBar(QWidget* parent) : QWidget(parent) {
     setMouseTracking(true);
@@ -46,7 +47,7 @@ int ClipTrimBar::msToX(qint64 ms) const {
     const double fraction =
         static_cast<double>(ms - windowStartMs_) / (windowEndMs_ - windowStartMs_);
     const double clamped = std::clamp(fraction, 0.0, 1.0);
-    return trackLeft + static_cast<int>(clamped * trackWidth);
+    return trackLeft + static_cast<int>(std::lround(clamped * trackWidth));
 }
 
 qint64 ClipTrimBar::xToMs(int x) const {
@@ -57,8 +58,10 @@ qint64 ClipTrimBar::xToMs(int x) const {
     const double fraction =
         static_cast<double>(x - trackLeft) / trackWidth;
     const double clamped = std::clamp(fraction, 0.0, 1.0);
-    return windowStartMs_
-        + static_cast<qint64>(clamped * (windowEndMs_ - windowStartMs_));
+    const qint64 mappedMs =
+        windowStartMs_
+        + static_cast<qint64>(std::llround(clamped * (windowEndMs_ - windowStartMs_)));
+    return std::clamp(mappedMs, windowStartMs_, windowEndMs_);
 }
 
 QRect ClipTrimBar::startHandleRect() const {

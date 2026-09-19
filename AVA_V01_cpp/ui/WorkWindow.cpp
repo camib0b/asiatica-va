@@ -1755,11 +1755,14 @@ void WorkWindow::onImportXml() {
         }
     }
 
-    bool anchorUsedFallback = false;
-    const XmlImporter::ParsedInstance anchorInstance =
-        XmlImporter::syncAnchorInstance(instances, &anchorUsedFallback);
+    const XmlImporter::SyncAnchorResult anchor = XmlImporter::syncAnchorInstance(instances);
+    if (!anchor.found) {
+        QMessageBox::warning(this, AppLocale::trUi("xml_import.title"),
+                             AppLocale::trUi("xml_import.no_sync_anchor"));
+        return;
+    }
 
-    XmlSyncDialog syncDialog(videoPlayer_, anchorInstance, instances, anchorUsedFallback, this);
+    XmlSyncDialog syncDialog(videoPlayer_, anchor.instance, instances, anchor.usedFallback, this);
     syncDialog.setModal(true);
     if (videoPlayer_) {
         videoPlayer_->setPlaybackKeyboardShortcutsEnabled(false);

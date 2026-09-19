@@ -1,22 +1,22 @@
 #pragma once
 
-#include <QWidget>
-
 #include "../state/TagSession.h"
+
+#include <QPointer>
+#include <QWidget>
 
 class QLabel;
 class QTreeWidget;
 class QButtonGroup;
 class QToolButton;
-class QWidget;
-class TagSession;
+class QTreeWidgetItem;
 
 class StatsWindow final : public QWidget {
   Q_OBJECT
-  
+
 public:
   explicit StatsWindow(QWidget* parent = nullptr);
-  ~StatsWindow() override = default;
+  ~StatsWindow() override;
 
   void setTagSession(TagSession* session);
   void applyUiStrings();
@@ -25,7 +25,11 @@ signals:
   void filterByEventPathRequested(const QString& mainEvent, const QString& followUpEvent);
 
 private slots:
-  void onTreeItemDoubleClicked(class QTreeWidgetItem* item, int column);
+  void onTreeItemDoubleClicked(QTreeWidgetItem* item, int column);
+  void onSessionCleared();
+  void onSessionTagsChanged();
+  void onSessionGameMetadataChanged();
+  void onTeamFilterClicked(int id);
 
 private:
   enum class TeamStatsFilter : int { Home = 0, Away = 1, Both = 2 };
@@ -46,5 +50,5 @@ private:
   QToolButton* teamFilterBothBtn_ = nullptr;
   QTreeWidget* tree_ = nullptr;
 
-  TagSession* tagSession_ = nullptr;
+  QPointer<TagSession> tagSession_;
 };

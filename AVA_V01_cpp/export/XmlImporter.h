@@ -20,9 +20,15 @@ bool parse(const QString& filePath,
            QVector<ParsedInstance>* instances,
            QString* errorMessage = nullptr);
 
-/// Returns the sync anchor instance: first Inicio, else first Q1, else earliest instance.
-/// Sets \p usedFallback to true when Inicio was not found.
-ParsedInstance syncAnchorInstance(const QVector<ParsedInstance>& instances,
-                                  bool* usedFallback = nullptr);
+struct SyncAnchorResult {
+  bool found = false;
+  /// True when the selected instance is not the start-anchor code (Inicio).
+  bool usedFallback = false;
+  ParsedInstance instance;
+};
+
+/// Prefers Inicio, then Q1, then the earliest instance with a non-empty code.
+/// \a found is false when \p instances is empty or every instance lacks a code.
+SyncAnchorResult syncAnchorInstance(const QVector<ParsedInstance>& instances);
 
 } // namespace XmlImporter

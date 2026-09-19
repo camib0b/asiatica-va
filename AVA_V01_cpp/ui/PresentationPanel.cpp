@@ -3,6 +3,7 @@
 #include "../i18n/AppLocale.h"
 #include "../state/EventDefaults.h"
 #include "../state/TagSession.h"
+#include "../state/TimeConvert.h"
 #include "../style/StyleProps.h"
 
 #include <QAbstractItemView>
@@ -25,9 +26,16 @@
 
 namespace {
 
-constexpr double kMinLeadLagSeconds = 0.0;
-constexpr double kMaxLeadLagSeconds = 60.0;
 constexpr double kLeadLagStepSeconds = 0.5;
+constexpr double kMinLeadLagSeconds = EventDefaults::kMinLeadLagMs / 1000.0;
+constexpr double kMaxLeadLagSeconds = EventDefaults::kMaxLeadLagMs / 1000.0;
+static_assert(EventDefaults::kMinLeadLagMs == static_cast<qint64>(kMinLeadLagSeconds * 1000.0));
+static_assert(EventDefaults::kMaxLeadLagMs == static_cast<qint64>(kMaxLeadLagSeconds * 1000.0));
+
+qint64 leadLagMillisecondsFromSpin(const QDoubleSpinBox* spinBox) {
+  return TimeConvert::clampedMillisecondsFromSeconds(
+      spinBox->value(), EventDefaults::kMinLeadLagMs, EventDefaults::kMaxLeadLagMs);
+}
 
 QDoubleSpinBox* makeLeadLagSpinBox(QWidget* parent) {
   auto* spinBox = new QDoubleSpinBox(parent);
@@ -551,13 +559,13 @@ void PresentationPanel::updateCurrentClipControlsEnabled() {
 void PresentationPanel::onLeadLagSpinChanged() {
   if (currentTagSessionIndex_ < 0 || !tagSession_) return;
   if (!tagSession_->isValidTagIndex(currentTagSessionIndex_) || currentTagId_ == 0) return;
-  emit currentClipLeadLagEdited(static_cast<qint64>(leadSpinBox_->value() * 1000.0),
-                                static_cast<qint64>(lagSpinBox_->value() * 1000.0));
+  emit currentClipLeadLagEdited(leadLagMillisecondsFromSpin(leadSpinBox_),
+                                leadLagMillisecondsFromSpin(lagSpinBox_));
 }
 
 void PresentationPanel::onApplyLeadLagToAllClicked() {
-  emit applyLeadLagToAllRequested(static_cast<qint64>(leadSpinBox_->value() * 1000.0),
-                                  static_cast<qint64>(lagSpinBox_->value() * 1000.0));
+  emit applyLeadLagToAllRequested(leadLagMillisecondsFromSpin(leadSpinBox_),
+                                  leadLagMillisecondsFromSpin(lagSpinBox_));
 }
 
 // ---------------------------------------------------------------------------

@@ -23,10 +23,16 @@ QString formatCountAndPercent(int count, int mainCount) {
 }
 } // namespace
 
-StatsWindow::StatsWindow(QWidget* parent) : QWidget(parent) {
+StatsWindow::StatsWindow(QWidget* parent)
+    : QWidget(parent),
+      tagSession_(nullptr) {
     setAttribute(Qt::WA_StyledBackground, true);
     buildUi();
     wireSignals();
+}
+
+StatsWindow::~StatsWindow() {
+    if (tagSession_) disconnect(tagSession_, nullptr, this, nullptr);
 }
 
 void StatsWindow::applyUiStrings() {
@@ -39,7 +45,7 @@ void StatsWindow::applyUiStrings() {
 }
 
 void StatsWindow::setTagSession(TagSession* session) {
-    if (tagSession_ == session) {
+    if (tagSession_.data() == session) {
         updateTeamFilterButtonLabels();
         if (tagSession_) {
             rebuildTree();
@@ -59,19 +65,22 @@ void StatsWindow::setTagSession(TagSession* session) {
 
     rebuildTree();
 
-    connect(tagSession_, &TagSession::cleared, this, [this]() {
-        clearTree();
-    });
-
-    connect(tagSession_, &TagSession::tagsChanged, this, [this]() {
-        rebuildTree();
-    });
-
-    connect(tagSession_, &TagSession::gameMetadataChanged, this, [this]() {
-        updateTeamFilterButtonLabels();
-        rebuildTree();
-    });
+    connect(tagSession_, &TagSession::cleared, this, &StatsWindow::onSessionCleared);
+    connect(tagSession_, &TagSession::tagsChanged, this, &StatsWindow::onSessionTagsChanged);
+    connect(tagSession_, &TagSession::gameMetadataChanged, this,
+            &StatsWindow::onSessionGameMetadataChanged);
 }
+
+void StatsWindow::onSessionCleared() { clearTree(); }
+
+void StatsWindow::onSessionTagsChanged() { rebuildTree(); }
+
+void StatsWindow::onSessionGameMetadataChanged() {
+    updateTeamFilterButtonLabels();
+    rebuildTree();
+}
+
+void StatsWindow::onTeamFilterClicked(int /*id*/) { rebuildTree(); }
 
 void StatsWindow::buildUi() {
     setObjectName("StatsPanel");
@@ -134,9 +143,7 @@ void StatsWindow::buildUi() {
 void StatsWindow::wireSignals() {
     connect(tree_, &QTreeWidget::itemDoubleClicked, this, &StatsWindow::onTreeItemDoubleClicked);
     if (teamFilterGroup_) {
-        connect(teamFilterGroup_, &QButtonGroup::idClicked, this, [this](int) {
-            rebuildTree();
-        });
+        connect(teamFilterGroup_, &QButtonGroup::idClicked, this, &StatsWindow::onTeamFilterClicked);
     }
 }
 
@@ -163,12 +170,10 @@ StatsWindow::TeamStatsFilter StatsWindow::currentTeamFilter() const {
 
 bool StatsWindow::tagMatchesTeamFilter(const TagSession::GameTag& tag, TeamStatsFilter filter) const {
     if (filter == TeamStatsFilter::Both) return true;
-    if (filter == TeamStatsFilter::Home) {
-        return tag.team.compare(QStringLiteral("Home"), Qt::CaseInsensitive) == 0;
-    }
-    if (filter == TeamStatsFilter::Away) {
-        return tag.team.compare(QStringLiteral("Away"), Qt::CaseInsensitive) == 0;
-    }
+
+    const TagSession::TeamSide side = TagSession::teamSideFromKey(tag.team);
+    if (filter == TeamStatsFilter::Home) return side == TagSession::TeamSide::Home;
+    if (filter == TeamStatsFilter::Away) return side == TagSession::TeamSide::Away;
     return false;
 }
 

@@ -4,6 +4,7 @@
 #include "../i18n/AppLocale.h"
 #include "../state/EventDefaults.h"
 #include "../state/TagSession.h"
+#include "../state/TimeConvert.h"
 #include "../style/StyleProps.h"
 
 #include <QAbstractSpinBox>
@@ -21,9 +22,16 @@
 
 namespace {
 
-constexpr double kMinDurationSeconds = 0.0;
-constexpr double kMaxDurationSeconds = 60.0;
 constexpr double kDurationStepSeconds = 0.5;
+constexpr double kMinDurationSeconds = EventDefaults::kMinLeadLagMs / 1000.0;
+constexpr double kMaxDurationSeconds = EventDefaults::kMaxLeadLagMs / 1000.0;
+static_assert(EventDefaults::kMinLeadLagMs == static_cast<qint64>(kMinDurationSeconds * 1000.0));
+static_assert(EventDefaults::kMaxLeadLagMs == static_cast<qint64>(kMaxDurationSeconds * 1000.0));
+
+qint64 millisecondsFromSpinSeconds(double seconds) {
+  return TimeConvert::clampedMillisecondsFromSeconds(seconds, EventDefaults::kMinLeadLagMs,
+                                                     EventDefaults::kMaxLeadLagMs);
+}
 
 std::unique_ptr<QDoubleSpinBox, QtParentDeleter> makeDurationSpinBox(QWidget* parent) {
   auto spin = makeQtPtr<QDoubleSpinBox>(parent);
@@ -229,8 +237,8 @@ void ClipDurationSettingsDialog::onDurationChanged(const QString& eventName) {
     if (row.eventName != eventName) continue;
     if (!row.leadSpin || !row.lagSpin) return;
 
-    const qint64 leadMs = static_cast<qint64>(row.leadSpin->value() * 1000.0);
-    const qint64 lagMs = static_cast<qint64>(row.lagSpin->value() * 1000.0);
+    const qint64 leadMs = millisecondsFromSpinSeconds(row.leadSpin->value());
+    const qint64 lagMs = millisecondsFromSpinSeconds(row.lagSpin->value());
     EventDefaults::setUserOverride(eventName, leadMs, lagMs);
     refreshTotalLabel(row);
     applyDurationToSession(eventName, leadMs, lagMs);

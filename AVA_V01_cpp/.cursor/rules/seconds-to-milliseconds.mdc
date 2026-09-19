@@ -1,0 +1,24 @@
+---
+description: Convert seconds to milliseconds by rounding, not truncating float multiplication
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# Seconds to milliseconds
+
+Lead/lag spin boxes and XML times are seconds in `double`. `static_cast<qint64>(seconds * 1000.0)` truncates toward zero. Values such as `0.3` are not exact in binary float, so a displayed **0.3 s** can persist as **299 ms** and shorten every untrimmed clip / export of that event.
+
+Use `TimeConvert::millisecondsFromSeconds` (nearest `llround`, saturate non-finite/overflow). Clamp to the widget range with `clampedMillisecondsFromSeconds` before writing `EventDefaults` or `TagSession`.
+
+```cpp
+// BAD — 0.3s can become 299ms
+emit currentClipLeadLagEdited(static_cast<qint64>(leadSpinBox_->value() * 1000.0),
+                              static_cast<qint64>(lagSpinBox_->value() * 1000.0));
+
+// GOOD
+emit currentClipLeadLagEdited(
+    TimeConvert::clampedMillisecondsFromSeconds(leadSpinBox_->value(), 0, 60000),
+    TimeConvert::clampedMillisecondsFromSeconds(lagSpinBox_->value(), 0, 60000));
+```
+
+Integer milliseconds (`factoryDefault.leadMs`, `totalSeconds * 1000` where `totalSeconds` is `qint64`) do not need this helper. Pixel↔ms mapping should also round (`std::lround` / `std::llround`), not truncate.

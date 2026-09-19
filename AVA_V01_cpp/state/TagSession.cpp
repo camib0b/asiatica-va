@@ -57,6 +57,17 @@ TagSession::TagSession(QObject* parent)
       quarterPhase_(QuarterPhase::NotStarted),
       closedQuarters_{} {}
 
+TagSession::TeamSide TagSession::teamSideFromKey(const QString& teamKey) {
+  const QString trimmed = teamKey.trimmed();
+  if (trimmed.compare(QLatin1String("Home"), Qt::CaseInsensitive) == 0) {
+    return TeamSide::Home;
+  }
+  if (trimmed.compare(QLatin1String("Away"), Qt::CaseInsensitive) == 0) {
+    return TeamSide::Away;
+  }
+  return TeamSide::Unspecified;
+}
+
 void TagSession::clear() {
   tags_.clear();
   nextTagId_ = 1;

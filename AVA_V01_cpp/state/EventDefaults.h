@@ -11,6 +11,10 @@ struct EventDuration {
   qint64 lagMs = 0;   ///< Time after the event mark.
 };
 
+/// Inclusive bounds for user-editable lead/lag (clip-duration settings and presentation spins).
+inline constexpr qint64 kMinLeadLagMs = 0;
+inline constexpr qint64 kMaxLeadLagMs = 60000;
+
 /// Canonical event names recognised as game-time anchors / quarter spans.
 /// They are written verbatim as the XML <code> for their instances.
 namespace TimeCodes {
@@ -36,12 +40,15 @@ QStringList allConfigurableEventTypes();
 EventDuration factoryDefaultFor(const QString& canonicalMainEvent);
 
 /// Effective default: user override when set, otherwise factory default. Thread-safe.
+/// Time-control events always use factory defaults; QSettings cannot override them.
 EventDuration defaultFor(const QString& canonicalMainEvent);
 
 /// Quarter code Q1..Q4 for index 0..3; empty when the index is out of range.
 QString quarterCode(int quarterIndex);
 
 /// Persist a user override and update the in-memory cache. Thread-safe.
+/// No-op for unknown or time-control events. Values are clamped to
+/// [kMinLeadLagMs, kMaxLeadLagMs].
 void setUserOverride(const QString& canonicalMainEvent, qint64 leadMs, qint64 lagMs);
 
 /// Remove all user overrides from memory and QSettings. Thread-safe.
