@@ -19,6 +19,8 @@
 #include <QApplication>
 #include <QLabel>
 #include <QColor>
+#include <QSizePolicy>
+#include <QLayout>
 
 namespace {
 
@@ -358,36 +360,31 @@ QString GameControls::currentPeriodName() const {
 void GameControls::updateGameTimeUi() {
   if (!periodAdvanceButton_ || !periodAdvanceTitleLabel_) return;
 
-  QString titleKey;
-  bool enabled = true;
+  const char* titleKey = "gamecontrols.start_game";
   switch (gamePhase_) {
     case GamePhase::NotStarted:
-      titleKey = QStringLiteral("gamecontrols.start_game");
-      enabled = true;
+      titleKey = "gamecontrols.start_game";
       break;
     case GamePhase::Q1:
-      titleKey = QStringLiteral("gamecontrols.start_q2");
-      enabled = true;
+      titleKey = "gamecontrols.start_q2";
       break;
     case GamePhase::Q2:
-      titleKey = QStringLiteral("gamecontrols.start_q3");
-      enabled = true;
+      titleKey = "gamecontrols.start_q3";
       break;
     case GamePhase::Q3:
-      titleKey = QStringLiteral("gamecontrols.start_q4");
-      enabled = true;
+      titleKey = "gamecontrols.start_q4";
       break;
     case GamePhase::Q4:
-      titleKey = QStringLiteral("gamecontrols.end_game");
-      enabled = true;
-      break;
     case GamePhase::Ended:
-      titleKey = QStringLiteral("gamecontrols.end_game");
-      enabled = false;
+      titleKey = "gamecontrols.end_game";
       break;
   }
   periodAdvanceTitleLabel_->setText(AppLocale::trUi(titleKey));
-  periodAdvanceButton_->setEnabled(enabled);
+  periodAdvanceButton_->setEnabled(gamePhase_ != GamePhase::Ended);
+  if (QLayout* buttonLayout = periodAdvanceButton_->layout()) {
+    periodAdvanceTitleLabel_->ensurePolished();
+    periodAdvanceButton_->setMinimumWidth(buttonLayout->sizeHint().width());
+  }
   updateQuarterTrack();
 }
 
@@ -405,7 +402,8 @@ void GameControls::updateQuarterTrack() {
       break;
   }
 
-  for (int quarterIndex = 0; quarterIndex < 4; ++quarterIndex) {
+  const int quarterCount = static_cast<int>(quarterSegments_.size());
+  for (int quarterIndex = 0; quarterIndex < quarterCount; ++quarterIndex) {
     QString quarterState;
     if (gameEnded || (currentQuarterIndex >= 0 && quarterIndex < currentQuarterIndex)) {
       quarterState = QStringLiteral("complete");
@@ -429,7 +427,9 @@ void GameControls::updateQuarterTrack() {
     quarterTrack_->setAccessibleName(QStringLiteral("Quarter progress, game ended"));
   } else {
     quarterTrack_->setAccessibleName(
-        QStringLiteral("Quarter progress, %1 of 4").arg(currentPeriodName()));
+        QStringLiteral("Quarter progress, %1 of %2")
+            .arg(currentPeriodName())
+            .arg(quarterCount));
   }
 }
 
@@ -489,6 +489,24 @@ void GameControls::configureMainGameControlButton(QPushButton* button, const QSt
   layout->addWidget(shortcutLabel);
 }
 
+void GameControls::configurePeriodAdvanceButton(QPushButton* button, const QString& shortcutHint) {
+  if (!button) return;
+  button->setText(QString());
+  auto* layout = new QHBoxLayout(button);
+  layout->setContentsMargins(8, 4, 8, 4);
+  layout->setSpacing(8);
+  periodAdvanceTitleLabel_ = new QLabel(button);
+  periodAdvanceTitleLabel_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+  Style::setRole(periodAdvanceTitleLabel_, "gameControlTitle");
+  periodAdvanceTitleLabel_->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+  auto* shortcutLabel = new QLabel(shortcutHint, button);
+  shortcutLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+  Style::setRole(shortcutLabel, "muted");
+  shortcutLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+  layout->addWidget(periodAdvanceTitleLabel_);
+  layout->addWidget(shortcutLabel);
+}
+
 void GameControls::buildUi() {
   mainButtonTitleLabels_.clear();
   auto* mainLayout = new QVBoxLayout(this);
@@ -505,6 +523,7 @@ void GameControls::buildUi() {
   Style::setVariant(periodAdvanceButton_, "gameControl");
   Style::setSize(periodAdvanceButton_, "sm");
   periodAdvanceButton_->setFocusPolicy(Qt::ClickFocus);
+  periodAdvanceButton_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
   configurePeriodAdvanceButton(periodAdvanceButton_, QStringLiteral("G"));
 
   quarterTrack_ = new QWidget(gameTimeRowWidget);

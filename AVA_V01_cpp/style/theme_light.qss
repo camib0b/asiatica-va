@@ -1099,9 +1099,6 @@ QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"] {
   border-radius: 6px;
 }
 
-QWidget[role="quarterTrack"] {
-}
-
 QWidget[role="quarterSegment"] {
   min-height: 10px;
   max-height: 10px;
