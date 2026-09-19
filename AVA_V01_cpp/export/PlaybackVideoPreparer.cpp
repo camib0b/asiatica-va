@@ -3,11 +3,25 @@
 #include "../i18n/AppLocale.h"
 #include "../style/StyleProps.h"
 
-#include <QEventLoop>
+#include <QCoreApplication>
 #include <QFileInfo>
 #include <QProcess>
 #include <QProgressDialog>
 #include <QSignalBlocker>
+
+namespace {
+
+QString ffmpegStderrForDisplay(const QByteArray& stderrBytes) {
+    const QString text = QString::fromUtf8(stderrBytes).trimmed();
+    constexpr int keepHeadCharacters = 2000;
+    constexpr int keepTailCharacters = 1500;
+    if (text.size() <= keepHeadCharacters + keepTailCharacters) return text;
+    return text.left(keepHeadCharacters)
+        + QStringLiteral("\n...\n")
+        + text.right(keepTailCharacters);
+}
+
+}  // namespace
 
 PlaybackVideoPreparer::PlaybackVideoPreparer(QObject* parent)
     : QObject(parent),
@@ -87,21 +101,39 @@ void PlaybackVideoPreparer::cancel() {
     }
     finished_ = true;
     succeeded_ = false;
-    errorMessage_.clear();
+    errorMessage_ = AppLocale::trUi("playback_prep.error_cancelled");
     emit preparationFinished(false);
 }
 
 void PlaybackVideoPreparer::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus) {
     if (cancelled_ || finished_) return;
 
-    finished_ = true;
-    succeeded_ = (exitStatus == QProcess::NormalExit && exitCode == 0);
-    if (!succeeded_) {
-        errorMessage_ = process_
-            ? QString::fromUtf8(process_->readAllStandardError()).right(500)
-            : AppLocale::trUi("playback_prep.error_failed");
+    if (exitStatus == QProcess::NormalExit && exitCode == 0) {
+        finished_ = true;
+        succeeded_ = true;
+        emit preparationFinished(true);
+        return;
     }
-    emit preparationFinished(succeeded_);
+
+    const QString stderrOutput = process_
+        ? ffmpegStderrForDisplay(process_->readAllStandardError())
+        : QString();
+    if (stderrOutput.isEmpty()) {
+        errorMessage_ = AppLocale::trUi("playback_prep.error_failed")
+            + QLatin1Char('\n')
+            + QStringLiteral("no FFmpeg stderr (exit %1, status %2)")
+                  .arg(exitCode)
+                  .arg(exitStatus == QProcess::CrashExit
+                           ? QStringLiteral("crashed")
+                           : QStringLiteral("failed"));
+    } else {
+        errorMessage_ = AppLocale::trUi("playback_prep.error_failed")
+            + QLatin1Char('\n') + stderrOutput;
+    }
+
+    finished_ = true;
+    succeeded_ = false;
+    emit preparationFinished(false);
 }
 
 void PlaybackVideoPreparer::onProcessError(QProcess::ProcessError error) {
@@ -109,12 +141,12 @@ void PlaybackVideoPreparer::onProcessError(QProcess::ProcessError error) {
     // Crashes and I/O errors still emit finished(); FailedToStart does not.
     if (error != QProcess::FailedToStart) return;
 
+    const QString program = process_ ? process_->program() : QString();
+    const QString processError = process_ ? process_->errorString() : QString();
+
     finished_ = true;
     succeeded_ = false;
-    errorMessage_ = AppLocale::trUi("playback_prep.error_failed");
-    if (process_ && !process_->errorString().isEmpty()) {
-        errorMessage_ += QLatin1Char('\n') + process_->errorString();
-    }
+    errorMessage_ = AppLocale::trUi("playback_prep.error_ffmpeg_start").arg(program, processError);
     emit preparationFinished(false);
 }
 
@@ -128,19 +160,20 @@ bool PlaybackVideoPreparer::waitWithProgress(QWidget* parentWidget) {
     Style::setRole(&progress, "blocking");
     progress.setWindowModality(Qt::WindowModal);
     progress.setMinimumDuration(0);
+    progress.setAutoClose(false);
+    progress.setAutoReset(false);
 
-    QEventLoop loop;
-
-    connect(this, &PlaybackVideoPreparer::preparationFinished,
-            &loop, &QEventLoop::quit);
-    connect(&progress, &QProgressDialog::canceled, this, &PlaybackVideoPreparer::cancel);
+    const QMetaObject::Connection cancelConnection = connect(
+        &progress, &QProgressDialog::canceled, this, &PlaybackVideoPreparer::cancel);
 
     progress.show();
+    QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 
-    if (!finished_) {
-        loop.exec();
+    while (!finished_) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
     }
 
+    disconnect(cancelConnection);
     const QSignalBlocker closeGuard(&progress);
     const bool preparationOk = succeeded_;
     progress.close();
