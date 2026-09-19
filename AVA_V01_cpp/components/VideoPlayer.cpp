@@ -15,6 +15,7 @@ static void avaRemoveSystemPowerObservers(void*) {}
 
 #include <QtGlobal>
 #include <QVBoxLayout>
+#include <QAudioDevice>
 #include <QAudioOutput>
 #include <QGuiApplication>
 #include <QMediaPlayer>
@@ -53,7 +54,6 @@ VideoPlayer::VideoPlayer(QWidget* parent)
       playbackKeyboardShortcutsEnabled_(true),
       playbackRate_(1.0),
       wasPlayingBeforeScrub_(false),
-      durationMs_(0),
       lastStallCheckPositionMs_(-1),
       consecutivePlaybackStallTicks_(0),
       userRequestedPlaying_(false),
@@ -78,6 +78,12 @@ VideoPlayer::~VideoPlayer() {
 
 qint64 VideoPlayer::currentPositionMs() const {
     return player_ ? player_->position() : 0;
+}
+
+qint64 VideoPlayer::durationMs() const {
+    if (!player_) return 0;
+    const qint64 duration = player_->duration();
+    return duration > 0 ? duration : 0;
 }
 
 void VideoPlayer::seekToMs(qint64 posMs) {
@@ -105,6 +111,7 @@ void VideoPlayer::buildUi() {
     // media player and audio output:
     player_ = new QMediaPlayer(this);
     audioOutput_ = new QAudioOutput(this);
+    mediaDevices_ = new QMediaDevices(this);
     player_->setAudioOutput(audioOutput_);
     player_->setVideoOutput(videoWidget_);
 
@@ -134,9 +141,10 @@ void VideoPlayer::wireSignals() {
         updateStallMonitorForPlaybackState(state);
     });
 
+    connect(player_, &QMediaPlayer::mediaStatusChanged, this, &VideoPlayer::onMediaStatusChanged);
+
     // Player -> timeline widget
     connect(player_, &QMediaPlayer::durationChanged, this, [this](qint64 dur) {
-        durationMs_ = dur;
         if (videoTimelineBar_) videoTimelineBar_->setDurationMs(dur);
     });
 
@@ -177,45 +185,47 @@ void VideoPlayer::wireSignals() {
 
 void VideoPlayer::buildKeyboardShortcuts() {
     Q_ASSERT(QApplication::instance() != nullptr);
-  
-    auto makeAction = [this](const QKeySequence& seq, auto slot) -> QAction* {
-      auto* act = new QAction(this);
-      Q_ASSERT(act != nullptr);
-  
-      act->setShortcut(seq);
-      act->setShortcutContext(Qt::ApplicationShortcut);
-      connect(act, &QAction::triggered, this, slot);
-      this->addAction(act);
-      return act;
-    };
-  
+
     // Space and playback-speed keys live on VideoControlsBar (Qt::ApplicationShortcut), same pattern as GameControls.
     // This widget stays hidden while its children are reparented; the controls bar is visible in the layout.
 
-    // Arrows: small seek
-    seekSmallBackAction_ = makeAction(QKeySequence(Qt::Key_Left), [this]() {
+    seekSmallBackAction_ = makeQtPtr<QAction>(this);
+    seekSmallBackAction_->setShortcut(QKeySequence(Qt::Key_Left));
+    seekSmallBackAction_->setShortcutContext(Qt::ApplicationShortcut);
+    connect(seekSmallBackAction_.get(), &QAction::triggered, this, [this]() {
         if (videoControlsBar_) videoControlsBar_->flashSeekBackButton();
         onSeekSmallBackward();
     });
-    seekSmallForwardAction_ = makeAction(QKeySequence(Qt::Key_Right), [this]() {
+    addAction(seekSmallBackAction_.get());
+
+    seekSmallForwardAction_ = makeQtPtr<QAction>(this);
+    seekSmallForwardAction_->setShortcut(QKeySequence(Qt::Key_Right));
+    seekSmallForwardAction_->setShortcutContext(Qt::ApplicationShortcut);
+    connect(seekSmallForwardAction_.get(), &QAction::triggered, this, [this]() {
         if (videoControlsBar_) videoControlsBar_->flashSeekForwardButton();
         onSeekSmallForward();
     });
-    
-    // Shift + Arrows: big seek
-    seekBigBackAction_ = makeAction(QKeySequence(Qt::SHIFT | Qt::Key_Left), [this]() {
+    addAction(seekSmallForwardAction_.get());
+
+    seekBigBackAction_ = makeQtPtr<QAction>(this);
+    seekBigBackAction_->setShortcut(QKeySequence(Qt::SHIFT | Qt::Key_Left));
+    seekBigBackAction_->setShortcutContext(Qt::ApplicationShortcut);
+    connect(seekBigBackAction_.get(), &QAction::triggered, this, [this]() {
         if (videoControlsBar_) videoControlsBar_->flashSeekBackButton();
         onSeekBigBackward();
     });
-    seekBigForwardAction_ = makeAction(QKeySequence(Qt::SHIFT | Qt::Key_Right), [this]() {
+    addAction(seekBigBackAction_.get());
+
+    seekBigForwardAction_ = makeQtPtr<QAction>(this);
+    seekBigForwardAction_->setShortcut(QKeySequence(Qt::SHIFT | Qt::Key_Right));
+    seekBigForwardAction_->setShortcutContext(Qt::ApplicationShortcut);
+    connect(seekBigForwardAction_.get(), &QAction::triggered, this, [this]() {
         if (videoControlsBar_) videoControlsBar_->flashSeekForwardButton();
         onSeekBigForward();
     });
-    
-    seekSmallBackAction_->setEnabled(false);
-    seekSmallForwardAction_->setEnabled(false);
-    seekBigBackAction_->setEnabled(false);
-    seekBigForwardAction_->setEnabled(false);
+    addAction(seekBigForwardAction_.get());
+
+    updatePlaybackShortcutActionStates();
 }
 
 void VideoPlayer::setControlsVisible(bool visible) {
@@ -369,6 +379,11 @@ void VideoPlayer::setupPlaybackReliabilityHooks() {
             [this](QMediaPlayer::Error error, const QString& /*errorString*/) {
                 recoverFromPlaybackBackendError(error);
             });
+
+    if (mediaDevices_) {
+        connect(mediaDevices_, &QMediaDevices::audioOutputsChanged,
+                this, &VideoPlayer::onAudioOutputsChanged);
+    }
 }
 
 void VideoPlayer::updateStallMonitorForPlaybackState(QMediaPlayer::PlaybackState state) {
@@ -496,25 +511,64 @@ void VideoPlayer::reloadCurrentMediaFromDisk() {
     reloadCurrentMediaFromDisk(resumePositionMs, playbackRate_, userRequestedPlaying_);
 }
 
-void VideoPlayer::reloadCurrentMediaFromDisk(qint64 resumePositionMs, double rate, bool resumePlaying) {
-    if (!player_ || loadedSourcePath_.isEmpty()) return;
-    const QString sourcePath = loadedSourcePath_;
+void VideoPlayer::setMediaSourceFromPath(const QString& sourcePath,
+                                         qint64 resumePositionMs,
+                                         double rate,
+                                         bool resumePlaying) {
+    if (!player_ || sourcePath.isEmpty()) return;
+
+    pendingMediaSession_.active = true;
+    pendingMediaSession_.resumePositionMs = resumePositionMs;
+    pendingMediaSession_.playbackRate = rate;
+    pendingMediaSession_.resumePlaying = resumePlaying;
 
     player_->stop();
     player_->setSource(QUrl());
     player_->setSource(QUrl::fromLocalFile(sourcePath));
+}
 
-    playbackRate_ = rate;
+void VideoPlayer::onMediaStatusChanged(QMediaPlayer::MediaStatus status) {
+    if (!pendingMediaSession_.active) return;
+
+    switch (status) {
+        case QMediaPlayer::LoadedMedia:
+        case QMediaPlayer::BufferedMedia:
+            finalizePendingMediaSession();
+            break;
+        case QMediaPlayer::InvalidMedia:
+            pendingMediaSession_.active = false;
+            break;
+        default:
+            break;
+    }
+}
+
+void VideoPlayer::finalizePendingMediaSession() {
+    if (!pendingMediaSession_.active || !player_) return;
+
+    const PendingMediaSession session = pendingMediaSession_;
+    pendingMediaSession_.active = false;
+
+    playbackRate_ = session.playbackRate;
     player_->setPlaybackRate(playbackRate_);
     if (videoControlsBar_) videoControlsBar_->setPlaybackRate(playbackRate_);
 
+    const qint64 duration = player_->duration();
+    const qint64 resumePositionMs = duration > 0
+        ? std::clamp(session.resumePositionMs, qint64{0}, duration)
+        : std::max<qint64>(0, session.resumePositionMs);
     player_->setPosition(resumePositionMs);
-    userRequestedPlaying_ = resumePlaying;
-    if (resumePlaying) player_->play();
+    userRequestedPlaying_ = session.resumePlaying;
+    if (session.resumePlaying) player_->play();
 
     // Reset stall watchdog so the freshly rebuilt pipeline is not flagged as stalled
     // due to stale position samples from before the reload.
     resetPlaybackStallWatchdog();
+}
+
+void VideoPlayer::reloadCurrentMediaFromDisk(qint64 resumePositionMs, double rate, bool resumePlaying) {
+    if (!player_ || loadedSourcePath_.isEmpty()) return;
+    setMediaSourceFromPath(loadedSourcePath_, resumePositionMs, rate, resumePlaying);
 }
 
 void VideoPlayer::registerSystemPowerObservers() {
@@ -593,7 +647,6 @@ void VideoPlayer::loadVideoFromFile(const QString& filePath) {
     if (videoControlsBar_) videoControlsBar_->setEnabledForMedia(false);
     
     // Reset timeline UI immediately; durationChanged will set real range later
-    durationMs_ = 0;
     wasPlayingBeforeScrub_ = false;
     resetPlaybackStallWatchdog();
     pipelineReloadsWithoutProgress_ = 0;
@@ -603,23 +656,30 @@ void VideoPlayer::loadVideoFromFile(const QString& filePath) {
     if (videoControlsBar_) videoControlsBar_->setMuted(false);
     
     playbackRate_ = 1.0;
-    player_->setPlaybackRate(playbackRate_);
     if (videoControlsBar_) videoControlsBar_->setPlaybackRate(playbackRate_);
     
     loadedSourcePath_ = filePath;
     avaBeginPlaybackUserActivity();
 
-    // Load (don't assume it will succeed)
-    player_->stop();
-    player_->setSource(QUrl::fromLocalFile(filePath));
     setControlsEnabled(true);
-    player_->setPosition(0);
-    player_->play();
+    setMediaSourceFromPath(filePath, 0, 1.0, true);
 }
 
 void VideoPlayer::onAudioOutputsChanged() {
-    // Handle audio output device changes (e.g., headphones plugged/unplugged)
-    // This slot can be connected to QMediaDevices::audioOutputsChanged signal
+    if (!audioOutput_ || !player_ || loadedSourcePath_.isEmpty()) return;
+
+    const QAudioDevice defaultDevice = mediaDevices_
+        ? mediaDevices_->defaultAudioOutput()
+        : QAudioDevice();
+    if (defaultDevice.isNull()) return;
+    if (audioOutput_->device() == defaultDevice) return;
+
+    audioOutput_->setDevice(defaultDevice);
+    resetPlaybackStallWatchdog();
+
+    if (!userRequestedPlaying_) return;
+    if (player_->playbackState() == QMediaPlayer::PlayingState) return;
+    player_->play();
 }
 
 bool VideoPlayer::eventFilter(QObject* obj, QEvent* event) {

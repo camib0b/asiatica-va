@@ -9,13 +9,39 @@
 #include <QListWidget>
 #include <QMouseEvent>
 #include <QScrollBar>
+#include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QVariant>
 
 namespace {
 constexpr char kTagMentionScheme[] = "ava-tag:";
+
+QString canonicalMatchNoteFingerprint(const QTextDocument& document) {
+  if (document.toPlainText().trimmed().isEmpty()) return QString();
+
+  QString fingerprint;
+  for (QTextBlock block = document.begin(); block.isValid(); block = block.next()) {
+    for (QTextBlock::iterator fragmentIterator = block.begin(); !fragmentIterator.atEnd();
+         ++fragmentIterator) {
+      const QTextFragment fragment = fragmentIterator.fragment();
+      if (!fragment.isValid()) continue;
+
+      const QTextCharFormat format = fragment.charFormat();
+      if (format.isAnchor()) {
+        const QString href = format.anchorHref();
+        if (href.startsWith(QLatin1String(kTagMentionScheme))) {
+          fingerprint += QStringLiteral("\x1E%1\x1F")
+                            .arg(href.mid(static_cast<int>(qstrlen(kTagMentionScheme))));
+          continue;
+        }
+      }
+      fingerprint += fragment.text();
+    }
+  }
+  return fingerprint;
 }
+} // namespace
 
 MatchNotesEditor::MatchNotesEditor(QWidget* parent) : QTextEdit(parent) {
   setObjectName(QStringLiteral("MatchNotesEditor"));
@@ -76,10 +102,12 @@ QString MatchNotesEditor::serializedHtml() const {
 }
 
 bool MatchNotesEditor::isDocumentEquivalentTo(const QString& html) const {
-  if (html.trimmed().isEmpty()) return toPlainText().trimmed().isEmpty();
+  const QString currentFingerprint = canonicalMatchNoteFingerprint(*document());
+  if (html.trimmed().isEmpty()) return currentFingerprint.isEmpty();
+
   QTextDocument other;
   other.setHtml(html);
-  return toPlainText() == other.toPlainText();
+  return currentFingerprint == canonicalMatchNoteFingerprint(other);
 }
 
 quint64 MatchNotesEditor::tagIdFromAnchor(const QString& href) const {
@@ -244,13 +272,11 @@ void MatchNotesEditor::updateMentionFilterFromCursor() {
 }
 
 void MatchNotesEditor::positionMentionPopup() {
-  if (!mentionPopup_) return;
+  if (!mentionPopup_ || !viewport()) return;
   const QRect caretRect = cursorRect(textCursor());
-  const QPoint caretBottomLeft(caretRect.left(), caretRect.bottom() + 4);
   const QPoint globalPos =
-      viewport() ? viewport()->mapToGlobal(caretBottomLeft) : mapToGlobal(caretBottomLeft);
+      viewport()->mapToGlobal(QPoint(caretRect.left(), caretRect.bottom() + 4));
   mentionPopup_->move(globalPos);
-  mentionPopup_->raise();
 }
 
 bool MatchNotesEditor::insertSelectedMention() {

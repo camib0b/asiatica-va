@@ -1,7 +1,11 @@
 #pragma once
 
+#include "../ui/QtPtr.h"
+
 #include <QMediaPlayer>
 #include <QWidget>
+
+#include <memory>
 
 class QVideoWidget;
 class QAudioOutput;
@@ -24,7 +28,7 @@ public:
   TimelineBar* timelineBar() const { return videoTimelineBar_; }
 
   qint64 currentPositionMs() const;
-  qint64 durationMs() const { return durationMs_; }
+  qint64 durationMs() const;
   void seekToMs(qint64 posMs);
 
   void setControlsVisible(bool visible);
@@ -64,6 +68,7 @@ private slots:
   void onSeekSmallForward();
   void onSeekBigBackward();
   void onSeekBigForward();
+  void onMediaStatusChanged(QMediaPlayer::MediaStatus status);
   void onAudioOutputsChanged();
 
 protected:
@@ -87,6 +92,18 @@ private:
   /// Force the AVFoundation/QMediaPlayer pipeline to be rebuilt, restoring the supplied
   /// position, playback rate, and playing state. Used by stall recovery and macOS sleep/wake recovery.
   void reloadCurrentMediaFromDisk(qint64 resumePositionMs, double rate, bool resumePlaying);
+  void setMediaSourceFromPath(const QString& sourcePath,
+                              qint64 resumePositionMs,
+                              double rate,
+                              bool resumePlaying);
+  void finalizePendingMediaSession();
+
+  struct PendingMediaSession {
+    bool active = false;
+    qint64 resumePositionMs = 0;
+    double playbackRate = 1.0;
+    bool resumePlaying = false;
+  };
 
   // macOS sleep/wake recovery: AVFoundation tears down its decode/audio pipeline on system
   // sleep and `QMediaPlayer` cannot recover on its own, so we capture state on will-sleep
@@ -107,10 +124,10 @@ private:
   QVideoWidget* videoWidget_ = nullptr;
 
   // keyboard shortcuts (seek arrows only; play/speed keys are handled in WorkWindow — see buildKeyboardShortcuts):
-  QAction* seekSmallBackAction_ = nullptr;
-  QAction* seekSmallForwardAction_ = nullptr;
-  QAction* seekBigBackAction_ = nullptr;
-  QAction* seekBigForwardAction_ = nullptr;
+  std::unique_ptr<QAction, QtParentDeleter> seekSmallBackAction_;
+  std::unique_ptr<QAction, QtParentDeleter> seekSmallForwardAction_;
+  std::unique_ptr<QAction, QtParentDeleter> seekBigBackAction_;
+  std::unique_ptr<QAction, QtParentDeleter> seekBigForwardAction_;
 
   bool mediaControlsEnabled_ = false;
   bool playbackKeyboardShortcutsEnabled_ = true;
@@ -118,9 +135,9 @@ private:
   // Settings or constants:
   double playbackRate_ = 1.0;
   bool wasPlayingBeforeScrub_ = false;
-  qint64 durationMs_ = 0;
 
   QTimer* playbackStallTimer_ = nullptr;
+  PendingMediaSession pendingMediaSession_;
   QString loadedSourcePath_;
   qint64 lastStallCheckPositionMs_ = -1;
   int consecutivePlaybackStallTicks_ = 0;
