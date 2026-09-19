@@ -25,6 +25,8 @@ signals:
   void scrubSeekTo(qint64 posMs);     // optional throttled live seeking
   void scrubFinished(qint64 posMs);   // definitive seek on release/click
   void timeEntryStarted();            // user clicked timestamp entry and requested pause
+  void timeEntryFinished(qint64 posMs); // user committed a typed seek
+  void timeEntryCancelled();          // user dismissed typed seek (Escape, invalid input, disable)
 
 private:
   bool eventFilter(QObject* watched, QEvent* event) override;
@@ -32,7 +34,9 @@ private:
   void wireSignals();
   void beginTimeEntry();
   void commitTimeEntry();
-  void cancelTimeEntry();
+  void cancelTimeEntry(bool notify = true);
+  void abandonTimeEntryEditing();
+  void restoreTimeEntryUi();
   void beginSeekCommitWait(qint64 pendingMs);
   void clearSeekCommitWait();
   void updateLabel(qint64 posMs, qint64 durMs);
@@ -47,6 +51,7 @@ private:
   qint64 lastKnownPositionMs_ = 0;
   bool isScrubbing_ = false;
   bool isEditingTimeEntry_ = false;
+  bool timeEntryTransition_ = false;
   qint64 pendingSeekMs_ = -1;
   bool waitingForSeekCommit_ = false;
   QElapsedTimer seekCommitElapsed_;

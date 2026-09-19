@@ -4,6 +4,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QSignalBlocker>
 #include <QSlider>
 #include <QTimer>
 #include <QEvent>
@@ -56,16 +57,21 @@ protected:
       QStyleOptionSlider opt;
       initStyleOption(&opt);
 
+      const QPoint p = e->position().toPoint();
       const QRect handleRect =
         style()->subControlRect(QStyle::CC_Slider, &opt, QStyle::SC_SliderHandle, this);
+      const QRect grooveRect =
+        style()->subControlRect(QStyle::CC_Slider, &opt, QStyle::SC_SliderGroove, this);
 
-      const QPoint p = e->position().toPoint();
-      const bool clickedHandle = handleRect.contains(p);
-
-      if (!clickedHandle) {
-        const int pos = (orientation() == Qt::Horizontal) ? p.x() : p.y();
-        const int span = (orientation() == Qt::Horizontal) ? width() : height();
-        const int v = QStyle::sliderValueFromPosition(minimum(), maximum(), pos, span);
+      if (!handleRect.contains(p)) {
+        const int positionInGroove = (orientation() == Qt::Horizontal)
+            ? p.x() - grooveRect.x()
+            : p.y() - grooveRect.y();
+        const int grooveSpan = (orientation() == Qt::Horizontal)
+            ? grooveRect.width()
+            : grooveRect.height();
+        const int v = QStyle::sliderValueFromPosition(
+            minimum(), maximum(), positionInGroove, grooveSpan, opt.upsideDown);
         setValue(v);
         // Let the default behavior continue; we'll treat this as an immediate scrub-release.
       }
@@ -177,17 +183,15 @@ void TimelineBar::reset() {
   durationMs_ = 0;
   lastKnownPositionMs_ = 0;
   isScrubbing_ = false;
-  isEditingTimeEntry_ = false;
   clearSeekCommitWait();
   pendingScrubSeekMs_ = -1;
   lastDisplayedPosSeconds_ = -1;
   lastDisplayedDurSeconds_ = -1;
   if (scrubSeekThrottleTimer_) scrubSeekThrottleTimer_->stop();
+  abandonTimeEntryEditing();
   slider_->setRange(0, 0);
   slider_->setValue(0);
   slider_->setEnabled(false);
-  if (timeEntry_) timeEntry_->hide();
-  if (label_) label_->show();
   updateLabel(0, 0);
 }
 
@@ -271,11 +275,27 @@ bool TimelineBar::eventFilter(QObject* watched, QEvent* event) {
   return QWidget::eventFilter(watched, event);
 }
 
+void TimelineBar::restoreTimeEntryUi() {
+  if (!timeEntry_ || !label_) return;
+  QSignalBlocker timeEntrySignals(timeEntry_);
+  timeEntry_->hide();
+  label_->show();
+}
+
+void TimelineBar::abandonTimeEntryEditing() {
+  if (!isEditingTimeEntry_) return;
+  timeEntryTransition_ = true;
+  isEditingTimeEntry_ = false;
+  restoreTimeEntryUi();
+  timeEntryTransition_ = false;
+}
+
 void TimelineBar::beginTimeEntry() {
   if (!slider_ || !timeEntry_ || !label_) return;
-  if (!slider_->isEnabled() || durationMs_ <= 0 || isEditingTimeEntry_) return;
+  if (timeEntryTransition_ || isEditingTimeEntry_) return;
+  if (!slider_->isEnabled() || durationMs_ <= 0) return;
 
-  emit timeEntryStarted();
+  timeEntryTransition_ = true;
   isEditingTimeEntry_ = true;
   clearSeekCommitWait();
 
@@ -285,10 +305,13 @@ void TimelineBar::beginTimeEntry() {
   timeEntry_->show();
   timeEntry_->setFocus(Qt::MouseFocusReason);
   timeEntry_->selectAll();
+  timeEntryTransition_ = false;
+
+  emit timeEntryStarted();
 }
 
 void TimelineBar::commitTimeEntry() {
-  if (!isEditingTimeEntry_ || !timeEntry_ || !label_ || !slider_) return;
+  if (!isEditingTimeEntry_ || timeEntryTransition_ || !timeEntry_ || !label_ || !slider_) return;
 
   qint64 targetMs = -1;
   if (!parseTimeEntryMs(timeEntry_->text(), &targetMs)) {
@@ -296,24 +319,33 @@ void TimelineBar::commitTimeEntry() {
     return;
   }
 
+  timeEntryTransition_ = true;
   targetMs = std::max<qint64>(0, std::min(targetMs, durationMs_));
   beginSeekCommitWait(targetMs);
   isEditingTimeEntry_ = false;
+  restoreTimeEntryUi();
 
   slider_->setValue(static_cast<int>(targetMs));
   lastKnownPositionMs_ = targetMs;
-  label_->show();
-  timeEntry_->hide();
   updateLabel(targetMs, durationMs_);
+  timeEntryTransition_ = false;
+
+  emit timeEntryFinished(targetMs);
   emit scrubFinished(targetMs);
 }
 
-void TimelineBar::cancelTimeEntry() {
-  if (!isEditingTimeEntry_ || !timeEntry_ || !label_) return;
+void TimelineBar::cancelTimeEntry(bool notify) {
+  if (!isEditingTimeEntry_ || timeEntryTransition_ || !timeEntry_ || !label_) return;
+
+  timeEntryTransition_ = true;
   isEditingTimeEntry_ = false;
-  timeEntry_->hide();
-  label_->show();
+  restoreTimeEntryUi();
   updateLabel(lastKnownPositionMs_, durationMs_);
+  timeEntryTransition_ = false;
+
+  if (notify) {
+    emit timeEntryCancelled();
+  }
 }
 
 bool TimelineBar::parseTimeEntryMs(const QString& text, qint64* outMs) {
@@ -332,7 +364,9 @@ bool TimelineBar::parseTimeEntryMs(const QString& text, qint64* outMs) {
     std::array<qint64, 3> components{};
     const int partCount = parts.size();
     for (int i = 0; i < partCount; ++i) {
-      if (!parseNonNegativeInt64(parts.at(i).trimmed(), &components[i])) return false;
+      const QString part = parts.at(i).trimmed();
+      if (part.isEmpty()) return false;
+      if (!parseNonNegativeInt64(part, &components[i])) return false;
     }
 
     if (partCount == 3) {
