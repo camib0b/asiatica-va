@@ -67,7 +67,7 @@ void PresentationQueue::setSelectedTagIndexes(const QVector<int>& tagSessionInde
   if (tagSession_) {
     const auto& tags = tagSession_->tags();
     for (const int tagSessionIndex : tagSessionIndexes) {
-      if (tagSessionIndex < 0 || tagSessionIndex >= tags.size()) continue;
+      if (!tagSession_->isValidTagIndex(tagSessionIndex)) continue;
       const quint64 tagId = tags.at(tagSessionIndex).id;
       if (tagId == 0 || seenTagIds.contains(tagId)) continue;
       seenTagIds.insert(tagId);
@@ -125,7 +125,7 @@ void PresentationQueue::setClipInterval(int index, qint64 startMs, qint64 endMs)
   intervalClip.endMs = endMs;
   clampClipToVideo(intervalClip);
 
-  if (tagSession_ && tagSessionIndex >= 0 && tagSessionIndex < tagSession_->tags().size()) {
+  if (tagSession_ && tagSession_->isValidTagIndex(tagSessionIndex)) {
     SessionWriteGuard guard(writingIntervalToSession_);
     tagSession_->setTagInterval(tagSessionIndex, intervalClip.startMs, intervalClip.endMs);
     refreshQueueFromSession();
@@ -164,7 +164,7 @@ void PresentationQueue::rebuildClipsFromSession() {
   for (const quint64 tagId : selectedTagIds_) {
     if (tagId == 0) continue;
     const int tagSessionIndex = tagSession_->indexOfTagId(tagId);
-    if (tagSessionIndex < 0 || tagSessionIndex >= tags.size()) continue;
+    if (!tagSession_->isValidTagIndex(tagSessionIndex)) continue;
     const TagSession::GameTag& tag = tags.at(tagSessionIndex);
 
     Clip clip;

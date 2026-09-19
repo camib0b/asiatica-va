@@ -281,6 +281,8 @@ void PresentationPanel::setTagSession(TagSession* session) {
             &PresentationPanel::refreshFromSession);
     connect(tagSession_, &TagSession::tagNoteChanged, this,
             [this](int) { refreshFromSession(); });
+    connect(tagSession_, &TagSession::gameMetadataChanged, this,
+            &PresentationPanel::refreshFromSession);
   }
 
   refreshFromSession();
@@ -588,8 +590,7 @@ void PresentationPanel::setExportEnabled(bool enabled) {
 
 void PresentationPanel::updateCurrentClipControlsEnabled() {
   const bool hasCurrentClip =
-      currentTagSessionIndex_ >= 0 && tagSession_ &&
-      currentTagSessionIndex_ < tagSession_->tags().size();
+      tagSession_ && tagSession_->isValidTagIndex(currentTagSessionIndex_);
   if (leadSpinBox_) leadSpinBox_->setEnabled(hasCurrentClip);
   if (lagSpinBox_) lagSpinBox_->setEnabled(hasCurrentClip);
   if (applyToAllButton_) applyToAllButton_->setEnabled(hasCurrentClip);
@@ -598,7 +599,7 @@ void PresentationPanel::updateCurrentClipControlsEnabled() {
 void PresentationPanel::onLeadLagSpinChanged() {
   if (!leadSpinBox_ || !lagSpinBox_) return;
   if (currentTagSessionIndex_ < 0 || !tagSession_) return;
-  if (currentTagSessionIndex_ >= tagSession_->tags().size()) return;
+  if (!tagSession_->isValidTagIndex(currentTagSessionIndex_)) return;
   emit currentClipLeadLagEdited(static_cast<qint64>(leadSpinBox_->value() * 1000.0),
                                 static_cast<qint64>(lagSpinBox_->value() * 1000.0));
 }

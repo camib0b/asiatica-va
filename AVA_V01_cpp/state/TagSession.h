@@ -7,6 +7,8 @@
 #include <QVector>
 #include <QtGlobal>
 
+#include <array>
+
 class TagSession final : public QObject {
   Q_OBJECT
 
@@ -38,9 +40,10 @@ public:
     Merge,
   };
 
+  /// Outcome of importTags(). Skipping happens in XmlEventMappingDialog before
+  /// tags reach this API; importTags stores every remaining tag (clamping intervals).
   struct ImportResult {
     int importedCount = 0;
-    int skippedCount = 0;
     int clampedCount = 0;
   };
 
@@ -49,6 +52,7 @@ public:
 
   void clear();
   /// Clears team names/colors plus competition, date, and abbreviations. Does not clear tags.
+  /// Emits gameMetadataChanged() when any field actually changes.
   void clearGameMetadata();
   void setGameTeams(const QString& homeName, const QString& awayName,
                    const QString& homeColor, const QString& awayColor);
@@ -73,8 +77,12 @@ public:
   ImportResult importTags(const QVector<GameTag>& tags,
                           ImportMode mode,
                           qint64 videoDurationMs = -1);
-  void removeTag(int index);
-  void setTagNote(int index, const QString& note);
+  /// Returns false when \p index is out of range (Q_ASSERT in debug builds).
+  bool removeTag(int index);
+  /// Returns false when \p index is out of range (Q_ASSERT in debug builds).
+  bool setTagNote(int index, const QString& note);
+  /// Returns an empty string when \p index is out of range. Call isValidTagIndex first
+  /// when an empty note and a miss must be distinguished.
   QString tagNote(int index) const;
 
   /// Freeform match notes (HTML); not tied to a single clip. Mentions use ava-tag:id anchors.
@@ -83,9 +91,12 @@ public:
 
   /// Index of the tag with \p id, or -1 if it is not in the session.
   int indexOfTagId(quint64 id) const;
+  /// True when \p index selects an element of tags().
+  bool isValidTagIndex(int index) const { return index >= 0 && index < tags_.size(); }
   /// Updates the clip interval (start/end in ms) of the tag at \p index and marks it as
   /// manually trimmed so later default-duration changes cannot overwrite it.
-  void setTagInterval(int index, qint64 startMs, qint64 endMs);
+  /// Returns false when \p index is out of range (Q_ASSERT in debug builds).
+  bool setTagInterval(int index, qint64 startMs, qint64 endMs);
   /// Re-applies lead/lag defaults (in ms) to every tag of \p mainEvent that has not been
   /// manually trimmed. Quarter / start-anchor tags are skipped because their interval is
   /// determined by user clicks, not by symmetric pads.
@@ -97,7 +108,10 @@ public:
   void setGameStartAnchor(qint64 positionMs) { gameStartAnchorMs_ = positionMs; }
 
   QuarterPhase quarterPhase() const { return quarterPhase_; }
-  /// Index of the quarter currently in progress (0=Q1 .. 3=Q4); -1 when not in progress.
+  /// Index of the quarter currently in progress (0=Q1 .. 3=Q4).
+  /// -1 when not in progress (NotStarted or GameEnded). Do not treat GameEnded as Q4
+  /// in progress — period labels after the whistle use closed Q4 in
+  /// periodLabelAtTimestampMs(), not this index.
   int currentQuarterIndex() const { return currentQuarterIndex_; }
   /// Playhead position when the in-progress quarter started.
   qint64 currentQuarterStartMs() const { return currentQuarterStartMs_; }
@@ -121,8 +135,10 @@ signals:
   void tagNoteChanged(int index);
   void matchNoteChanged();
   void tagIntervalChanged(int index);
-  /// Tag membership, order, or event counts changed.
+  /// Tag membership, order, or event counts changed. Not emitted for game metadata.
   void tagsChanged();
+  /// Team names/colors, competition, date, or abbreviations changed.
+  void gameMetadataChanged();
 
 private:
   static constexpr int kQuarterCount = 4;
@@ -133,10 +149,25 @@ private:
     qint64 endMs = 0;
   };
 
+  /// Start-anchor and Q1–Q4 tags only, in tags_ order. Timeouts are omitted.
+  struct GameTimeTagRecord {
+    quint64 id = 0;
+    int quarterIndex = -1;  // -1 = start-anchor; 0..3 = Q1..Q4
+    qint64 startMs = 0;
+    qint64 endMs = 0;
+  };
+
+  /// Rebuilds mainEventCounts_ and followUpCountsByMainEvent_ from tags_. Call after
+  /// any mutation that adds or removes tags — not only after import/clear.
   void rebuildEventCountsFromTags();
+  /// Rebuilds gameTimeTags_ (start-anchor + Q1–Q4 only) from tags_. Call after import
+  /// or any bulk rewrite of tags_. Incremental add/remove/interval updates the index
+  /// in place so restore does not scan play tags.
+  void rebuildGameTimeIndexFromTags();
+  void upsertGameTimeTag(const GameTag& tag);
+  void removeGameTimeTagId(quint64 id);
   /// Rebuilds phase, current quarter, start anchor, and closed-quarter spans from
-  /// TimeCodes tags. Call after any mutation of tags_ that can add, remove, or
-  /// retimestamp start-anchor or quarter tags — not only after import/clear.
+  /// gameTimeTags_. Call after the index changes — not after ordinary play-tag edits.
   void restoreGameTimeStateFromTags();
   void assignStableId(GameTag& tag);
   QVector<GameTag> tags_;
@@ -156,6 +187,7 @@ private:
   int currentQuarterIndex_ = -1;
   qint64 currentQuarterStartMs_ = 0;
   QuarterPhase quarterPhase_ = QuarterPhase::NotStarted;
-  ClosedQuarterSpan closedQuarters_[kQuarterCount] = {};
+  std::array<ClosedQuarterSpan, kQuarterCount> closedQuarters_{};
+  QVector<GameTimeTagRecord> gameTimeTags_;
 };
 

@@ -1,19 +1,27 @@
 ---
-description: Derive TagSession game-time phase and period labels from one restore pass
+description: Derive TagSession caches (game-time phase, event counts) from tags_ in one pass
 globs: **/*.{h,hpp,cpp}
 alwaysApply: false
 ---
 
-# Keep derived game-time state in sync with tags
+# Keep derived TagSession state in sync with tags
 
-`TagSession` quarter phase, current quarter, start-anchor time, **and closed Q1–Q4 spans** are derived from TimeCodes tags in `restoreGameTimeStateFromTags()`. Call that after `addTag` / `removeTag` / `setTagInterval` / `importTags`, before emitting.
+## Game-time phase and period labels
 
-`periodLabelAtTimestampMs()` only **reads** that cached state. Do not walk or sort `tags_` on every label lookup, and do not keep a second quarter parser.
+`TagSession` quarter phase, current quarter, start-anchor time, **and closed Q1–Q4 spans** are derived from the **game-time index** (`gameTimeTags_`: start-anchor + Q1–Q4 only) in `restoreGameTimeStateFromTags()`. Timeouts are not in that index.
+
+Call restore after the index changes: adding/removing/retiming a start-anchor or quarter tag, or after `importTags` / `clear`. Do **not** restore after ordinary play-tag add/remove/trim — that was a full scan of every tag.
+
+`periodLabelAtTimestampMs()` only **reads** `closedQuarters_` / phase (O(4)). Do not walk or sort `tags_` on every label lookup, and do not keep a second quarter parser.
+
+Keep `gameTimeTags_` in `tags_` order. Last duplicate quarter in that order wins (same as a full scan). Rebuild the index from `tags_` after import/sort; incremental upsert/remove by tag id on single-tag edits.
 
 Phase follows the contiguous closed prefix Q1..Qn (a missing Q2 does not skip to Q3 or end the game). Labels must still work when:
 
 - Q1 is in progress and no quarter tag is closed yet (`currentQuarterIndex_` + `currentQuarterStartMs_`)
 - the game has ended and the timestamp is after Q4’s recorded end (still Q4)
+
+`GameEnded` does **not** set `currentQuarterIndex_` to 3. That index means “quarter in progress”; leaving it at -1 prevents `onNextQuarterRequested` from closing Q4 twice. `periodLabelAtTimestampMs` uses `closedQuarters_[Q4]` for in-span and post-end timestamps. Tagging UI (`contextPeriod_`) must map `GameEnded` to Q4 itself — do not read `currentQuarterIndex()` as the period after the whistle.
 
 ```cpp
 // BAD — rebuild/sort closed quarters on every playhead query
@@ -21,9 +29,29 @@ QString TagSession::periodLabelAtTimestampMs(qint64 positionMs) const {
   return periodLabelFromSnapshot(collectGameTimeFromTags(tags_), positionMs);
 }
 
-// GOOD — restore fills closedQuarters_ / phase; labels read members only
-void TagSession::restoreGameTimeStateFromTags();  // writes closedQuarters_ + phase
-QString TagSession::periodLabelAtTimestampMs(qint64 positionMs) const;  // reads them
+// BAD — restore scans every play tag on Goal add / clip trim
+void TagSession::addTag(const GameTag& tag) {
+  tags_.push_back(tag);
+  restoreGameTimeStateFromTags();  // walked tags_
+}
+
+// GOOD — restore fills closedQuarters_ / phase from gameTimeTags_; labels read members only
+void TagSession::restoreGameTimeStateFromTags();  // walks gameTimeTags_ (typically ≤ 5)
+QString TagSession::periodLabelAtTimestampMs(qint64 positionMs) const;  // reads closedQuarters_
+```
+
+## Event counts
+
+`mainEventCounts_` and `followUpCountsByMainEvent_` are derived in `rebuildEventCountsFromTags()`. Call it after any path that adds or removes tags (`addTag`, `removeTag`, `importTags`, `clear`). Do not increment/decrement counts manually in mutation handlers — one missed path desynchronizes filters and presentation UI.
+
+```cpp
+// BAD — manual +/- in addTag/removeTag plus full rebuild elsewhere
+mainEventCounts_.insert(stored.mainEvent, mainEventCounts_.value(stored.mainEvent, 0) + 1);
+
+// GOOD — single rebuild from tags_
+tags_.push_back(stored);
+rebuildEventCountsFromTags();
+restoreGameTimeStateFromTags();
 ```
 
 Listeners (`restoreGamePhase`) must run on `tagsChanged`, not only on `tagsImported`.

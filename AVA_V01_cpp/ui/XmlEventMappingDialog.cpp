@@ -20,6 +20,7 @@
 #include <QTableWidgetItem>
 #include <QVBoxLayout>
 
+#include <array>
 #include <optional>
 
 namespace {
@@ -91,7 +92,7 @@ struct ClosedQuarterSpan {
 };
 
 QString periodLabelAtMarkMs(qint64 markMs,
-                            const ClosedQuarterSpan closedQuarters[kQuarterCount],
+                            const std::array<ClosedQuarterSpan, kQuarterCount>& closedQuarters,
                             qint64 gameStartAnchorMs) {
   int matchingQuarterIndex = -1;
   qint64 matchingStartMs = 0;
@@ -138,7 +139,7 @@ QString periodLabelAtMarkMs(qint64 markMs,
 }
 
 void inferPeriods(QVector<TagSession::GameTag>& tags) {
-  ClosedQuarterSpan closedQuarters[kQuarterCount] = {};
+  std::array<ClosedQuarterSpan, kQuarterCount> closedQuarters{};
   qint64 gameStartAnchorMs = -1;
 
   for (const TagSession::GameTag& tag : tags) {

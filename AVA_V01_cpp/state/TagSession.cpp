@@ -15,6 +15,18 @@ int quarterIndexForMainEvent(const QString& mainEvent) {
   return -1;
 }
 
+/// Start-anchor and Q1–Q4 drive period labels. Timeouts do not.
+bool isGameTimeMainEvent(const QString& mainEvent, int* quarterIndexOut = nullptr) {
+  if (mainEvent == QLatin1String(EventDefaults::TimeCodes::kStartAnchor)) {
+    if (quarterIndexOut) *quarterIndexOut = -1;
+    return true;
+  }
+  const int quarterIndex = quarterIndexForMainEvent(mainEvent);
+  if (quarterIndex < 0) return false;
+  if (quarterIndexOut) *quarterIndexOut = quarterIndex;
+  return true;
+}
+
 /// Enforces start >= 0, end >= start, and start <= mark <= end.
 /// When \p videoDurationMs is >= 0, start and end are also capped to that duration.
 /// Returns true when any of the three timestamps changed.
@@ -47,9 +59,9 @@ TagSession::TagSession(QObject* parent)
 
 void TagSession::clear() {
   tags_.clear();
-  mainEventCounts_.clear();
-  followUpCountsByMainEvent_.clear();
   nextTagId_ = 1;
+  gameTimeTags_.clear();
+  rebuildEventCountsFromTags();
   if (!matchNote_.isEmpty()) {
     matchNote_.clear();
     emit matchNoteChanged();
@@ -60,6 +72,12 @@ void TagSession::clear() {
 }
 
 void TagSession::clearGameMetadata() {
+  const bool alreadyEmpty =
+      homeTeamName_.isEmpty() && awayTeamName_.isEmpty() && homeTeamColor_.isEmpty() &&
+      awayTeamColor_.isEmpty() && competitionName_.isEmpty() && !gameDate_.isValid() &&
+      homeAbbrev_.isEmpty() && awayAbbrev_.isEmpty();
+  if (alreadyEmpty) return;
+
   homeTeamName_.clear();
   awayTeamName_.clear();
   homeTeamColor_.clear();
@@ -68,24 +86,44 @@ void TagSession::clearGameMetadata() {
   gameDate_ = QDate();
   homeAbbrev_.clear();
   awayAbbrev_.clear();
+  emit gameMetadataChanged();
 }
 
 void TagSession::setGameTeams(const QString& homeName, const QString& awayName,
                               const QString& homeColor, const QString& awayColor) {
-  homeTeamName_ = homeName.trimmed();
-  awayTeamName_ = awayName.trimmed();
-  homeTeamColor_ = homeColor.trimmed();
-  awayTeamColor_ = awayColor.trimmed();
+  const QString nextHomeTeamName = homeName.trimmed();
+  const QString nextAwayTeamName = awayName.trimmed();
+  const QString nextHomeTeamColor = homeColor.trimmed();
+  const QString nextAwayTeamColor = awayColor.trimmed();
+  if (homeTeamName_ == nextHomeTeamName && awayTeamName_ == nextAwayTeamName &&
+      homeTeamColor_ == nextHomeTeamColor && awayTeamColor_ == nextAwayTeamColor) {
+    return;
+  }
+
+  homeTeamName_ = nextHomeTeamName;
+  awayTeamName_ = nextAwayTeamName;
+  homeTeamColor_ = nextHomeTeamColor;
+  awayTeamColor_ = nextAwayTeamColor;
+  emit gameMetadataChanged();
 }
 
 void TagSession::setGameMetadata(const QString& competitionName,
                                  const QDate& gameDate,
                                  const QString& homeAbbrev,
                                  const QString& awayAbbrev) {
-  competitionName_ = competitionName.trimmed();
+  const QString nextCompetitionName = competitionName.trimmed();
+  const QString nextHomeAbbrev = homeAbbrev.trimmed().toUpper();
+  const QString nextAwayAbbrev = awayAbbrev.trimmed().toUpper();
+  if (competitionName_ == nextCompetitionName && gameDate_ == gameDate &&
+      homeAbbrev_ == nextHomeAbbrev && awayAbbrev_ == nextAwayAbbrev) {
+    return;
+  }
+
+  competitionName_ = nextCompetitionName;
   gameDate_ = gameDate;
-  homeAbbrev_ = homeAbbrev.trimmed().toUpper();
-  awayAbbrev_ = awayAbbrev.trimmed().toUpper();
+  homeAbbrev_ = nextHomeAbbrev;
+  awayAbbrev_ = nextAwayAbbrev;
+  emit gameMetadataChanged();
 }
 
 void TagSession::assignStableId(GameTag& tag) {
@@ -112,16 +150,13 @@ void TagSession::addTag(const GameTag& tag) {
   clampTagInterval(stored);
   tags_.push_back(stored);
 
-  const int nextMainCount = mainEventCounts_.value(stored.mainEvent, 0) + 1;
-  mainEventCounts_.insert(stored.mainEvent, nextMainCount);
-
-  if (!stored.followUpEvent.isEmpty()) {
-    auto& followUps = followUpCountsByMainEvent_[stored.mainEvent];
-    const int nextFollowUpCount = followUps.value(stored.followUpEvent, 0) + 1;
-    followUps.insert(stored.followUpEvent, nextFollowUpCount);
+  rebuildEventCountsFromTags();
+  int gameTimeQuarterIndex = -1;
+  if (isGameTimeMainEvent(stored.mainEvent, &gameTimeQuarterIndex)) {
+    gameTimeTags_.push_back(
+        {stored.id, gameTimeQuarterIndex, stored.startMs, stored.endMs});
+    restoreGameTimeStateFromTags();
   }
-
-  restoreGameTimeStateFromTags();
   emit tagAdded(stored);
   emit tagsChanged();
 }
@@ -130,13 +165,11 @@ TagSession::ImportResult TagSession::importTags(const QVector<GameTag>& tags,
                                                 ImportMode mode,
                                                 qint64 videoDurationMs) {
   ImportResult result;
-  result.skippedCount = 0;
 
   if (mode == ImportMode::Replace) {
     tags_.clear();
-    mainEventCounts_.clear();
-    followUpCountsByMainEvent_.clear();
     nextTagId_ = 1;
+    gameTimeTags_.clear();
     resetGameTimeState();
   }
 
@@ -155,6 +188,7 @@ TagSession::ImportResult TagSession::importTags(const QVector<GameTag>& tags,
                    });
 
   rebuildEventCountsFromTags();
+  rebuildGameTimeIndexFromTags();
   restoreGameTimeStateFromTags();
   emit tagsImported();
   emit tagsChanged();
@@ -175,25 +209,49 @@ void TagSession::rebuildEventCountsFromTags() {
   }
 }
 
-void TagSession::restoreGameTimeStateFromTags() {
-  gameStartAnchorMs_ = -1;
-  currentQuarterIndex_ = -1;
-  currentQuarterStartMs_ = 0;
-  quarterPhase_ = QuarterPhase::NotStarted;
-  for (int quarterIndex = 0; quarterIndex < kQuarterCount; ++quarterIndex) {
-    closedQuarters_[quarterIndex] = ClosedQuarterSpan{};
-  }
-
+void TagSession::rebuildGameTimeIndexFromTags() {
+  gameTimeTags_.clear();
   for (const GameTag& tag : tags_) {
-    if (tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kStartAnchor)) {
-      if (gameStartAnchorMs_ < 0) gameStartAnchorMs_ = tag.startMs;
+    int gameTimeQuarterIndex = -1;
+    if (!isGameTimeMainEvent(tag.mainEvent, &gameTimeQuarterIndex)) continue;
+    gameTimeTags_.push_back({tag.id, gameTimeQuarterIndex, tag.startMs, tag.endMs});
+  }
+}
+
+void TagSession::upsertGameTimeTag(const GameTag& tag) {
+  int gameTimeQuarterIndex = -1;
+  if (!isGameTimeMainEvent(tag.mainEvent, &gameTimeQuarterIndex)) return;
+  for (GameTimeTagRecord& existing : gameTimeTags_) {
+    if (existing.id != tag.id) continue;
+    existing.quarterIndex = gameTimeQuarterIndex;
+    existing.startMs = tag.startMs;
+    existing.endMs = tag.endMs;
+    return;
+  }
+  gameTimeTags_.push_back({tag.id, gameTimeQuarterIndex, tag.startMs, tag.endMs});
+}
+
+void TagSession::removeGameTimeTagId(quint64 id) {
+  if (id == 0) return;
+  for (int recordIndex = 0; recordIndex < gameTimeTags_.size(); ++recordIndex) {
+    if (gameTimeTags_.at(recordIndex).id != id) continue;
+    gameTimeTags_.removeAt(recordIndex);
+    return;
+  }
+}
+
+void TagSession::restoreGameTimeStateFromTags() {
+  resetGameTimeState();
+
+  for (const GameTimeTagRecord& record : gameTimeTags_) {
+    if (record.quarterIndex < 0) {
+      if (gameStartAnchorMs_ < 0) gameStartAnchorMs_ = record.startMs;
       continue;
     }
-    const int quarterIndex = quarterIndexForMainEvent(tag.mainEvent);
-    if (quarterIndex < 0) continue;
-    closedQuarters_[quarterIndex].present = true;
-    closedQuarters_[quarterIndex].startMs = tag.startMs;
-    closedQuarters_[quarterIndex].endMs = tag.endMs;
+    if (record.quarterIndex >= kQuarterCount) continue;
+    closedQuarters_[record.quarterIndex].present = true;
+    closedQuarters_[record.quarterIndex].startMs = record.startMs;
+    closedQuarters_[record.quarterIndex].endMs = record.endMs;
   }
 
   int closedPrefixCount = 0;
@@ -203,6 +261,8 @@ void TagSession::restoreGameTimeStateFromTags() {
 
   if (closedPrefixCount == kQuarterCount) {
     quarterPhase_ = QuarterPhase::GameEnded;
+    // No quarter is in progress. currentQuarterIndex_ stays -1 (reset above).
+    // periodLabelAtTimestampMs reads closedQuarters_[Q4], not this index.
   } else if (closedPrefixCount > 0) {
     quarterPhase_ = QuarterPhase::QuarterInProgress;
     currentQuarterIndex_ = closedPrefixCount;
@@ -214,49 +274,39 @@ void TagSession::restoreGameTimeStateFromTags() {
   }
 }
 
-void TagSession::removeTag(int index) {
-  if (index < 0 || index >= tags_.size()) return;
-
-  const GameTag& tag = tags_.at(index);
-
-  // Decrement main event count
-  const int currentMainCount = mainEventCounts_.value(tag.mainEvent, 0);
-  if (currentMainCount > 0) {
-    mainEventCounts_.insert(tag.mainEvent, currentMainCount - 1);
-    if (currentMainCount == 1) {
-      mainEventCounts_.remove(tag.mainEvent);
-    }
+bool TagSession::removeTag(int index) {
+  if (!isValidTagIndex(index)) {
+    Q_ASSERT_X(false, "TagSession::removeTag", "invalid tag index");
+    return false;
   }
 
-  // Decrement follow-up count if present
-  if (!tag.followUpEvent.isEmpty()) {
-    auto& followUps = followUpCountsByMainEvent_[tag.mainEvent];
-    const int currentFollowUpCount = followUps.value(tag.followUpEvent, 0);
-    if (currentFollowUpCount > 0) {
-      followUps.insert(tag.followUpEvent, currentFollowUpCount - 1);
-      if (currentFollowUpCount == 1) {
-        followUps.remove(tag.followUpEvent);
-        if (followUps.isEmpty()) {
-          followUpCountsByMainEvent_.remove(tag.mainEvent);
-        }
-      }
-    }
-  }
-
+  const GameTag removedTag = tags_.at(index);
   tags_.removeAt(index);
-  restoreGameTimeStateFromTags();
+  rebuildEventCountsFromTags();
+  if (isGameTimeMainEvent(removedTag.mainEvent)) {
+    removeGameTimeTagId(removedTag.id);
+    restoreGameTimeStateFromTags();
+  }
   emit tagsChanged();
+  return true;
 }
 
-void TagSession::setTagNote(int index, const QString& note) {
-  if (index < 0 || index >= tags_.size()) return;
-  if (tags_[index].note == note) return;
+bool TagSession::setTagNote(int index, const QString& note) {
+  if (!isValidTagIndex(index)) {
+    Q_ASSERT_X(false, "TagSession::setTagNote", "invalid tag index");
+    return false;
+  }
+  if (tags_[index].note == note) return true;
   tags_[index].note = note;
   emit tagNoteChanged(index);
+  return true;
 }
 
 QString TagSession::tagNote(int index) const {
-  if (index < 0 || index >= tags_.size()) return QString();
+  if (!isValidTagIndex(index)) {
+    Q_ASSERT_X(false, "TagSession::tagNote", "invalid tag index");
+    return QString();
+  }
   return tags_[index].note;
 }
 
@@ -274,17 +324,25 @@ int TagSession::indexOfTagId(quint64 id) const {
   return -1;
 }
 
-void TagSession::setTagInterval(int index, qint64 startMs, qint64 endMs) {
-  if (index < 0 || index >= tags_.size()) return;
+bool TagSession::setTagInterval(int index, qint64 startMs, qint64 endMs) {
+  if (!isValidTagIndex(index)) {
+    Q_ASSERT_X(false, "TagSession::setTagInterval", "invalid tag index");
+    return false;
+  }
   if (startMs < 0) startMs = 0;
   if (endMs < startMs) endMs = startMs;
   GameTag& tag = tags_[index];
-  tag.intervalManuallyEdited = true;
-  if (tag.startMs == startMs && tag.endMs == endMs) return;
+  if (tag.startMs == startMs && tag.endMs == endMs) return true;
   tag.startMs = startMs;
   tag.endMs = endMs;
-  restoreGameTimeStateFromTags();
+  tag.intervalManuallyEdited = true;
+  clampTagInterval(tag);
+  if (isGameTimeMainEvent(tag.mainEvent)) {
+    upsertGameTimeTag(tag);
+    restoreGameTimeStateFromTags();
+  }
   emit tagIntervalChanged(index);
+  return true;
 }
 
 void TagSession::applyDefaultsToUntrimmedTags(const QString& mainEvent, qint64 leadMs, qint64 lagMs) {
@@ -330,6 +388,7 @@ void TagSession::resetGameTimeState() {
 }
 
 QString TagSession::periodLabelAtTimestampMs(qint64 positionMs) const {
+  // O(kQuarterCount) over cached spans. Does not walk tags_ or gameTimeTags_.
   int matchingQuarterIndex = -1;
   qint64 matchingStartMs = 0;
   qint64 matchingEndMs = 0;

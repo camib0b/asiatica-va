@@ -1,0 +1,27 @@
+---
+description: Prefer std::array over raw C-style fixed-size arrays
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# Prefer std::array over C-style arrays
+
+Use `std::array<T, N>` for fixed-size buffers and member storage. Raw `T name[N]` decays to a pointer, hides the length from the type, and skips STL helpers (`size()`, range-for, `.at()` for debug bounds checks).
+
+- **Member storage**: `std::array<ClosedQuarterSpan, kQuarterCount> closedQuarters_{};` not `ClosedQuarterSpan closedQuarters_[kQuarterCount]`.
+- **Function parameters**: pass `const std::array<T, N>&` (or `std::span<const T>` when size is only known at runtime).
+- **Stack locals** with a fixed count: `std::array<qint64, 3> components{};` not `qint64 components[3]`.
+- Keep `QVector` / `std::vector` for dynamic length; `std::array` is for compile-time-fixed size only.
+- `#include <array>` in headers that declare the member or parameter type.
+
+```cpp
+// BAD — size is not part of the type; array decays when passed around
+ClosedQuarterSpan closedQuarters_[kQuarterCount] = {};
+void labelAt(const ClosedQuarterSpan quarters[kQuarterCount]);
+
+// GOOD — size is in the type; same indexing syntax
+std::array<ClosedQuarterSpan, kQuarterCount> closedQuarters_{};
+void labelAt(const std::array<ClosedQuarterSpan, kQuarterCount>& quarters);
+```
+
+When the index is already bounded by `kQuarterCount` loops, `operator[]` is fine. Prefer `.at(i)` when the index comes from external input and you want a hard bounds check in debug builds.

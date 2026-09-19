@@ -58,6 +58,8 @@
 #include <QLayout>
 #include <QFileInfo>
 #include <QTimer>
+#include <QSignalBlocker>
+#include <QEvent>
 #include <QDialog>
 #include <QFont>
 #include <QModelIndex>
@@ -73,6 +75,46 @@
 #include <algorithm>
 
 namespace {
+
+constexpr int kTagMarkMsRole = Qt::UserRole;
+constexpr int kTagMainEventRole = Qt::UserRole + 1;
+constexpr int kTagFollowUpEventRole = Qt::UserRole + 2;
+constexpr int kTagSessionIndexRole = Qt::UserRole + 3;
+constexpr int kTagIdRole = Qt::UserRole + 4;
+
+class ScopedTrueFlag {
+public:
+    explicit ScopedTrueFlag(bool& flag) : flag_(flag), previous_(flag) { flag_ = true; }
+    ~ScopedTrueFlag() { flag_ = previous_; }
+    ScopedTrueFlag(const ScopedTrueFlag&) = delete;
+    ScopedTrueFlag& operator=(const ScopedTrueFlag&) = delete;
+
+private:
+    bool& flag_;
+    bool previous_;
+};
+
+quint64 tagIdFromItem(const QTableWidgetItem* item) {
+    if (!item) return 0;
+    const QVariant idValue = item->data(kTagIdRole);
+    if (!idValue.isValid()) return 0;
+    return idValue.toULongLong();
+}
+
+int tagSessionIndexFromItem(const QTableWidgetItem* item) {
+    if (!item) return -1;
+    const QVariant indexValue = item->data(kTagSessionIndexRole);
+    if (!indexValue.isValid()) return -1;
+    return indexValue.toInt();
+}
+
+int rowForTagId(const QTableWidget* table, const quint64 tagId) {
+    if (!table || tagId == 0) return -1;
+    for (int row = 0; row < table->rowCount(); ++row) {
+        if (tagIdFromItem(table->item(row, 0)) == tagId) return row;
+    }
+    return -1;
+}
 
 bool isTextInteractionFocusWidget(const QWidget* widget) {
     if (!widget) return false;
@@ -200,6 +242,7 @@ WorkWindow::WorkWindow(QWidget* parent) : QWidget(parent) {
 }
 
 WorkWindow::~WorkWindow() {
+    flushPendingClipNote();
     detachPresentationKeyboardShortcuts();
     disconnectTagSessionSignals();
     tagSession_ = nullptr;
@@ -331,9 +374,29 @@ void WorkWindow::disconnectTagSessionSignals() {
     tagSessionConnections_.clear();
 }
 
+void WorkWindow::syncContextPeriodFromSession() {
+    if (!tagSession_) {
+        contextPeriod_.clear();
+        return;
+    }
+    // GameEnded leaves currentQuarterIndex_ at -1 (no quarter in progress). New tags
+    // after the whistle still belong to Q4, matching periodLabelAtTimestampMs().
+    if (tagSession_->quarterPhase() == TagSession::QuarterPhase::GameEnded) {
+        contextPeriod_ = EventDefaults::quarterCode(3);
+        return;
+    }
+    const int currentQuarterIndex = tagSession_->currentQuarterIndex();
+    if (currentQuarterIndex >= 0) {
+        contextPeriod_ = EventDefaults::quarterCode(currentQuarterIndex);
+        return;
+    }
+    contextPeriod_.clear();
+}
+
 void WorkWindow::setTagSession(TagSession* session) {
     if (tagSession_ == session) return;
 
+    flushPendingClipNote();
     disconnectTagSessionSignals();
 
     tagSession_ = session;
@@ -361,6 +424,7 @@ void WorkWindow::setTagSession(TagSession* session) {
 
     tagSessionConnections_.append(connect(tagSession_, &TagSession::cleared, this, [this]() {
         if (!tagSession_) return;
+        discardPendingClipNote();
         rebuildFilterMenu();
         rebuildTagsList();
     }));
@@ -373,11 +437,7 @@ void WorkWindow::setTagSession(TagSession* session) {
             gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
                                             tagSession_->currentQuarterIndex());
         }
-        if (tagSession_->currentQuarterIndex() >= 0) {
-            contextPeriod_ = EventDefaults::quarterCode(tagSession_->currentQuarterIndex());
-        } else {
-            contextPeriod_.clear();
-        }
+        syncContextPeriodFromSession();
     }));
 
     tagSessionConnections_.append(connect(tagSession_, &TagSession::tagAdded, this, [this](const TagSession::GameTag&) {
@@ -394,17 +454,14 @@ void WorkWindow::setTagSession(TagSession* session) {
             gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
                                             tagSession_->currentQuarterIndex());
         }
-        if (tagSession_->currentQuarterIndex() >= 0) {
-            contextPeriod_ = EventDefaults::quarterCode(tagSession_->currentQuarterIndex());
-        }
+        syncContextPeriodFromSession();
     }));
     tagSessionConnections_.append(connect(tagSession_, &TagSession::tagNoteChanged, this, [this](int changedIndex) {
-        if (!notesEdit_ || !tagSession_) return;
-        if (notesEdit_->hasFocus()) return;
-        const QTableWidgetItem* item = selectedTagRowTimeItem();
-        if (!item) return;
-        const QVariant indexValue = item->data(Qt::UserRole + 3);
-        if (!indexValue.isValid() || indexValue.toInt() != changedIndex) return;
+        if (suppressClipNoteReload_ || !notesEdit_ || !tagSession_) return;
+        if (pendingNoteTagId_ != 0) return;
+        if (!tagSession_->isValidTagIndex(changedIndex)) return;
+        const quint64 changedTagId = tagSession_->tags().at(changedIndex).id;
+        if (selectedTagId() != changedTagId) return;
         const QString noteText = tagSession_->tagNote(changedIndex);
         if (notesEdit_->toPlainText() == noteText) return;
         loadNoteForSelectedTag();
@@ -414,6 +471,15 @@ void WorkWindow::setTagSession(TagSession* session) {
         if (matchNotesEditor_ && matchNotesEditor_->hasFocus()) return;
         loadMatchNote();
     }));
+    tagSessionConnections_.append(connect(tagSession_, &TagSession::gameMetadataChanged, this, [this]() {
+        if (!tagSession_) return;
+        if (gameControls_) {
+            gameControls_->setSessionTeamNames(tagSession_->homeTeamName(), tagSession_->awayTeamName(),
+                                               tagSession_->homeTeamColor(), tagSession_->awayTeamColor());
+        }
+        rebuildTagsList();
+        refreshMatchNoteMentionCandidates();
+    }));
 }
 
 void WorkWindow::setMode(Mode m) {
@@ -421,6 +487,7 @@ void WorkWindow::setMode(Mode m) {
         return;
     }
     if (mode_ == m) return;
+    flushPendingClipNote();
     if (mode_ == Mode::Tagging && m != Mode::Tagging) {
         captureTaggingModeUiStateForRestore();
     }
@@ -1246,8 +1313,10 @@ void WorkWindow::wireSignals() {
     connect(modeAnalyzingBtn_, &QToolButton::clicked, this, &WorkWindow::onModeToggled);
     connect(modePresentingBtn_, &QToolButton::clicked, this, &WorkWindow::onModeToggled);
 
-    if (notesEdit_)
+    if (notesEdit_) {
+        notesEdit_->installEventFilter(this);
         connect(notesEdit_, &QPlainTextEdit::textChanged, this, &WorkWindow::onNoteTextChanged);
+    }
     if (matchNotesEditor_) {
         connect(matchNotesEditor_, &MatchNotesEditor::textChanged, this,
                 &WorkWindow::onMatchNoteTextChanged);
@@ -1403,7 +1472,7 @@ void WorkWindow::onNextQuarterRequested() {
     if (nextIndex >= 4) {
         tagSession_->clearCurrentQuarter();
         tagSession_->setQuarterPhase(TagSession::QuarterPhase::GameEnded);
-        contextPeriod_.clear();
+        syncContextPeriodFromSession();
     } else {
         tagSession_->setCurrentQuarter(nextIndex, nowMs);
         contextPeriod_ = EventDefaults::quarterCode(nextIndex);
@@ -1448,6 +1517,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     hasPreservedTaggingUiState_ = false;
     preservedTaggingVideoTagsSplitterSizes_.clear();
 
+    discardPendingClipNote();
     if (tagSession_) tagSession_->clear();
     hasPendingTag_ = false;
     pendingMainEvent_.clear();
@@ -1570,6 +1640,7 @@ void WorkWindow::onCloseVideo() {
     presentationPlaybackStarted_ = false;
     lastPresentationPlayheadMs_ = -1;
 
+    discardPendingClipNote();
     if (tagSession_) tagSession_->clear();
     hasPendingTag_ = false;
     pendingMainEvent_.clear();
@@ -1716,6 +1787,11 @@ void WorkWindow::onImportXml() {
     }
 
     const qint64 videoDurationMs = videoPlayer_->durationMs();
+    if (importMode == TagSession::ImportMode::Replace) {
+        discardPendingClipNote();
+    } else {
+        flushPendingClipNote();
+    }
     const TagSession::ImportResult result =
         tagSession_->importTags(importedTags, importMode, videoDurationMs);
 
@@ -1986,7 +2062,11 @@ void WorkWindow::detachPresentationKeyboardShortcuts() {
 }
 
 bool WorkWindow::eventFilter(QObject* watched, QEvent* event) {
-    if (!presentationKeyboardShortcutsInstalled_ || mode_ != Mode::Presenting ||
+    if (watched == notesEdit_ && event && event->type() == QEvent::FocusOut) {
+        flushPendingClipNote();
+    }
+
+    if (!event || !presentationKeyboardShortcutsInstalled_ || mode_ != Mode::Presenting ||
         event->type() != QEvent::KeyPress) {
         return QWidget::eventFilter(watched, event);
     }
@@ -2016,20 +2096,15 @@ bool WorkWindow::eventFilter(QObject* watched, QEvent* event) {
 }
 
 void WorkWindow::onTagSelectionChanged() {
-    noteDebounceTimer_->stop();
     flushPendingClipNote();
     loadNoteForSelectedTag();
 }
 
 void WorkWindow::onNoteTextChanged() {
-    if (!notesEdit_ || !tagsTable_) return;
-    auto* item = selectedTagRowTimeItem();
-    if (!item) return;
-    QVariant idxVar = item->data(Qt::UserRole + 3);
-    if (!idxVar.isValid()) return;
-    int idx = idxVar.toInt();
-    if (idx < 0 || (tagSession_ && idx >= tagSession_->tags().size())) return;
-    pendingNoteIndex_ = idx;
+    if (!notesEdit_ || !tagSession_ || !noteDebounceTimer_) return;
+    const quint64 tagId = selectedTagId();
+    if (tagId == 0 || tagSession_->indexOfTagId(tagId) < 0) return;
+    pendingNoteTagId_ = tagId;
     pendingNoteText_ = notesEdit_->toPlainText();
     noteDebounceTimer_->start(400);
 }
@@ -2048,10 +2123,29 @@ void WorkWindow::saveMatchNoteDebounceFired() {
     tagSession_->setMatchNote(matchNotesEditor_->serializedHtml());
 }
 
+void WorkWindow::discardPendingClipNote() {
+    if (noteDebounceTimer_) noteDebounceTimer_->stop();
+    pendingNoteTagId_ = 0;
+    pendingNoteText_.clear();
+}
+
 void WorkWindow::flushPendingClipNote() {
-    if (pendingNoteIndex_ < 0 || !tagSession_) return;
-    tagSession_->setTagNote(pendingNoteIndex_, pendingNoteText_);
-    pendingNoteIndex_ = -1;
+    if (noteDebounceTimer_) noteDebounceTimer_->stop();
+    if (pendingNoteTagId_ == 0) return;
+
+    const quint64 tagId = pendingNoteTagId_;
+    const QString noteText = pendingNoteText_;
+    pendingNoteTagId_ = 0;
+    pendingNoteText_.clear();
+
+    if (!tagSession_) return;
+    const int sessionIndex = tagSession_->indexOfTagId(tagId);
+    if (sessionIndex < 0 || !tagSession_->isValidTagIndex(sessionIndex)) return;
+    if (!tagSession_->setTagNote(sessionIndex, noteText)) return;
+}
+
+quint64 WorkWindow::selectedTagId() const {
+    return tagIdFromItem(selectedTagRowTimeItem());
 }
 
 void WorkWindow::showStatsOverlay() {
@@ -2073,30 +2167,44 @@ void WorkWindow::showStatsOverlay() {
 }
 
 void WorkWindow::loadNoteForSelectedTag() const {
-    if (!tagSession_ || !notesEdit_) return;
-    auto* item = selectedTagRowTimeItem();
+    if (!notesEdit_) return;
+
+    const QTableWidgetItem* item = selectedTagRowTimeItem();
+    const quint64 selectedId = tagIdFromItem(item);
+    if (pendingNoteTagId_ != 0 && pendingNoteTagId_ == selectedId) {
+        notesEdit_->blockSignals(true);
+        if (notesEdit_->toPlainText() != pendingNoteText_) {
+            notesEdit_->setPlainText(pendingNoteText_);
+        }
+        notesEdit_->blockSignals(false);
+        notesEdit_->setEnabled(true);
+        notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
+        return;
+    }
+
     notesEdit_->blockSignals(true);
-    if (!item) {
+    if (!item || !tagSession_) {
         if (!notesEdit_->toPlainText().isEmpty()) {
             notesEdit_->clear();
         }
         notesEdit_->setEnabled(false);
         notesEdit_->setPlaceholderText(AppLocale::trUi("notes.clip_placeholder_none"));
-    } else {
-        QVariant idxVar = item->data(Qt::UserRole + 3);
-        if (idxVar.isValid()) {
-            int idx = idxVar.toInt();
-            if (idx >= 0 && idx < tagSession_->tags().size()) {
-                const QString noteText = tagSession_->tagNote(idx);
-                if (notesEdit_->toPlainText() != noteText) {
-                    notesEdit_->setPlainText(noteText);
-                }
-                notesEdit_->setEnabled(true);
-                notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
-                notesEdit_->blockSignals(false);
-                return;
-            }
+        notesEdit_->blockSignals(false);
+        return;
+    }
+
+    int sessionIndex = tagSession_->indexOfTagId(selectedId);
+    if (sessionIndex < 0) {
+        sessionIndex = tagSessionIndexFromItem(item);
+    }
+    if (tagSession_->isValidTagIndex(sessionIndex)) {
+        const QString noteText = tagSession_->tagNote(sessionIndex);
+        if (notesEdit_->toPlainText() != noteText) {
+            notesEdit_->setPlainText(noteText);
         }
+        notesEdit_->setEnabled(true);
+        notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
+    } else {
         if (!notesEdit_->toPlainText().isEmpty()) {
             notesEdit_->clear();
         }
@@ -2138,12 +2246,12 @@ void WorkWindow::refreshMatchNoteMentionCandidates() const {
 void WorkWindow::onMatchNoteTagMentionActivated(quint64 tagId) {
     if (!tagSession_ || !tagsTable_) return;
     const int sessionIndex = tagSession_->indexOfTagId(tagId);
-    if (sessionIndex < 0 || sessionIndex >= tagSession_->tags().size()) return;
+    if (!tagSession_->isValidTagIndex(sessionIndex)) return;
 
     for (int row = 0; row < tagsTable_->rowCount(); ++row) {
         QTableWidgetItem* timeItem = tagsTable_->item(row, 0);
         if (!timeItem) continue;
-        if (timeItem->data(Qt::UserRole + 3).toInt() != sessionIndex) continue;
+        if (tagIdFromItem(timeItem) != tagId) continue;
         tagsTable_->selectRow(row);
         tagsTable_->scrollToItem(timeItem, QAbstractItemView::PositionAtCenter);
         onTagTableSeekToRow(row);
@@ -2159,7 +2267,7 @@ void WorkWindow::onTagTableSeekToRow(int row) {
     if (row < 0 || !videoPlayer_ || !tagsTable_) return;
     QTableWidgetItem* timeItem = tagsTable_->item(row, 0);
     if (!timeItem) return;
-    videoPlayer_->seekToMs(timeItem->data(Qt::UserRole).toLongLong());
+    videoPlayer_->seekToMs(timeItem->data(kTagMarkMsRole).toLongLong());
 }
 
 QTableWidgetItem* WorkWindow::selectedTagRowTimeItem() const {
@@ -2187,13 +2295,10 @@ void WorkWindow::setTagTableRowBackground(int row, const QBrush& brush) const {
         }
     }
     if (QTableWidgetItem* teamItem = tagsTable_->item(row, 1)) {
-        const QVariant tagIndexVar = tagsTable_->item(row, 0) ? tagsTable_->item(row, 0)->data(Qt::UserRole + 3) : QVariant();
-        if (tagSession_ && tagIndexVar.isValid()) {
-            const int tagIndex = tagIndexVar.toInt();
-            if (tagIndex >= 0 && tagIndex < tagSession_->tags().size()) {
-                paintTeamCellForTag(teamItem, tagSession_->tags().at(tagIndex), tagSession_);
-                return;
-            }
+        const int tagIndex = tagSessionIndexFromItem(tagsTable_->item(row, 0));
+        if (tagSession_ && tagSession_->isValidTagIndex(tagIndex)) {
+            paintTeamCellForTag(teamItem, tagSession_->tags().at(tagIndex), tagSession_);
+            return;
         }
         paintTeamCellForTag(teamItem, TagSession::GameTag{}, tagSession_);
     }
@@ -2252,7 +2357,7 @@ void WorkWindow::updateTagPlayheadHighlight(qint64 positionMs) const {
     for (int row = 0; row < tagsTable_->rowCount(); ++row) {
         QTableWidgetItem* keyItem = tagsTable_->item(row, 0);
         if (!keyItem) continue;
-        const qint64 tagMs = keyItem->data(Qt::UserRole).toLongLong();
+        const qint64 tagMs = keyItem->data(kTagMarkMsRole).toLongLong();
         const qint64 diff = (tagMs > positionMs) ? (tagMs - positionMs) : (positionMs - tagMs);
         if (diff <= kPlayheadNearToleranceMs) {
             setTagTableRowBackground(row, QBrush(Style::ThemeColors::playheadHighlight()));
@@ -2268,13 +2373,18 @@ void WorkWindow::onDeleteSelectedTag() {
     auto* item = selectedTagRowTimeItem();
     if (!item) return;
     
-    // Get the stored TagSession index directly from the item
-    const QVariant tagIndexVar = item->data(Qt::UserRole + 3);
-    if (!tagIndexVar.isValid()) return;
-    
-    const int tagIndex = tagIndexVar.toInt();
-    if (tagIndex < 0 || tagIndex >= tagSession_->tags().size()) return;
-    
+    const quint64 tagId = tagIdFromItem(item);
+    int tagIndex = tagSession_->indexOfTagId(tagId);
+    if (tagIndex < 0) {
+        tagIndex = tagSessionIndexFromItem(item);
+    }
+    if (tagIndex < 0 || !tagSession_->isValidTagIndex(tagIndex)) return;
+
+    if (pendingNoteTagId_ != 0 && pendingNoteTagId_ == tagId) {
+        discardPendingClipNote();
+    } else {
+        flushPendingClipNote();
+    }
     tagSession_->removeTag(tagIndex);
     rebuildTagsList();
 }
@@ -2421,11 +2531,20 @@ void WorkWindow::updateFilterIndicator() const {
 
 void WorkWindow::rebuildTagsList() {
     if (!tagsTable_) return;
+
+    const ScopedTrueFlag reloadGuard(suppressClipNoteReload_);
+    const quint64 previouslySelectedTagId = selectedTagId();
+    const QSignalBlocker tableBlocker(tagsTable_);
+
     if (!tagSession_) {
+        discardPendingClipNote();
         tagsTable_->setRowCount(0);
         refreshMatchNoteMentionCandidates();
+        loadNoteForSelectedTag();
         return;
     }
+
+    flushPendingClipNote();
     tagsTable_->setRowCount(0);
 
     // Collect (tag, tagSessionIndex) for tags that pass the filter
@@ -2457,10 +2576,11 @@ void WorkWindow::rebuildTagsList() {
             AppLocale::trDisplayTagLine(tag.mainEvent, followUpForEventColumn(tag.followUpEvent, tagSession_));
 
         auto* timeItem = new QTableWidgetItem(timeText);
-        timeItem->setData(Qt::UserRole, tag.markMs);
-        timeItem->setData(Qt::UserRole + 1, tag.mainEvent);
-        timeItem->setData(Qt::UserRole + 2, tag.followUpEvent);
-        timeItem->setData(Qt::UserRole + 3, e.tagSessionIndex);
+        timeItem->setData(kTagMarkMsRole, tag.markMs);
+        timeItem->setData(kTagMainEventRole, tag.mainEvent);
+        timeItem->setData(kTagFollowUpEventRole, tag.followUpEvent);
+        timeItem->setData(kTagSessionIndexRole, e.tagSessionIndex);
+        timeItem->setData(kTagIdRole, tag.id);
         timeItem->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
         auto* teamItem = new QTableWidgetItem(teamText);
@@ -2478,11 +2598,22 @@ void WorkWindow::rebuildTagsList() {
 
     tagsTable_->resizeColumnToContents(0);
     tagsTable_->resizeColumnToContents(1);
-    tagsTable_->scrollToBottom();
+
+    const int restoredRow = rowForTagId(tagsTable_, previouslySelectedTagId);
+    if (restoredRow >= 0) {
+        tagsTable_->selectRow(restoredRow);
+        if (QTableWidgetItem* restoredItem = tagsTable_->item(restoredRow, 0)) {
+            tagsTable_->scrollToItem(restoredItem, QAbstractItemView::EnsureVisible);
+        }
+    } else {
+        tagsTable_->scrollToBottom();
+    }
+
     updateFilterIndicator();
     updateFilterButtonsVisibility();
     if (videoPlayer_) {
         updateTagPlayheadHighlight(videoPlayer_->currentPositionMs());
     }
     refreshMatchNoteMentionCandidates();
+    loadNoteForSelectedTag();
 }

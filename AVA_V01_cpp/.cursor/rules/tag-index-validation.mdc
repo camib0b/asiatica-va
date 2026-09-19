@@ -1,0 +1,30 @@
+---
+description: Validate TagSession tag indices; mutators return bool and assert in debug
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# TagSession index validation
+
+Index-based `TagSession` APIs must not silently no-op on out-of-range indices. UI code can hold stale row indices after `removeTag`, import, or filter rebuilds.
+
+- **`isValidTagIndex(int)`** — single bounds check shared by session and callers.
+- **Mutators** (`removeTag`, `setTagNote`, `setTagInterval`) return **`bool`**: `false` on invalid index, `true` on success or idempotent no-op (unchanged note/interval).
+- **`Q_ASSERT_X`** on invalid index in debug builds — catches programmer errors; release builds still return `false` without crashing.
+- **`tagNote`** returns empty `QString()` on invalid index (same assert). Callers that must distinguish an empty note from a miss must call `isValidTagIndex` first.
+- Resolve identity with **`indexOfTagId`** before using a cached index; do not assume table row order equals session index after mutations.
+
+```cpp
+// BAD — void return; caller cannot tell if delete/note/trim applied
+void removeTag(int index) {
+  if (index < 0 || index >= tags_.size()) return;
+  tags_.removeAt(index);
+}
+
+// GOOD — explicit miss handling at the call site
+const int sessionIndex = tagSession_->indexOfTagId(tagId);
+if (!tagSession_->isValidTagIndex(sessionIndex)) return;
+if (!tagSession_->setTagNote(sessionIndex, noteText)) return;
+```
+
+Do not emit change signals when validation fails — that desynchronizes UI listeners.

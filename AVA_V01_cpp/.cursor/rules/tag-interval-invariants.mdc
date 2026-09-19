@@ -23,3 +23,18 @@ clampTagInterval(stored);  // start>=0, end>=start, mark inside [start, end]
 ```
 
 Do not duplicate clamp logic in `addTag` and `importTags`. One helper, both callers.
+
+`setTagInterval` sets `intervalManuallyEdited` **only after** start/end actually change. A clamped no-op must not lock the tag; `applyDefaultsToUntrimmedTags` skips only truly trimmed clips.
+
+```cpp
+// BAD — lock even when clamping leaves the stored interval unchanged
+tag.intervalManuallyEdited = true;
+if (tag.startMs == startMs && tag.endMs == endMs) return true;
+
+// GOOD — lock only on a real write
+if (tag.startMs == startMs && tag.endMs == endMs) return true;
+tag.startMs = startMs;
+tag.endMs = endMs;
+tag.intervalManuallyEdited = true;
+clampTagInterval(tag);  // keep markMs inside the new interval
+```

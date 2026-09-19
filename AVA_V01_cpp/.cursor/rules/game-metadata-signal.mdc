@@ -1,0 +1,29 @@
+---
+description: Emit one gameMetadataChanged signal for the TagSession setup snapshot
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# Game metadata is one snapshot, one signal
+
+Team names/colors, competition, date, and abbreviations are a single game-setup snapshot. Mutators (`setGameTeams`, `setGameMetadata`, `clearGameMetadata`) normalize, compare, write, then emit **`gameMetadataChanged()` once** if anything in that call actually changed. Do not add per-field signals.
+
+`tagsChanged()` is only for tag membership/order/counts. Do not piggy-back metadata refreshes on it. `clear()` does not clear metadata; `MainWindow::resetTagSession()` calls `clear()` then `clearGameMetadata()`, so observers must handle the metadata signal or they keep stale team labels after tags are gone.
+
+```cpp
+// BAD — UI refreshes on tagsChanged while metadata is written with no signal
+tagSession_->clear();
+tagSession_->clearGameMetadata();  // silent; stats/game controls still show old names
+
+// GOOD
+void TagSession::setGameTeams(...) {
+  // trim, compare, assign
+  emit gameMetadataChanged();
+}
+connect(tagSession_, &TagSession::gameMetadataChanged, this, [this]() {
+  gameControls_->setSessionTeamNames(tagSession_->homeTeamName(), ...);
+  rebuildTagsList();
+});
+```
+
+Connect observers to existing refresh helpers (`setSessionTeamNames`, `rebuildTagsList`, `updateTeamFilterButtonLabels`, `refreshFromSession`). Exporters read metadata on demand and do not need the signal.

@@ -66,6 +66,11 @@ void StatsWindow::setTagSession(TagSession* session) {
     connect(tagSession_, &TagSession::tagsChanged, this, [this]() {
         rebuildTree();
     });
+
+    connect(tagSession_, &TagSession::gameMetadataChanged, this, [this]() {
+        updateTeamFilterButtonLabels();
+        rebuildTree();
+    });
 }
 
 void StatsWindow::buildUi() {

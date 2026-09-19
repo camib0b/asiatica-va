@@ -147,12 +147,15 @@ private:
   void captureTaggingModeUiStateForRestore();
   void restoreTaggingModeUiStateAfterLayout();
   void disconnectTagSessionSignals();
+  void syncContextPeriodFromSession();
   void rebuildTagsList();
   void rebuildFilterMenu();
   void updateFilterIndicator() const;
   void updateFilterButtonsVisibility() const;
   void updateTagPlayheadHighlight(qint64 positionMs) const;
   void flushPendingClipNote();
+  void discardPendingClipNote();
+  quint64 selectedTagId() const;
   void loadNoteForSelectedTag() const;
   void loadMatchNote() const;
   void refreshMatchNoteMentionCandidates() const;
@@ -246,8 +249,9 @@ private:
   StatsWindow* statsOverlay_ = nullptr;
   QTimer* noteDebounceTimer_ = nullptr;
   QTimer* matchNoteDebounceTimer_ = nullptr;
-  int pendingNoteIndex_ = -1;
+  quint64 pendingNoteTagId_ = 0;
   QString pendingNoteText_;
+  bool suppressClipNoteReload_ = false;
 
   QLabel* tagsHeaderLabel_ = nullptr;
   QToolButton* tagsFilterButton_ = nullptr;

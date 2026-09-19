@@ -13,6 +13,7 @@
 #include <QStyleOptionSlider>
 
 #include <algorithm>
+#include <array>
 #include <limits>
 
 
@@ -328,7 +329,7 @@ bool TimelineBar::parseTimeEntryMs(const QString& text, qint64* outMs) {
     const QStringList parts = trimmed.split(QLatin1Char(':'), Qt::KeepEmptyParts);
     if (parts.size() < 2 || parts.size() > 3) return false;
 
-    qint64 components[3] = {0, 0, 0};
+    std::array<qint64, 3> components{};
     const int partCount = parts.size();
     for (int i = 0; i < partCount; ++i) {
       if (!parseNonNegativeInt64(parts.at(i).trimmed(), &components[i])) return false;
