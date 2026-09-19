@@ -1,5 +1,6 @@
 #include "LicenseManager.h"
 
+#include "../ui/QtPtr.h"
 #include "DeviceId.h"
 #include "LicenseConfig.h"
 #include "LicenseConstants.h"
@@ -55,10 +56,8 @@ int wholeDaysRemaining(qint64 expiresAt, qint64 nowUnix) {
 } // namespace
 
 LicenseManager& LicenseManager::instance() {
-  static LicenseManager* manager = nullptr;
-  if (!manager) {
-    manager = new LicenseManager(qApp);
-  }
+  static std::unique_ptr<LicenseManager, QtParentDeleter> manager{
+      new LicenseManager(qApp)};
   return *manager;
 }
 
