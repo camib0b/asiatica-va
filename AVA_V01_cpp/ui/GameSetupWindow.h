@@ -80,9 +80,6 @@ private:
   void discardMetadataSuggester();
   bool suggestionSignalsArmed() const;
   void setSuggestionStatusKey(const char* key);
-  /// Returns the first 3 alphanumeric characters of \p teamName, uppercased.
-  /// Falls back to empty string when the team name has no alphanumeric content.
-  static QString deriveAbbreviationFromTeamName(const QString& teamName);
 
   QString videoPath_;
   QDate gameDate_;
