@@ -13,7 +13,7 @@
 
 namespace {
 constexpr int kPreferredWidthPx = 140;
-constexpr int kPreferredHeightPx = 26;
+constexpr int kPreferredHeightPx = 20;
 constexpr int kTrackMarginXPx = 8;
 constexpr int kTrackHeightPx = 8;
 constexpr int kThumbRadiusPx = 6;

@@ -67,8 +67,8 @@ void VideoControlsBar
   setAttribute(Qt::WA_StyledBackground, true);
 
   auto* layout = new QHBoxLayout(this);
-  layout->setContentsMargins(8, 6, 8, 6);
-  layout->setSpacing(8);
+  layout->setContentsMargins(6, 4, 6, 4);
+  layout->setSpacing(4);
 
   playPauseButton_ = new QPushButton(this);
   playPauseButton_->setObjectName(QStringLiteral("PlayPauseButton"));
@@ -88,15 +88,13 @@ void VideoControlsBar
     button->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
   }
 
-  Style::setVariant(playPauseButton_, "primary");
+  Style::setVariant(playPauseButton_, "outline");
   Style::setVariant(backButton_, "outline");
   Style::setVariant(forwardButton_, "outline");
 
   layout->addWidget(playPauseButton_);
-  layout->addSpacing(8);
   layout->addWidget(backButton_);
   layout->addWidget(forwardButton_);
-  layout->addSpacing(8);
   layout->addWidget(speedometer_);
 }
 

@@ -961,89 +961,89 @@ QSlider#TimelineSlider::handle:horizontal:hover {
 ========================= */
 
 QWidget#VideoControlsBar {
-  background-color: rgba(9, 9, 11, 0.72);
+  background-color: rgba(9, 9, 11, 0.48);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
 }
 
 QWidget#VideoControlsBar QPushButton {
-  padding: 4px 8px;
-  font-size: 12px;
-  min-height: 26px;
+  padding: 0 6px;
+  font-size: 11px;
+  min-height: 20px;
+  max-height: 20px;
   border-radius: 6px;
   border: none;
   color: #fafafa;
-  background: rgba(255, 255, 255, 0.12);
+  background: transparent;
   font-weight: 500;
 }
 
 QWidget#VideoControlsBar QPushButton:hover {
-  background: rgba(255, 255, 255, 0.20);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 QWidget#VideoControlsBar QPushButton:pressed {
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.20);
 }
 
 QWidget#VideoControlsBar QPushButton:disabled {
-  color: rgba(250, 250, 250, 0.35);
-  background: rgba(255, 255, 255, 0.06);
+  color: rgba(250, 250, 250, 0.55);
+  background: transparent;
 }
 
 QWidget#VideoControlsBar QPushButton:focus {
   border: none;
   outline: none;
-  padding: 4px 8px;
+  padding: 0 6px;
 }
 
 QWidget#VideoControlsBar QPushButton#PlayPauseButton {
-  min-width: 28px;
-  max-width: 28px;
-  padding: 4px 0;
+  min-width: 20px;
+  max-width: 20px;
+  min-height: 20px;
+  max-height: 20px;
+  padding: 0;
 }
 
-QWidget#VideoControlsBar QPushButton[variant="primary"] {
-  background: #fafafa;
-  color: #09090b;
-  font-weight: 600;
+QWidget#VideoControlsBar QPushButton#PlayPauseButton:focus {
+  padding: 0;
 }
 
-QWidget#VideoControlsBar QPushButton[variant="primary"]:hover {
-  background: #e4e4e7;
-}
-
-QWidget#VideoControlsBar QPushButton[variant="primary"]:pressed {
-  background: #d4d4d8;
-}
-
-QWidget#VideoControlsBar QPushButton[variant="primary"]:disabled {
-  color: rgba(9, 9, 11, 0.35);
-  background: rgba(250, 250, 250, 0.45);
-}
-
+QWidget#VideoControlsBar QPushButton[variant="primary"],
 QWidget#VideoControlsBar QPushButton[variant="secondary"],
 QWidget#VideoControlsBar QPushButton[variant="outline"],
 QWidget#VideoControlsBar QPushButton[variant="ghost"] {
   border: none;
   color: #fafafa;
-  background: rgba(255, 255, 255, 0.10);
+  background: transparent;
+  font-weight: 500;
 }
 
+QWidget#VideoControlsBar QPushButton[variant="primary"]:hover,
 QWidget#VideoControlsBar QPushButton[variant="secondary"]:hover,
 QWidget#VideoControlsBar QPushButton[variant="outline"]:hover,
 QWidget#VideoControlsBar QPushButton[variant="ghost"]:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.12);
 }
 
+QWidget#VideoControlsBar QPushButton[variant="primary"]:pressed,
 QWidget#VideoControlsBar QPushButton[variant="secondary"]:pressed,
 QWidget#VideoControlsBar QPushButton[variant="outline"]:pressed,
 QWidget#VideoControlsBar QPushButton[variant="ghost"]:pressed {
-  background: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.20);
+}
+
+QWidget#VideoControlsBar QPushButton[variant="primary"]:disabled,
+QWidget#VideoControlsBar QPushButton[variant="secondary"]:disabled,
+QWidget#VideoControlsBar QPushButton[variant="outline"]:disabled,
+QWidget#VideoControlsBar QPushButton[variant="ghost"]:disabled {
+  color: rgba(250, 250, 250, 0.55);
+  background: transparent;
 }
 
 QWidget#VideoControlsBar QPushButton[flash="true"] {
   border: none;
-  background: rgba(255, 255, 255, 0.30);
+  background: rgba(255, 255, 255, 0.28);
   color: #fafafa;
 }
 
@@ -1062,8 +1062,8 @@ QWidget#VideoControlsBar QPushButton:checked {
 QWidget#VideoControlsBar QWidget#PlaybackSpeedometer {
   min-width: 140px;
   max-width: 140px;
-  min-height: 26px;
-  max-height: 26px;
+  min-height: 20px;
+  max-height: 20px;
   border: none;
   background: transparent;
 }
