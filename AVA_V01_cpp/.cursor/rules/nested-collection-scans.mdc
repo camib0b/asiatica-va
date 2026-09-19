@@ -1,0 +1,33 @@
+---
+description: Collect the relevant subset once; do not treat O(N log N) sort as a hot-path bug
+globs: export/**/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# Nested collection scans vs necessary sorts
+
+A one-shot XML/clip export of a few hundred tags is I/O-bound. Still do not leave an inner loop that walks the **entire** session for every candidate when the inner loop only cares about a small subset.
+
+- **Copy of the working vector is O(N) and required** when the pass mutates intervals or appends synthetics. Do not treat that copy as a defect.
+- **`stable_sort` is the right tool** when storage order is not the emission comparator (TagSession sorts by `startMs`/`markMs`; export orders by `markMs`, non-Goal before Goal, then stamped `startMs`). A linear merge of “originals + synthetics” is only O(N) if both sides are already in that comparator. They are not.
+- **Do collect the relevant subset once.** `hasExplicitGoalTagForTeam` only needs explicit Goal tags. Build that list (and cache association intervals) in one pass, then scan it per scored-follow-up candidate: O(N + C·G), not O(C·N) with interval math on every tag.
+- **Running totals walk once.** If a later pass needs “score after every Goal through index i”, accumulate while emitting. Do not recount the prefix for each index.
+
+```cpp
+// BAD — every scored follow-up rescan the full session and recomputes Goal intervals
+for (const auto& tag : tags) {
+  if (!followUpPathContainsScoredGoal(tag.followUpEvent)) continue;
+  if (hasExplicitGoalTagForTeam(tags, tag)) continue;  // walks all N tags
+}
+
+// BAD — “avoid sort” by merging lists that are not in emission order
+// session order != exportTagComesBefore; interval stamp changes startMs
+
+// GOOD — one pass over Goals, then candidates scan only that list; keep stable_sort
+const QVector<ExplicitGoal> explicitGoals = collectExplicitGoals(tags);
+for (const auto& tag : tags) {
+  if (!followUpPathContainsScoredGoal(tag.followUpEvent)) continue;
+  if (hasExplicitGoalTagForTeam(explicitGoals, tag)) continue;
+}
+std::stable_sort(expanded.begin(), expanded.end(), exportTagComesBefore);
+```

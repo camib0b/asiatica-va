@@ -36,6 +36,37 @@ QString secondsString(qint64 ms) {
   return QString::number(seconds, 'f', 3);
 }
 
+/// Keeps only characters allowed in XML 1.0 text nodes. QXmlStreamWriter already escapes
+/// &, <, and > via writeCharacters(), but invalid control characters make the writer fail.
+QString xmlTextContent(const QString& raw) {
+  QString sanitized;
+  sanitized.reserve(raw.size());
+  for (int index = 0; index < raw.size(); ++index) {
+    const QChar character = raw.at(index);
+    if (character.isHighSurrogate() && index + 1 < raw.size() &&
+        raw.at(index + 1).isLowSurrogate()) {
+      sanitized.append(character);
+      sanitized.append(raw.at(index + 1));
+      ++index;
+      continue;
+    }
+    if (character.isSurrogate()) continue;
+
+    const ushort code = character.unicode();
+    const bool allowed = code == 0x9 || code == 0xA || code == 0xD ||
+                         (code >= 0x20 && code <= 0xD7FF) ||
+                         (code >= 0xE000 && code <= 0xFFFD);
+    if (allowed) sanitized.append(character);
+  }
+  return sanitized;
+}
+
+void writeXmlTextElement(QXmlStreamWriter& writer,
+                         const QString& elementName,
+                         const QString& text) {
+  writer.writeTextElement(elementName, xmlTextContent(text));
+}
+
 /// Clip interval written to <start>/<end>: current EventDefaults lead/lag around \p tag.markMs,
 /// unless the tag was manually trimmed or is a game-time span (quarters, Inicio, TM).
 QPair<qint64, qint64> exportIntervalFor(const TagSession::GameTag& tag) {
@@ -67,6 +98,51 @@ QColor parseHexColor(const QString& hex, const QColor& fallback) {
   return c.isValid() ? c : fallback;
 }
 
+/// Home/away identity used for instance codes, RESULTADO text, and <ROWS> colors.
+struct TeamInfo {
+  QString homeAbbrev;
+  QString awayAbbrev;
+  QString homeName;
+  QString awayName;
+  QColor homeColor;
+  QColor awayColor;
+
+  bool hasBothAbbrevs() const {
+    return !homeAbbrev.isEmpty() && !awayAbbrev.isEmpty();
+  }
+
+  QString abbrevForTeam(const QString& team) const {
+    if (team == QStringLiteral("Home")) return homeAbbrev;
+    if (team == QStringLiteral("Away")) return awayAbbrev;
+    return QString();
+  }
+
+  QString opposingAbbrevForTeam(const QString& team) const {
+    if (team == QStringLiteral("Home")) return awayAbbrev;
+    if (team == QStringLiteral("Away")) return homeAbbrev;
+    return QString();
+  }
+
+  QString homeScoreboardLabel() const {
+    return homeAbbrev.isEmpty() ? homeName : homeAbbrev;
+  }
+
+  QString awayScoreboardLabel() const {
+    return awayAbbrev.isEmpty() ? awayName : awayAbbrev;
+  }
+};
+
+TeamInfo teamInfoFromSession(const TagSession& session) {
+  TeamInfo teams;
+  teams.homeAbbrev = session.homeAbbrev();
+  teams.awayAbbrev = session.awayAbbrev();
+  teams.homeName = session.homeTeamName();
+  teams.awayName = session.awayTeamName();
+  teams.homeColor = parseHexColor(session.homeTeamColor(), QColor(60, 90, 200));
+  teams.awayColor = parseHexColor(session.awayTeamColor(), QColor(200, 60, 60));
+  return teams;
+}
+
 /// Converts an 8-bit channel (0..255) to a 16-bit channel (0..65535) in the same way the
 /// reference XML does (every 8-bit value maps to value * 257 so 0xff -> 0xffff).
 int eightBitToSixteenBit(int value8) {
@@ -95,23 +171,61 @@ bool followUpPathContainsScoredGoal(const QString& followUpEvent) {
   return false;
 }
 
-/// True when the session already has an explicit Goal tag for the same team tied to \p source
-/// (overlapping clip or goal confirmation shortly after the originating tag).
-bool hasExplicitGoalTagForTeam(const QVector<TagSession::GameTag>& tags,
-                               const TagSession::GameTag& source) {
-  if (source.team.isEmpty()) return false;
-  const QPair<qint64, qint64> sourceInterval = exportIntervalFor(source);
-  constexpr qint64 kGoalConfirmWindowAfterOriginMs = 60000;
+/// Clip span used to decide whether an explicit Goal belongs to \p tag. Manually trimmed
+/// tags keep their export interval for <start>/<end>, but goal association must stay near
+/// markMs so a wide trim does not treat every Goal in the clip as confirmation.
+QPair<qint64, qint64> goalAssociationIntervalFor(const TagSession::GameTag& tag) {
+  if (!tag.intervalManuallyEdited) {
+    return exportIntervalFor(tag);
+  }
+
+  const EventDefaults::EventDuration duration = EventDefaults::defaultFor(tag.mainEvent);
+  qint64 startMs = tag.markMs - duration.leadMs;
+  qint64 endMs = tag.markMs + duration.lagMs;
+  if (startMs < 0) startMs = 0;
+  if (endMs < startMs) endMs = startMs;
+  return {startMs, endMs};
+}
+
+/// Precomputed explicit Goal used to decide whether a follow-up already has a tagged Goal.
+/// Intervals are cached so each Goal is measured once, not once per candidate source.
+struct ExplicitGoal {
+  QString team;
+  qint64 markMs = 0;
+  qint64 associationStartMs = 0;
+  qint64 associationEndMs = 0;
+};
+
+QVector<ExplicitGoal> collectExplicitGoals(const QVector<TagSession::GameTag>& tags) {
+  QVector<ExplicitGoal> goals;
   for (const auto& tag : tags) {
     if (tag.mainEvent != QStringLiteral("Goal")) continue;
-    if (tag.team != source.team) continue;
-    const QPair<qint64, qint64> goalInterval = exportIntervalFor(tag);
-    if (goalInterval.first <= sourceInterval.second &&
-        goalInterval.second >= sourceInterval.first) {
+    const QPair<qint64, qint64> interval = goalAssociationIntervalFor(tag);
+    ExplicitGoal goal;
+    goal.team = tag.team;
+    goal.markMs = tag.markMs;
+    goal.associationStartMs = interval.first;
+    goal.associationEndMs = interval.second;
+    goals.append(goal);
+  }
+  return goals;
+}
+
+/// True when the session already has an explicit Goal tag for the same team tied to \p source
+/// (overlapping default clip around markMs or goal confirmation shortly after the originating tag).
+bool hasExplicitGoalTagForTeam(const QVector<ExplicitGoal>& explicitGoals,
+                               const TagSession::GameTag& source) {
+  if (source.team.isEmpty()) return false;
+  const QPair<qint64, qint64> sourceInterval = goalAssociationIntervalFor(source);
+  constexpr qint64 kGoalConfirmWindowAfterOriginMs = 60000;
+  for (const ExplicitGoal& goal : explicitGoals) {
+    if (goal.team != source.team) continue;
+    if (goal.associationStartMs <= sourceInterval.second &&
+        goal.associationEndMs >= sourceInterval.first) {
       return true;
     }
-    if (tag.markMs >= source.markMs &&
-        tag.markMs - source.markMs <= kGoalConfirmWindowAfterOriginMs) {
+    if (goal.markMs >= source.markMs &&
+        goal.markMs - source.markMs <= kGoalConfirmWindowAfterOriginMs) {
       return true;
     }
   }
@@ -132,12 +246,16 @@ bool exportTagComesBefore(const TagSession::GameTag& a, const TagSession::GameTa
 
 /// Adds synthetic Goal tags when a scored goal is implied by follow-up but never tagged as Goal.
 QVector<TagSession::GameTag> tagsForExport(const QVector<TagSession::GameTag>& tags) {
+  // Copy is required: we stamp export intervals onto a working list and append synthetics.
+  // Session order is startMs/markMs, not the emission comparator, so a linear merge cannot
+  // replace the later stable_sort.
+  const QVector<ExplicitGoal> explicitGoals = collectExplicitGoals(tags);
   QVector<TagSession::GameTag> expanded = tags;
   expanded.reserve(tags.size() + 8);
   for (const auto& tag : tags) {
     if (tag.mainEvent == QStringLiteral("Goal")) continue;
     if (!followUpPathContainsScoredGoal(tag.followUpEvent)) continue;
-    if (hasExplicitGoalTagForTeam(tags, tag)) continue;
+    if (hasExplicitGoalTagForTeam(explicitGoals, tag)) continue;
 
     TagSession::GameTag goalTag = tag;
     goalTag.mainEvent = QStringLiteral("Goal");
@@ -160,8 +278,10 @@ QVector<TagSession::GameTag> tagsForExport(const QVector<TagSession::GameTag>& t
   return expanded;
 }
 
-/// Running score after every Goal in \p tags through \p throughIndex inclusive.
-/// \p tags must already be in emission order (see tagsForExport).
+/// Running score from Goal instances in \p tags with emission index <= \p throughIndex.
+/// \p tags must already be in emission order (see tagsForExport). This is index-based,
+/// not markMs-based, so an originating event at markMs T is labeled before a derived Goal
+/// at the same mark (exportTagComesBefore) even though both share T.
 QPair<int, int> runningScoreAt(const QVector<TagSession::GameTag>& tags, int throughIndex) {
   int home = 0;
   int away = 0;
@@ -176,8 +296,7 @@ QPair<int, int> runningScoreAt(const QVector<TagSession::GameTag>& tags, int thr
 
 /// Turns a single GameTag into its zero, one, or two emitted XML instances.
 QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
-                                             const QString& homeAbbrev,
-                                             const QString& awayAbbrev) {
+                                             const TeamInfo& teams) {
   QVector<EmittedInstance> result;
   const QPair<qint64, qint64> interval = exportIntervalFor(tag);
   const qint64 exportStartMs = interval.first;
@@ -202,15 +321,10 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
   // either is missing we still emit a single neutral <code> using the canonical event name
   // so the user does not silently lose information.
   const std::optional<QString> shortCode = EventCodeMap::shortCodeForMainEvent(tag.mainEvent);
-  const bool hasAbbrevs = !homeAbbrev.isEmpty() && !awayAbbrev.isEmpty();
-  const QString taggedAbbrev =
-      tag.team == QStringLiteral("Home") ? homeAbbrev :
-      tag.team == QStringLiteral("Away") ? awayAbbrev : QString();
-  const QString opposingAbbrev =
-      tag.team == QStringLiteral("Home") ? awayAbbrev :
-      tag.team == QStringLiteral("Away") ? homeAbbrev : QString();
+  const QString taggedAbbrev = teams.abbrevForTeam(tag.team);
+  const QString opposingAbbrev = teams.opposingAbbrevForTeam(tag.team);
 
-  if (!shortCode.has_value() || !hasAbbrevs || taggedAbbrev.isEmpty()) {
+  if (!shortCode.has_value() || !teams.hasBothAbbrevs() || taggedAbbrev.isEmpty()) {
     EmittedInstance instance;
     instance.startMs = exportStartMs;
     instance.endMs = exportEndMs;
@@ -237,6 +351,15 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
   return result;
 }
 
+QString resultadoLabelFor(const TeamInfo& teams, const QPair<int, int>& score) {
+  if (teams.homeAbbrev.isEmpty() && teams.awayAbbrev.isEmpty()) return QString();
+  return QStringLiteral("%1 %2 - %3 %4")
+      .arg(teams.homeScoreboardLabel())
+      .arg(score.first)
+      .arg(score.second)
+      .arg(teams.awayScoreboardLabel());
+}
+
 /// RGB triple in 16-bit Olympia/LongoMatch format.
 struct Rgb16 {
   int r = 0;
@@ -244,11 +367,7 @@ struct Rgb16 {
   int b = 0;
 };
 
-Rgb16 colorForCode(const QString& code,
-                   const QString& homeAbbrev,
-                   const QString& awayAbbrev,
-                   const QColor& homeColor,
-                   const QColor& awayColor) {
+Rgb16 colorForCode(const QString& code, const TeamInfo& teams) {
   // Quarter palette (deterministic and visually distinguishable; values picked to keep
   // sufficient contrast between adjacent quarters).
   static const QHash<QString, QColor> kQuarterPalette = {
@@ -264,17 +383,19 @@ Rgb16 colorForCode(const QString& code,
             eightBitToSixteenBit(c.blue())};
   }
 
-  auto colorFromTeam = [&](const QColor& teamColor) {
+  auto colorFromTeam = [](const QColor& teamColor) {
     return Rgb16{eightBitToSixteenBit(teamColor.red()),
                  eightBitToSixteenBit(teamColor.green()),
                  eightBitToSixteenBit(teamColor.blue())};
   };
 
-  if (!homeAbbrev.isEmpty() && code.startsWith(homeAbbrev + QLatin1Char(' '))) {
-    return colorFromTeam(homeColor);
+  if (!teams.homeAbbrev.isEmpty() &&
+      code.startsWith(teams.homeAbbrev + QLatin1Char(' '))) {
+    return colorFromTeam(teams.homeColor);
   }
-  if (!awayAbbrev.isEmpty() && code.startsWith(awayAbbrev + QLatin1Char(' '))) {
-    return colorFromTeam(awayColor);
+  if (!teams.awayAbbrev.isEmpty() &&
+      code.startsWith(teams.awayAbbrev + QLatin1Char(' '))) {
+    return colorFromTeam(teams.awayColor);
   }
 
   // Neutral mid-gray for everything else (Inicio, TM, untagged events).
@@ -299,14 +420,9 @@ bool writeAllInstances(const TagSession* session,
   // walk game time (synthetic Goals are not visible to a pre-sort of session tags).
   const QVector<TagSession::GameTag> exportTags = tagsForExport(session->tags());
 
-  const QString homeAbbrev = session->homeAbbrev();
-  const QString awayAbbrev = session->awayAbbrev();
-  const QString homeName = session->homeTeamName();
-  const QString awayName = session->awayTeamName();
+  const TeamInfo teams = teamInfoFromSession(*session);
   const QString competitionName = session->competitionName();
   const int gameYear = session->gameYear();
-  const QColor homeColor = parseHexColor(session->homeTeamColor(), QColor(60, 90, 200));
-  const QColor awayColor = parseHexColor(session->awayTeamColor(), QColor(200, 60, 60));
 
   QSaveFile file(filePath);
   if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -334,23 +450,18 @@ bool writeAllInstances(const TagSession* session,
   int nextInstanceId = 1;
   for (int tagIndex = 0; tagIndex < exportTags.size(); ++tagIndex) {
     const TagSession::GameTag& tag = exportTags.at(tagIndex);
-    const QVector<EmittedInstance> instances = emittedInstancesFor(tag, homeAbbrev, awayAbbrev);
+    const QVector<EmittedInstance> instances = emittedInstancesFor(tag, teams);
     if (instances.isEmpty()) continue;
 
     const QPair<int, int> score = runningScoreAt(exportTags, tagIndex);
-    const QString resultadoLabel =
-        (homeAbbrev.isEmpty() && awayAbbrev.isEmpty())
-            ? QString()
-            : QStringLiteral("%1 %2 - %3 %4").arg(homeAbbrev.isEmpty() ? homeName : homeAbbrev)
-                  .arg(score.first).arg(score.second)
-                  .arg(awayAbbrev.isEmpty() ? awayName : awayAbbrev);
+    const QString resultadoLabel = resultadoLabelFor(teams, score);
 
     for (const auto& instance : instances) {
       writer.writeStartElement(QStringLiteral("instance"));
       writer.writeTextElement(QStringLiteral("ID"), QString::number(nextInstanceId++));
       writer.writeTextElement(QStringLiteral("start"), secondsString(instance.startMs));
       writer.writeTextElement(QStringLiteral("end"), secondsString(instance.endMs));
-      writer.writeTextElement(QStringLiteral("code"), instance.code);
+      writeXmlTextElement(writer, QStringLiteral("code"), instance.code);
 
       if (!emittedCodes.contains(instance.code)) {
         emittedCodes.insert(instance.code);
@@ -361,19 +472,19 @@ bool writeAllInstances(const TagSession* session,
         if (!competitionName.isEmpty()) {
           writer.writeStartElement(QStringLiteral("label"));
           writer.writeTextElement(QStringLiteral("group"), QStringLiteral("COMPETICION"));
-          writer.writeTextElement(QStringLiteral("text"), competitionName);
+          writeXmlTextElement(writer, QStringLiteral("text"), competitionName);
           writer.writeEndElement();
         }
         if (!resultadoLabel.isEmpty()) {
           writer.writeStartElement(QStringLiteral("label"));
           writer.writeTextElement(QStringLiteral("group"), QStringLiteral("RESULTADO"));
-          writer.writeTextElement(QStringLiteral("text"), resultadoLabel);
+          writeXmlTextElement(writer, QStringLiteral("text"), resultadoLabel);
           writer.writeEndElement();
         }
         if (!instance.period.isEmpty()) {
           writer.writeStartElement(QStringLiteral("label"));
           writer.writeTextElement(QStringLiteral("group"), QStringLiteral("QUARTOS"));
-          writer.writeTextElement(QStringLiteral("text"), instance.period);
+          writeXmlTextElement(writer, QStringLiteral("text"), instance.period);
           writer.writeEndElement();
         }
         if (gameYear > 0) {
@@ -393,9 +504,9 @@ bool writeAllInstances(const TagSession* session,
   // ---- <ROWS> ----
   writer.writeStartElement(QStringLiteral("ROWS"));
   for (const QString& code : emittedCodesOrder) {
-    const Rgb16 rgb = colorForCode(code, homeAbbrev, awayAbbrev, homeColor, awayColor);
+    const Rgb16 rgb = colorForCode(code, teams);
     writer.writeStartElement(QStringLiteral("row"));
-    writer.writeTextElement(QStringLiteral("code"), code);
+    writeXmlTextElement(writer, QStringLiteral("code"), code);
     writer.writeTextElement(QStringLiteral("R"), QString::number(rgb.r));
     writer.writeTextElement(QStringLiteral("G"), QString::number(rgb.g));
     writer.writeTextElement(QStringLiteral("B"), QString::number(rgb.b));
