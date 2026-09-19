@@ -5,6 +5,8 @@
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonParseError>
+#include <QSaveFile>
 #include <QStandardPaths>
 #include <QByteArray>
 #include <QString>
@@ -27,13 +29,36 @@ QString trimmedEnvironmentValue(const char* variableName) {
 }
 
 QString readApiKeyFromJsonFile(const QString& filePath) {
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly)) {
+    if (!QFile::exists(filePath)) {
         return {};
     }
 
-    const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning("XaiConfig: cannot read %s: %s",
+                 qPrintable(filePath),
+                 qPrintable(file.errorString()));
+        return {};
+    }
+
+    const QByteArray rawData = file.readAll();
+    if (file.error() != QFileDevice::NoError) {
+        qWarning("XaiConfig: read error for %s: %s",
+                 qPrintable(filePath),
+                 qPrintable(file.errorString()));
+        return {};
+    }
+
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(rawData, &parseError);
+    if (parseError.error != QJsonParseError::NoError) {
+        qWarning("XaiConfig: invalid JSON in %s: %s",
+                 qPrintable(filePath),
+                 qPrintable(parseError.errorString()));
+        return {};
+    }
     if (!document.isObject()) {
+        qWarning("XaiConfig: expected JSON object in %s", qPrintable(filePath));
         return {};
     }
 
@@ -71,38 +96,6 @@ QString primaryConfigFilePath() {
     return QDir(directoryPath).filePath(QLatin1String(kConfigFileName));
 }
 
-bool writeApiKeyToConfigFile(const QString& filePath, const QString& apiKey) {
-    if (filePath.isEmpty() || apiKey.isEmpty()) {
-        return false;
-    }
-
-    const QFileInfo fileInfo(filePath);
-    if (!QDir().mkpath(fileInfo.absolutePath())) {
-        return false;
-    }
-
-    QJsonObject object;
-    object.insert(QLatin1String(kApiKeyJsonKey), apiKey);
-    const QJsonDocument document(object);
-
-    QFile file(filePath);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        return false;
-    }
-    if (!file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner)) {
-        file.close();
-        QFile::remove(filePath);
-        return false;
-    }
-    const QByteArray jsonData = document.toJson(QJsonDocument::Indented);
-    if (file.write(jsonData) != jsonData.size()) {
-        file.close();
-        QFile::remove(filePath);
-        return false;
-    }
-    return true;
-}
-
 QString apiKeyFromConfigFiles() {
     const QStringList configDirectories =
         QStandardPaths::standardLocations(QStandardPaths::AppConfigLocation);
@@ -116,16 +109,81 @@ QString apiKeyFromConfigFiles() {
     return {};
 }
 
-} // namespace
-
-namespace XaiConfig {
-
-QString apiKey() {
+QString resolveApiKey() {
     const QString environmentKey = apiKeyFromEnvironment();
     if (!environmentKey.isEmpty()) {
         return environmentKey;
     }
     return apiKeyFromConfigFiles();
+}
+
+// Persists the API key as owner-readable JSON. Platform keychain storage would be
+// stronger, but matches the existing local desktop config pattern (see LicenseConfig).
+bool writeApiKeyToConfigFile(const QString& filePath,
+                             const QString& apiKey,
+                             bool createOnly) {
+    if (filePath.isEmpty() || apiKey.isEmpty()) {
+        return false;
+    }
+
+    const QFileInfo fileInfo(filePath);
+    if (!QDir().mkpath(fileInfo.absolutePath())) {
+        qWarning("XaiConfig: cannot create config directory %s",
+                 qPrintable(fileInfo.absolutePath()));
+        return false;
+    }
+
+    QJsonObject object;
+    object.insert(QLatin1String(kApiKeyJsonKey), apiKey);
+    const QByteArray jsonData = QJsonDocument(object).toJson(QJsonDocument::Indented);
+
+    QSaveFile file(filePath);
+    QIODevice::OpenMode openMode = QIODevice::WriteOnly;
+    if (createOnly) {
+        openMode |= QIODevice::NewOnly;
+    } else {
+        openMode |= QIODevice::Truncate;
+    }
+    if (!file.open(openMode)) {
+        if (createOnly && QFile::exists(filePath)) {
+            return true;
+        }
+        qWarning("XaiConfig: cannot write %s: %s",
+                 qPrintable(filePath),
+                 qPrintable(file.errorString()));
+        return false;
+    }
+    if (!file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner)) {
+        qWarning("XaiConfig: cannot set owner-only permissions on %s",
+                 qPrintable(filePath));
+        file.cancelWriting();
+        return false;
+    }
+    if (file.write(jsonData) != jsonData.size()
+        || !file.flush()
+        || file.error() != QFileDevice::NoError) {
+        qWarning("XaiConfig: failed to write %s: %s",
+                 qPrintable(filePath),
+                 qPrintable(file.errorString()));
+        file.cancelWriting();
+        return false;
+    }
+    if (!file.commit()) {
+        qWarning("XaiConfig: failed to commit %s: %s",
+                 qPrintable(filePath),
+                 qPrintable(file.errorString()));
+        return false;
+    }
+    return true;
+}
+
+} // namespace
+
+namespace XaiConfig {
+
+QString apiKey() {
+    static const QString cached = resolveApiKey();
+    return cached;
 }
 
 bool isConfigured() {
@@ -163,11 +221,15 @@ void bootstrap() {
     }
 
     const QString destinationPath = primaryConfigFilePath();
-    if (destinationPath.isEmpty() || QFile::exists(destinationPath)) {
+    if (destinationPath.isEmpty()) {
+        qWarning("XaiConfig: no application config directory is available");
         return;
     }
 
-    writeApiKeyToConfigFile(destinationPath, environmentKey);
+    if (!writeApiKeyToConfigFile(destinationPath, environmentKey, true)) {
+        qWarning("XaiConfig: failed to persist environment API key to %s",
+                 qPrintable(destinationPath));
+    }
 }
 
 } // namespace XaiConfig
