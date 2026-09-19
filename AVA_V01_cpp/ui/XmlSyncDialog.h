@@ -26,12 +26,11 @@ public:
 private slots:
   void onVideoPositionChanged(qint64 positionMs);
   void onUseCurrentPositionClicked();
-  void updatePreview();
 
 private:
   void buildUi();
   void wireSignals();
-  static QString formatMs(qint64 ms);
+  void updatePreview() const;
   int countClampedBeforeZero() const;
   int countClampedAfterDuration() const;
 

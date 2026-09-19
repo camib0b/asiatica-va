@@ -9,6 +9,22 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
+namespace {
+
+QString formatMs(qint64 ms) {
+  if (ms < 0) ms = 0;
+  const qint64 totalSeconds = ms / 1000;
+  const qint64 minutes = totalSeconds / 60;
+  const qint64 seconds = totalSeconds % 60;
+  const qint64 millis = ms % 1000;
+  return QStringLiteral("%1:%2.%3")
+      .arg(minutes, 2, 10, QChar('0'))
+      .arg(seconds, 2, 10, QChar('0'))
+      .arg(millis, 3, 10, QChar('0'));
+}
+
+}  // namespace
+
 XmlSyncDialog::XmlSyncDialog(VideoPlayer* videoPlayer,
                              const XmlImporter::ParsedInstance& anchorInstance,
                              const QVector<XmlImporter::ParsedInstance>& instances,
@@ -107,18 +123,6 @@ void XmlSyncDialog::applyUiStrings() {
   updatePreview();
 }
 
-QString XmlSyncDialog::formatMs(qint64 ms) {
-  if (ms < 0) ms = 0;
-  const qint64 totalSeconds = ms / 1000;
-  const qint64 minutes = totalSeconds / 60;
-  const qint64 seconds = totalSeconds % 60;
-  const qint64 millis = ms % 1000;
-  return QStringLiteral("%1:%2.%3")
-      .arg(minutes, 2, 10, QChar('0'))
-      .arg(seconds, 2, 10, QChar('0'))
-      .arg(millis, 3, 10, QChar('0'));
-}
-
 void XmlSyncDialog::onVideoPositionChanged(qint64 positionMs) {
   offsetMs_ = positionMs - anchorInstance_.startMs;
   updatePreview();
@@ -130,7 +134,7 @@ void XmlSyncDialog::onUseCurrentPositionClicked() {
   }
 }
 
-void XmlSyncDialog::updatePreview() {
+void XmlSyncDialog::updatePreview() const {
   if (videoAnchorLabel_) {
     if (videoPlayer_) {
       const qint64 videoMs = anchorInstance_.startMs + offsetMs_;

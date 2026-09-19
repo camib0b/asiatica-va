@@ -5,23 +5,50 @@
 #include <QStyleFactory>
 #include <QFont>
 #include <QFontInfo>
+#include <QFileDevice>
 #include <QDebug>
+
+namespace {
+
+struct TextFileLoadResult {
+    QString content;
+    QString errorMessage;
+};
+
+TextFileLoadResult loadTextFile(const QString& path) {
+    TextFileLoadResult result;
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        result.errorMessage = file.errorString();
+        return result;
+    }
+
+    const QByteArray bytes = file.readAll();
+    if (file.error() != QFileDevice::NoError) {
+        result.errorMessage = file.errorString();
+        return result;
+    }
+
+    result.content = QString::fromUtf8(bytes);
+    if (result.content.isEmpty()) {
+        result.errorMessage = QStringLiteral("file is empty");
+    }
+    return result;
+}
+
+}  // namespace
 
 namespace Style {
 
-static QString loadTextFile(const QString& path) {
-  QFile f(path);
-  if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return {};
-  return QString::fromUtf8(f.readAll());
-}
-
 void ApplyLightTheme() {
   const QString qssPath = QStringLiteral(":/style/theme_light.qss");
-  const QString qss = loadTextFile(qssPath);
-  if (qss.isEmpty()) {
-    qWarning() << "Failed to load theme QSS:" << qssPath;
+  const TextFileLoadResult loaded = loadTextFile(qssPath);
+  if (!loaded.errorMessage.isEmpty()) {
+    qWarning() << "Failed to load theme QSS:" << qssPath << "-" << loaded.errorMessage;
     return;
   }
+
+  const QString& qss = loaded.content;
 
   QStyle* style = QStyleFactory::create(QStringLiteral("Fusion"));
   if (!style) {

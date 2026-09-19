@@ -8,7 +8,7 @@ class LocaleNotifier final : public QObject {
 public:
   static LocaleNotifier& instance();
 
-  void notifyLanguageChanged();
+  void notifyLanguageChanged() const;
 
 signals:
   void languageChanged();
