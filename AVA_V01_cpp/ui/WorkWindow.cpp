@@ -1776,7 +1776,8 @@ void WorkWindow::onImportXml() {
     mappingDialog.setModal(true);
     if (mappingDialog.exec() != QDialog::Accepted) return;
 
-    const QVector<TagSession::GameTag> importedTags = mappingDialog.buildGameTags();
+    const XmlEventMappingDialog::ImportMappingResult importResult = mappingDialog.importResult();
+    const QVector<TagSession::GameTag>& importedTags = importResult.tags;
     if (importedTags.isEmpty()) {
         QMessageBox::information(this, AppLocale::trUi("xml_import.title"),
                                  AppLocale::trUi("xml_import.mapping_none_selected"));
@@ -1792,7 +1793,7 @@ void WorkWindow::onImportXml() {
     const TagSession::ImportResult result =
         tagSession_->importTags(importedTags, importMode, videoDurationMs);
 
-    const int dialogSkipped = mappingDialog.skippedInstanceCount();
+    const int dialogSkipped = importResult.skippedInstanceCount;
     QMessageBox::information(
         this,
         AppLocale::trUi("xml_import.title"),

@@ -1,4 +1,5 @@
 #include "XmlEventMappingDialog.h"
+#include "QtPtr.h"
 
 #include "../i18n/AppLocale.h"
 #include "../state/EventCodeMap.h"
@@ -20,7 +21,10 @@
 #include <QTableWidgetItem>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <array>
+#include <map>
+#include <memory>
 #include <optional>
 
 namespace {
@@ -37,30 +41,47 @@ const QColor kInactiveRowBg(0xF4F4F5);
 const QColor kActiveText(0x09090B);
 const QColor kInactiveText(0xA1A1AA);
 
-QComboBox* makeAbbrevComboWidget(QWidget* parent) {
-  auto* combo = new QComboBox(parent);
-  Style::setVariant(combo, "abbrev");
+struct CaseInsensitiveLess {
+  bool operator()(const QString& left, const QString& right) const {
+    return QString::compare(left, right, Qt::CaseInsensitive) < 0;
+  }
+};
+
+bool abbrevListContains(const QStringList& choices, const QString& abbrev) {
+  return std::any_of(choices.cbegin(), choices.cend(), [&](const QString& existing) {
+    return QString::compare(existing, abbrev, Qt::CaseInsensitive) == 0;
+  });
+}
+
+void prependAbbrevIfAbsent(QStringList& choices, const QString& abbrev) {
+  if (abbrev.isEmpty() || abbrevListContains(choices, abbrev)) return;
+  choices.prepend(abbrev);
+}
+
+std::unique_ptr<QComboBox, QtParentDeleter> makeAbbrevComboWidget(QWidget* parent) {
+  auto combo = makeQtPtr<QComboBox>(parent);
+  Style::setVariant(combo.get(), "abbrev");
   combo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
   combo->setMaximumWidth(72);
   combo->setMinimumWidth(56);
   return combo;
 }
 
-QComboBox* makeTableComboWidget(QWidget* parent) {
-  auto* combo = new QComboBox(parent);
-  Style::setVariant(combo, "compact");
+std::unique_ptr<QComboBox, QtParentDeleter> makeTableComboWidget(QWidget* parent) {
+  auto combo = makeQtPtr<QComboBox>(parent);
+  Style::setVariant(combo.get(), "compact");
   combo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   combo->setFixedHeight(28);
   return combo;
 }
 
 void embedTableCombo(QTableWidget* table, int row, int column, QComboBox* combo) {
-  auto* cellHost = new QWidget(table);
-  auto* cellLayout = new QHBoxLayout(cellHost);
+  auto cellHost = makeQtPtr<QWidget>(table);
+  auto cellLayout = makeQtPtr<QHBoxLayout>(cellHost.get());
   cellLayout->setContentsMargins(4, 2, 4, 2);
   cellLayout->setSpacing(0);
   cellLayout->addWidget(combo);
-  table->setCellWidget(row, column, cellHost);
+  table->setCellWidget(row, column, cellHost.release());
 }
 
 QTableWidgetItem* makeImportCheckItem() {
@@ -69,6 +90,14 @@ QTableWidgetItem* makeImportCheckItem() {
   item->setCheckState(Qt::Checked);
   item->setTextAlignment(Qt::AlignCenter);
   return item;
+}
+
+void applyWidgetBackground(QWidget* widget, const QColor& background) {
+  if (!widget) return;
+  widget->setAutoFillBackground(true);
+  QPalette palette = widget->palette();
+  palette.setColor(QPalette::Window, background);
+  widget->setPalette(palette);
 }
 
 constexpr int kQuarterCount = 4;
@@ -174,8 +203,8 @@ XmlEventMappingDialog::XmlEventMappingDialog(const QVector<XmlImporter::ParsedIn
                                              QWidget* parent)
     : QDialog(parent), instances_(instances), offsetMs_(offsetMs), session_(session) {
   if (session_) {
-    sessionHomeAbbrev_ = session_->homeAbbrev();
-    sessionAwayAbbrev_ = session_->awayAbbrev();
+    sessionHomeAbbrev_ = session_->homeAbbrev().trimmed().toUpper();
+    sessionAwayAbbrev_ = session_->awayAbbrev().trimmed().toUpper();
   }
   setWindowTitle(AppLocale::trUi("xml_import.mapping_title"));
   setObjectName(QStringLiteral("XmlEventMappingDialog"));
@@ -188,65 +217,75 @@ XmlEventMappingDialog::XmlEventMappingDialog(const QVector<XmlImporter::ParsedIn
 }
 
 void XmlEventMappingDialog::buildUi() {
-  auto* layout = new QVBoxLayout(this);
+  auto layout = makeQtPtr<QVBoxLayout>(this);
   layout->setSpacing(10);
 
-  titleLabel_ = new QLabel(this);
-  Style::setRole(titleLabel_, "h2");
-  layout->addWidget(titleLabel_);
+  auto titleLabel = makeQtPtr<QLabel>(this);
+  Style::setRole(titleLabel.get(), "h2");
+  titleLabel_ = titleLabel.get();
+  layout->addWidget(titleLabel.get());
 
-  instructionsLabel_ = new QLabel(this);
-  instructionsLabel_->setWordWrap(true);
-  layout->addWidget(instructionsLabel_);
+  auto instructionsLabel = makeQtPtr<QLabel>(this);
+  instructionsLabel->setWordWrap(true);
+  instructionsLabel_ = instructionsLabel.get();
+  layout->addWidget(instructionsLabel.get());
 
-  abbrevHeaderLabel_ = new QLabel(this);
-  layout->addWidget(abbrevHeaderLabel_);
+  auto abbrevHeaderLabel = makeQtPtr<QLabel>(this);
+  abbrevHeaderLabel_ = abbrevHeaderLabel.get();
+  layout->addWidget(abbrevHeaderLabel.get());
 
-  auto* abbrevRow = new QHBoxLayout();
+  auto abbrevRow = makeQtPtr<QHBoxLayout>();
   abbrevRow->setSpacing(8);
-  homeAbbrevLabel_ = new QLabel(this);
-  xmlHomeAbbrevCombo_ = makeAbbrevComboWidget(this);
-  awayAbbrevLabel_ = new QLabel(this);
-  xmlAwayAbbrevCombo_ = makeAbbrevComboWidget(this);
-  abbrevRow->addWidget(homeAbbrevLabel_);
-  abbrevRow->addWidget(xmlHomeAbbrevCombo_);
+  auto homeAbbrevLabel = makeQtPtr<QLabel>(this);
+  auto xmlHomeAbbrevCombo = makeAbbrevComboWidget(this);
+  auto awayAbbrevLabel = makeQtPtr<QLabel>(this);
+  auto xmlAwayAbbrevCombo = makeAbbrevComboWidget(this);
+  homeAbbrevLabel_ = homeAbbrevLabel.get();
+  xmlHomeAbbrevCombo_ = xmlHomeAbbrevCombo.get();
+  awayAbbrevLabel_ = awayAbbrevLabel.get();
+  xmlAwayAbbrevCombo_ = xmlAwayAbbrevCombo.get();
+  abbrevRow->addWidget(homeAbbrevLabel.get());
+  abbrevRow->addWidget(xmlHomeAbbrevCombo.get());
   abbrevRow->addSpacing(20);
-  abbrevRow->addWidget(awayAbbrevLabel_);
-  abbrevRow->addWidget(xmlAwayAbbrevCombo_);
+  abbrevRow->addWidget(awayAbbrevLabel.get());
+  abbrevRow->addWidget(xmlAwayAbbrevCombo.get());
   abbrevRow->addStretch();
-  layout->addLayout(abbrevRow);
+  layout->addLayout(abbrevRow.get());
 
-  mappingTable_ = new QTableWidget(this);
-  mappingTable_->setObjectName(QStringLiteral("XmlEventMappingTable"));
-  mappingTable_->setColumnCount(5);
-  mappingTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
-  mappingTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-  mappingTable_->setAlternatingRowColors(false);
-  layout->addWidget(mappingTable_, 1);
+  auto mappingTable = makeQtPtr<QTableWidget>(this);
+  mappingTable->setObjectName(QStringLiteral("XmlEventMappingTable"));
+  mappingTable->setColumnCount(5);
+  mappingTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+  mappingTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+  mappingTable->setAlternatingRowColors(false);
+  mappingTable_ = mappingTable.get();
+  layout->addWidget(mappingTable.get(), 1);
 
-  auto* buttonRow = new QHBoxLayout();
+  auto buttonRow = makeQtPtr<QHBoxLayout>();
   buttonRow->addStretch();
-  cancelButton_ = new QPushButton(this);
-  importButton_ = new QPushButton(this);
-  Style::setVariant(importButton_, "primary");
-  importButton_->setDefault(true);
-  buttonRow->addWidget(cancelButton_);
-  buttonRow->addWidget(importButton_);
-  layout->addLayout(buttonRow);
+  auto cancelButton = makeQtPtr<QPushButton>(this);
+  auto importButton = makeQtPtr<QPushButton>(this);
+  Style::setVariant(importButton.get(), "primary");
+  importButton->setDefault(true);
+  cancelButton_ = cancelButton.get();
+  importButton_ = importButton.get();
+  buttonRow->addWidget(cancelButton.get());
+  buttonRow->addWidget(importButton.get());
+  layout->addLayout(buttonRow.get());
 
-  connect(cancelButton_, &QPushButton::clicked, this, &QDialog::reject);
-  connect(importButton_, &QPushButton::clicked, this, &XmlEventMappingDialog::onImportClicked);
-  connect(xmlHomeAbbrevCombo_, &QComboBox::currentTextChanged, this,
+  connect(cancelButton.get(), &QPushButton::clicked, this, &QDialog::reject);
+  connect(importButton.get(), &QPushButton::clicked, this, &XmlEventMappingDialog::onImportClicked);
+  connect(xmlHomeAbbrevCombo.get(), &QComboBox::currentTextChanged, this,
           [this](const QString&) {
             onAbbrevMappingChanged();
             applyAutoMappings();
           });
-  connect(xmlAwayAbbrevCombo_, &QComboBox::currentTextChanged, this,
+  connect(xmlAwayAbbrevCombo.get(), &QComboBox::currentTextChanged, this,
           [this](const QString&) {
             onAbbrevMappingChanged();
             applyAutoMappings();
           });
-  connect(mappingTable_, &QTableWidget::itemChanged, this,
+  connect(mappingTable.get(), &QTableWidget::itemChanged, this,
           [this](QTableWidgetItem* item) {
             if (!item || item->column() != kColImport) return;
             updateRowImportState(item->row());
@@ -254,73 +293,74 @@ void XmlEventMappingDialog::buildUi() {
 }
 
 void XmlEventMappingDialog::populateRows() {
-  QHash<QString, int> codeCounts;
+  std::map<QString, int, CaseInsensitiveLess> codeCounts;
   QSet<QString> detectedAbbrevs;
   for (const XmlImporter::ParsedInstance& instance : instances_) {
-    codeCounts[instance.code] = codeCounts.value(instance.code, 0) + 1;
+    ++codeCounts[instance.code];
     const ParsedTeamCode parsed = parseTeamCodePattern(instance.code);
     if (parsed.valid && parsed.sign == QLatin1Char('+')) {
       detectedAbbrevs.insert(parsed.abbrev);
     }
   }
 
-  QStringList abbrevChoices = detectedAbbrevs.values();
-  abbrevChoices.sort(Qt::CaseInsensitive);
-  if (!sessionHomeAbbrev_.isEmpty() && !abbrevChoices.contains(sessionHomeAbbrev_)) {
-    abbrevChoices.prepend(sessionHomeAbbrev_);
-  }
-  if (!sessionAwayAbbrev_.isEmpty() && !abbrevChoices.contains(sessionAwayAbbrev_)) {
-    abbrevChoices.prepend(sessionAwayAbbrev_);
-  }
+  QStringList abbrevChoices(detectedAbbrevs.cbegin(), detectedAbbrevs.cend());
+  std::sort(abbrevChoices.begin(), abbrevChoices.end(),
+            [](const QString& left, const QString& right) {
+              return QString::compare(left, right, Qt::CaseInsensitive) < 0;
+            });
+  prependAbbrevIfAbsent(abbrevChoices, sessionHomeAbbrev_);
+  prependAbbrevIfAbsent(abbrevChoices, sessionAwayAbbrev_);
   if (abbrevChoices.isEmpty()) {
-    abbrevChoices << sessionHomeAbbrev_ << sessionAwayAbbrev_;
-    abbrevChoices.removeAll(QString());
+    prependAbbrevIfAbsent(abbrevChoices, sessionHomeAbbrev_);
+    prependAbbrevIfAbsent(abbrevChoices, sessionAwayAbbrev_);
   }
 
   xmlHomeAbbrevCombo_->addItems(abbrevChoices);
   xmlAwayAbbrevCombo_->addItems(abbrevChoices);
   if (!sessionHomeAbbrev_.isEmpty()) {
-    const int homeIndex = xmlHomeAbbrevCombo_->findText(sessionHomeAbbrev_, Qt::MatchFixedString);
+    const int homeIndex =
+        xmlHomeAbbrevCombo_->findText(sessionHomeAbbrev_, Qt::MatchExactly);
     if (homeIndex >= 0) xmlHomeAbbrevCombo_->setCurrentIndex(homeIndex);
   }
   if (!sessionAwayAbbrev_.isEmpty()) {
-    const int awayIndex = xmlAwayAbbrevCombo_->findText(sessionAwayAbbrev_, Qt::MatchFixedString);
+    const int awayIndex =
+        xmlAwayAbbrevCombo_->findText(sessionAwayAbbrev_, Qt::MatchExactly);
     if (awayIndex >= 0) xmlAwayAbbrevCombo_->setCurrentIndex(awayIndex);
   }
 
-  QStringList sortedCodes = codeCounts.keys();
-  sortedCodes.sort(Qt::CaseInsensitive);
-
-  mappingTable_->setRowCount(sortedCodes.size());
+  mappingTable_->setRowCount(static_cast<int>(codeCounts.size()));
   rows_.clear();
-  rows_.reserve(sortedCodes.size());
+  rows_.reserve(static_cast<int>(codeCounts.size()));
 
   const QStringList events = eventChoices();
 
-  for (int row = 0; row < sortedCodes.size(); ++row) {
-    const QString code = sortedCodes.at(row);
+  int row = 0;
+  for (const auto& [code, count] : codeCounts) {
     MappingRow mappingRow;
     mappingRow.xmlCode = code;
-    mappingRow.count = codeCounts.value(code);
+    mappingRow.count = count;
 
-    auto* codeItem = new QTableWidgetItem(code);
-    mappingTable_->setItem(row, kColCode, codeItem);
-    mappingTable_->setItem(row, kColCount, new QTableWidgetItem(QString::number(mappingRow.count)));
+    mappingTable_->setItem(row, kColCode, new QTableWidgetItem(code));
+    mappingTable_->setItem(row, kColCount,
+                           new QTableWidgetItem(QString::number(mappingRow.count)));
 
-    mappingRow.eventCombo = makeTableComboWidget(mappingTable_);
-    mappingRow.eventCombo->addItems(events);
-    embedTableCombo(mappingTable_, row, kColEvent, mappingRow.eventCombo);
+    auto eventCombo = makeTableComboWidget(mappingTable_);
+    mappingRow.eventCombo = eventCombo.get();
+    eventCombo->addItems(events);
+    embedTableCombo(mappingTable_, row, kColEvent, eventCombo.get());
 
-    mappingRow.teamCombo = makeTableComboWidget(mappingTable_);
-    mappingRow.teamCombo->addItem(AppLocale::trUi("xml_import.mapping_team_none"), QString());
-    mappingRow.teamCombo->addItem(AppLocale::trUi("export.team_home_default"), QStringLiteral("Home"));
-    mappingRow.teamCombo->addItem(AppLocale::trUi("export.team_away_default"), QStringLiteral("Away"));
-    embedTableCombo(mappingTable_, row, kColTeam, mappingRow.teamCombo);
+    auto teamCombo = makeTableComboWidget(mappingTable_);
+    mappingRow.teamCombo = teamCombo.get();
+    teamCombo->addItem(AppLocale::trUi("xml_import.mapping_team_none"), QString());
+    teamCombo->addItem(AppLocale::trUi("export.team_home_default"), QStringLiteral("Home"));
+    teamCombo->addItem(AppLocale::trUi("export.team_away_default"), QStringLiteral("Away"));
+    embedTableCombo(mappingTable_, row, kColTeam, teamCombo.get());
 
     mappingRow.importItem = makeImportCheckItem();
     mappingTable_->setItem(row, kColImport, mappingRow.importItem);
 
     rows_.append(mappingRow);
+    ++row;
   }
 
   configureMappingTable();
@@ -379,9 +419,21 @@ void XmlEventMappingDialog::updateRowImportState(int row) {
     }
   }
 
-  MappingRow& mappingRow = rows_[row];
-  if (mappingRow.eventCombo) mappingRow.eventCombo->setEnabled(importing);
-  if (mappingRow.teamCombo) mappingRow.teamCombo->setEnabled(importing);
+  const MappingRow& mappingRow = rows_.at(row);
+  if (mappingRow.eventCombo) {
+    mappingRow.eventCombo->setEnabled(importing);
+    applyWidgetBackground(mappingTable_->cellWidget(row, kColEvent), rowBackground);
+  }
+  if (mappingRow.teamCombo) {
+    mappingRow.teamCombo->setEnabled(importing);
+    applyWidgetBackground(mappingTable_->cellWidget(row, kColTeam), rowBackground);
+  }
+}
+
+void XmlEventMappingDialog::refreshAllRowImportStates() {
+  for (int row = 0; row < rows_.size(); ++row) {
+    updateRowImportState(row);
+  }
 }
 
 QStringList XmlEventMappingDialog::eventChoices() const {
@@ -448,7 +500,6 @@ void XmlEventMappingDialog::applyAutoMappings() {
       const int eventIndex = row.eventCombo->findText(code);
       if (eventIndex >= 0) row.eventCombo->setCurrentIndex(eventIndex);
       row.teamCombo->setCurrentIndex(0);
-      row.autoMapped = true;
       setRowImportEnabled(i, true);
       continue;
     }
@@ -467,7 +518,6 @@ void XmlEventMappingDialog::applyAutoMappings() {
             canonicalPositiveTeamCode(parsed.abbrev, parsed.shortCode);
         if (positiveCodes.contains(positiveCode)) {
           importEnabled = false;
-          row.autoMapped = true;
           setRowImportEnabled(i, importEnabled);
           continue;
         }
@@ -478,16 +528,16 @@ void XmlEventMappingDialog::applyAutoMappings() {
         if (!team.isEmpty()) {
           const int teamIndex = row.teamCombo->findData(team);
           if (teamIndex >= 0) row.teamCombo->setCurrentIndex(teamIndex);
-          row.autoMapped = true;
           setRowImportEnabled(i, true);
           continue;
         }
       }
     }
 
-    row.autoMapped = false;
     setRowImportEnabled(i, importEnabled);
   }
+
+  refreshAllRowImportStates();
 }
 
 XmlEventMappingDialog::CodeMapping XmlEventMappingDialog::mappingForRow(
@@ -504,15 +554,31 @@ XmlEventMappingDialog::CodeMapping XmlEventMappingDialog::mappingForRow(
   return mapping;
 }
 
-bool XmlEventMappingDialog::validateMappings(QString* errorMessage) const {
+QHash<QString, XmlEventMappingDialog::CodeMapping> XmlEventMappingDialog::buildMappingByCode()
+    const {
   QHash<QString, CodeMapping> mappingByCode;
+  mappingByCode.reserve(rows_.size());
   for (const MappingRow& row : rows_) {
     mappingByCode.insert(row.xmlCode, mappingForRow(row));
+  }
+  return mappingByCode;
+}
+
+bool XmlEventMappingDialog::validateMappings(QString* errorMessage) const {
+  const QHash<QString, CodeMapping> mappingByCode = buildMappingByCode();
+
+  for (const XmlImporter::ParsedInstance& instance : instances_) {
+    if (!mappingByCode.contains(instance.code)) {
+      if (errorMessage) {
+        *errorMessage = AppLocale::trUi("xml_import.mapping_missing_event").arg(instance.code);
+      }
+      return false;
+    }
   }
 
   int importableCount = 0;
   for (const XmlImporter::ParsedInstance& instance : instances_) {
-    const CodeMapping mapping = mappingByCode.value(instance.code);
+    const CodeMapping& mapping = mappingByCode[instance.code];
     if (!mapping.skip) ++importableCount;
   }
 
@@ -522,8 +588,16 @@ bool XmlEventMappingDialog::validateMappings(QString* errorMessage) const {
   }
 
   for (const MappingRow& row : rows_) {
-    const CodeMapping mapping = mappingForRow(row);
+    const CodeMapping mapping = mappingByCode.value(row.xmlCode);
     if (mapping.skip) continue;
+
+    if (row.count <= 0) {
+      if (errorMessage) {
+        *errorMessage = AppLocale::trUi("xml_import.mapping_missing_event").arg(row.xmlCode);
+      }
+      return false;
+    }
+
     if (mapping.canonicalMainEvent.isEmpty()) {
       if (errorMessage) {
         *errorMessage = AppLocale::trUi("xml_import.mapping_missing_event").arg(row.xmlCode);
@@ -567,40 +641,42 @@ TagSession::GameTag XmlEventMappingDialog::gameTagFromInstance(
   return tag;
 }
 
-QVector<TagSession::GameTag> XmlEventMappingDialog::buildGameTags() const {
-  skippedInstanceCount_ = 0;
-  QHash<QString, CodeMapping> mappingByCode;
-  for (const MappingRow& row : rows_) {
-    mappingByCode.insert(row.xmlCode, mappingForRow(row));
-  }
+XmlEventMappingDialog::ImportMappingResult XmlEventMappingDialog::buildImportSnapshot() const {
+  ImportMappingResult result;
+  const QHash<QString, CodeMapping> mappingByCode = buildMappingByCode();
 
-  QVector<TagSession::GameTag> tags;
-  tags.reserve(instances_.size());
+  result.tags.reserve(instances_.size());
   for (const XmlImporter::ParsedInstance& instance : instances_) {
     const CodeMapping mapping = mappingByCode.value(instance.code);
     if (mapping.skip) {
-      ++skippedInstanceCount_;
+      ++result.skippedInstanceCount;
       continue;
     }
-    tags.append(gameTagFromInstance(instance, mapping));
+    result.tags.append(gameTagFromInstance(instance, mapping));
   }
 
-  inferPeriods(tags);
-  return tags;
-}
-
-int XmlEventMappingDialog::skippedInstanceCount() const {
-  return skippedInstanceCount_;
+  inferPeriods(result.tags);
+  return result;
 }
 
 void XmlEventMappingDialog::onImportClicked() {
+  struct ImportButtonGuard {
+    QPointer<QPushButton> button;
+    ~ImportButtonGuard() {
+      if (button) button->setEnabled(true);
+    }
+  } importButtonGuard{importButton_};
+  if (importButton_) importButton_->setEnabled(false);
+
   QString errorMessage;
   if (!validateMappings(&errorMessage)) {
-    if (!errorMessage.isEmpty()) {
-      QMessageBox::warning(this, AppLocale::trUi("xml_import.mapping_title"), errorMessage);
-    }
+    QMessageBox::warning(this, AppLocale::trUi("xml_import.mapping_title"),
+                         errorMessage.isEmpty() ? AppLocale::trUi("xml_import.mapping_none_selected")
+                                                : errorMessage);
     return;
   }
+
+  importResult_ = buildImportSnapshot();
   accept();
 }
 

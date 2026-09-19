@@ -5,6 +5,7 @@
 
 #include <QDialog>
 #include <QHash>
+#include <QPointer>
 #include <QVector>
 #include <QtGlobal>
 
@@ -25,13 +26,17 @@ public:
     bool skip = false;
   };
 
+  struct ImportMappingResult {
+    QVector<TagSession::GameTag> tags;
+    int skippedInstanceCount = 0;
+  };
+
   XmlEventMappingDialog(const QVector<XmlImporter::ParsedInstance>& instances,
                         qint64 offsetMs,
                         const TagSession* session,
                         QWidget* parent = nullptr);
 
-  QVector<TagSession::GameTag> buildGameTags() const;
-  int skippedInstanceCount() const;
+  ImportMappingResult importResult() const { return importResult_; }
 
   void applyUiStrings();
 
@@ -43,10 +48,9 @@ private:
   struct MappingRow {
     QString xmlCode;
     int count = 0;
-    QComboBox* eventCombo = nullptr;
-    QComboBox* teamCombo = nullptr;
+    QPointer<QComboBox> eventCombo;
+    QPointer<QComboBox> teamCombo;
     QTableWidgetItem* importItem = nullptr;
-    bool autoMapped = false;
   };
 
   struct ParsedTeamCode {
@@ -61,12 +65,15 @@ private:
   void applyAutoMappings();
   void configureMappingTable();
   void updateRowImportState(int row);
+  void refreshAllRowImportStates();
   bool isRowImportEnabled(int row) const;
   void setRowImportEnabled(int row, bool enabled);
   static ParsedTeamCode parseTeamCodePattern(const QString& code);
   QString teamForAbbrev(const QString& abbrev) const;
   QStringList eventChoices() const;
   CodeMapping mappingForRow(const MappingRow& row) const;
+  QHash<QString, CodeMapping> buildMappingByCode() const;
+  ImportMappingResult buildImportSnapshot() const;
   bool validateMappings(QString* errorMessage) const;
   TagSession::GameTag gameTagFromInstance(const XmlImporter::ParsedInstance& instance,
                                           const CodeMapping& mapping) const;
@@ -78,17 +85,17 @@ private:
   QString sessionAwayAbbrev_;
   QHash<QString, QString> xmlAbbrevToTeamSide_;
 
-  QLabel* titleLabel_ = nullptr;
-  QLabel* instructionsLabel_ = nullptr;
-  QLabel* abbrevHeaderLabel_ = nullptr;
-  QLabel* homeAbbrevLabel_ = nullptr;
-  QLabel* awayAbbrevLabel_ = nullptr;
-  QComboBox* xmlHomeAbbrevCombo_ = nullptr;
-  QComboBox* xmlAwayAbbrevCombo_ = nullptr;
-  QTableWidget* mappingTable_ = nullptr;
-  QPushButton* importButton_ = nullptr;
-  QPushButton* cancelButton_ = nullptr;
+  QPointer<QLabel> titleLabel_;
+  QPointer<QLabel> instructionsLabel_;
+  QPointer<QLabel> abbrevHeaderLabel_;
+  QPointer<QLabel> homeAbbrevLabel_;
+  QPointer<QLabel> awayAbbrevLabel_;
+  QPointer<QComboBox> xmlHomeAbbrevCombo_;
+  QPointer<QComboBox> xmlAwayAbbrevCombo_;
+  QPointer<QTableWidget> mappingTable_;
+  QPointer<QPushButton> importButton_;
+  QPointer<QPushButton> cancelButton_;
 
   QVector<MappingRow> rows_;
-  mutable int skippedInstanceCount_ = 0;
+  ImportMappingResult importResult_;
 };
