@@ -5,13 +5,18 @@
 #include <QSettings>
 #include <QStringList>
 
+#include <array>
 #include <mutex>
-#include <optional>
 
 namespace {
 
 constexpr char kSettingsGroup[] = "ui";
 constexpr char kLanguageKey[] = "language";
+
+constexpr QLatin1StringView kDefaultHomeFollowUpLabel("home");
+constexpr QLatin1StringView kDefaultAwayFollowUpLabel("away");
+constexpr QLatin1StringView kHomeTeamSideKey("Home");
+constexpr QLatin1StringView kAwayTeamSideKey("Away");
 
 class LanguageStore {
 public:
@@ -77,78 +82,95 @@ void notifyLanguageChangedIf(bool changed) {
   LocaleNotifier::instance().notifyLanguageChanged();
 }
 
+struct SpanishEventEntry {
+  const char* canonical;
+  const char* spanish;
+};
+
+constexpr std::array<SpanishEventEntry, 63> kSpanishEventEntries{{
+    // Main grid
+    {"Circle Entry", "Ingreso área"},
+    {"Shot", "Tiro"},
+    {"Goal", "Gol"},
+    {"PC", "Corto"},
+    {"PS", "Penal"},
+    {"S.O.", "S.O."},
+    {"Pass", "Pase"},
+    {"Turnover", "Pérdida"},
+    {"Card", "Tarjeta"},
+    {"PC Foul", "Falta PC"},
+
+    // First-level follow-ups
+    {"On target", "Al arco"},
+    {"Off target", "Afuera"},
+    {"Blocked", "Bloqueado"},
+    {"For", "A favor"},
+    {"Against", "En contra"},
+    {"Direct shot", "Directo"},
+    {"Variant", "Variante"},
+    {"Ruined", "Arruinado"},
+    {"Forward", "Hacia adelante"},
+    {"Sideways", "Hacia el lado"},
+    {"Back", "Hacia atrás"},
+    {"Green", "Verde"},
+    {"Yellow", "Amarilla"},
+    {"Red", "Roja"},
+    {"Flick", "Flick"},
+    {"Push", "Push"},
+    {"Sweep", "Barrida"},
+    {"Hit", "Pegada"},
+    {"Good", "Positivo"},
+    {"Bad", "Negativo"},
+    {"Neutral", "Neutro"},
+    {"Referee", "Arbitraje"},
+    {"Off", "Ofensiva"},
+    {"Def", "Defensiva"},
+
+    // Second / third level
+    {"Saved", "Atajado"},
+    {"Post", "Palo"},
+    {"Closeby", "Cerca"},
+    {"Not close", "Lejos"},
+    {"Swept", "Barrida"},
+    {"Dragflick", "Arrastre"},
+    {"New PC", "Nuevo corto"},
+    {"Dribbling", "Conducción"},
+    {"Deflection", "Desvío"},
+    {"Completed", "Completado"},
+    {"Failed", "Fallido"},
+    {"Interception", "Intercepción"},
+    {"Tackle", "Quite"},
+    {"Pressure", "Presión"},
+    {"Unforced error", "Error"},
+    {"Foot", "Pie"},
+    {"Stick", "Palo"},
+    {"Danger", "Peligro"},
+    {"Other", "Otro"},
+    {"Converted", "convertido"},
+    {"Missed", "no convertido"},
+    {"Replay", "repite"},
+    {"Left", "Izquierda"},
+    {"Middle", "Centro"},
+    {"Right", "Derecha"},
+    {"3 man", "de 3"},
+    {"4 man", "de 4"},
+    // Default follow-up team labels (when names empty; English canonical tokens)
+    {"home", "Local"},
+    {"away", "Visita"},
+}};
+
 const QHash<QString, QString>& spanishEventMap() {
-  static const QHash<QString, QString> map = {
-      // Main grid
-      {QStringLiteral("Circle Entry"), QStringLiteral("Ingreso área")},
-      {QStringLiteral("Shot"), QStringLiteral("Tiro")},
-      {QStringLiteral("Goal"), QStringLiteral("Gol")},
-      {QStringLiteral("PC"), QStringLiteral("Corto")},
-      {QStringLiteral("PS"), QStringLiteral("Penal")},
-      {QStringLiteral("S.O."), QStringLiteral("S.O.")},
-      {QStringLiteral("Pass"), QStringLiteral("Pase")},
-      {QStringLiteral("Turnover"), QStringLiteral("Pérdida")},
-      {QStringLiteral("Card"), QStringLiteral("Tarjeta")},
-      {QStringLiteral("PC Foul"), QStringLiteral("Falta PC")},
-
-      // First-level follow-ups
-      {QStringLiteral("On target"), QStringLiteral("Al arco")},
-      {QStringLiteral("Off target"), QStringLiteral("Afuera")},
-      {QStringLiteral("Blocked"), QStringLiteral("Bloqueado")},
-      {QStringLiteral("For"), QStringLiteral("A favor")},
-      {QStringLiteral("Against"), QStringLiteral("En contra")},
-      {QStringLiteral("Direct shot"), QStringLiteral("Directo")},
-      {QStringLiteral("Variant"), QStringLiteral("Variante")},
-      {QStringLiteral("Ruined"), QStringLiteral("Arruinado")},
-      {QStringLiteral("Forward"), QStringLiteral("Hacia adelante")},
-      {QStringLiteral("Sideways"), QStringLiteral("Hacia el lado")},
-      {QStringLiteral("Back"), QStringLiteral("Hacia atrás")},
-      {QStringLiteral("Green"), QStringLiteral("Verde")},
-      {QStringLiteral("Yellow"), QStringLiteral("Amarilla")},
-      {QStringLiteral("Red"), QStringLiteral("Roja")},
-      {QStringLiteral("Flick"), QStringLiteral("Flick")},
-      {QStringLiteral("Push"), QStringLiteral("Push")},
-      {QStringLiteral("Sweep"), QStringLiteral("Barrida")},
-      {QStringLiteral("Hit"), QStringLiteral("Pegada")},
-      {QStringLiteral("Good"), QStringLiteral("Positivo")},
-      {QStringLiteral("Bad"), QStringLiteral("Negativo")},
-      {QStringLiteral("Neutral"), QStringLiteral("Neutro")},
-      {QStringLiteral("Referee"), QStringLiteral("Arbitraje")},
-      {QStringLiteral("Off"), QStringLiteral("Ofensiva")},
-      {QStringLiteral("Def"), QStringLiteral("Defensiva")},
-
-      // Second / third level
-      {QStringLiteral("Saved"), QStringLiteral("Atajado")},
-      {QStringLiteral("Post"), QStringLiteral("Palo")},
-      {QStringLiteral("Closeby"), QStringLiteral("Cerca")},
-      {QStringLiteral("Not close"), QStringLiteral("Lejos")},
-      {QStringLiteral("Swept"), QStringLiteral("Barrida")},
-      {QStringLiteral("Dragflick"), QStringLiteral("Arrastre")},
-      {QStringLiteral("New PC"), QStringLiteral("Nuevo corto")},
-      {QStringLiteral("Dribling"), QStringLiteral("Conducción")},
-      {QStringLiteral("Deflection"), QStringLiteral("Desvío")},
-      {QStringLiteral("Completed"), QStringLiteral("Completado")},
-      {QStringLiteral("Failed"), QStringLiteral("Fallido")},
-      {QStringLiteral("Interception"), QStringLiteral("Intercepción")},
-      {QStringLiteral("Tackle"), QStringLiteral("Quite")},
-      {QStringLiteral("Pressure"), QStringLiteral("Presión")},
-      {QStringLiteral("Unforced error"), QStringLiteral("Error")},
-      {QStringLiteral("Foot"), QStringLiteral("Pie")},
-      {QStringLiteral("Stick"), QStringLiteral("Palo")},
-      {QStringLiteral("Danger"), QStringLiteral("Peligro")},
-      {QStringLiteral("Other"), QStringLiteral("Otro")},
-      {QStringLiteral("Converted"), QStringLiteral("convertido")},
-      {QStringLiteral("Missed"), QStringLiteral("no convertido")},
-      {QStringLiteral("Replay"), QStringLiteral("repite")},
-      {QStringLiteral("Left"), QStringLiteral("Izquierda")},
-      {QStringLiteral("Middle"), QStringLiteral("Centro")},
-      {QStringLiteral("Right"), QStringLiteral("Derecha")},
-      {QStringLiteral("3 man"), QStringLiteral("de 3")},
-      {QStringLiteral("4 man"), QStringLiteral("de 4")},
-      // Default follow-up team labels (when names empty)
-      {QStringLiteral("home"), QStringLiteral("Local")},
-      {QStringLiteral("away"), QStringLiteral("Visita")},
-  };
+  static const QHash<QString, QString> map = [] {
+    QHash<QString, QString> built;
+    built.reserve(static_cast<int>(kSpanishEventEntries.size()));
+    for (const SpanishEventEntry& entry : kSpanishEventEntries) {
+      const QString key = QString::fromLatin1(entry.canonical);
+      Q_ASSERT(!built.contains(key));
+      built.insert(key, QString::fromLatin1(entry.spanish));
+    }
+    Q_ASSERT(built.size() == static_cast<int>(kSpanishEventEntries.size()));
+    return built;
+  }();
   return map;
 }
 
@@ -733,12 +755,65 @@ const QHash<QString, UiTranslation>& uiTranslationTable() {
   return table;
 }
 
-std::optional<QString> uiTranslationForLanguage(const QString& key, AppLocale::Language language) {
-  const auto& table = uiTranslationTable();
-  const auto iterator = table.constFind(key);
-  if (iterator == table.cend()) return std::nullopt;
-  return language == AppLocale::Language::Spanish ? iterator->spanish : iterator->english;
+const QHash<QString, QString>& uiStringsForLanguage(AppLocale::Language language) {
+  static const QHash<QString, QString> englishStrings = [] {
+    const QHash<QString, UiTranslation>& table = uiTranslationTable();
+    QHash<QString, QString> strings;
+    strings.reserve(table.size());
+    for (auto iterator = table.constBegin(); iterator != table.constEnd(); ++iterator) {
+      strings.insert(iterator.key(), iterator->english);
+    }
+    return strings;
+  }();
+  static const QHash<QString, QString> spanishStrings = [] {
+    const QHash<QString, UiTranslation>& table = uiTranslationTable();
+    QHash<QString, QString> strings;
+    strings.reserve(table.size());
+    for (auto iterator = table.constBegin(); iterator != table.constEnd(); ++iterator) {
+      strings.insert(iterator.key(), iterator->spanish);
+    }
+    return strings;
+  }();
+  return language == AppLocale::Language::Spanish ? spanishStrings : englishStrings;
 }
+
+QStringList splitCompoundPath(const QString& path) {
+  return path.split(AppLocale::kCompoundPathSeparator, Qt::KeepEmptyParts);
+}
+
+QString joinCompoundPath(const QStringList& segments) {
+  return segments.join(QString(AppLocale::kCompoundPathSeparator));
+}
+
+bool equalsIgnoreCase(const QString& lhs, const QString& rhs) {
+  return lhs.compare(rhs, Qt::CaseInsensitive) == 0;
+}
+
+/// Matches team labels embedded in follow-up paths (GameControls defaults, side keys, or names).
+class TeamFollowUpSegmentMatcher {
+public:
+  TeamFollowUpSegmentMatcher(const QString& homeTeamName, const QString& awayTeamName)
+      : homeDisplay_(homeTeamName.trimmed().isEmpty() ? QString(kDefaultHomeFollowUpLabel)
+                                                       : homeTeamName.trimmed()),
+        awayDisplay_(awayTeamName.trimmed().isEmpty() ? QString(kDefaultAwayFollowUpLabel)
+                                                       : awayTeamName.trimmed()) {}
+
+  bool isTeamSegment(const QString& segment) const {
+    const QString trimmed = segment.trimmed();
+    if (trimmed.isEmpty()) return false;
+    if (equalsIgnoreCase(trimmed, homeDisplay_)) return true;
+    if (equalsIgnoreCase(trimmed, awayDisplay_)) return true;
+    if (equalsIgnoreCase(trimmed, QString(kHomeTeamSideKey))) return true;
+    if (equalsIgnoreCase(trimmed, QString(kAwayTeamSideKey))) return true;
+    if (equalsIgnoreCase(trimmed, QString(kDefaultHomeFollowUpLabel))) return true;
+    if (equalsIgnoreCase(trimmed, QString(kDefaultAwayFollowUpLabel))) return true;
+    return false;
+  }
+
+private:
+  QString homeDisplay_;
+  QString awayDisplay_;
+};
 
 } // namespace
 
@@ -753,6 +828,7 @@ void setLanguage(Language language) {
 }
 
 void loadFromSettings() {
+  // Same notification path as setLanguage() so listeners refresh after startup load.
   notifyLanguageChangedIf(LanguageStore::instance().loadFromSettings());
 }
 
@@ -770,47 +846,44 @@ QString trEventForLanguage(const QString& canonicalToken, Language language) {
 
 QString translateCompoundPath(const QString& canonicalPath) {
   if (canonicalPath.isEmpty()) return canonicalPath;
-  const QString sep = QStringLiteral(" → ");
-  const QStringList parts = canonicalPath.split(sep, Qt::KeepEmptyParts);
+  const QStringList parts = splitCompoundPath(canonicalPath);
   QStringList translated;
   translated.reserve(parts.size());
   for (const QString& part : parts) {
     translated.append(trEvent(part.trimmed()));
   }
-  return translated.join(sep);
+  return joinCompoundPath(translated);
 }
 
 QString followUpPathWithoutTeamSegments(const QString& followUpEvent, const QString& homeTeamName,
                                         const QString& awayTeamName) {
   if (followUpEvent.isEmpty()) return followUpEvent;
-  const QString sep = QStringLiteral(" → ");
-  const QStringList parts = followUpEvent.split(sep, Qt::KeepEmptyParts);
+  const QStringList parts = splitCompoundPath(followUpEvent);
+  const TeamFollowUpSegmentMatcher matcher(homeTeamName, awayTeamName);
   QStringList filtered;
-  const QString homeLbl = homeTeamName.trimmed().isEmpty() ? QStringLiteral("home") : homeTeamName.trimmed();
-  const QString awayLbl = awayTeamName.trimmed().isEmpty() ? QStringLiteral("away") : awayTeamName.trimmed();
+  filtered.reserve(parts.size());
   for (const QString& segment : parts) {
-    const QString trimmed = segment.trimmed();
-    if (QString::compare(trimmed, homeLbl, Qt::CaseInsensitive) == 0) continue;
-    if (QString::compare(trimmed, awayLbl, Qt::CaseInsensitive) == 0) continue;
-    filtered.append(trimmed);
+    if (matcher.isTeamSegment(segment)) continue;
+    filtered.append(segment.trimmed());
   }
-  return filtered.join(sep);
+  return joinCompoundPath(filtered);
 }
 
 QString trDisplayTagLine(const QString& mainEvent, const QString& followUpEvent) {
   QString line = trEvent(mainEvent);
   if (!followUpEvent.isEmpty()) {
-    line += QStringLiteral(" → ") + translateCompoundPath(followUpEvent);
+    line += QString(kCompoundPathSeparator) + translateCompoundPath(followUpEvent);
   }
   return line;
 }
 
 QString trUi(const char* key) {
   if (!key) return QString();
-  const QString lookupKey = QString::fromLatin1(key);
-  const std::optional<QString> translated = uiTranslationForLanguage(lookupKey, currentLanguage());
-  if (!translated.has_value()) return lookupKey;
-  return *translated;
+  const QLatin1String latinKey(key);
+  const QHash<QString, QString>& strings = uiStringsForLanguage(currentLanguage());
+  const auto iterator = strings.constFind(latinKey);
+  if (iterator == strings.cend()) return QString::fromLatin1(key);
+  return iterator.value();
 }
 
 } // namespace AppLocale

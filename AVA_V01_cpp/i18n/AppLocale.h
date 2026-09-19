@@ -2,9 +2,14 @@
 
 #include <QString>
 
+#include <QtGlobal>
+
 class QSettings;
 
 namespace AppLocale {
+
+/// Separator between compound follow-up path segments (canonical storage and display).
+inline constexpr QLatin1StringView kCompoundPathSeparator(" → ");
 
 enum class Language {
   English,

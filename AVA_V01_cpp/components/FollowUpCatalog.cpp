@@ -1,11 +1,11 @@
 #include "FollowUpCatalog.h"
 
+#include "AppLocale.h"
+
 #include <QHash>
 #include <QSet>
 
 namespace {
-
-constexpr QLatin1StringView kArrowSeparator(" → ");
 
 QString joinArrowPath(const QStringList& parts) {
   QStringList nonempty;
@@ -13,7 +13,7 @@ QString joinArrowPath(const QStringList& parts) {
   for (const QString& part : parts) {
     if (!part.isEmpty()) nonempty.append(part);
   }
-  return nonempty.join(kArrowSeparator);
+  return nonempty.join(QString(AppLocale::kCompoundPathSeparator));
 }
 
 const QHash<QString, QStringList>& firstLevelTable() {
@@ -141,11 +141,11 @@ QString FollowUpCatalog::formatPayload(const QString& mainEvent, const QStringLi
     case PayloadLayout::TeamThenChain:
       if (chain.isEmpty()) return teamLabel;
       if (teamLabel.isEmpty()) return chain;
-      return teamLabel + kArrowSeparator + chain;
+      return teamLabel + AppLocale::kCompoundPathSeparator + chain;
     case PayloadLayout::ChainThenTeam:
       if (chain.isEmpty()) return teamLabel;
       if (teamLabel.isEmpty()) return chain;
-      return chain + kArrowSeparator + teamLabel;
+      return chain + AppLocale::kCompoundPathSeparator + teamLabel;
     case PayloadLayout::PlainChain:
       return chain;
   }
