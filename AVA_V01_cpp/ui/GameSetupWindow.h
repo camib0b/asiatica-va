@@ -1,9 +1,13 @@
 #pragma once
 
 #include <QDate>
+#include <QPointer>
 #include <QString>
 #include <QStringList>
+#include <QVector>
 #include <QWidget>
+
+#include <memory>
 
 class GameMetadataSuggester;
 class QComboBox;
@@ -60,32 +64,54 @@ private:
   void onContinue();
   void onBack();
   void updateOptionalFieldAppearance();
+  enum class OptionalDateCommit {
+    Placeholder,
+    Chosen,
+  };
+  void applyOptionalDate(const QDate& date, OptionalDateCommit commit);
+  void updateContinueButtonEnabled();
+  struct SetupFormValues {
+    QString homeName;
+    QString awayName;
+    QString homeColor;
+    QString awayColor;
+    QString homeAbbrev;
+    QString awayAbbrev;
+    QDate gameDate;
+  };
+  SetupFormValues collectSetupFormValues() const;
+  bool hasRequiredSetupFields(const SetupFormValues& values) const;
   void abortMetadataSuggestion();
+  void connectMetadataSuggester();
+  void disconnectMetadataSuggester();
+  void discardMetadataSuggester();
+  bool suggestionSignalsArmed() const;
   void setSuggestionStatusKey(const char* key);
   /// Returns the first 3 alphanumeric characters of \p teamName, uppercased.
   /// Falls back to empty string when the team name has no alphanumeric content.
   static QString deriveAbbreviationFromTeamName(const QString& teamName);
 
   QString videoPath_;
-  bool ignoreDateChange_ = false;
-  bool dateEditedByUser_ = false;
+  bool optionalDateChosen_ = false;
+  bool suggestionSignalsArmed_ = false;
   const char* suggestionStatusKey_ = nullptr;
 
-  GameMetadataSuggester* metadataSuggester_ = nullptr;
-  QLabel* titleLabel_ = nullptr;
-  QLabel* suggestionStatusLabel_ = nullptr;
-  QLabel* homeTeamLabel_ = nullptr;
-  QLabel* awayTeamLabel_ = nullptr;
-  QLabel* optionalLabel_ = nullptr;
-  QLabel* dateLabel_ = nullptr;
-  QLineEdit* homeNameEdit_ = nullptr;
-  QLineEdit* awayNameEdit_ = nullptr;
-  QLineEdit* homeAbbrevEdit_ = nullptr;
-  QLineEdit* awayAbbrevEdit_ = nullptr;
-  QDateEdit* gameDateEdit_ = nullptr;
-  TeamColorPicker* homeColorPicker_ = nullptr;
-  TeamColorPicker* awayColorPicker_ = nullptr;
-  QComboBox* languageCombo_ = nullptr;
-  QPushButton* continueButton_ = nullptr;
-  QPushButton* backButton_ = nullptr;
+  std::unique_ptr<GameMetadataSuggester> metadataSuggester_;
+  QVector<QMetaObject::Connection> metadataSuggesterConnections_;
+  QPointer<QLabel> titleLabel_;
+  QPointer<QLabel> suggestionStatusLabel_;
+  QPointer<QLabel> homeTeamLabel_;
+  QPointer<QLabel> awayTeamLabel_;
+  QPointer<QLabel> optionalLabel_;
+  QPointer<QLabel> dateLabel_;
+  QPointer<QLineEdit> homeNameEdit_;
+  QPointer<QLineEdit> awayNameEdit_;
+  QPointer<QLineEdit> homeAbbrevEdit_;
+  QPointer<QLineEdit> awayAbbrevEdit_;
+  QPointer<QDateEdit> gameDateEdit_;
+  QPointer<TeamColorPicker> homeColorPicker_;
+  QPointer<TeamColorPicker> awayColorPicker_;
+  QPointer<QComboBox> languageCombo_;
+  QPointer<QPushButton> continueButton_;
+  QPointer<QPushButton> backButton_;
 };

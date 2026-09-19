@@ -502,7 +502,8 @@ void GameMetadataSuggester::handleNameDateResponse(const QByteArray& responseBod
         }
     }
 
-    if (suggestedHomeName_.isEmpty() && suggestedAwayName_.isEmpty() && !gameDate.isValid()) {
+    if (aborted_
+        || (suggestedHomeName_.isEmpty() && suggestedAwayName_.isEmpty() && !gameDate.isValid())) {
         return;
     }
     emit nameDateSuggested(suggestedHomeName_, suggestedAwayName_, gameDate);
@@ -512,7 +513,7 @@ void GameMetadataSuggester::handleColorResponse(const QByteArray& responseBody) 
     const QJsonObject object = parseContentObject(responseBody);
     const QString homeColor = normalizeHexColor(optionalJsonString(object.value(QStringLiteral("home_color_hex"))));
     const QString awayColor = normalizeHexColor(optionalJsonString(object.value(QStringLiteral("away_color_hex"))));
-    if (homeColor.isEmpty() && awayColor.isEmpty()) {
+    if (aborted_ || (homeColor.isEmpty() && awayColor.isEmpty())) {
         return;
     }
     emit colorsSuggested(homeColor, awayColor);
