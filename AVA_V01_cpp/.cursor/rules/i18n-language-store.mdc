@@ -25,3 +25,5 @@ void loadFromSettings() {
 ```
 
 Do not lazy-load `QSettings` from `currentLanguage()`: org/app name is set after `QApplication` exists. Call `loadFromSettings()` from `main` after that, before creating windows.
+
+`LocaleNotifier` is a process-lifetime `QObject`. Own it like `LicenseManager`: `static unique_ptr<LocaleNotifier, QtParentDeleter>{new LocaleNotifier(qApp)}`. A function-local `static LocaleNotifier` is destroyed after `main()`, which races remaining `languageChanged` connections (`qt-raii.mdc`).

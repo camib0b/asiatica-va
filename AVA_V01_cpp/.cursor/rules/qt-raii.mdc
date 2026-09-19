@@ -13,7 +13,7 @@ Pick **one** owner. Mixing `new`/`delete`, `deleteLater`, a Qt parent, and a def
 - **Widget factories** (`makeDurationSpinBox`): return `std::unique_ptr<T, QtParentDeleter>`, not `T*`. The caller keeps the local until the widget is parented / in a layout, then observes with `QPointer`.
 - **Replacing parented children**: do not `delete` a widget that still has a Qt parent (UAF if the parent already destroyed it; double-ownership with `new`). Call `unparentAndDelete(widget)` so Qt releases ownership first. Skip `removeWidget` + raw `delete` loops.
 - **Unparented QObject you uniquely own** (`ClipExporter` on a job, `VideoConcatenator`, `QProcess`): `std::make_unique<Foo>()` with **no** Qt parent. Never also `new Foo(this)`. Signal lambdas that mutate the owning `Job` must not look up by id; bind the worker as context (`job-exporter-signal-lifetime.mdc`).
-- **Process-lifetime QObject singletons** (`LicenseManager::instance`): hold a function-local `static std::unique_ptr<T, QtParentDeleter>` (`{new T(qApp)}` when the ctor is private). Do not use `static T*` + lazy `new` and rely on the Qt parent for cleanup — that is not strict RAII and hides ownership.
+- **Process-lifetime QObject singletons** (`LicenseManager`, `LocaleNotifier`): hold a function-local `static std::unique_ptr<T, QtParentDeleter>` (`{new T(qApp)}` when the ctor is private). Do **not** use a Meyers `static T notifier;` — Qt destroys it after `main()` returns, after widgets that still hold `languageChanged` connections. Do not use `static T*` + lazy `new` and rely on the Qt parent for cleanup — that is not strict RAII and hides ownership.
 - **Transfer across objects**: the setter takes `std::unique_ptr<T>` by value; the caller `std::move`s. Do not pass a raw `T*` into a setter that later `delete`s it.
 - **Destructor**: do not `delete` or `reset()` unique_ptr members. They run after the destructor body. `reset()` only when releasing **early** (cancel, replace, dismiss).
 - **Destroying a QObject from its own signal**: `release()` then `disconnect()` then `deleteLater()`. Do not `unique_ptr::reset()` on that stack.
@@ -27,12 +27,16 @@ delete row.eventLabel;
 // BAD — default unique_ptr AND Qt parent: two owners
 std::unique_ptr<QLabel> titleLabel_ = std::make_unique<QLabel>(this);
 
+// BAD — function-local static QObject; destroyed after qApp / connected widgets
+static LocaleNotifier notifier;
+return notifier;
+
 // BAD — singleton leaks ownership to qApp; raw new in instance()
 static LicenseManager* manager = nullptr;
 if (!manager) manager = new LicenseManager(qApp);
 
 // GOOD — singleton: allocate once into parent-aware unique_ptr (private ctor: use new in init)
-static std::unique_ptr<LicenseManager, QtParentDeleter> manager{new LicenseManager(qApp)};
+static std::unique_ptr<LocaleNotifier, QtParentDeleter> notifier{new LocaleNotifier(qApp)};
 
 // GOOD — parent-aware unique_ptr; QPointer only observes
 auto titleLabel = makeQtPtr<QLabel>(contentContainer.get());

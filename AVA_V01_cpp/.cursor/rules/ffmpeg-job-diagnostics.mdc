@@ -1,0 +1,27 @@
+---
+description: FFmpeg prepare/concat jobs must keep distinct cancel, start-fail, and stderr diagnostics — never clear errorMessage on cancel
+globs: export/**/*.{h,cpp}
+alwaysApply: false
+---
+
+# FFmpeg job errors keep a root cause
+
+Callers (`WorkWindow`, `MainWindow`) show `errorMessage()` / `VideoConcatenationResult::errorMessage` on failure. An empty string after cancel looks like a silent no-op. A single generic `error_failed` hides FailedToStart vs transcode vs missing stderr.
+
+- **Cancel**: set a dedicated i18n key (`playback_prep.error_cancelled`, `concat.error_cancelled`). Do not `errorMessage_.clear()`.
+- **FailedToStart**: dedicated start-failed string with `program()` and `errorString()`. Crashes still go through `finished()`.
+- **Non-zero exit**: user-facing failed string **plus** trimmed FFmpeg stderr (head + tail, not only `.right(500)`). If stderr is empty, include exit code and crash vs failed.
+- **Missing FFmpeg binary**: keep the install-FFmpeg string. Do not reuse it for start or transcode failures.
+
+Add both EN and ES in `uiTranslationTable()` (`ui-string-table.mdc`).
+
+```cpp
+// BAD — cancel wipes the reason; fail drops to generic or truncated stderr
+errorMessage_.clear();
+errorMessage_ = QString::fromUtf8(process_->readAllStandardError()).right(500);
+
+// GOOD
+errorMessage_ = AppLocale::trUi("playback_prep.error_cancelled");
+errorMessage_ = AppLocale::trUi("playback_prep.error_ffmpeg_start").arg(program, processError);
+errorMessage_ = AppLocale::trUi("concat.error_failed") + QLatin1Char('\n') + stderrOutput;
+```

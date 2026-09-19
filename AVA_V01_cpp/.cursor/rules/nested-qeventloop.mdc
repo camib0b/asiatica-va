@@ -1,0 +1,30 @@
+---
+description: Do not nest QEventLoop::exec() under modal progress; poll processEvents until the job is terminal
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# No nested QEventLoop on the UI thread
+
+`waitWithProgress` plus a modal `QProgressDialog` must not call `QEventLoop::exec()`. A second loop on the UI thread re-enters `start`/`cancel`, misses `finished`, and can deadlock. Keep the FFmpeg `QProcess` async; only the wait helper pumps events.
+
+Poll `QCoreApplication::processEvents` until a terminal flag (`finished_` / `isTerminal()`). `setAutoClose(false)` and `setAutoReset(false)` so the dialog cannot close itself and re-enter handlers. Disconnect cancel when the wait ends. `QSignalBlocker` around `close()`.
+
+```cpp
+// BAD — nested exec re-enters slots while the caller is still in loadVideoFromFile
+QEventLoop loop;
+connect(this, &Preparer::preparationFinished, &loop, &QEventLoop::quit);
+progress.show();
+loop.exec();
+
+// GOOD — same thread, no extra loop; cancel still reaches cancel()
+progress.setAutoClose(false);
+progress.setAutoReset(false);
+const auto cancelConnection =
+    connect(&progress, &QProgressDialog::canceled, this, &Preparer::cancel);
+progress.show();
+while (!finished_) {
+  QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+}
+disconnect(cancelConnection);
+```

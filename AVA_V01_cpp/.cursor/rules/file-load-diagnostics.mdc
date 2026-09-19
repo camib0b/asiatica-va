@@ -1,0 +1,30 @@
+---
+description: QFile/resource load helpers must not collapse open, read, and empty-file failures into an empty QString
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# Load failures are not empty content
+
+Returning `{}` from `QFile::open` makes missing resources, permission errors, short reads, and empty files look the same. Callers then log a generic “Failed to load” with only the path (`Style::ApplyLightTheme`).
+
+Return a small result (`content` + `errorMessage`), or `optional` plus out-error. Record `errorString()` on open **and** after `readAll()` (`QFileDevice::error()`). Treat successful open of empty bytes as `"file is empty"`, not as success.
+
+Empty `content` with empty `errorMessage` is success only when empty is a valid payload. Theme QSS is not.
+
+```cpp
+// BAD — open failure, read error, and empty file are all ""
+if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return {};
+return QString::fromUtf8(file.readAll());
+
+// GOOD
+if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+  result.errorMessage = file.errorString();
+  return result;
+}
+const QByteArray bytes = file.readAll();
+if (file.error() != QFileDevice::NoError) {
+  result.errorMessage = file.errorString();
+  return result;
+}
+```

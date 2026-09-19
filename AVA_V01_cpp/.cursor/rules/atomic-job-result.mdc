@@ -1,0 +1,28 @@
+---
+description: Blocking FFmpeg jobs return a result snapshot; do not make callers sequence start, wait, getters, and reset
+globs: **/*.{h,hpp,cpp}
+alwaysApply: false
+---
+
+# Blocking jobs return a result snapshot
+
+`startConcatenation` → `waitWithProgress` → read getters → `reset` is easy to get wrong (stale `outputPath_`, empty cancel text, starting while `Running`). Prefer one call that returns a value type.
+
+`VideoConcatenationResult` holds `succeeded`, `outputPath`, `errorMessage`. `runWithProgress` starts, waits, copies those fields, then `resetToIdle()`. `resetToIdle` must not delete a successful output file on disk.
+
+Guard `start*` if already `Running`. Keep split start/wait only when the job must span a later UI step (`pendingConcatenator_` during game setup).
+
+```cpp
+// BAD — four-step sequence; getters are live object state
+concatenator->startConcatenation(paths, dir);
+if (!concatenator->waitWithProgress(this)) {
+  warn(concatenator->errorMessage());
+}
+
+// GOOD — snapshot outlives resetToIdle
+const VideoConcatenationResult result =
+    concatenator.runWithProgress(paths, dir, this);
+if (!result.succeeded) {
+  warn(result.errorMessage);
+}
+```

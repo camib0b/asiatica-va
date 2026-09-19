@@ -6,11 +6,13 @@ alwaysApply: false
 
 # Const-correctness
 
-Mark an **instance** method `const` when it does not change logical object state. Refresh helpers that only re-apply strings or polish child widgets can be `const`.
+Mark an **instance** method `const` when it does not change logical object state. Refresh helpers that only re-apply strings or polish child widgets can be `const` (`XmlSyncDialog::updatePreview`). Count/preview helpers that only read members stay `const`. Signal-only notifiers (`LocaleNotifier::notifyLanguageChanged`) are `const`; MOC stubs are not — emit via a commented `const_cast`.
 
 Do **not** mark methods `const` when they change interaction state: which page is shown, session data, overlays, focus, or enabled actions. Calling non-const methods through a pointer member (`stack_->setCurrentWidget(...)`) is legal in a `const` method in C++ and is still a lie.
 
-If the function never uses `this`, do **not** add `const`. Make it `static` or a free function in the anonymous namespace. `static` and `const` (on the method) are mutually exclusive.
+Do not list internal refreshers in `private slots` unless they are connected to a signal. Mutation stays in the real slots (`onVideoPositionChanged`); the const helper only paints.
+
+If the function never uses `this`, do **not** add `const`. Make it `static` or a free function in the anonymous namespace (`formatMs`). `static` and `const` (on the method) are mutually exclusive.
 
 ```cpp
 // BAD — static has no this; trailing const will not compile
