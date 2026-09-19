@@ -49,10 +49,7 @@ private slots:
 
 private:
     void buildUi();
-    void updatePathFieldForFormat();
-    void updateSortOrderVisibility();
-    void updateControlsForFormat();
-    void updateClipCount();
+    void updateUiForFormat();
     ExportOutputFormat selectedOutputFormat() const;
     QString suggestedBaseName() const;
     QString defaultSuggestedFilePath() const;
@@ -67,6 +64,7 @@ private:
     QStringList occupiedOutputPaths_;
     Result result_;
     QString lastAutoOutputPathSuggestion_;
+    bool outputPathFollowsSuggestion_ = true;
 
     QComboBox* outputFormatCombo_ = nullptr;
     QLabel* sortOrderLabel_ = nullptr;

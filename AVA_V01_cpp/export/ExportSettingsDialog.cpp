@@ -20,6 +20,14 @@
 #include <QSignalBlocker>
 #include <QVBoxLayout>
 
+namespace {
+
+QString extensionForOutputFormat(ExportOutputFormat format) {
+    return format == ExportOutputFormat::Xml ? QStringLiteral(".xml") : QStringLiteral(".mp4");
+}
+
+}  // namespace
+
 ExportSettingsDialog::ExportSettingsDialog(TagSession* session,
                                            const QString& sourceVideoPath,
                                            const QString& defaultOutputDirectoryPath,
@@ -38,8 +46,7 @@ ExportSettingsDialog::ExportSettingsDialog(TagSession* session,
     resize(720, 620);
 
     buildUi();
-    updatePathFieldForFormat();
-    updateClipCount();
+    updateUiForFormat();
 }
 
 void ExportSettingsDialog::buildUi() {
@@ -135,8 +142,14 @@ void ExportSettingsDialog::buildUi() {
     outputPathEdit_ = new QLineEdit(this);
     outputPathEdit_->setPlaceholderText(AppLocale::trUi("export.output_placeholder"));
     connect(outputPathEdit_, &QLineEdit::textChanged, this, [this](const QString& text) {
-        if (text.trimmed().isEmpty()) {
+        const QString trimmed = text.trimmed();
+        if (trimmed.isEmpty()) {
             lastAutoOutputPathSuggestion_.clear();
+            outputPathFollowsSuggestion_ = true;
+            return;
+        }
+        if (trimmed != lastAutoOutputPathSuggestion_) {
+            outputPathFollowsSuggestion_ = false;
         }
     });
     pathRow->addWidget(outputPathEdit_, 1);
@@ -186,41 +199,33 @@ bool ExportSettingsDialog::queuedClipsHaveMixedTeams() const {
 }
 
 void ExportSettingsDialog::onOutputFormatChanged(int /*index*/) {
-    updatePathFieldForFormat();
-    updateControlsForFormat();
-    updateClipCount();
+    updateUiForFormat();
 }
 
-void ExportSettingsDialog::updatePathFieldForFormat() {
-    if (!outputPathEdit_) return;
-    QString placeholder;
-    switch (selectedOutputFormat()) {
-        case ExportOutputFormat::Mp4:
-            placeholder = AppLocale::trUi("export.output_placeholder");
-            break;
-        case ExportOutputFormat::Xml:
-            placeholder = AppLocale::trUi("export.output_placeholder_xml");
-            break;
-        case ExportOutputFormat::Both:
-            placeholder = AppLocale::trUi("export.output_placeholder_both");
-            break;
+void ExportSettingsDialog::updateUiForFormat() {
+    const ExportOutputFormat format = selectedOutputFormat();
+    const bool isXmlOnly = format == ExportOutputFormat::Xml;
+
+    if (outputPathEdit_) {
+        QString placeholder;
+        switch (format) {
+            case ExportOutputFormat::Mp4:
+                placeholder = AppLocale::trUi("export.output_placeholder");
+                break;
+            case ExportOutputFormat::Xml:
+                placeholder = AppLocale::trUi("export.output_placeholder_xml");
+                break;
+            case ExportOutputFormat::Both:
+                placeholder = AppLocale::trUi("export.output_placeholder_both");
+                break;
+        }
+        outputPathEdit_->setPlaceholderText(placeholder);
     }
-    outputPathEdit_->setPlaceholderText(placeholder);
-    updateControlsForFormat();
-}
 
-void ExportSettingsDialog::updateSortOrderVisibility() {
-    const bool isXmlOnly = selectedOutputFormat() == ExportOutputFormat::Xml;
-    const bool showSortOrder = !isXmlOnly && queuedClipsHaveMixedTeams();
-    if (sortOrderLabel_) sortOrderLabel_->setVisible(showSortOrder);
-    if (sortOrderCombo_) sortOrderCombo_->setVisible(showSortOrder);
-}
-
-void ExportSettingsDialog::updateControlsForFormat() {
-    const bool isXmlOnly = selectedOutputFormat() == ExportOutputFormat::Xml;
     const QString xmlTooltip = isXmlOnly
         ? AppLocale::trUi("export.xml_filters_ignored_tooltip")
         : QString();
+    const bool showSortOrder = !isXmlOnly && queuedClipsHaveMixedTeams();
 
     auto setOverlayEnabled = [isXmlOnly, xmlTooltip](QWidget* widget) {
         if (!widget) return;
@@ -236,28 +241,26 @@ void ExportSettingsDialog::updateControlsForFormat() {
     setOverlayEnabled(includeAudioTrackCheckBox_);
     setOverlayEnabled(includeBrandingOverlayCheckBox_);
 
-    updateSortOrderVisibility();
-}
+    if (sortOrderLabel_) sortOrderLabel_->setVisible(showSortOrder);
+    if (sortOrderCombo_) sortOrderCombo_->setVisible(showSortOrder);
 
-void ExportSettingsDialog::updateClipCount() {
-    if (!clipCountLabel_) return;
-
-    if (selectedOutputFormat() == ExportOutputFormat::Xml) {
-        const int tagCount = tagSession_ ? tagSession_->tags().size() : 0;
-        clipCountLabel_->setText(
-            QStringLiteral("%1 %2")
-                .arg(tagCount)
-                .arg(AppLocale::trUi("export.xml_instances_label")));
-        if (exportButton_) exportButton_->setEnabled(tagCount > 0);
-        refreshOutputPathIfFollowingForm();
-        return;
+    if (clipCountLabel_) {
+        if (isXmlOnly) {
+            const int tagCount = tagSession_ ? tagSession_->tags().size() : 0;
+            clipCountLabel_->setText(
+                QStringLiteral("%1 %2")
+                    .arg(tagCount)
+                    .arg(AppLocale::trUi("export.xml_instances_label")));
+            if (exportButton_) exportButton_->setEnabled(tagCount > 0);
+        } else {
+            clipCountLabel_->setText(
+                QStringLiteral("%1 %2")
+                    .arg(queuedClips_.size())
+                    .arg(AppLocale::trUi("export.clips_label")));
+            if (exportButton_) exportButton_->setEnabled(!queuedClips_.isEmpty());
+        }
     }
 
-    clipCountLabel_->setText(
-        QStringLiteral("%1 %2")
-            .arg(queuedClips_.size())
-            .arg(AppLocale::trUi("export.clips_label")));
-    if (exportButton_) exportButton_->setEnabled(!queuedClips_.isEmpty());
     refreshOutputPathIfFollowingForm();
 }
 
@@ -278,10 +281,9 @@ QString ExportSettingsDialog::defaultSuggestedFilePath() const {
     if (directoryPath.isEmpty()) {
         directoryPath = sourceInfo.absolutePath();
     }
-    const QString extension = selectedOutputFormat() == ExportOutputFormat::Xml
-        ? QStringLiteral(".xml")
-        : QStringLiteral(".mp4");
-    return QDir(directoryPath).filePath(baseName + extension);
+    // Mp4 and Both use .mp4 as the user-chosen path; ExportJobManager derives the XML path
+    // alongside the MP4 when format is Both.
+    return QDir(directoryPath).filePath(baseName + extensionForOutputFormat(selectedOutputFormat()));
 }
 
 void ExportSettingsDialog::applySuggestedOutputPathFromForm() {
@@ -293,16 +295,38 @@ void ExportSettingsDialog::applySuggestedOutputPathFromForm() {
         outputPathEdit_->setText(suggestedPath);
     }
     lastAutoOutputPathSuggestion_ = suggestedPath;
+    outputPathFollowsSuggestion_ = true;
 }
 
 void ExportSettingsDialog::refreshOutputPathIfFollowingForm() {
     if (!outputPathEdit_ || sourceVideoPath_.isEmpty()) return;
     if (selectedOutputFormat() == ExportOutputFormat::Xml && !tagSession_) return;
-    const QString currentPath = outputPathEdit_->text();
-    if (!currentPath.trimmed().isEmpty() && currentPath != lastAutoOutputPathSuggestion_) {
+
+    const QString suggestedPath = defaultSuggestedFilePath();
+    if (suggestedPath.isEmpty()) return;
+
+    const QString currentPath = outputPathEdit_->text().trimmed();
+    if (outputPathFollowsSuggestion_ || currentPath.isEmpty()) {
+        applySuggestedOutputPathFromForm();
         return;
     }
-    applySuggestedOutputPathFromForm();
+
+    const QString suggestedBase = suggestedBaseName();
+    if (suggestedBase.isEmpty()) return;
+
+    const QFileInfo currentInfo(currentPath);
+    if (currentInfo.completeBaseName() != suggestedBase) return;
+
+    const QString updatedPath = QDir(currentInfo.absolutePath())
+        .filePath(suggestedBase + extensionForOutputFormat(selectedOutputFormat()));
+    if (updatedPath == currentPath) return;
+
+    {
+        QSignalBlocker blocker(outputPathEdit_);
+        outputPathEdit_->setText(updatedPath);
+    }
+    lastAutoOutputPathSuggestion_ = updatedPath;
+    outputPathFollowsSuggestion_ = true;
 }
 
 void ExportSettingsDialog::onBrowseOutputPath() {
@@ -328,6 +352,7 @@ void ExportSettingsDialog::onBrowseOutputPath() {
         QSignalBlocker blocker(outputPathEdit_);
         outputPathEdit_->setText(path);
         lastAutoOutputPathSuggestion_.clear();
+        outputPathFollowsSuggestion_ = false;
     }
 }
 
@@ -342,6 +367,9 @@ void ExportSettingsDialog::onExportClicked() {
     }
 
     if (format == ExportOutputFormat::Xml && (!tagSession_ || tagSession_->tags().isEmpty())) {
+        QMessageBox::warning(this,
+            AppLocale::trUi("export.title"),
+            AppLocale::trUi("export.no_tags_for_xml"));
         return;
     }
 
