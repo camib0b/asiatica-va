@@ -67,6 +67,28 @@ bool VideoConcatenator::succeeded() const {
     return state_ == JobState::Succeeded;
 }
 
+QString VideoConcatenator::outputPath() const {
+    return outputPath_;
+}
+
+QString VideoConcatenator::errorMessage() const {
+    return errorMessage_;
+}
+
+VideoConcatenationResult VideoConcatenator::runWithProgress(const QStringList& inputPaths,
+                                                            const QString& outputDir,
+                                                            QWidget* parentWidget) {
+    startConcatenation(inputPaths, outputDir);
+    waitWithProgress(parentWidget);
+
+    VideoConcatenationResult result;
+    result.succeeded = succeeded();
+    result.outputPath = outputPath_;
+    result.errorMessage = errorMessage_;
+    resetToIdle();
+    return result;
+}
+
 bool VideoConcatenator::isTerminal() const {
     return state_ == JobState::Succeeded
         || state_ == JobState::Failed
@@ -116,12 +138,22 @@ void VideoConcatenator::removePartialOutput() {
     QFile::remove(outputPath_);
 }
 
+void VideoConcatenator::resetToIdle() {
+    stopAndDiscardProcess();
+    state_ = JobState::Idle;
+    errorMessage_.clear();
+    outputPath_.clear();
+    concatListPath_.clear();
+}
+
 void VideoConcatenator::failWith(const QString& message) {
     settle(JobState::Failed, message);
 }
 
 void VideoConcatenator::startConcatenation(const QStringList& inputPaths,
                                            const QString& outputDir) {
+    if (state_ == JobState::Running) return;
+
     beginNewJob();
 
     const QString ffmpegPath = ClipExporter::findFfmpeg();
@@ -186,7 +218,7 @@ void VideoConcatenator::startConcatenation(const QStringList& inputPaths,
 
 void VideoConcatenator::cancel() {
     if (isTerminal()) return;
-    settle(JobState::Cancelled, QString());
+    settle(JobState::Cancelled, AppLocale::trUi("concat.error_cancelled"));
     if (process_ && process_->state() != QProcess::NotRunning) {
         process_->kill();
     }

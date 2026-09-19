@@ -124,19 +124,17 @@ void MainWindow::onVideoImportRequested() {
         return;
     }
 
-    auto concatenator = std::make_unique<VideoConcatenator>();
-    concatenator->startConcatenation(filePaths, tempDir->path());
-
-    if (!concatenator->waitWithProgress(this)) {
-        const QString errorMsg = concatenator->errorMessage();
-        if (!errorMsg.isEmpty()) {
-            QMessageBox::warning(this, AppLocale::trUi("app.title"), errorMsg);
+    VideoConcatenator concatenator;
+    const VideoConcatenationResult result =
+        concatenator.runWithProgress(filePaths, tempDir->path(), this);
+    if (!result.succeeded) {
+        if (!result.errorMessage.isEmpty()) {
+            QMessageBox::warning(this, AppLocale::trUi("app.title"), result.errorMessage);
         }
         return;
     }
 
-    const QString concatenatedPath = concatenator->outputPath();
-    concatenator.reset();
+    const QString concatenatedPath = result.outputPath;
 
     workWindow_->setConcatenatedVideoTempDir(std::move(tempDir));
     workWindow_->setPendingConcatenation(nullptr);

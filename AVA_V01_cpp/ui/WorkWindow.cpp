@@ -1601,21 +1601,18 @@ void WorkWindow::onReplaceVideo() {
         return;
     }
 
-    auto concatenator = std::make_unique<VideoConcatenator>();
-    concatenator->startConcatenation(filePaths, tempDir->path());
-
-    if (!concatenator->waitWithProgress(this)) {
-        const QString errorMessage = concatenator->errorMessage();
-        concatenator.reset();
+    VideoConcatenator concatenator;
+    const VideoConcatenationResult result =
+        concatenator.runWithProgress(filePaths, tempDir->path(), this);
+    if (!result.succeeded) {
         tempDir.reset();
-        if (!errorMessage.isEmpty()) {
-            QMessageBox::warning(this, AppLocale::trUi("app.title"), errorMessage);
+        if (!result.errorMessage.isEmpty()) {
+            QMessageBox::warning(this, AppLocale::trUi("app.title"), result.errorMessage);
         }
         return;
     }
 
-    const QString outputPath = concatenator->outputPath();
-    concatenator.reset();
+    const QString outputPath = result.outputPath;
 
     releaseTransientResources();
     concatenatedVideoTempDir_ = std::move(tempDir);
