@@ -1099,16 +1099,16 @@ QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"] {
   border-radius: 6px;
 }
 
-QWidget[role="quarterSegment"] {
+QLabel[role="quarterSegment"] {
   min-height: 10px;
   max-height: 10px;
   border-radius: 2px;
   background: #e4e4e7;
 }
-QWidget[role="quarterSegment"][quarterState="complete"] {
+QLabel[role="quarterSegment"][quarterState="complete"] {
   background: #18181b;
 }
-QWidget[role="quarterSegment"][quarterState="current"] {
+QLabel[role="quarterSegment"][quarterState="current"] {
   background: #52525b;
 }
 

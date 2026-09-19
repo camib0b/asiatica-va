@@ -545,8 +545,10 @@ void GameControls::buildUi() {
   const std::array<QString, 4> quarterNames = {
       QStringLiteral("Q1"), QStringLiteral("Q2"), QStringLiteral("Q3"), QStringLiteral("Q4")};
   for (int quarterIndex = 0; quarterIndex < static_cast<int>(quarterNames.size()); ++quarterIndex) {
-    auto* segment = new QWidget(segmentsRow);
+    auto* segment = new QLabel(segmentsRow);
     segment->setAttribute(Qt::WA_StyledBackground, true);
+    segment->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    segment->setFixedHeight(10);
     Style::setRole(segment, "quarterSegment");
     Style::setProp(segment, "quarterState", QStringLiteral("empty"));
     quarterSegments_.at(quarterIndex) = segment;
