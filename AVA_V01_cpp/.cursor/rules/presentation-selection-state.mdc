@@ -1,0 +1,29 @@
+---
+description: Presentation UI/queue selection must survive tag edits, filters, and stale indices
+globs: ui/PresentationPanel*,ui/PresentationInstancesModel*,state/PresentationQueue*
+alwaysApply: false
+---
+
+# Presentation selection state
+
+Presentation mode spans `PresentationPanel` (pick clips) and `PresentationQueue` (play/export them). Users expect picks and the current clip to stay coherent after tag edits, imports, and filter changes. **Store selection by stable `GameTag::id`**, not session index or table row.
+
+- **Prune on every session refresh** — intersect `selectedTagIdSet_` / `selectedTagIds_` with ids that still exist (`indexOfTagId` / `QSet` of session ids). Stale ids must not inflate counts or enable controls.
+- **Resolve indexes at the boundary** — `selectedTagIndexes()` maps ids → indexes via `indexOfTagId`, sorts once. Do not scan all tags O(N) per call.
+- **Validate before acting** — `setCurrentClip`, double-click, and lead/lag emit paths call `isValidTagIndex` / `resolveCurrentClip`. Invalid index clears highlight and disables spinboxes; do not emit edits for a miss.
+- **Filters vs playback** — a clip can be current while filtered out of the table. Lead/lag controls follow session validity; row highlight follows visible rows only.
+- **Selection summary** — when filters hide picks, show **visible selected**, **listed**, and **total** so the UI cannot claim more selected than shown without explanation.
+- **Filter restore** — after `tagsChanged`, re-validate restored event filter (count > 0, not a time-control event) before `findData`; fall back to “all” explicitly.
+
+```cpp
+// BAD — row index stored; tagsChanged leaves ghost highlight and bogus lead/lag emits
+currentTagSessionIndex_ = tagSessionIndex;  // no isValidTagIndex check
+rebuildRows();  // full table rebuild on every current-clip tweak
+
+// GOOD — id is durable; index resolved when needed; highlight is incremental
+selectedTagIdSet_.insert(tagId);
+currentTagSessionIndex_ = tagSession_->isValidTagIndex(index) ? index : -1;
+instancesModel_->setCurrentTagId(currentTagId_);  // dataChanged, not resetModel
+```
+
+Product impact: presenters do not lose their queue silently, see trustworthy counts, and cannot trim/export against tags that were already removed.

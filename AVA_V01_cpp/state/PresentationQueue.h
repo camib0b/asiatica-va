@@ -72,9 +72,14 @@ signals:
   /// The interval of the clip at \p index changed.
   void clipIntervalChanged(int index);
 
+private slots:
+  void onTagNoteChanged(int tagSessionIndex);
+  void onTagIntervalChanged(int tagSessionIndex);
+
 private:
   void rebuildClipsFromSession();
   void pruneSelectedTagIds();
+  void applyRequestedInterval(Clip& clip, qint64 startMs, qint64 endMs) const;
   void clampClipToVideo(Clip& clip) const;
   quint64 currentTagId() const;
   void restoreCurrentIndex(quint64 previousTagId);

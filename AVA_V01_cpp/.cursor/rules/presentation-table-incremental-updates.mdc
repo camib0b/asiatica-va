@@ -1,0 +1,27 @@
+---
+description: Presentation instance table uses a model with incremental updates, not full widget rebuilds
+globs: ui/PresentationPanel*,ui/PresentationInstancesModel*
+alwaysApply: false
+---
+
+# Presentation table: model + incremental updates
+
+The presentation instance list can grow large. Rebuilding `QTableWidget` rows (new items, resort, re-check) on every filter tweak, checkbox, or current-clip change causes jank and fragile `populatingRows_` guards.
+
+- **Prefer `QTableView` + `QAbstractTableModel`** (`PresentationInstancesModel`) over `QTableWidget` for the instance list.
+- **Full reset only when structure changes** — `setRows()` / `beginResetModel` on `tagsChanged` or filter change. Check state and current-clip highlight use `dataChanged` on affected rows.
+- **RAII bulk guard** — `PresentationInstancesBulkUpdateGuard` suppresses `checkStateChanged` while programmatically updating checks. Do not scatter manual bool flags across handlers.
+- **Select all / none** — update `selectedTagIdSet_`, then `setSelectedTagIds()` on the model. Do not call `rebuildRows()` just to refresh checkmarks.
+- **Deduplicate tag ids** — one pass with `QSet` (`deduplicateTagIdsPreserveOrder`) or filter-then-dedup; avoid nested linear `contains()` on vectors.
+
+```cpp
+// BAD — N new QTableWidgetItems per rebuild; highlight change rebuilds everything
+populatingRows_ = true;
+instancesTable_->setRowCount(0);
+for (...) { instancesTable_->setItem(row, 0, new QTableWidgetItem(...)); }
+
+// GOOD — highlight-only path
+instancesModel_->setCurrentTagId(tagId);  // dataChanged on old + new row only
+```
+
+Product impact: smoother filtering and selection in long games; fewer missed signals from forgotten reentrancy guards.

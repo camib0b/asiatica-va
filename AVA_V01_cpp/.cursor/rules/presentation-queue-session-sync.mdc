@@ -1,0 +1,30 @@
+---
+description: PresentationQueue batches TagSession interval writes and keeps clamps consistent
+globs: state/PresentationQueue*
+alwaysApply: false
+---
+
+# Presentation queue ↔ TagSession sync
+
+`PresentationQueue` mirrors selected tags for playback/export. Intervals read from and write back to `TagSession` so presentation trims match export. Users expect **apply to all** to feel instant, not flicker through N partial states.
+
+- **One clamp path** — `applyRequestedInterval` enforces min duration, then `clampClipToVideo`. Every write (`setClipInterval`, `applyLeadLagToAllClips`, rebuild) goes through it. Do not assign `startMs`/`endMs` before clamping.
+- **Normalize video duration** — `setVideoDurationMs` treats non-positive as `0` (unknown end). `clampClipToVideo` must leave `endMs >= startMs + kMinimumClipDurationMs` after boundary adjustment.
+- **Batch multi-clip writes** — `applyLeadLagToAllClips` must not call `setClipInterval` in a loop (that triggers N session signals, N rebuilds, N UI updates). Under one `SessionWriteGuard`, call `TagSession::setTagInterval` for each queued clip, then **one** `refreshQueueFromSession()` and **one** `clipIntervalChanged` for the current clip.
+- **Guard self-triggered session signals** — `writingIntervalToSession_` blocks `onTagIntervalChanged` from re-entering refresh while the queue writes. Connect `TagSession` with **private slots**, not `[this]` lambdas recreated in `setTagSession`.
+- **Prune selection with a set** — build `QSet<quint64>` of existing tag ids once, filter `selectedTagIds_`, then dedupe in order.
+
+```cpp
+// BAD — N refreshes; UI and exporter see intermediate intervals
+for (int i = 0; i < clips_.size(); ++i) {
+  setClipInterval(i, mark - lead, mark + lag);
+}
+
+// GOOD — guarded batch write, single rebuild
+SessionWriteGuard guard(writingIntervalToSession_);
+for (...) tagSession_->setTagInterval(...);
+refreshQueueFromSession();
+emit clipIntervalChanged(currentIndex_);
+```
+
+Product impact: “apply lead/lag to all” updates every queued clip reliably, export uses the same intervals the user set in presentation, and the trim bar does not fight mid-batch refreshes.
