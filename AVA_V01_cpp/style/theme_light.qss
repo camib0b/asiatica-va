@@ -954,6 +954,86 @@ QWidget#VideoControlsBar QPushButton {
   font-size: 12px;
   min-height: 26px;
   border-radius: 6px;
+  border: none;
+  color: #fafafa;
+  background: rgba(255, 255, 255, 0.12);
+  font-weight: 500;
+}
+
+QWidget#VideoControlsBar QPushButton:hover {
+  background: rgba(255, 255, 255, 0.20);
+}
+
+QWidget#VideoControlsBar QPushButton:pressed {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+QWidget#VideoControlsBar QPushButton:disabled {
+  color: rgba(250, 250, 250, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+QWidget#VideoControlsBar QPushButton:focus {
+  border: none;
+  outline: none;
+  padding: 4px 8px;
+}
+
+QWidget#VideoControlsBar QPushButton[variant="primary"] {
+  background: #fafafa;
+  color: #09090b;
+  font-weight: 600;
+}
+
+QWidget#VideoControlsBar QPushButton[variant="primary"]:hover {
+  background: #e4e4e7;
+}
+
+QWidget#VideoControlsBar QPushButton[variant="primary"]:pressed {
+  background: #d4d4d8;
+}
+
+QWidget#VideoControlsBar QPushButton[variant="primary"]:disabled {
+  color: rgba(9, 9, 11, 0.35);
+  background: rgba(250, 250, 250, 0.45);
+}
+
+QWidget#VideoControlsBar QPushButton[variant="secondary"],
+QWidget#VideoControlsBar QPushButton[variant="outline"],
+QWidget#VideoControlsBar QPushButton[variant="ghost"] {
+  border: none;
+  color: #fafafa;
+  background: rgba(255, 255, 255, 0.10);
+}
+
+QWidget#VideoControlsBar QPushButton[variant="secondary"]:hover,
+QWidget#VideoControlsBar QPushButton[variant="outline"]:hover,
+QWidget#VideoControlsBar QPushButton[variant="ghost"]:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+QWidget#VideoControlsBar QPushButton[variant="secondary"]:pressed,
+QWidget#VideoControlsBar QPushButton[variant="outline"]:pressed,
+QWidget#VideoControlsBar QPushButton[variant="ghost"]:pressed {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+QWidget#VideoControlsBar QPushButton[flash="true"] {
+  border: none;
+  background: rgba(255, 255, 255, 0.30);
+  color: #fafafa;
+}
+
+QWidget#VideoControlsBar QPushButton[speedActive="true"],
+QWidget#VideoControlsBar QPushButton[variant="ghost"][speedActive="true"] {
+  border: none;
+  background: rgba(255, 255, 255, 0.24);
+  color: #fafafa;
+}
+
+QWidget#VideoControlsBar QPushButton:checked {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fafafa;
 }
 
 QWidget#VideoControlsBar QLabel {
