@@ -62,6 +62,7 @@
 #include <QFont>
 #include <QModelIndex>
 #include <QSplitter>
+#include <QSizePolicy>
 #include <QHBoxLayout>
 #include <QScrollBar>
 #include <QApplication>
@@ -121,28 +122,6 @@ bool isTextInteractionFocusWidget(const QWidget* widget) {
     if (qobject_cast<const QPlainTextEdit*>(widget)) return true;
     if (qobject_cast<const QTextEdit*>(widget)) return true;
     if (qobject_cast<const QComboBox*>(widget)) return true;
-    return false;
-}
-
-bool removeWidgetFromLayoutTree(QLayout* layout, QWidget* widget) {
-    if (!layout || !widget) {
-        return false;
-    }
-    if (layout->indexOf(widget) >= 0) {
-        layout->removeWidget(widget);
-        return true;
-    }
-    for (int index = 0; index < layout->count(); ++index) {
-        QLayoutItem* item = layout->itemAt(index);
-        if (!item) {
-            continue;
-        }
-        if (QLayout* childLayout = item->layout()) {
-            if (removeWidgetFromLayoutTree(childLayout, widget)) {
-                return true;
-            }
-        }
-    }
     return false;
 }
 
@@ -216,7 +195,7 @@ WorkWindow::WorkWindow(QWidget* parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground, true);
     buildUi();
     wireSignals();
-    applyTaggingLayout();
+    applyModeChrome();
     applyUiStrings();
 }
 
@@ -462,23 +441,56 @@ void WorkWindow::setMode(Mode m) {
     }
     if (mode_ == m) return;
     flushPendingClipNote();
-    if (mode_ == Mode::Tagging && m != Mode::Tagging) {
-        captureTaggingModeUiStateForRestore();
-    }
     if (mode_ == Mode::Presenting && m != Mode::Presenting) {
         detachPresentationKeyboardShortcuts();
         presentationAutoPauseArmed_ = false;
     }
     mode_ = m;
-    switch (m) {
-        case Mode::Tagging: applyTaggingLayout(); break;
-        case Mode::Analyzing: applyAnalyzingLayout(); break;
-        case Mode::Presenting: applyPresentationLayout(); break;
+    applyModeChrome();
+    if (m == Mode::Presenting) {
+        if (presentationQueue_ && videoPlayer_) {
+            presentationQueue_->setVideoDurationMs(videoPlayer_->durationMs());
+        }
+        if (presentationPanel_) presentationPanel_->refreshFromSession();
+        updatePresentationStage();
+        configurePresentationClipBarForCurrentClip();
+        attachPresentationKeyboardShortcuts();
     }
     if (modeTaggingBtn_) modeTaggingBtn_->setChecked(m == Mode::Tagging);
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->setChecked(m == Mode::Analyzing);
     if (modePresentingBtn_) modePresentingBtn_->setChecked(m == Mode::Presenting);
     refreshPlaybackShortcutFocusGate();
+}
+
+void WorkWindow::applyModeChrome() {
+    const bool isTagging = mode_ == Mode::Tagging;
+    const bool isAnalyzing = mode_ == Mode::Analyzing;
+    const bool isPresenting = mode_ == Mode::Presenting;
+
+    if (presentationBanner_) presentationBanner_->setVisible(isPresenting);
+    if (presentationClipBar_) presentationClipBar_->setVisible(isPresenting);
+    if (workTagsNotesSplitter_) workTagsNotesSplitter_->setVisible(!isPresenting);
+    if (notesColumn_) notesColumn_->setVisible(isAnalyzing);
+    if (tagsHeaderRow_) tagsHeaderRow_->setVisible(isAnalyzing);
+
+    if (workOuterSplitter_) {
+        workOuterSplitter_->setChildrenCollapsible(isPresenting);
+    }
+
+    if (workSideStack_) {
+        if (isTagging && taggingRightCol_) {
+            workSideStack_->setCurrentWidget(taggingRightCol_);
+        } else if (isAnalyzing && statsWindow_) {
+            workSideStack_->setCurrentWidget(statsWindow_);
+        } else if (isPresenting && presentationPanel_) {
+            workSideStack_->setCurrentWidget(presentationPanel_);
+        }
+    }
+
+    if (gameControls_) {
+        gameControls_->setMinimumWidth(GameControls::kMinimumPanelWidthPx);
+        gameControls_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    }
 }
 
 TagSession::GameTag WorkWindow::pendingTagPeriodAndTeam() const {
@@ -490,8 +502,6 @@ TagSession::GameTag WorkWindow::pendingTagPeriodAndTeam() const {
 
 void WorkWindow::buildUi() {
     setObjectName("AppRoot");
-    detachedWidgetHost_ = new QWidget(this);
-    detachedWidgetHost_->hide();
 
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -544,10 +554,6 @@ void WorkWindow::buildUi() {
     topLayout->addWidget(modeToggleGroup);
     topLayout->addSpacing(16);
 
-    videoPlayer_ = new VideoPlayer(this);
-    // Not in a layout until a mode layout is applied; hide so WorkWindow::show()
-    // does not paint this shell at (0,0) over the mode toggle row.
-    videoPlayer_->hide();
     videoControlsRow_ = new QWidget(this);
     auto* videoControlsLayout = new QHBoxLayout(videoControlsRow_);
     videoControlsLayout->setContentsMargins(0, 0, 0, 0);
@@ -580,9 +586,9 @@ void WorkWindow::buildUi() {
     mainContentLayout->addWidget(topRow);
 
     contentArea_ = new QWidget(mainContentContainer_);
-    contentLayout_ = new QVBoxLayout(contentArea_);
-    contentLayout_->setContentsMargins(0, 0, 0, 0);
-    contentLayout_->setSpacing(6);
+    auto* contentAreaLayout = new QVBoxLayout(contentArea_);
+    contentAreaLayout->setContentsMargins(0, 0, 0, 0);
+    contentAreaLayout->setSpacing(0);
     mainContentLayout->addWidget(contentArea_, 1);
 
     gameSetupWidget_ = new GameSetupWindow(this);
@@ -596,27 +602,12 @@ void WorkWindow::buildUi() {
     exportJobsBar_ = new ExportJobsBar(exportJobManager_, this);
     layout->addWidget(exportJobsBar_, 0);
 
-    // Tagging layout wrappers
-    taggingMainRow_ = new QWidget(this);
-    auto* taggingMainLayout = new QHBoxLayout(taggingMainRow_);
-    taggingMainLayout->setContentsMargins(0, 0, 0, 0);
-    taggingMainLayout->setSpacing(12);
-    taggingVideoCol_ = new QWidget(this);
-    taggingVideoCol_->setObjectName(QStringLiteral("TaggingVideoCol"));
-    taggingVideoCol_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    taggingVideoCol_->setAttribute(Qt::WA_StyledBackground, true);
-    taggingVideoCol_->setStyleSheet(QStringLiteral("#TaggingVideoCol { background-color: #FFFFFF; }"));
-    auto* taggingVideoLayout = new QVBoxLayout(taggingVideoCol_);
-    taggingVideoLayout->setContentsMargins(0, 0, 0, 0);
-    taggingVideoLayout->setSpacing(4);
-    taggingMainLayout->addWidget(taggingVideoCol_, 1);
     taggingRightCol_ = new QWidget(this);
-    taggingRightCol_->setObjectName("TaggingRightCol");
+    taggingRightCol_->setObjectName(QStringLiteral("TaggingRightCol"));
     auto* taggingRightLayout = new QVBoxLayout(taggingRightCol_);
     taggingRightLayout->setContentsMargins(0, 0, 0, 0);
-    taggingMainLayout->addWidget(taggingRightCol_, 0);
 
-    // Tags section (full width in tagging; inside left col in analyzing)
+    // Tags section
     tagsSection_ = new QWidget(this);
     auto* tagsSectionLayout = new QVBoxLayout(tagsSection_);
     tagsSectionLayout->setContentsMargins(0, 0, 0, 0);
@@ -697,15 +688,9 @@ void WorkWindow::buildUi() {
     tagsSectionLayout->addWidget(tagsHeaderRow_);
     tagsSectionLayout->addWidget(tagsTable_, 1);
 
-    taggingVideoTagsSplitter_ = new QSplitter(Qt::Vertical, this);
-    taggingVideoTagsSplitter_->setObjectName(QStringLiteral("TaggingVideoTagsSplitter"));
-    taggingVideoTagsSplitter_->setChildrenCollapsible(false);
-    taggingVideoTagsSplitter_->setHandleWidth(6);
-    taggingVideoTagsSplitter_->setAttribute(Qt::WA_StyledBackground, true);
-    taggingVideoTagsSplitter_->setStyleSheet(
-        QStringLiteral("#TaggingVideoTagsSplitter { background-color: #FFFFFF; }"));
-
     gameControls_ = new GameControls(this);
+    gameControls_->setMinimumWidth(GameControls::kMinimumPanelWidthPx);
+    taggingRightLayout->addWidget(gameControls_, 1);
     statsWindow_ = new StatsWindow(this);
     statsWindow_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     statsWindow_->setMinimumHeight(180);
@@ -733,62 +718,16 @@ void WorkWindow::buildUi() {
     notesColumnLayout->addWidget(matchNotesEditor_, 1);
     notesColumnLayout->addWidget(clipNotesLabel_);
     notesColumnLayout->addWidget(notesEdit_, 0);
-    notesColumn_->hide();
 
-    analyzingTagsControlsSplitter_ = new QSplitter(Qt::Horizontal, this);
-    analyzingTagsControlsSplitter_->setObjectName(QStringLiteral("WorkAnalyzingTagsControlsSplitter"));
-    analyzingTagsControlsSplitter_->setChildrenCollapsible(false);
-    analyzingTagsControlsSplitter_->setHandleWidth(6);
+    videoColumn_ = new QWidget(this);
+    videoColumn_->setObjectName(QStringLiteral("PresentationStageColumn"));
+    videoColumn_->setAttribute(Qt::WA_StyledBackground, true);
+    videoColumn_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    auto* videoColumnLayout = new QVBoxLayout(videoColumn_);
+    videoColumnLayout->setContentsMargins(0, 0, 0, 0);
+    videoColumnLayout->setSpacing(8);
 
-    analyzingLeftSplitter_ = new QSplitter(Qt::Vertical, this);
-    analyzingLeftSplitter_->setObjectName(QStringLiteral("WorkAnalyzingLeftSplitter"));
-    analyzingLeftSplitter_->setChildrenCollapsible(false);
-    analyzingLeftSplitter_->setHandleWidth(6);
-
-    analyzingRightSplitter_ = new QSplitter(Qt::Vertical, this);
-    analyzingRightSplitter_->setObjectName(QStringLiteral("WorkAnalyzingRightSplitter"));
-    analyzingRightSplitter_->setChildrenCollapsible(false);
-    analyzingRightSplitter_->setHandleWidth(6);
-
-    analyzingMainSplitter_ = new QSplitter(Qt::Horizontal, this);
-    analyzingMainSplitter_->setObjectName(QStringLiteral("WorkAnalyzingMainSplitter"));
-    analyzingMainSplitter_->setChildrenCollapsible(false);
-    analyzingMainSplitter_->setHandleWidth(8);
-    analyzingMainSplitter_->addWidget(analyzingLeftSplitter_);
-    analyzingMainSplitter_->addWidget(analyzingRightSplitter_);
-
-    for (QSplitter* splitter :
-         {analyzingMainSplitter_, analyzingLeftSplitter_, analyzingRightSplitter_, analyzingTagsControlsSplitter_}) {
-        splitter->setAttribute(Qt::WA_StyledBackground, true);
-        splitter->setStyleSheet(QStringLiteral("background-color: #FFFFFF;"));
-    }
-    analyzingMainSplitter_->hide();
-
-    buildPresentationUi();
-
-    if (videoPlayer_) videoPlayer_->setControlsVisible(false);
-    if (gameControls_) gameControls_->hide();
-    if (statsWindow_) statsWindow_->hide();
-    if (tagsHeaderRow_) tagsHeaderRow_->hide();
-    if (tagsTable_) tagsTable_->hide();
-    if (modeTaggingBtn_) modeTaggingBtn_->hide();
-    if (modeAnalyzingBtn_) modeAnalyzingBtn_->hide();
-    if (modePresentingBtn_) modePresentingBtn_->hide();
-}
-
-void WorkWindow::buildPresentationUi() {
-    presentationQueue_ = new PresentationQueue(this);
-
-    // Stage column: event banner on top, the (large) video in the middle, clip bar underneath.
-    presentationStageColumn_ = new QWidget(this);
-    presentationStageColumn_->setObjectName(QStringLiteral("PresentationStageColumn"));
-    presentationStageColumn_->setAttribute(Qt::WA_StyledBackground, true);
-    presentationStageColumn_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    auto* stageLayout = new QVBoxLayout(presentationStageColumn_);
-    stageLayout->setContentsMargins(0, 0, 0, 0);
-    stageLayout->setSpacing(8);
-
-    presentationBanner_ = new QWidget(presentationStageColumn_);
+    presentationBanner_ = new QWidget(videoColumn_);
     presentationBanner_->setObjectName(QStringLiteral("PresentationBanner"));
     presentationBanner_->setAttribute(Qt::WA_StyledBackground, true);
     auto* bannerLayout = new QVBoxLayout(presentationBanner_);
@@ -811,26 +750,71 @@ void WorkWindow::buildPresentationUi() {
     presentationNoteLabel_->hide();
     bannerLayout->addWidget(presentationNoteLabel_);
 
-    stageLayout->addWidget(presentationBanner_, 0);
+    videoColumnLayout->addWidget(presentationBanner_, 0);
 
-    presentationClipBar_ = new ClipTrimBar(presentationStageColumn_);
-    stageLayout->addWidget(presentationClipBar_, 0);
+    videoPlayer_ = new VideoPlayer(videoColumn_);
+    videoColumnLayout->addWidget(videoPlayer_, 1);
 
+    presentationClipBar_ = new ClipTrimBar(videoColumn_);
+    videoColumnLayout->addWidget(presentationClipBar_, 0);
+
+    presentationBanner_->hide();
+    presentationClipBar_->hide();
+
+    workTagsNotesSplitter_ = new QSplitter(Qt::Horizontal, this);
+    workTagsNotesSplitter_->setObjectName(QStringLiteral("WorkTagsNotesSplitter"));
+    workTagsNotesSplitter_->setChildrenCollapsible(false);
+    workTagsNotesSplitter_->setHandleWidth(6);
+    workTagsNotesSplitter_->addWidget(tagsSection_);
+    workTagsNotesSplitter_->addWidget(notesColumn_);
+    workTagsNotesSplitter_->setStretchFactor(0, 1);
+    workTagsNotesSplitter_->setStretchFactor(1, 1);
+    tagsSection_->setMinimumWidth(160);
+
+    workLeftSplitter_ = new QSplitter(Qt::Vertical, this);
+    workLeftSplitter_->setObjectName(QStringLiteral("WorkLeftSplitter"));
+    workLeftSplitter_->setChildrenCollapsible(false);
+    workLeftSplitter_->setHandleWidth(6);
+    workLeftSplitter_->addWidget(videoColumn_);
+    workLeftSplitter_->addWidget(workTagsNotesSplitter_);
+    workLeftSplitter_->setStretchFactor(0, 5);
+    workLeftSplitter_->setStretchFactor(1, 3);
+
+    workSideStack_ = new QStackedWidget(this);
+    workSideStack_->addWidget(taggingRightCol_);
+    workSideStack_->addWidget(statsWindow_);
     presentationPanel_ = new PresentationPanel(this);
     presentationPanel_->setMinimumWidth(260);
     presentationPanel_->setExportEnabled(false);
+    workSideStack_->addWidget(presentationPanel_);
 
-    presentationSplitter_ = new QSplitter(Qt::Horizontal, this);
-    presentationSplitter_->setObjectName(QStringLiteral("PresentationSplitter"));
-    // Collapsible on purpose: dragging the handle shut gives the video the whole window.
-    presentationSplitter_->setChildrenCollapsible(true);
-    presentationSplitter_->setHandleWidth(6);
-    presentationSplitter_->setAttribute(Qt::WA_StyledBackground, true);
-    presentationSplitter_->addWidget(presentationStageColumn_);
-    presentationSplitter_->addWidget(presentationPanel_);
-    presentationSplitter_->setStretchFactor(0, 4);
-    presentationSplitter_->setStretchFactor(1, 1);
-    presentationSplitter_->hide();
+    workOuterSplitter_ = new QSplitter(Qt::Horizontal, this);
+    workOuterSplitter_->setObjectName(QStringLiteral("PresentationSplitter"));
+    workOuterSplitter_->setChildrenCollapsible(false);
+    workOuterSplitter_->setHandleWidth(6);
+    workOuterSplitter_->setAttribute(Qt::WA_StyledBackground, true);
+    workOuterSplitter_->addWidget(workLeftSplitter_);
+    workOuterSplitter_->addWidget(workSideStack_);
+    workOuterSplitter_->setStretchFactor(0, 4);
+    workOuterSplitter_->setStretchFactor(1, 1);
+
+    for (QSplitter* splitter : {workOuterSplitter_, workLeftSplitter_, workTagsNotesSplitter_}) {
+        splitter->setStyleSheet(QStringLiteral("background-color: #FFFFFF;"));
+    }
+
+    contentAreaLayout->addWidget(workOuterSplitter_, 1);
+    workOuterSplitter_->hide();
+
+    buildPresentationUi();
+
+    if (videoPlayer_) videoPlayer_->setControlsVisible(false);
+    if (modeTaggingBtn_) modeTaggingBtn_->hide();
+    if (modeAnalyzingBtn_) modeAnalyzingBtn_->hide();
+    if (modePresentingBtn_) modePresentingBtn_->hide();
+}
+
+void WorkWindow::buildPresentationUi() {
+    presentationQueue_ = new PresentationQueue(this);
 
     connect(presentationPanel_, &PresentationPanel::selectedTagIndexesChanged, this,
             &WorkWindow::onPresentationSelectionChanged);
@@ -859,295 +843,6 @@ void WorkWindow::buildPresentationUi() {
             [this](qint64) { savePresentationClipIntervalFromClipBar(); });
     connect(presentationClipBar_, &ClipTrimBar::clipEndChanged, this,
             [this](qint64) { savePresentationClipIntervalFromClipBar(); });
-}
-
-void WorkWindow::detachWidgetFromParent(QWidget* widget) {
-    if (!widget || !detachedWidgetHost_ || widget == detachedWidgetHost_) {
-        return;
-    }
-
-    QWidget* parent = widget->parentWidget();
-    if (!parent || parent == detachedWidgetHost_) {
-        return;
-    }
-
-    if (qobject_cast<QSplitter*>(parent)) {
-        widget->setParent(detachedWidgetHost_);
-        return;
-    }
-
-    if (QLayout* layout = parent->layout()) {
-        removeWidgetFromLayoutTree(layout, widget);
-    }
-    widget->setParent(detachedWidgetHost_);
-}
-
-void WorkWindow::applyTaggingLayout() {
-    mode_ = Mode::Tagging;
-    if (analyzingMainSplitter_) analyzingMainSplitter_->hide();
-    if (presentationSplitter_) presentationSplitter_->hide();
-
-    detachWidgetFromParent(videoPlayer_);
-    detachWidgetFromParent(tagsSection_);
-    detachWidgetFromParent(gameControls_);
-    detachWidgetFromParent(analyzingTagsControlsSplitter_);
-    detachWidgetFromParent(statsWindow_);
-    if (notesColumn_) detachWidgetFromParent(notesColumn_);
-
-    auto* taggingVideoLayout = static_cast<QBoxLayout*>(taggingVideoCol_->layout());
-    taggingVideoLayout->addWidget(videoPlayer_, 1);
-    videoPlayer_->show();
-    auto* rightLayout = static_cast<QBoxLayout*>(taggingRightCol_->layout());
-    if (gameControls_) {
-        // Analyzing mode lowers minimum width; restore so tagging labels are not clipped.
-        gameControls_->setMinimumWidth(GameControls::kMinimumPanelWidthPx);
-        gameControls_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-    }
-    rightLayout->addWidget(gameControls_, 1);
-
-    while (QLayoutItem* item = contentLayout_->takeAt(0)) {
-        delete item;  // widget stays in tree; do not setParent(nullptr)
-    }
-
-    if (taggingVideoTagsSplitter_) {
-        while (taggingVideoTagsSplitter_->count() > 0) {
-            detachWidgetFromParent(taggingVideoTagsSplitter_->widget(0));
-        }
-        taggingVideoTagsSplitter_->addWidget(taggingMainRow_);
-        taggingVideoTagsSplitter_->addWidget(tagsSection_);
-        taggingVideoTagsSplitter_->setStretchFactor(0, 3);
-        taggingVideoTagsSplitter_->setStretchFactor(1, 2);
-        contentLayout_->addWidget(taggingVideoTagsSplitter_, 1);
-    } else {
-        contentLayout_->addWidget(taggingMainRow_, 1);
-        contentLayout_->addWidget(tagsSection_, 0);
-    }
-
-    if (tagsHeaderRow_) tagsHeaderRow_->hide();
-    // Presentation mode hides these outright; re-show them after their layout slot is restored.
-    if (tagsSection_) tagsSection_->show();
-
-    const int rh = qMax(20, tagsTable_->fontMetrics().height() + 4);
-    const int headerH = tagsTable_->horizontalHeader()->sizeHint().height();
-    tagsTable_->setMinimumHeight(rh * 2 + headerH);
-    tagsTable_->setMaximumHeight(QWIDGETSIZE_MAX);
-    if (tagsSection_) tagsSection_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-
-    statsWindow_->hide();
-    if (notesColumn_) notesColumn_->hide();
-
-    if (gameControls_) gameControls_->show();
-
-    if (taggingVideoTagsSplitter_) {
-        taggingVideoTagsSplitter_->show();
-    }
-    // applyAnalyzingLayout() hides this row; a parent splitter show() does not un-hide explicit child hides.
-    if (taggingMainRow_) {
-        taggingMainRow_->show();
-    }
-
-    QTimer::singleShot(0, this, [this]() { restoreTaggingModeUiStateAfterLayout(); });
-
-    // Keep tag list in sync with session after layout change
-    rebuildTagsList();
-}
-
-void WorkWindow::applyAnalyzingLayout() {
-    mode_ = Mode::Analyzing;
-    if (taggingMainRow_) taggingMainRow_->hide();
-    if (taggingVideoTagsSplitter_) taggingVideoTagsSplitter_->hide();
-    if (presentationSplitter_) presentationSplitter_->hide();
-    while (QLayoutItem* item = contentLayout_->takeAt(0)) {
-        delete item;  // widget stays in tree; do not setParent(nullptr)
-    }
-
-    if (!videoPlayer_ || !analyzingMainSplitter_ || !analyzingLeftSplitter_ || !analyzingRightSplitter_ ||
-        !analyzingTagsControlsSplitter_) {
-        rebuildTagsList();
-        return;
-    }
-
-    detachWidgetFromParent(videoPlayer_);
-    detachWidgetFromParent(tagsSection_);
-    detachWidgetFromParent(gameControls_);
-    detachWidgetFromParent(statsWindow_);
-    if (notesColumn_) detachWidgetFromParent(notesColumn_);
-
-    while (analyzingTagsControlsSplitter_->count() > 0) {
-        detachWidgetFromParent(analyzingTagsControlsSplitter_->widget(0));
-    }
-    while (analyzingLeftSplitter_->count() > 0) {
-        detachWidgetFromParent(analyzingLeftSplitter_->widget(0));
-    }
-    while (analyzingRightSplitter_->count() > 0) {
-        detachWidgetFromParent(analyzingRightSplitter_->widget(0));
-    }
-
-    tagsSection_->setMinimumWidth(160);
-    tagsSection_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    if (notesColumn_) {
-        notesColumn_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    }
-
-    analyzingTagsControlsSplitter_->addWidget(tagsSection_);
-    if (notesColumn_) analyzingTagsControlsSplitter_->addWidget(notesColumn_);
-
-    analyzingLeftSplitter_->addWidget(videoPlayer_);
-    videoPlayer_->show();
-    analyzingLeftSplitter_->addWidget(analyzingTagsControlsSplitter_);
-
-    analyzingRightSplitter_->addWidget(statsWindow_);
-
-    analyzingMainSplitter_->setStretchFactor(0, 2);
-    analyzingMainSplitter_->setStretchFactor(1, 1);
-    analyzingLeftSplitter_->setStretchFactor(0, 5);
-    analyzingLeftSplitter_->setStretchFactor(1, 3);
-    analyzingTagsControlsSplitter_->setStretchFactor(0, 1);
-    analyzingTagsControlsSplitter_->setStretchFactor(1, 1);
-    analyzingRightSplitter_->setStretchFactor(0, 1);
-
-    contentLayout_->addWidget(analyzingMainSplitter_, 1);
-
-    statsWindow_->show();
-    if (notesColumn_) notesColumn_->show();
-    // Presentation mode hides these outright; re-show them after their layout slot is restored.
-    if (tagsSection_) tagsSection_->show();
-    if (gameControls_) gameControls_->hide();
-    tagsTable_->setMaximumHeight(QWIDGETSIZE_MAX);
-
-    if (tagsHeaderRow_) tagsHeaderRow_->show();
-
-    if (analyzingMainSplitter_) analyzingMainSplitter_->show();
-
-    QTimer::singleShot(0, this, [this]() { applyAnalyzingSplitterGeometry(); });
-
-    // Keep tag list in sync with session after layout change
-    rebuildTagsList();
-}
-
-void WorkWindow::applyPresentationLayout() {
-    mode_ = Mode::Presenting;
-    if (taggingMainRow_) taggingMainRow_->hide();
-    if (taggingVideoTagsSplitter_) taggingVideoTagsSplitter_->hide();
-    if (analyzingMainSplitter_) analyzingMainSplitter_->hide();
-    if (!videoPlayer_ || !presentationSplitter_ || !presentationStageColumn_) {
-        return;
-    }
-
-    detachWidgetFromParent(videoPlayer_);
-    detachWidgetFromParent(tagsSection_);
-    detachWidgetFromParent(gameControls_);
-    detachWidgetFromParent(statsWindow_);
-    if (notesColumn_) detachWidgetFromParent(notesColumn_);
-    detachWidgetFromParent(analyzingTagsControlsSplitter_);
-
-    while (QLayoutItem* item = contentLayout_->takeAt(0)) {
-        delete item;  // widget stays in tree; do not setParent(nullptr)
-    }
-
-    // Banner, video (timeline is stacked under the picture inside VideoPlayer), then clip bar.
-    auto* stageLayout = static_cast<QBoxLayout*>(presentationStageColumn_->layout());
-    stageLayout->insertWidget(1, videoPlayer_, 1);
-    videoPlayer_->show();
-
-    // These panels have no slot in the presentation layout; without an explicit hide they would
-    // paint at their last geometry on top of the stage.
-    if (tagsSection_) tagsSection_->hide();
-    if (gameControls_) gameControls_->hide();
-    if (statsWindow_) statsWindow_->hide();
-    if (notesColumn_) notesColumn_->hide();
-
-    contentLayout_->addWidget(presentationSplitter_, 1);
-    presentationSplitter_->show();
-    presentationStageColumn_->show();
-    if (presentationPanel_) presentationPanel_->show();
-
-    if (presentationQueue_ && videoPlayer_) {
-        presentationQueue_->setVideoDurationMs(videoPlayer_->durationMs());
-    }
-    if (presentationPanel_) presentationPanel_->refreshFromSession();
-    updatePresentationStage();
-    configurePresentationClipBarForCurrentClip();
-    attachPresentationKeyboardShortcuts();
-
-    QTimer::singleShot(0, this, [this]() { applyPresentationSplitterGeometry(); });
-}
-
-void WorkWindow::applyPresentationSplitterGeometry() {
-    if (mode_ != Mode::Presenting || !presentationSplitter_) return;
-    const int totalWidth = presentationSplitter_->width();
-    if (totalWidth < 160) return;
-
-    const int panelWidth = std::clamp(totalWidth / 4, 260, 420);
-    const int stageWidth = qMax(320, totalWidth - panelWidth);
-    presentationSplitter_->setSizes({stageWidth, panelWidth});
-}
-
-void WorkWindow::applyAnalyzingSplitterGeometry() {
-    if (mode_ != Mode::Analyzing || !analyzingMainSplitter_) return;
-
-    const int totalW = analyzingMainSplitter_->width();
-    if (totalW >= 120) {
-        const int leftW = qMax(200, totalW * 2 / 3);
-        const int rightW = qMax(160, totalW - leftW);
-        analyzingMainSplitter_->setSizes({leftW, rightW});
-    }
-
-    const int leftH = analyzingLeftSplitter_ ? analyzingLeftSplitter_->height() : 0;
-    if (analyzingLeftSplitter_ && leftH >= 120) {
-        const int handleTotal = analyzingLeftSplitter_->handleWidth();
-        const int inner = leftH - handleTotal;
-        const int videoH = qMax(180, inner * 57 / 100);
-        const int tagsControlsRowH = qMax(120, inner - videoH);
-        analyzingLeftSplitter_->setSizes({videoH, tagsControlsRowH});
-    }
-
-    const int tagsNotesRowW = analyzingTagsControlsSplitter_ ? analyzingTagsControlsSplitter_->width() : 0;
-    if (analyzingTagsControlsSplitter_ && tagsNotesRowW >= 120) {
-        const int tagsW = qMax(200, tagsNotesRowW / 2);
-        const int notesW = qMax(200, tagsNotesRowW - tagsW);
-        analyzingTagsControlsSplitter_->setSizes({tagsW, notesW});
-    }
-}
-
-void WorkWindow::applyTaggingSplitterGeometry() {
-    if (mode_ != Mode::Tagging || !taggingVideoTagsSplitter_) return;
-    const int h = taggingVideoTagsSplitter_->height();
-    if (h < 100) return;
-    const int handle = taggingVideoTagsSplitter_->handleWidth();
-    const int inner = h - handle;
-    const int topH = qMax(160, inner * 58 / 100);
-    const int bottomH = qMax(120, inner - topH);
-    taggingVideoTagsSplitter_->setSizes({topH, bottomH});
-}
-
-void WorkWindow::captureTaggingModeUiStateForRestore() {
-    if (!taggingVideoTagsSplitter_ || taggingVideoTagsSplitter_->count() != 2) {
-        return;
-    }
-    preservedTaggingVideoTagsSplitterSizes_ = taggingVideoTagsSplitter_->sizes();
-    hasPreservedTaggingUiState_ = true;
-    if (tagsTable_) {
-        preservedTagsTableVerticalScrollValue_ = tagsTable_->verticalScrollBar()->value();
-        preservedTagsTableHorizontalScrollValue_ = tagsTable_->horizontalScrollBar()->value();
-    }
-}
-
-void WorkWindow::restoreTaggingModeUiStateAfterLayout() {
-    if (mode_ != Mode::Tagging) return;
-    if (hasPreservedTaggingUiState_ && preservedTaggingVideoTagsSplitterSizes_.size() == 2 &&
-        taggingVideoTagsSplitter_) {
-        const int h = taggingVideoTagsSplitter_->height();
-        if (h >= 100) {
-            taggingVideoTagsSplitter_->setSizes(preservedTaggingVideoTagsSplitterSizes_);
-        }
-    } else {
-        applyTaggingSplitterGeometry();
-    }
-    if (tagsTable_ && hasPreservedTaggingUiState_) {
-        tagsTable_->verticalScrollBar()->setValue(preservedTagsTableVerticalScrollValue_);
-        tagsTable_->horizontalScrollBar()->setValue(preservedTagsTableHorizontalScrollValue_);
-    }
 }
 
 void WorkWindow::wireSignals() {
@@ -1441,8 +1136,6 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
 
     sourceVideoPath_ = filePath;
     playbackVideoPath_ = playbackPath;
-    hasPreservedTaggingUiState_ = false;
-    preservedTaggingVideoTagsSplitterSizes_.clear();
 
     discardPendingClipNote();
     if (tagSession_) tagSession_->clear();
@@ -1459,7 +1152,6 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
 
     if (gameControls_) {
         gameControls_->resetGameTimeState();
-        gameControls_->show();
         if (tagSession_) {
             gameControls_->setSessionTeamNames(tagSession_->homeTeamName(), tagSession_->awayTeamName(),
                                                tagSession_->homeTeamColor(), tagSession_->awayTeamColor());
@@ -1467,6 +1159,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
         }
         contextTeam_ = "Home";
     }
+    if (workOuterSplitter_) workOuterSplitter_->show();
     if (modeTaggingBtn_) modeTaggingBtn_->show();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->show();
     if (modePresentingBtn_) modePresentingBtn_->show();
@@ -1484,21 +1177,9 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     }
     updatePresentationStage();
 
-    if (mode_ == Mode::Analyzing) {
-        if (tagsHeaderRow_) tagsHeaderRow_->show();
-        if (tagsHeaderLabel_) tagsHeaderLabel_->show();
-        if (tagsFilterButton_) tagsFilterButton_->show();
-        if (undoLastTagButton_) undoLastTagButton_->show();
-        updateFilterButtonsVisibility();
-    } else {
-        if (tagsHeaderRow_) tagsHeaderRow_->hide();
-    }
-    if (tagsTable_) tagsTable_->show();
+    applyModeChrome();
     updateFilterIndicator();
-    if (statsWindow_) {
-        statsWindow_->setTagSession(tagSession_);
-        if (mode_ == Mode::Analyzing) statsWindow_->show();
-    }
+    if (statsWindow_) statsWindow_->setTagSession(tagSession_);
 
     rebuildFilterMenu();
     rebuildTagsList();
@@ -1547,14 +1228,13 @@ void WorkWindow::onReplaceVideo() {
 }
 
 void WorkWindow::onCloseVideo() {
-    hasPreservedTaggingUiState_ = false;
-    preservedTaggingVideoTagsSplitterSizes_.clear();
-
-    if (videoPlayer_) videoPlayer_->setControlsVisible(false);
-    if (gameControls_) {
-        gameControls_->resetGameTimeState();
-        gameControls_->hide();
+    if (mode_ == Mode::Presenting) {
+        detachPresentationKeyboardShortcuts();
+        presentationAutoPauseArmed_ = false;
     }
+    if (videoPlayer_) videoPlayer_->setControlsVisible(false);
+    if (gameControls_) gameControls_->resetGameTimeState();
+    if (workOuterSplitter_) workOuterSplitter_->hide();
     if (modeTaggingBtn_) modeTaggingBtn_->hide();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->hide();
     if (modePresentingBtn_) modePresentingBtn_->hide();
@@ -1571,9 +1251,6 @@ void WorkWindow::onCloseVideo() {
     pendingTimestampMs_ = 0;
     contextPeriod_.clear();
     if (tagsTable_) tagsTable_->setRowCount(0);
-    if (tagsHeaderRow_) tagsHeaderRow_->hide();
-    if (tagsTable_) tagsTable_->hide();
-    if (statsWindow_) statsWindow_->hide();
 
     releaseTransientResources();
     exportDefaultDirectoryPath_.clear();
@@ -1743,9 +1420,6 @@ void WorkWindow::onModeToggled() {
     } else if (btn == modePresentingBtn_) {
         setMode(Mode::Presenting);
     }
-    if (modeTaggingBtn_) modeTaggingBtn_->setChecked(mode_ == Mode::Tagging);
-    if (modeAnalyzingBtn_) modeAnalyzingBtn_->setChecked(mode_ == Mode::Analyzing);
-    if (modePresentingBtn_) modePresentingBtn_->setChecked(mode_ == Mode::Presenting);
 }
 
 // ---------------------------------------------------------------------------

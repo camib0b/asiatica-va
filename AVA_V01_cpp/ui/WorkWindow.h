@@ -115,13 +115,7 @@ private:
   void buildPresentationUi();
   void wireSignals();
   void applyUiStrings() const;
-  void applyTaggingLayout();
-  void applyAnalyzingLayout();
-  void applyPresentationLayout();
-  void detachWidgetFromParent(QWidget* widget);
-  void applyAnalyzingSplitterGeometry();
-  void applyTaggingSplitterGeometry();
-  void applyPresentationSplitterGeometry();
+  void applyModeChrome();
 
   /// Cycles Tagging → Analyzing → Presenting → Tagging (the M shortcut).
   static constexpr Mode nextModeInCycle(Mode current) {
@@ -144,8 +138,6 @@ private:
   void armPresentationAutoPause(qint64 clipEndMs);
   void attachPresentationKeyboardShortcuts();
   void detachPresentationKeyboardShortcuts();
-  void captureTaggingModeUiStateForRestore();
-  void restoreTaggingModeUiStateAfterLayout();
   void disconnectTagSessionSignals();
   void syncContextPeriodFromSession();
   void rebuildTagsList();
@@ -184,30 +176,22 @@ private:
   Mode mode_ = Mode::Tagging;
   QStackedWidget* contentStack_ = nullptr;
   QWidget* mainContentContainer_ = nullptr;
-  /// Hidden parent for widgets taken out of a layout or splitter so they never become
-  /// top-level windows and stay in this object's tree until reinserted.
-  QWidget* detachedWidgetHost_ = nullptr;
   GameSetupWindow* gameSetupWidget_ = nullptr;
   QWidget* videoControlsRow_ = nullptr;
-  QWidget* taggingMainRow_ = nullptr;
-  QWidget* taggingVideoCol_ = nullptr;
   QWidget* taggingRightCol_ = nullptr;
-  QSplitter* taggingVideoTagsSplitter_ = nullptr;
   QWidget* tagsSection_ = nullptr;
   QWidget* tagsHeaderRow_ = nullptr;
-  QSplitter* analyzingMainSplitter_ = nullptr;
-  QSplitter* analyzingLeftSplitter_ = nullptr;
-  QSplitter* analyzingRightSplitter_ = nullptr;
-  QSplitter* analyzingTagsControlsSplitter_ = nullptr;
   QWidget* contentArea_ = nullptr;
-  QVBoxLayout* contentLayout_ = nullptr;
+  QSplitter* workOuterSplitter_ = nullptr;
+  QSplitter* workLeftSplitter_ = nullptr;
+  QWidget* videoColumn_ = nullptr;
+  QSplitter* workTagsNotesSplitter_ = nullptr;
+  QStackedWidget* workSideStack_ = nullptr;
   QToolButton* modeTaggingBtn_ = nullptr;
   QToolButton* modeAnalyzingBtn_ = nullptr;
   QToolButton* modePresentingBtn_ = nullptr;
 
   // Presentation mode
-  QSplitter* presentationSplitter_ = nullptr;
-  QWidget* presentationStageColumn_ = nullptr;
   QWidget* presentationBanner_ = nullptr;
   QLabel* presentationEventLabel_ = nullptr;
   QLabel* presentationContextLabel_ = nullptr;
@@ -285,9 +269,4 @@ private:
   std::unique_ptr<QTemporaryDir> concatenatedVideoTempDir_;
   std::unique_ptr<QTemporaryDir> playbackPrepTempDir_;
   std::unique_ptr<VideoConcatenator> pendingConcatenator_;
-
-  QList<int> preservedTaggingVideoTagsSplitterSizes_;
-  int preservedTagsTableVerticalScrollValue_ = 0;
-  int preservedTagsTableHorizontalScrollValue_ = 0;
-  bool hasPreservedTaggingUiState_ = false;
 };
