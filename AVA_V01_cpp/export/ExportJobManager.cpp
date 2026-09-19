@@ -9,6 +9,38 @@
 #include <QDir>
 #include <QFileInfo>
 
+namespace {
+
+struct ResolvedOutputPaths {
+    QString mp4Path;
+    QString xmlPath;
+};
+
+ResolvedOutputPaths resolveOutputPaths(const ExportJobRequest& request) {
+    ResolvedOutputPaths paths;
+    const QString chosenPath = request.outputPath.trimmed();
+    if (chosenPath.isEmpty()) return paths;
+
+    if (request.format == ExportOutputFormat::Xml) {
+        const QFileInfo info(chosenPath);
+        paths.xmlPath = (info.suffix().toLower() == QLatin1String("xml"))
+            ? chosenPath
+            : QDir(info.absolutePath()).filePath(info.completeBaseName() + QStringLiteral(".xml"));
+        return paths;
+    }
+
+    paths.mp4Path = chosenPath;
+    if (request.format == ExportOutputFormat::Both) {
+        const QFileInfo info(chosenPath);
+        paths.xmlPath = QDir(info.absolutePath())
+            .filePath(ExportClipBuilder::xmlReportBaseName(request.tagSession)
+                      + QStringLiteral(".xml"));
+    }
+    return paths;
+}
+
+}  // namespace
+
 ExportJobManager::ExportJobManager(QObject* parent)
     : QObject(parent),
       jobs_(),
@@ -20,12 +52,17 @@ ExportJobManager::~ExportJobManager() {
     // jobs_ is destroyed, so leaving ClipExporter unique_ptrs connected would
     // let a destructor-time signal touch a Job already being deleted.
     for (const std::unique_ptr<Job>& job : jobs_) {
-        if (job) discardExporter(*job);
+        if (!job) continue;
+        discardExporter(*job);
     }
 }
 
 QString ExportJobManager::canonicalPath(const QString& path) {
-    return QFileInfo(path).absoluteFilePath();
+    if (path.trimmed().isEmpty()) return QString();
+    const QFileInfo info(path);
+    const QString canonical = info.canonicalFilePath();
+    if (!canonical.isEmpty()) return canonical;
+    return info.absoluteFilePath();
 }
 
 bool ExportJobManager::pathIsOccupied(const QString& path) const {
@@ -126,30 +163,13 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
         if (errorMessage) *errorMessage = text;
     };
 
-    const QString chosenPath = request.outputPath.trimmed();
-    if (chosenPath.isEmpty()) {
+    const ResolvedOutputPaths paths = resolveOutputPaths(request);
+    if (paths.mp4Path.isEmpty() && paths.xmlPath.isEmpty()) {
         setError(AppLocale::trUi("export.no_output_path"));
         return false;
     }
 
-    QString xmlPath;
-    QString mp4Path;
-    if (request.format == ExportOutputFormat::Xml) {
-        QFileInfo info(chosenPath);
-        xmlPath = (info.suffix().toLower() == QLatin1String("xml"))
-            ? chosenPath
-            : QDir(info.absolutePath()).filePath(info.completeBaseName() + QStringLiteral(".xml"));
-    } else {
-        mp4Path = chosenPath;
-        if (request.format == ExportOutputFormat::Both) {
-            QFileInfo info(chosenPath);
-            xmlPath = QDir(info.absolutePath())
-                .filePath(ExportClipBuilder::xmlReportBaseName(request.tagSession)
-                          + QStringLiteral(".xml"));
-        }
-    }
-
-    if (pathIsOccupied(mp4Path) || pathIsOccupied(xmlPath)) {
+    if (pathIsOccupied(paths.mp4Path) || pathIsOccupied(paths.xmlPath)) {
         setError(AppLocale::trUi("export.job_path_in_use"));
         return false;
     }
@@ -165,15 +185,18 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
         }
     }
 
-    if ((request.format == ExportOutputFormat::Xml || request.format == ExportOutputFormat::Both)
-        && !xmlPath.isEmpty()) {
+    if (request.format == ExportOutputFormat::Xml && !paths.xmlPath.isEmpty()) {
         QString xmlError;
-        const bool xmlOk = XmlExporter::writeAllInstances(request.tagSession, xmlPath, &xmlError);
+        const bool xmlOk =
+            XmlExporter::writeAllInstances(request.tagSession, paths.xmlPath, &xmlError);
         if (!xmlOk) {
             setError(xmlError.isEmpty() ? AppLocale::trUi("export.xml_failed") : xmlError);
             return false;
         }
     }
+
+    const QString& mp4Path = paths.mp4Path;
+    const QString& xmlPath = paths.xmlPath;
 
     auto job = std::make_unique<Job>();
     job->id = nextJobId_++;
@@ -217,7 +240,8 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
         emit jobsChanged();
     });
     connect(exporter, &ClipExporter::exportFinished, exporter,
-            [this, jobPointer](bool success, const QString& message) {
+            [this, jobPointer, tagSession = request.tagSession](bool success,
+                                                                const QString& message) {
         if (jobPointer->state != JobState::Exporting) return;
         if (!success) {
             const bool cancelled = message.contains(QStringLiteral("cancelled"), Qt::CaseInsensitive);
@@ -225,6 +249,15 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
                       cancelled ? JobState::Cancelled : JobState::Failed,
                       cancelled ? AppLocale::trUi("export.job_cancelled") : message);
             return;
+        }
+        if (jobPointer->format == ExportOutputFormat::Both && !jobPointer->xmlPath.isEmpty()) {
+            QString xmlError;
+            if (!XmlExporter::writeAllInstances(tagSession, jobPointer->xmlPath, &xmlError)) {
+                finishJob(*jobPointer,
+                          JobState::Failed,
+                          xmlError.isEmpty() ? AppLocale::trUi("export.xml_failed") : xmlError);
+                return;
+            }
         }
         finishJob(*jobPointer, JobState::Succeeded, AppLocale::trUi("export.done"));
     });
