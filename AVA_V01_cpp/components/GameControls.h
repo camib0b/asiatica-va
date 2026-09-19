@@ -4,6 +4,7 @@
 #include <QStringList>
 #include <QList>
 #include <QVector>
+#include <array>
 
 #include "FollowUpState.h"
 #include "../state/TagSession.h"
@@ -37,10 +38,10 @@ public:
   /// Canonical side for tagging: \c "Home", \c "Away", or empty if neither is selected.
   QString selectedTeamSideKey() const;
 
-  /// Resets the Start Game / Next Quarter UI back to the "no game started" state.
+  /// Resets the period-advance UI back to the "no game started" state.
   void resetGameTimeState();
 
-  /// Syncs Start/Next Quarter buttons with imported or restored session quarter state.
+  /// Syncs the period-advance button and quarter track with imported or restored session quarter state.
   void restoreGamePhase(TagSession::QuarterPhase phase, int currentQuarterIndex);
 
   /// Returns the canonical period name (\c "Q1".."Q4") of the quarter currently in progress,
@@ -56,10 +57,10 @@ signals:
   void tagCommitted(const QString& mainEvent, const QString& followUpEvent = QString());
   /// Emitted when the user picks home or away on the top row (isHome true = home team).
   void teamSideSelected(bool isHome);
-  /// Emitted when the user clicks the Start Game button.
+  /// Emitted when the user advances from NotStarted (period-advance button / G or H).
   /// WorkWindow is expected to insert the start-anchor tag and start Q1.
   void gameStartRequested();
-  /// Emitted when the user clicks the Next Quarter button.
+  /// Emitted when the user advances from Q1–Q4 (period-advance button / G or H).
   /// WorkWindow is expected to close the current quarter and (if applicable) open the next one.
   void nextQuarterRequested();
 
@@ -68,8 +69,7 @@ private slots:
   void onAwayTeamButtonClicked();
   void onMainButtonClicked();
   void onFollowUpButtonClicked();
-  void onStartGameButtonClicked();
-  void onNextQuarterButtonClicked();
+  void onPeriodAdvanceButtonClicked();
 
 private:
   void buildUi();
@@ -80,6 +80,7 @@ private:
   void hideFollowUpButtons();
   void configureMainGameControlButton(QPushButton* button, const QString& eventName,
                                       const QString& shortcutHint);
+  void configurePeriodAdvanceButton(QPushButton* button, const QString& shortcutHint);
   void advanceFollowUpFlow(const QString& choice);
   void commitFollowUpFlow();
   void cancelFollowUpFlow();
@@ -95,7 +96,8 @@ private:
   QList<QPushButton*> focusableButtonsOrder() const;
   void focusNextInDirection(Qt::Key key);
   void applyTeamOnlyTabNavigation(bool forwardTab);
-  void updateGameTimeButtonsUi();
+  void updateGameTimeUi();
+  void updateQuarterTrack();
 
 protected:
   bool eventFilter(QObject* obj, QEvent* event) override;
@@ -108,18 +110,20 @@ protected:
   };
 
   enum class GamePhase {
-    NotStarted,        // Start Game enabled; Next Quarter disabled.
-    Q1, Q2, Q3, Q4,    // Quarter in progress.
-    Ended,             // All quarters closed; both buttons disabled.
+    NotStarted,        // Period-advance enabled; starts the game.
+    Q1, Q2, Q3, Q4,    // Quarter in progress; next click starts the next Q or ends the game.
+    Ended,             // All quarters closed; period-advance disabled.
   };
 
   QGridLayout* mainGridLayout_ = nullptr;
   QHBoxLayout* followUpLayout_ = nullptr;
   QWidget* followUpContainer_ = nullptr;
 
-  QPushButton* startGameButton_ = nullptr;
-  QPushButton* nextQuarterButton_ = nullptr;
-  QLabel* quarterStatusLabel_ = nullptr;
+  QPushButton* periodAdvanceButton_ = nullptr;
+  QLabel* periodAdvanceTitleLabel_ = nullptr;
+  QWidget* quarterTrack_ = nullptr;
+  std::array<QWidget*, 4> quarterSegments_{};
+  std::array<QLabel*, 4> quarterTrackLabels_{};
 
   QPushButton* homeTeamButton_ = nullptr;
   QPushButton* awayTeamButton_ = nullptr;

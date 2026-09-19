@@ -1083,11 +1083,49 @@ QWidget#TaggingRightCol QPushButton[variant="gameControl"] {
   min-height: 52px;
   border-radius: 6px;
 }
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][size="sm"] {
+  padding: 4px 8px;
+  min-height: 32px;
+  border-radius: 6px;
+}
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][size="sm"]:focus {
+  padding: 4px 8px;
+  min-height: 32px;
+}
 QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"] {
   padding: 4px 6px;
   font-size: 11px;
   min-height: 36px;
   border-radius: 6px;
+}
+
+QWidget[role="quarterTrack"] {
+}
+
+QWidget[role="quarterSegment"] {
+  min-height: 10px;
+  max-height: 10px;
+  border-radius: 2px;
+  background: #e4e4e7;
+}
+QWidget[role="quarterSegment"][quarterState="complete"] {
+  background: #18181b;
+}
+QWidget[role="quarterSegment"][quarterState="current"] {
+  background: #52525b;
+}
+
+QLabel[role="quarterTrackLabel"] {
+  color: #a1a1aa;
+  font-size: 10px;
+  font-weight: 400;
+}
+QLabel[role="quarterTrackLabel"][quarterState="complete"] {
+  color: #09090b;
+}
+QLabel[role="quarterTrackLabel"][quarterState="current"] {
+  color: #09090b;
+  font-weight: 600;
 }
 
 /* =========================

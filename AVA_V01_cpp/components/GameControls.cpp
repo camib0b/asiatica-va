@@ -13,6 +13,7 @@
 #include <QPointer>
 #include <QKeyEvent>
 #include <algorithm>
+#include <array>
 #include <climits>
 #include <QEvent>
 #include <QApplication>
@@ -212,7 +213,7 @@ GameControls::GameControls(QWidget* parent)
   applyUiLanguage();
   installEventFilter(this);
   qApp->installEventFilter(this);
-  for (auto* btn : {startGameButton_, nextQuarterButton_, homeTeamButton_, awayTeamButton_,
+  for (auto* btn : {periodAdvanceButton_, homeTeamButton_, awayTeamButton_,
                     sixteenYardButton_, fiftyYardButton_, seventyFiveYardButton_,
                     pcButton_, circleEntryButton_, pcFoulButton_, shotButton_, goalButton_, passButton_,
                     specialButton_, turnoverButton_, cardButton_, shootoutButton_, psButton_})
@@ -307,12 +308,12 @@ void GameControls::applyUiLanguage() {
       titleLabel->setText(AppLocale::trEvent(key));
     }
   }
-  updateGameTimeButtonsUi();
+  updateGameTimeUi();
 }
 
 void GameControls::resetGameTimeState() {
   gamePhase_ = GamePhase::NotStarted;
-  updateGameTimeButtonsUi();
+  updateGameTimeUi();
 }
 
 void GameControls::restoreGamePhase(TagSession::QuarterPhase phase, int currentQuarterIndex) {
@@ -338,7 +339,7 @@ void GameControls::restoreGamePhase(TagSession::QuarterPhase phase, int currentQ
       }
       break;
   }
-  updateGameTimeButtonsUi();
+  updateGameTimeUi();
 }
 
 QString GameControls::currentPeriodName() const {
@@ -354,62 +355,93 @@ QString GameControls::currentPeriodName() const {
   return QString();
 }
 
-void GameControls::updateGameTimeButtonsUi() {
-  if (!startGameButton_ || !nextQuarterButton_ || !quarterStatusLabel_) return;
+void GameControls::updateGameTimeUi() {
+  if (!periodAdvanceButton_ || !periodAdvanceTitleLabel_) return;
 
-  startGameButton_->setText(AppLocale::trUi("gamecontrols.start_game"));
-
+  QString titleKey;
+  bool enabled = true;
   switch (gamePhase_) {
     case GamePhase::NotStarted:
-      startGameButton_->setEnabled(true);
-      nextQuarterButton_->setEnabled(false);
-      nextQuarterButton_->setText(AppLocale::trUi("gamecontrols.start_q1"));
-      quarterStatusLabel_->setText(AppLocale::trUi("gamecontrols.quarter_not_started"));
+      titleKey = QStringLiteral("gamecontrols.start_game");
+      enabled = true;
       break;
     case GamePhase::Q1:
-      startGameButton_->setEnabled(false);
-      nextQuarterButton_->setEnabled(true);
-      nextQuarterButton_->setText(AppLocale::trUi("gamecontrols.start_q2"));
-      quarterStatusLabel_->setText(QStringLiteral("Q1"));
+      titleKey = QStringLiteral("gamecontrols.start_q2");
+      enabled = true;
       break;
     case GamePhase::Q2:
-      startGameButton_->setEnabled(false);
-      nextQuarterButton_->setEnabled(true);
-      nextQuarterButton_->setText(AppLocale::trUi("gamecontrols.start_q3"));
-      quarterStatusLabel_->setText(QStringLiteral("Q2"));
+      titleKey = QStringLiteral("gamecontrols.start_q3");
+      enabled = true;
       break;
     case GamePhase::Q3:
-      startGameButton_->setEnabled(false);
-      nextQuarterButton_->setEnabled(true);
-      nextQuarterButton_->setText(AppLocale::trUi("gamecontrols.start_q4"));
-      quarterStatusLabel_->setText(QStringLiteral("Q3"));
+      titleKey = QStringLiteral("gamecontrols.start_q4");
+      enabled = true;
       break;
     case GamePhase::Q4:
-      startGameButton_->setEnabled(false);
-      nextQuarterButton_->setEnabled(true);
-      nextQuarterButton_->setText(AppLocale::trUi("gamecontrols.end_game"));
-      quarterStatusLabel_->setText(QStringLiteral("Q4"));
+      titleKey = QStringLiteral("gamecontrols.end_game");
+      enabled = true;
       break;
     case GamePhase::Ended:
-      startGameButton_->setEnabled(false);
-      nextQuarterButton_->setEnabled(false);
-      nextQuarterButton_->setText(AppLocale::trUi("gamecontrols.end_game"));
-      quarterStatusLabel_->setText(AppLocale::trUi("gamecontrols.quarter_ended"));
+      titleKey = QStringLiteral("gamecontrols.end_game");
+      enabled = false;
       break;
+  }
+  periodAdvanceTitleLabel_->setText(AppLocale::trUi(titleKey));
+  periodAdvanceButton_->setEnabled(enabled);
+  updateQuarterTrack();
+}
+
+void GameControls::updateQuarterTrack() {
+  const bool gameEnded = (gamePhase_ == GamePhase::Ended);
+  int currentQuarterIndex = -1;
+  switch (gamePhase_) {
+    case GamePhase::Q1: currentQuarterIndex = 0; break;
+    case GamePhase::Q2: currentQuarterIndex = 1; break;
+    case GamePhase::Q3: currentQuarterIndex = 2; break;
+    case GamePhase::Q4: currentQuarterIndex = 3; break;
+    case GamePhase::NotStarted:
+    case GamePhase::Ended:
+      currentQuarterIndex = -1;
+      break;
+  }
+
+  for (int quarterIndex = 0; quarterIndex < 4; ++quarterIndex) {
+    QString quarterState;
+    if (gameEnded || (currentQuarterIndex >= 0 && quarterIndex < currentQuarterIndex)) {
+      quarterState = QStringLiteral("complete");
+    } else if (quarterIndex == currentQuarterIndex) {
+      quarterState = QStringLiteral("current");
+    } else {
+      quarterState = QStringLiteral("empty");
+    }
+    if (QWidget* segment = quarterSegments_.at(quarterIndex)) {
+      Style::setProp(segment, "quarterState", quarterState);
+    }
+    if (QLabel* label = quarterTrackLabels_.at(quarterIndex)) {
+      Style::setProp(label, "quarterState", quarterState);
+    }
+  }
+
+  if (!quarterTrack_) return;
+  if (gamePhase_ == GamePhase::NotStarted) {
+    quarterTrack_->setAccessibleName(QStringLiteral("Quarter progress, not started"));
+  } else if (gameEnded) {
+    quarterTrack_->setAccessibleName(QStringLiteral("Quarter progress, game ended"));
+  } else {
+    quarterTrack_->setAccessibleName(
+        QStringLiteral("Quarter progress, %1 of 4").arg(currentPeriodName()));
   }
 }
 
-void GameControls::onStartGameButtonClicked() {
-  if (gamePhase_ != GamePhase::NotStarted) return;
-  flashButtonBorder(startGameButton_);
-  gamePhase_ = GamePhase::Q1;
-  updateGameTimeButtonsUi();
-  emit gameStartRequested();
-}
-
-void GameControls::onNextQuarterButtonClicked() {
-  if (gamePhase_ == GamePhase::NotStarted || gamePhase_ == GamePhase::Ended) return;
-  flashButtonBorder(nextQuarterButton_);
+void GameControls::onPeriodAdvanceButtonClicked() {
+  if (gamePhase_ == GamePhase::Ended) return;
+  flashButtonBorder(periodAdvanceButton_);
+  if (gamePhase_ == GamePhase::NotStarted) {
+    gamePhase_ = GamePhase::Q1;
+    updateGameTimeUi();
+    emit gameStartRequested();
+    return;
+  }
   switch (gamePhase_) {
     case GamePhase::Q1: gamePhase_ = GamePhase::Q2; break;
     case GamePhase::Q2: gamePhase_ = GamePhase::Q3; break;
@@ -417,7 +449,7 @@ void GameControls::onNextQuarterButtonClicked() {
     case GamePhase::Q4: gamePhase_ = GamePhase::Ended; break;
     default: return;
   }
-  updateGameTimeButtonsUi();
+  updateGameTimeUi();
   emit nextQuarterRequested();
 }
 
@@ -463,32 +495,57 @@ void GameControls::buildUi() {
   mainLayout->setContentsMargins(0, 0, 0, 0);
   mainLayout->setSpacing(12);
 
-  // Game-time row: Start Game | Next Quarter | quarter status label
+  // Game-time row: period-advance button | segmented quarter track
   auto* gameTimeRowWidget = new QWidget(this);
   auto* gameTimeRowLayout = new QHBoxLayout(gameTimeRowWidget);
   gameTimeRowLayout->setContentsMargins(0, 0, 0, 0);
   gameTimeRowLayout->setSpacing(8);
 
-  startGameButton_ = new QPushButton(gameTimeRowWidget);
-  Style::setVariant(startGameButton_, "gameControl");
-  Style::setSize(startGameButton_, "sm");
-  startGameButton_->setFocusPolicy(Qt::ClickFocus);
-  startGameButton_->setMinimumHeight(40);
+  periodAdvanceButton_ = new QPushButton(gameTimeRowWidget);
+  Style::setVariant(periodAdvanceButton_, "gameControl");
+  Style::setSize(periodAdvanceButton_, "sm");
+  periodAdvanceButton_->setFocusPolicy(Qt::ClickFocus);
+  configurePeriodAdvanceButton(periodAdvanceButton_, QStringLiteral("G"));
 
-  nextQuarterButton_ = new QPushButton(gameTimeRowWidget);
-  Style::setVariant(nextQuarterButton_, "gameControl");
-  Style::setSize(nextQuarterButton_, "sm");
-  nextQuarterButton_->setFocusPolicy(Qt::ClickFocus);
-  nextQuarterButton_->setMinimumHeight(40);
+  quarterTrack_ = new QWidget(gameTimeRowWidget);
+  Style::setRole(quarterTrack_, "quarterTrack");
+  auto* trackLayout = new QVBoxLayout(quarterTrack_);
+  trackLayout->setContentsMargins(0, 0, 0, 0);
+  trackLayout->setSpacing(4);
 
-  quarterStatusLabel_ = new QLabel(gameTimeRowWidget);
-  quarterStatusLabel_->setAlignment(Qt::AlignCenter);
-  quarterStatusLabel_->setMinimumWidth(48);
-  Style::setRole(quarterStatusLabel_, "h3");
+  auto* segmentsRow = new QWidget(quarterTrack_);
+  auto* segmentsLayout = new QHBoxLayout(segmentsRow);
+  segmentsLayout->setContentsMargins(0, 0, 0, 0);
+  segmentsLayout->setSpacing(3);
 
-  gameTimeRowLayout->addWidget(startGameButton_, 1);
-  gameTimeRowLayout->addWidget(nextQuarterButton_, 1);
-  gameTimeRowLayout->addWidget(quarterStatusLabel_, 0);
+  auto* labelsRow = new QWidget(quarterTrack_);
+  auto* labelsLayout = new QHBoxLayout(labelsRow);
+  labelsLayout->setContentsMargins(0, 0, 0, 0);
+  labelsLayout->setSpacing(3);
+
+  const std::array<QString, 4> quarterNames = {
+      QStringLiteral("Q1"), QStringLiteral("Q2"), QStringLiteral("Q3"), QStringLiteral("Q4")};
+  for (int quarterIndex = 0; quarterIndex < static_cast<int>(quarterNames.size()); ++quarterIndex) {
+    auto* segment = new QWidget(segmentsRow);
+    segment->setAttribute(Qt::WA_StyledBackground, true);
+    Style::setRole(segment, "quarterSegment");
+    Style::setProp(segment, "quarterState", QStringLiteral("empty"));
+    quarterSegments_.at(quarterIndex) = segment;
+    segmentsLayout->addWidget(segment, 1);
+
+    auto* label = new QLabel(quarterNames.at(quarterIndex), labelsRow);
+    label->setAlignment(Qt::AlignCenter);
+    Style::setRole(label, "quarterTrackLabel");
+    Style::setProp(label, "quarterState", QStringLiteral("empty"));
+    quarterTrackLabels_.at(quarterIndex) = label;
+    labelsLayout->addWidget(label, 1);
+  }
+
+  trackLayout->addWidget(segmentsRow);
+  trackLayout->addWidget(labelsRow);
+
+  gameTimeRowLayout->addWidget(periodAdvanceButton_, 0);
+  gameTimeRowLayout->addWidget(quarterTrack_, 1);
 
   auto* teamRowWidget = new QWidget(this);
   auto* teamRowLayout = new QHBoxLayout(teamRowWidget);
@@ -599,13 +656,9 @@ void GameControls::buildUi() {
 }
 
 void GameControls::wireSignals() {
-  if (startGameButton_) {
-    connect(startGameButton_, &QPushButton::clicked, this,
-            &GameControls::onStartGameButtonClicked);
-  }
-  if (nextQuarterButton_) {
-    connect(nextQuarterButton_, &QPushButton::clicked, this,
-            &GameControls::onNextQuarterButtonClicked);
+  if (periodAdvanceButton_) {
+    connect(periodAdvanceButton_, &QPushButton::clicked, this,
+            &GameControls::onPeriodAdvanceButtonClicked);
   }
 
   connect(homeTeamButton_, &QPushButton::clicked, this,
@@ -678,9 +731,8 @@ bool GameControls::handleApplicationShortcut(QKeyEvent* event) {
     case Qt::Key_B:
       return clickIfReady(psButton_);
     case Qt::Key_G:
-      return clickIfReady(startGameButton_);
     case Qt::Key_H:
-      return clickIfReady(nextQuarterButton_);
+      return clickIfReady(periodAdvanceButton_);
     case Qt::Key_1:
     case Qt::Key_2:
     case Qt::Key_3:
