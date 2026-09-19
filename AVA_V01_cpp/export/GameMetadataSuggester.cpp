@@ -19,14 +19,15 @@
 #include <QTemporaryDir>
 #include <QUrl>
 
+#include <algorithm>
+#include <optional>
+
 namespace {
 
 constexpr char kChatCompletionsUrl[] = "https://api.x.ai/v1/chat/completions";
-constexpr char kModelName[] = "grok-4.20-0309-non-reasoning";
 constexpr int kChatTimeoutMs = 60000;
 constexpr int kPreferredSeekSeconds = 20;
 constexpr int kFallbackSeekSeconds = 2;
-constexpr int kMaxThumbnailBytes = 15 * 1024 * 1024;
 
 QJsonObject nullableStringProperty() {
     QJsonObject property;
@@ -49,40 +50,42 @@ QJsonObject jsonSchemaResponseFormat(const QString& schemaName, const QJsonObjec
     return responseFormat;
 }
 
-QJsonObject nameDateResponseFormat() {
-    QJsonObject properties;
-    properties.insert(QStringLiteral("home_team_name"), nullableStringProperty());
-    properties.insert(QStringLiteral("away_team_name"), nullableStringProperty());
-    properties.insert(QStringLiteral("game_date"), nullableStringProperty());
-
+QJsonObject strictObjectSchema(const QJsonObject& properties, const QStringList& requiredPropertyNames) {
     QJsonArray required;
-    required.append(QStringLiteral("home_team_name"));
-    required.append(QStringLiteral("away_team_name"));
-    required.append(QStringLiteral("game_date"));
+    for (const QString& propertyName : requiredPropertyNames) {
+        required.append(propertyName);
+    }
 
     QJsonObject schema;
     schema.insert(QStringLiteral("type"), QStringLiteral("object"));
     schema.insert(QStringLiteral("properties"), properties);
     schema.insert(QStringLiteral("required"), required);
     schema.insert(QStringLiteral("additionalProperties"), false);
-    return jsonSchemaResponseFormat(QStringLiteral("game_filename_metadata"), schema);
+    return schema;
+}
+
+QJsonObject nameDateResponseFormat() {
+    QJsonObject properties;
+    properties.insert(QStringLiteral("home_team_name"), nullableStringProperty());
+    properties.insert(QStringLiteral("away_team_name"), nullableStringProperty());
+    properties.insert(QStringLiteral("game_date"), nullableStringProperty());
+    return jsonSchemaResponseFormat(
+        QStringLiteral("game_filename_metadata"),
+        strictObjectSchema(properties,
+                           {QStringLiteral("home_team_name"),
+                            QStringLiteral("away_team_name"),
+                            QStringLiteral("game_date")}));
 }
 
 QJsonObject colorResponseFormat() {
     QJsonObject properties;
     properties.insert(QStringLiteral("home_color_hex"), nullableStringProperty());
     properties.insert(QStringLiteral("away_color_hex"), nullableStringProperty());
-
-    QJsonArray required;
-    required.append(QStringLiteral("home_color_hex"));
-    required.append(QStringLiteral("away_color_hex"));
-
-    QJsonObject schema;
-    schema.insert(QStringLiteral("type"), QStringLiteral("object"));
-    schema.insert(QStringLiteral("properties"), properties);
-    schema.insert(QStringLiteral("required"), required);
-    schema.insert(QStringLiteral("additionalProperties"), false);
-    return jsonSchemaResponseFormat(QStringLiteral("game_kit_colors"), schema);
+    return jsonSchemaResponseFormat(
+        QStringLiteral("game_kit_colors"),
+        strictObjectSchema(properties,
+                           {QStringLiteral("home_color_hex"),
+                            QStringLiteral("away_color_hex")}));
 }
 
 QJsonObject textChatMessage(const QString& role, const QString& text) {
@@ -94,6 +97,9 @@ QJsonObject textChatMessage(const QString& role, const QString& text) {
 
 QString optionalJsonString(const QJsonValue& value) {
     if (value.isNull() || value.isUndefined()) {
+        return {};
+    }
+    if (!value.isString()) {
         return {};
     }
     const QString text = value.toString().trimmed();
@@ -122,48 +128,85 @@ QString stripJsonFence(QString content) {
     return content.trimmed();
 }
 
-QString parseChatContent(const QByteArray& responseBody) {
+std::optional<QJsonObject> tryParseJsonObject(const QByteArray& jsonText) {
     QJsonParseError parseError;
-    const QJsonDocument document = QJsonDocument::fromJson(responseBody, &parseError);
+    const QJsonDocument document = QJsonDocument::fromJson(jsonText, &parseError);
     if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+        return std::nullopt;
+    }
+    return document.object();
+}
+
+QJsonObject parseJsonObjectFromModelText(QString text) {
+    text = text.trimmed();
+    if (text.isEmpty()) {
         return {};
     }
 
-    const QJsonArray choices = document.object().value(QStringLiteral("choices")).toArray();
-    if (choices.isEmpty()) {
-        return {};
+    if (const std::optional<QJsonObject> object = tryParseJsonObject(text.toUtf8())) {
+        return *object;
     }
 
-    const QJsonObject message = choices.at(0).toObject().value(QStringLiteral("message")).toObject();
-    const QJsonValue contentValue = message.value(QStringLiteral("content"));
-    if (contentValue.isString()) {
-        return stripJsonFence(contentValue.toString());
-    }
-    if (contentValue.isArray()) {
-        QString combined;
-        for (const QJsonValue& part : contentValue.toArray()) {
-            if (part.isString()) {
-                combined.append(part.toString());
-            } else if (part.isObject()) {
-                combined.append(part.toObject().value(QStringLiteral("text")).toString());
-            }
-        }
-        return stripJsonFence(combined);
+    const QString unfenced = stripJsonFence(std::move(text));
+    if (const std::optional<QJsonObject> object = tryParseJsonObject(unfenced.toUtf8())) {
+        return *object;
     }
     return {};
 }
 
-QJsonObject parseContentObject(const QByteArray& responseBody) {
-    const QString content = parseChatContent(responseBody);
-    if (content.isEmpty()) {
+QString textFromMessageContent(const QJsonValue& contentValue) {
+    if (contentValue.isString()) {
+        return contentValue.toString();
+    }
+    if (!contentValue.isArray()) {
         return {};
     }
+
+    QStringList parts;
+    const QJsonArray contentParts = contentValue.toArray();
+    for (const QJsonValue& part : contentParts) {
+        if (part.isString()) {
+            parts.append(part.toString());
+            continue;
+        }
+        if (!part.isObject()) {
+            continue;
+        }
+        const QString text = part.toObject().value(QStringLiteral("text")).toString();
+        if (!text.isEmpty()) {
+            parts.append(text);
+        }
+    }
+    return parts.join(QString());
+}
+
+QJsonObject parseStructuredChatCompletion(const QByteArray& responseBody) {
     QJsonParseError parseError;
-    const QJsonDocument document = QJsonDocument::fromJson(content.toUtf8(), &parseError);
-    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+    const QJsonDocument envelope = QJsonDocument::fromJson(responseBody, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !envelope.isObject()) {
         return {};
     }
-    return document.object();
+
+    const QJsonObject root = envelope.object();
+    if (root.contains(QStringLiteral("error"))) {
+        return {};
+    }
+
+    const QJsonArray choices = root.value(QStringLiteral("choices")).toArray();
+    if (choices.isEmpty()) {
+        return {};
+    }
+
+    const QJsonValue contentValue = choices.at(0)
+        .toObject()
+        .value(QStringLiteral("message"))
+        .toObject()
+        .value(QStringLiteral("content"));
+    if (contentValue.isObject()) {
+        return contentValue.toObject();
+    }
+
+    return parseJsonObjectFromModelText(textFromMessageContent(contentValue));
 }
 
 QString normalizeHexColor(const QString& text) {
@@ -184,24 +227,23 @@ QString normalizeHexColor(const QString& text) {
 QStringList uniqueFileNames(const QStringList& sourceVideoPaths) {
     QStringList fileNames;
     QSet<QString> seen;
-    for (const QString& path : sourceVideoPaths) {
+    std::for_each(sourceVideoPaths.cbegin(), sourceVideoPaths.cend(), [&](const QString& path) {
         const QString fileName = QFileInfo(path).fileName().trimmed();
         if (fileName.isEmpty() || seen.contains(fileName)) {
-            continue;
+            return;
         }
         seen.insert(fileName);
         fileNames.append(fileName);
-    }
+    });
     return fileNames;
 }
 
 QString firstExistingVideoPath(const QStringList& sourceVideoPaths) {
-    for (const QString& path : sourceVideoPaths) {
-        if (!path.trimmed().isEmpty() && QFileInfo::exists(path)) {
-            return path;
-        }
-    }
-    return {};
+    const auto iterator = std::find_if(sourceVideoPaths.cbegin(), sourceVideoPaths.cend(),
+                                     [](const QString& path) {
+                                         return !path.trimmed().isEmpty() && QFileInfo::exists(path);
+                                     });
+    return iterator != sourceVideoPaths.cend() ? *iterator : QString();
 }
 
 QString nameDateSystemPrompt() {
@@ -250,6 +292,7 @@ GameMetadataSuggester::~GameMetadataSuggester() {
 
 void GameMetadataSuggester::startSuggestionFromVideoPaths(const QStringList& sourceVideoPaths) {
     abortActiveWork();
+    thumbnailDir_.reset();
     ++generation_;
     running_ = true;
     aborted_ = false;
@@ -305,8 +348,8 @@ void GameMetadataSuggester::abortActiveWork() {
         reply->deleteLater();
     }
 
+    // Non-blocking: kill() + deleteLater(); do not waitForFinished() or remove the temp dir here.
     stopAndDiscardThumbnailProcess();
-    thumbnailDir_.reset();
 }
 
 void GameMetadataSuggester::stopAndDiscardThumbnailProcess() {
@@ -351,7 +394,7 @@ void GameMetadataSuggester::startNameDateRequest(const QStringList& fileNames) {
     messages.append(textChatMessage(QStringLiteral("user"), nameDateUserPrompt(fileNames)));
 
     QJsonObject body;
-    body.insert(QStringLiteral("model"), QLatin1String(kModelName));
+    body.insert(QStringLiteral("model"), XaiConfig::chatModelName());
     body.insert(QStringLiteral("messages"), messages);
     body.insert(QStringLiteral("temperature"), 0);
     body.insert(QStringLiteral("max_completion_tokens"), 256);
@@ -376,6 +419,10 @@ void GameMetadataSuggester::startThumbnailExtraction(const QString& sourceVideoP
 }
 
 void GameMetadataSuggester::startThumbnailFfmpeg(int seekSeconds, bool isRetry) {
+    if (aborted_) {
+        return;
+    }
+
     const QString ffmpegPath = ClipExporter::findFfmpeg();
     if (ffmpegPath.isEmpty() || thumbnailSourcePath_.isEmpty()) {
         thumbnailDone_ = true;
@@ -396,7 +443,10 @@ void GameMetadataSuggester::startThumbnailFfmpeg(int seekSeconds, bool isRetry) 
     const QString outputPath = thumbnailDir_->filePath(QStringLiteral("frame.jpg"));
     QFile::remove(outputPath);
 
-    stopAndDiscardThumbnailProcess();
+    if (thumbnailProcess_) {
+        stopAndDiscardThumbnailProcess();
+    }
+
     thumbnailProcess_ = std::make_unique<QProcess>();
     const int generation = generation_;
     connect(thumbnailProcess_.get(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
@@ -447,7 +497,7 @@ void GameMetadataSuggester::onThumbnailProcessFinished(int generation, bool isRe
         return;
     }
 
-    if (!jpegBytes.isEmpty() && jpegBytes.size() <= kMaxThumbnailBytes) {
+    if (!jpegBytes.isEmpty() && jpegBytes.size() <= XaiConfig::maxMetadataThumbnailBytes()) {
         thumbnailJpeg_ = jpegBytes;
     }
     thumbnailDone_ = true;
@@ -489,7 +539,7 @@ void GameMetadataSuggester::onChatReplyFinished(int generation, ChatKind kind) {
 }
 
 void GameMetadataSuggester::handleNameDateResponse(const QByteArray& responseBody) {
-    const QJsonObject object = parseContentObject(responseBody);
+    const QJsonObject object = parseStructuredChatCompletion(responseBody);
     suggestedHomeName_ = optionalJsonString(object.value(QStringLiteral("home_team_name")));
     suggestedAwayName_ = optionalJsonString(object.value(QStringLiteral("away_team_name")));
 
@@ -510,7 +560,7 @@ void GameMetadataSuggester::handleNameDateResponse(const QByteArray& responseBod
 }
 
 void GameMetadataSuggester::handleColorResponse(const QByteArray& responseBody) {
-    const QJsonObject object = parseContentObject(responseBody);
+    const QJsonObject object = parseStructuredChatCompletion(responseBody);
     const QString homeColor = normalizeHexColor(optionalJsonString(object.value(QStringLiteral("home_color_hex"))));
     const QString awayColor = normalizeHexColor(optionalJsonString(object.value(QStringLiteral("away_color_hex"))));
     if (aborted_ || (homeColor.isEmpty() && awayColor.isEmpty())) {
@@ -574,7 +624,7 @@ void GameMetadataSuggester::startColorRequest() {
     messages.append(userMessage);
 
     QJsonObject body;
-    body.insert(QStringLiteral("model"), QLatin1String(kModelName));
+    body.insert(QStringLiteral("model"), XaiConfig::chatModelName());
     body.insert(QStringLiteral("messages"), messages);
     body.insert(QStringLiteral("temperature"), 0);
     body.insert(QStringLiteral("max_completion_tokens"), 256);

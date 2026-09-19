@@ -14,6 +14,18 @@ namespace {
 constexpr char kConfigFileName[] = "xai.json";
 constexpr char kApiKeyJsonKey[] = "api_key";
 
+// REVIEW periodically: model availability and vision payload limits change over time.
+constexpr char kDefaultChatModelName[] = "grok-4.20-0309-non-reasoning";
+constexpr int kDefaultMaxMetadataThumbnailBytes = 15 * 1024 * 1024;
+
+QString trimmedEnvironmentValue(const char* variableName) {
+    const QByteArray value = qgetenv(variableName);
+    if (value.isEmpty()) {
+        return {};
+    }
+    return QString::fromUtf8(value).trimmed();
+}
+
 QString readApiKeyFromJsonFile(const QString& filePath) {
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
@@ -118,6 +130,30 @@ QString apiKey() {
 
 bool isConfigured() {
     return !apiKey().isEmpty();
+}
+
+QString chatModelName() {
+    const QString avaOverride = trimmedEnvironmentValue("AVA_XAI_CHAT_MODEL");
+    if (!avaOverride.isEmpty()) {
+        return avaOverride;
+    }
+    const QString xaiOverride = trimmedEnvironmentValue("XAI_CHAT_MODEL");
+    if (!xaiOverride.isEmpty()) {
+        return xaiOverride;
+    }
+    return QLatin1String(kDefaultChatModelName);
+}
+
+int maxMetadataThumbnailBytes() {
+    const QString avaOverride = trimmedEnvironmentValue("AVA_XAI_MAX_THUMBNAIL_BYTES");
+    if (!avaOverride.isEmpty()) {
+        bool parsedSuccessfully = false;
+        const int parsedBytes = avaOverride.toInt(&parsedSuccessfully);
+        if (parsedSuccessfully && parsedBytes > 0) {
+            return parsedBytes;
+        }
+    }
+    return kDefaultMaxMetadataThumbnailBytes;
 }
 
 void bootstrap() {
