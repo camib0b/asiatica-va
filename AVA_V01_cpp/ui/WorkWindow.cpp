@@ -231,6 +231,13 @@ void syncWorkModeToggleButtonSizes(QToolButton* taggingButton, QToolButton* anal
         button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     }
 }
+
+void configureTimelineForVideoColumn(QWidget* timeline) {
+    if (!timeline) return;
+    timeline->setMinimumHeight(44);
+    timeline->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    timeline->show();
+}
 } // namespace
 
 WorkWindow::WorkWindow(QWidget* parent) : QWidget(parent) {
@@ -572,15 +579,14 @@ void WorkWindow::buildUi() {
     topLayout->addSpacing(16);
 
     videoPlayer_ = new VideoPlayer(this);
-    // Children (video surface, controls, timeline) are reparented into WorkWindow layouts; the shell
-    // widget must stay hidden or it paints an empty rectangle at (0,0) over the mode toggle row.
+    // Not in a layout until a mode layout is applied; hide so WorkWindow::show()
+    // does not paint this shell at (0,0) over the mode toggle row.
     videoPlayer_->hide();
-    auto* videoControlsBar = videoPlayer_->controlsBar();
     videoControlsRow_ = new QWidget(this);
     auto* videoControlsLayout = new QHBoxLayout(videoControlsRow_);
     videoControlsLayout->setContentsMargins(0, 0, 0, 0);
     videoControlsLayout->setSpacing(8);
-    videoControlsLayout->addWidget(videoControlsBar, 1);
+    videoControlsLayout->addStretch(1);
     videoMenuButton_ = new QToolButton(this);
     QIcon settingsIcon = QIcon::fromTheme("preferences-system");
     if (!settingsIcon.isNull()) {
@@ -612,7 +618,7 @@ void WorkWindow::buildUi() {
     auto* timelineLayout = new QHBoxLayout(videoTimelineRow_);
     timelineLayout->setContentsMargins(0, 0, 0, 0);
     timelineLayout->addWidget(videoPlayer_->timelineBar(), 1);
-    // Timeline row uses only its natural height; all extra vertical space goes to the video/content area below.
+    // Bootstrap parent only; tagging/presenting/analyzing layouts reparent the timeline and hide this row.
     mainContentLayout->addWidget(videoTimelineRow_, 0);
 
     contentArea_ = new QWidget(mainContentContainer_);
@@ -644,6 +650,7 @@ void WorkWindow::buildUi() {
     taggingVideoCol_->setStyleSheet(QStringLiteral("#TaggingVideoCol { background-color: #FFFFFF; }"));
     auto* taggingVideoLayout = new QVBoxLayout(taggingVideoCol_);
     taggingVideoLayout->setContentsMargins(0, 0, 0, 0);
+    taggingVideoLayout->setSpacing(4);
     taggingMainLayout->addWidget(taggingVideoCol_, 1);
     taggingRightCol_ = new QWidget(this);
     taggingRightCol_->setObjectName("TaggingRightCol");
@@ -923,8 +930,8 @@ void WorkWindow::applyTaggingLayout() {
     if (presentationSplitter_) presentationSplitter_->hide();
 
     QWidget* timeline = videoPlayer_ ? videoPlayer_->timelineBar() : nullptr;
-    detachWidgetFromParent(videoPlayer_ ? videoPlayer_->videoWidget() : nullptr);
-    if (timeline && timeline->parentWidget() != videoTimelineRow_) {
+    detachWidgetFromParent(videoPlayer_);
+    if (timeline) {
         detachWidgetFromParent(timeline);
     }
     detachWidgetFromParent(tagsSection_);
@@ -933,19 +940,19 @@ void WorkWindow::applyTaggingLayout() {
     detachWidgetFromParent(statsWindow_);
     if (notesColumn_) detachWidgetFromParent(notesColumn_);
 
+    // Keep the timeline in the video column so its width matches the player and the
+    // tagging panel can use the vertical space the old full-width timeline row occupied.
     if (videoTimelineRow_) {
-        videoTimelineRow_->show();
-        if (timeline && timeline->parentWidget() != videoTimelineRow_ && videoTimelineRow_->layout()) {
-            if (auto* rowLayout = qobject_cast<QHBoxLayout*>(videoTimelineRow_->layout())) {
-                rowLayout->addWidget(timeline, 1);
-            } else {
-                videoTimelineRow_->layout()->addWidget(timeline);
-            }
-        }
+        videoTimelineRow_->hide();
     }
 
-    QWidget* vw = videoPlayer_->videoWidget();
-    static_cast<QBoxLayout*>(taggingVideoCol_->layout())->addWidget(vw, 1);
+    auto* taggingVideoLayout = static_cast<QBoxLayout*>(taggingVideoCol_->layout());
+    if (timeline) {
+        configureTimelineForVideoColumn(timeline);
+        taggingVideoLayout->addWidget(timeline, 0);
+    }
+    taggingVideoLayout->addWidget(videoPlayer_, 1);
+    videoPlayer_->show();
     auto* rightLayout = static_cast<QBoxLayout*>(taggingRightCol_->layout());
     if (gameControls_) {
         // Analyzing mode lowers minimum width; restore so tagging labels are not clipped.
@@ -1010,15 +1017,14 @@ void WorkWindow::applyAnalyzingLayout() {
         delete item;  // widget stays in tree; do not setParent(nullptr)
     }
 
-    QWidget* vw = videoPlayer_->videoWidget();
     QWidget* timeline = videoPlayer_ ? videoPlayer_->timelineBar() : nullptr;
-    if (!vw || !timeline || !analyzingMainSplitter_ || !analyzingLeftSplitter_ || !analyzingRightSplitter_ ||
+    if (!videoPlayer_ || !timeline || !analyzingMainSplitter_ || !analyzingLeftSplitter_ || !analyzingRightSplitter_ ||
         !analyzingTagsControlsSplitter_) {
         rebuildTagsList();
         return;
     }
 
-    detachWidgetFromParent(vw);
+    detachWidgetFromParent(videoPlayer_);
     detachWidgetFromParent(tagsSection_);
     detachWidgetFromParent(gameControls_);
     detachWidgetFromParent(statsWindow_);
@@ -1047,7 +1053,8 @@ void WorkWindow::applyAnalyzingLayout() {
     analyzingTagsControlsSplitter_->addWidget(tagsSection_);
     if (notesColumn_) analyzingTagsControlsSplitter_->addWidget(notesColumn_);
 
-    analyzingLeftSplitter_->addWidget(vw);
+    analyzingLeftSplitter_->addWidget(videoPlayer_);
+    videoPlayer_->show();
     analyzingLeftSplitter_->addWidget(timeline);
     analyzingLeftSplitter_->addWidget(analyzingTagsControlsSplitter_);
 
@@ -1086,19 +1093,18 @@ void WorkWindow::applyPresentationLayout() {
     if (taggingMainRow_) taggingMainRow_->hide();
     if (taggingVideoTagsSplitter_) taggingVideoTagsSplitter_->hide();
     if (analyzingMainSplitter_) analyzingMainSplitter_->hide();
-    QWidget* videoWidget = videoPlayer_ ? videoPlayer_->videoWidget() : nullptr;
     QWidget* timeline = videoPlayer_ ? videoPlayer_->timelineBar() : nullptr;
-    if (!videoWidget || !presentationSplitter_ || !presentationStageColumn_) {
+    if (!videoPlayer_ || !presentationSplitter_ || !presentationStageColumn_) {
         return;
     }
 
-    detachWidgetFromParent(videoWidget);
+    detachWidgetFromParent(videoPlayer_);
     detachWidgetFromParent(tagsSection_);
     detachWidgetFromParent(gameControls_);
     detachWidgetFromParent(statsWindow_);
     if (notesColumn_) detachWidgetFromParent(notesColumn_);
     detachWidgetFromParent(analyzingTagsControlsSplitter_);
-    if (timeline && timeline->parentWidget() != videoTimelineRow_) {
+    if (timeline) {
         detachWidgetFromParent(timeline);
     }
 
@@ -1106,21 +1112,23 @@ void WorkWindow::applyPresentationLayout() {
         delete item;  // widget stays in tree; do not setParent(nullptr)
     }
 
-    // The full-video timeline stays available so the presenter can roam outside the clip window.
+    // Keep the full-video timeline in the stage column (same width as the player) so the
+    // presentation panel can use the height the old full-width timeline row occupied.
     if (videoTimelineRow_) {
-        videoTimelineRow_->show();
-        if (timeline && timeline->parentWidget() != videoTimelineRow_ && videoTimelineRow_->layout()) {
-            if (auto* rowLayout = qobject_cast<QHBoxLayout*>(videoTimelineRow_->layout())) {
-                rowLayout->addWidget(timeline, 1);
-            } else {
-                videoTimelineRow_->layout()->addWidget(timeline);
-            }
-        }
+        videoTimelineRow_->hide();
     }
 
-    // Banner sits at index 0 and the clip bar last, so the video always lands between them.
+    // Banner, full-video timeline, video, then clip bar. The timeline stays available so
+    // the presenter can roam outside the clip window.
     auto* stageLayout = static_cast<QBoxLayout*>(presentationStageColumn_->layout());
-    stageLayout->insertWidget(1, videoWidget, 1);
+    if (timeline) {
+        configureTimelineForVideoColumn(timeline);
+        stageLayout->insertWidget(1, timeline, 0);
+        stageLayout->insertWidget(2, videoPlayer_, 1);
+    } else {
+        stageLayout->insertWidget(1, videoPlayer_, 1);
+    }
+    videoPlayer_->show();
 
     // These panels have no slot in the presentation layout; without an explicit hide they would
     // paint at their last geometry on top of the stage.

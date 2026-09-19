@@ -17,8 +17,17 @@ static void avaRemoveSystemPowerObservers(void*) {}
 #include <QVBoxLayout>
 #include <QAudioDevice>
 #include <QAudioOutput>
+#include <QCursor>
+#include <QEvent>
+#include <QEnterEvent>
 #include <QGuiApplication>
 #include <QMediaPlayer>
+#include <QAbstractAnimation>
+#include <QHideEvent>
+#include <QMoveEvent>
+#include <QPropertyAnimation>
+#include <QResizeEvent>
+#include <QShowEvent>
 #include <QTimer>
 #include <QUrl>
 #include <QVideoWidget>
@@ -46,12 +55,19 @@ namespace {
     bool isNearPlaybackEnd(qint64 positionMs, qint64 durationMs) {
         return durationMs > 0 && positionMs >= durationMs - kPlaybackEndGuardMs;
     }
+
+    constexpr int kControlsOverlayBottomMarginPx = 12;
+    constexpr int kControlsOverlayIdleMs = 2000;
+    constexpr int kControlsOverlayFadeMs = 250;
+    constexpr qreal kControlsOverlayActiveOpacity = 0.85;
 } // namespace
 
 VideoPlayer::VideoPlayer(QWidget* parent)
     : QWidget(parent),
       mediaControlsEnabled_(false),
       playbackKeyboardShortcutsEnabled_(true),
+      controlsChromeEnabled_(false),
+      controlsOverlayOpacity_(kControlsOverlayActiveOpacity),
       playbackRate_(1.0),
       wasPlayingBeforeScrub_(false),
       lastStallCheckPositionMs_(-1),
@@ -72,6 +88,10 @@ VideoPlayer::VideoPlayer(QWidget* parent)
 
 VideoPlayer::~VideoPlayer() {
     sleepRecoveryPending_ = false;
+    if (overlayPositionHost_) {
+        overlayPositionHost_->removeEventFilter(this);
+        overlayPositionHost_ = nullptr;
+    }
     unregisterSystemPowerObservers();
     avaEndPlaybackUserActivity();
 }
@@ -94,31 +114,190 @@ void VideoPlayer::seekToMs(qint64 posMs) {
 }
 
 void VideoPlayer::buildUi() {
-    // VideoPlayer manages the video widget and player logic
-    // Controls and timeline are exposed separately for WorkWindow to lay out
-    
-    // video widget:
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    setAttribute(Qt::WA_Hover, true);
+    setAttribute(Qt::WA_StyledBackground, true);
+    setStyleSheet(QStringLiteral("background-color: black;"));
+
+    auto* stageLayout = new QVBoxLayout(this);
+    stageLayout->setContentsMargins(0, 0, 0, 0);
+    stageLayout->setSpacing(0);
+
     videoWidget_ = new QVideoWidget(this);
     videoWidget_->setAspectRatioMode(Qt::KeepAspectRatio);
     videoWidget_->setMinimumHeight(360);
     videoWidget_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     videoWidget_->setAttribute(Qt::WA_Hover, true);
+    videoWidget_->setMouseTracking(true);
     videoWidget_->setStyleSheet(QStringLiteral("background-color: black;"));
-    
+    stageLayout->addWidget(videoWidget_, 1);
+
     videoControlsBar_ = new VideoControlsBar(this);
     videoTimelineBar_ = new TimelineBar(this);
+    setupControlsOverlay();
 
-    // media player and audio output:
     player_ = new QMediaPlayer(this);
     audioOutput_ = new QAudioOutput(this);
     mediaDevices_ = new QMediaDevices(this);
     player_->setAudioOutput(audioOutput_);
     player_->setVideoOutput(videoWidget_);
 
-    // initial visibility: hidden until video is loaded
     if (videoWidget_) videoWidget_->hide();
     if (videoControlsBar_) videoControlsBar_->hide();
     if (videoTimelineBar_) videoTimelineBar_->hide();
+}
+
+void VideoPlayer::setupControlsOverlay() {
+    if (!videoControlsBar_) return;
+
+    // Frameless tool window so the bar composites above QVideoWidget's native
+    // AVFoundation layer on macOS. A sibling QWidget is painted under that layer.
+    videoControlsBar_->setAttribute(Qt::WA_StyledBackground, true);
+    videoControlsBar_->setAttribute(Qt::WA_TranslucentBackground, true);
+    videoControlsBar_->setAttribute(Qt::WA_ShowWithoutActivating, true);
+    videoControlsBar_->setWindowFlags(Qt::Tool | Qt::FramelessWindowHint |
+                                      Qt::WindowDoesNotAcceptFocus | Qt::NoDropShadowWindowHint);
+    videoControlsBar_->setAutoFillBackground(false);
+    videoControlsBar_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+    videoControlsBar_->setWindowOpacity(kControlsOverlayActiveOpacity);
+
+    controlsIdleTimer_ = new QTimer(this);
+    controlsIdleTimer_->setSingleShot(true);
+    controlsIdleTimer_->setInterval(kControlsOverlayIdleMs);
+    connect(controlsIdleTimer_, &QTimer::timeout, this, &VideoPlayer::hideControlsOverlay);
+
+    controlsFadeAnimation_ = new QPropertyAnimation(videoControlsBar_, "windowOpacity", this);
+    controlsFadeAnimation_->setDuration(kControlsOverlayFadeMs);
+    connect(controlsFadeAnimation_, &QPropertyAnimation::finished, this, [this]() {
+        if (!videoControlsBar_) return;
+        if (videoControlsBar_->windowOpacity() > 0.01) return;
+        videoControlsBar_->hide();
+        videoControlsBar_->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    });
+    videoControlsBar_->hide();
+}
+
+void VideoPlayer::applyControlsOverlayOpacity(qreal opacity) {
+    controlsOverlayOpacity_ = std::clamp(opacity, 0.0, 1.0);
+    if (!videoControlsBar_) return;
+    videoControlsBar_->setWindowOpacity(controlsOverlayOpacity_);
+}
+
+void VideoPlayer::raiseControlsOverlay() {
+    if (!videoControlsBar_) return;
+    videoControlsBar_->raise();
+}
+
+void VideoPlayer::installWindowMoveTracking() {
+    QWidget* host = window();
+    if (overlayPositionHost_ == host) return;
+    if (overlayPositionHost_) {
+        overlayPositionHost_->removeEventFilter(this);
+    }
+    overlayPositionHost_ = host;
+    if (overlayPositionHost_ && overlayPositionHost_ != this) {
+        overlayPositionHost_->installEventFilter(this);
+    }
+}
+
+void VideoPlayer::updateControlsOverlayGeometry() {
+    if (!videoControlsBar_) return;
+
+    videoControlsBar_->adjustSize();
+    const QSize barSize = videoControlsBar_->sizeHint();
+    const int x = qMax(0, (width() - barSize.width()) / 2);
+    const int y = qMax(0, height() - barSize.height() - kControlsOverlayBottomMarginPx);
+    const QPoint globalTopLeft = mapToGlobal(QPoint(x, y));
+    videoControlsBar_->setGeometry(QRect(globalTopLeft, barSize));
+    raiseControlsOverlay();
+}
+
+bool VideoPlayer::isPointerOverControlsBar() const {
+    if (!videoControlsBar_ || !videoControlsBar_->isVisible()) return false;
+    if (videoControlsBar_->underMouse()) return true;
+    return videoControlsBar_->rect().contains(videoControlsBar_->mapFromGlobal(QCursor::pos()));
+}
+
+void VideoPlayer::revealControls() {
+    if (!controlsChromeEnabled_ || !videoControlsBar_) return;
+    if (!isVisible()) return;
+
+    if (controlsFadeAnimation_ && controlsFadeAnimation_->state() == QAbstractAnimation::Running) {
+        controlsFadeAnimation_->stop();
+    }
+
+    installWindowMoveTracking();
+    videoControlsBar_->setAttribute(Qt::WA_TransparentForMouseEvents, false);
+    applyControlsOverlayOpacity(kControlsOverlayActiveOpacity);
+    updateControlsOverlayGeometry();
+    videoControlsBar_->show();
+    raiseControlsOverlay();
+    startControlsIdleTimer();
+}
+
+void VideoPlayer::startControlsIdleTimer() {
+    if (!controlsChromeEnabled_ || !controlsIdleTimer_) return;
+    if (isPointerOverControlsBar()) {
+        controlsIdleTimer_->stop();
+        return;
+    }
+    controlsIdleTimer_->start();
+}
+
+void VideoPlayer::hideControlsOverlay() {
+    if (!videoControlsBar_ || !controlsFadeAnimation_) return;
+    if (!videoControlsBar_->isVisible()) return;
+    if (isPointerOverControlsBar()) {
+        startControlsIdleTimer();
+        return;
+    }
+
+    if (controlsFadeAnimation_->state() == QAbstractAnimation::Running) {
+        controlsFadeAnimation_->stop();
+    }
+
+    controlsFadeAnimation_->setStartValue(videoControlsBar_->windowOpacity());
+    controlsFadeAnimation_->setEndValue(0.0);
+    controlsFadeAnimation_->start();
+}
+
+void VideoPlayer::resizeEvent(QResizeEvent* event) {
+    QWidget::resizeEvent(event);
+    updateControlsOverlayGeometry();
+}
+
+void VideoPlayer::moveEvent(QMoveEvent* event) {
+    QWidget::moveEvent(event);
+    updateControlsOverlayGeometry();
+}
+
+void VideoPlayer::showEvent(QShowEvent* event) {
+    QWidget::showEvent(event);
+    installWindowMoveTracking();
+    if (controlsChromeEnabled_) {
+        revealControls();
+    }
+}
+
+void VideoPlayer::hideEvent(QHideEvent* event) {
+    QWidget::hideEvent(event);
+    if (controlsIdleTimer_) controlsIdleTimer_->stop();
+    if (controlsFadeAnimation_ && controlsFadeAnimation_->state() == QAbstractAnimation::Running) {
+        controlsFadeAnimation_->stop();
+    }
+    if (videoControlsBar_) {
+        videoControlsBar_->hide();
+    }
+}
+
+void VideoPlayer::enterEvent(QEnterEvent* event) {
+    QWidget::enterEvent(event);
+    revealControls();
+}
+
+void VideoPlayer::leaveEvent(QEvent* event) {
+    QWidget::leaveEvent(event);
+    startControlsIdleTimer();
 }
 
 void VideoPlayer::wireSignals() {
@@ -134,11 +313,25 @@ void VideoPlayer::wireSignals() {
     });
     connect(videoControlsBar_, &VideoControlsBar::togglePlayPauseFromKeyboardShortcut, this,
             &VideoPlayer::togglePlayPauseWithControlFlash);
+    connect(videoControlsBar_, &VideoControlsBar::playRequested, this, &VideoPlayer::revealControls);
+    connect(videoControlsBar_, &VideoControlsBar::pauseRequested, this, &VideoPlayer::revealControls);
+    connect(videoControlsBar_, &VideoControlsBar::seekRequestedMs, this, [this](qint64) {
+        revealControls();
+    });
+    connect(videoControlsBar_, &VideoControlsBar::slowerRequested, this, &VideoPlayer::revealControls);
+    connect(videoControlsBar_, &VideoControlsBar::fasterRequested, this, &VideoPlayer::revealControls);
+    connect(videoControlsBar_, &VideoControlsBar::resetSpeedRequested, this, &VideoPlayer::revealControls);
+    connect(videoControlsBar_, &VideoControlsBar::muteToggled, this, [this](bool) {
+        revealControls();
+    });
 
     // play pause button sensible to state changes:
     connect(player_, &QMediaPlayer::playbackStateChanged, this, [this](QMediaPlayer::PlaybackState state) {
         if (videoControlsBar_) videoControlsBar_->setPlaying(state == QMediaPlayer::PlayingState);
         updateStallMonitorForPlaybackState(state);
+        if (controlsChromeEnabled_ && state != QMediaPlayer::StoppedState) {
+            raiseControlsOverlay();
+        }
     });
 
     connect(player_, &QMediaPlayer::mediaStatusChanged, this, &VideoPlayer::onMediaStatusChanged);
@@ -179,20 +372,23 @@ void VideoPlayer::wireSignals() {
         }
     });
 
-    // Mouse click on video widget toggles play/pause
     videoWidget_->installEventFilter(this);
+    if (videoControlsBar_) {
+        videoControlsBar_->setMouseTracking(true);
+        videoControlsBar_->installEventFilter(this);
+    }
 }
 
 void VideoPlayer::buildKeyboardShortcuts() {
     Q_ASSERT(QApplication::instance() != nullptr);
 
     // Space and playback-speed keys live on VideoControlsBar (Qt::ApplicationShortcut), same pattern as GameControls.
-    // This widget stays hidden while its children are reparented; the controls bar is visible in the layout.
 
     seekSmallBackAction_ = makeQtPtr<QAction>(this);
     seekSmallBackAction_->setShortcut(QKeySequence(Qt::Key_Left));
     seekSmallBackAction_->setShortcutContext(Qt::ApplicationShortcut);
     connect(seekSmallBackAction_.get(), &QAction::triggered, this, [this]() {
+        revealControls();
         if (videoControlsBar_) videoControlsBar_->flashSeekBackButton();
         onSeekSmallBackward();
     });
@@ -202,6 +398,7 @@ void VideoPlayer::buildKeyboardShortcuts() {
     seekSmallForwardAction_->setShortcut(QKeySequence(Qt::Key_Right));
     seekSmallForwardAction_->setShortcutContext(Qt::ApplicationShortcut);
     connect(seekSmallForwardAction_.get(), &QAction::triggered, this, [this]() {
+        revealControls();
         if (videoControlsBar_) videoControlsBar_->flashSeekForwardButton();
         onSeekSmallForward();
     });
@@ -211,6 +408,7 @@ void VideoPlayer::buildKeyboardShortcuts() {
     seekBigBackAction_->setShortcut(QKeySequence(Qt::SHIFT | Qt::Key_Left));
     seekBigBackAction_->setShortcutContext(Qt::ApplicationShortcut);
     connect(seekBigBackAction_.get(), &QAction::triggered, this, [this]() {
+        revealControls();
         if (videoControlsBar_) videoControlsBar_->flashSeekBackButton();
         onSeekBigBackward();
     });
@@ -220,6 +418,7 @@ void VideoPlayer::buildKeyboardShortcuts() {
     seekBigForwardAction_->setShortcut(QKeySequence(Qt::SHIFT | Qt::Key_Right));
     seekBigForwardAction_->setShortcutContext(Qt::ApplicationShortcut);
     connect(seekBigForwardAction_.get(), &QAction::triggered, this, [this]() {
+        revealControls();
         if (videoControlsBar_) videoControlsBar_->flashSeekForwardButton();
         onSeekBigForward();
     });
@@ -229,9 +428,24 @@ void VideoPlayer::buildKeyboardShortcuts() {
 }
 
 void VideoPlayer::setControlsVisible(bool visible) {
-    if (videoControlsBar_) videoControlsBar_->setVisible(visible);
-    if (videoTimelineBar_) videoTimelineBar_->setVisible(visible);
+    controlsChromeEnabled_ = visible;
     if (videoWidget_) videoWidget_->setVisible(visible);
+    if (videoTimelineBar_) videoTimelineBar_->setVisible(visible);
+
+    if (!visible) {
+        if (controlsIdleTimer_) controlsIdleTimer_->stop();
+        if (controlsFadeAnimation_ && controlsFadeAnimation_->state() == QAbstractAnimation::Running) {
+            controlsFadeAnimation_->stop();
+        }
+        if (videoControlsBar_) {
+            videoControlsBar_->hide();
+            videoControlsBar_->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        }
+        applyControlsOverlayOpacity(kControlsOverlayActiveOpacity);
+        return;
+    }
+
+    revealControls();
 }
 
 void VideoPlayer::setControlsEnabled(bool enabled) {
@@ -309,6 +523,7 @@ void VideoPlayer::onTogglePlayPause() {
 
 void VideoPlayer::togglePlayPauseWithControlFlash() {
     if (!player_) return;
+    revealControls();
     const auto state = player_->playbackState();
     if (videoControlsBar_) {
         (state == QMediaPlayer::PlayingState) ? videoControlsBar_->flashPauseButton()
@@ -324,6 +539,7 @@ bool VideoPlayer::isPlaying() const {
 void VideoPlayer::playWithControlFlash() {
     if (!player_) return;
     if (player_->playbackState() == QMediaPlayer::PlayingState) return;
+    revealControls();
     if (videoControlsBar_) videoControlsBar_->flashPlayButton();
     onPlayClicked();
 }
@@ -331,21 +547,25 @@ void VideoPlayer::playWithControlFlash() {
 void VideoPlayer::pauseWithControlFlash() {
     if (!player_) return;
     if (player_->playbackState() != QMediaPlayer::PlayingState) return;
+    revealControls();
     if (videoControlsBar_) videoControlsBar_->flashPauseButton();
     onPauseClicked();
 }
 
 void VideoPlayer::playbackSlowerWithControlFlash() {
+    revealControls();
     if (videoControlsBar_) videoControlsBar_->flashSlowerButton();
     onSlowerClicked();
 }
 
 void VideoPlayer::playbackFasterWithControlFlash() {
+    revealControls();
     if (videoControlsBar_) videoControlsBar_->flashFasterButton();
     onFasterClicked();
 }
 
 void VideoPlayer::playbackResetSpeedWithControlFlash() {
+    revealControls();
     if (videoControlsBar_) videoControlsBar_->flashResetSpeedButton();
     onResetSpeedClicked();
 }
@@ -528,18 +748,27 @@ void VideoPlayer::setMediaSourceFromPath(const QString& sourcePath,
 }
 
 void VideoPlayer::onMediaStatusChanged(QMediaPlayer::MediaStatus status) {
-    if (!pendingMediaSession_.active) return;
+    if (pendingMediaSession_.active) {
+        switch (status) {
+            case QMediaPlayer::LoadedMedia:
+            case QMediaPlayer::BufferedMedia:
+                finalizePendingMediaSession();
+                break;
+            case QMediaPlayer::InvalidMedia:
+                pendingMediaSession_.active = false;
+                break;
+            default:
+                break;
+        }
+    }
 
-    switch (status) {
-        case QMediaPlayer::LoadedMedia:
-        case QMediaPlayer::BufferedMedia:
-            finalizePendingMediaSession();
-            break;
-        case QMediaPlayer::InvalidMedia:
-            pendingMediaSession_.active = false;
-            break;
-        default:
-            break;
+    if (controlsChromeEnabled_ &&
+        (status == QMediaPlayer::LoadedMedia || status == QMediaPlayer::BufferedMedia)) {
+        QTimer::singleShot(0, this, [this]() {
+            if (controlsChromeEnabled_) {
+                revealControls();
+            }
+        });
     }
 }
 
@@ -560,6 +789,10 @@ void VideoPlayer::finalizePendingMediaSession() {
     player_->setPosition(resumePositionMs);
     userRequestedPlaying_ = session.resumePlaying;
     if (session.resumePlaying) player_->play();
+
+    if (controlsChromeEnabled_) {
+        revealControls();
+    }
 
     // Reset stall watchdog so the freshly rebuilt pipeline is not flagged as stalled
     // due to stale position samples from before the reload.
@@ -683,12 +916,29 @@ void VideoPlayer::onAudioOutputsChanged() {
 }
 
 bool VideoPlayer::eventFilter(QObject* obj, QEvent* event) {
-    if (obj == videoWidget_ && event->type() == QEvent::MouseButtonPress) {
-        auto* mouseEvent = static_cast<QMouseEvent*>(event);
-        if (mouseEvent->button() == Qt::LeftButton) {
-            onTogglePlayPause();
-            return true;
+    if (obj == overlayPositionHost_ &&
+        (event->type() == QEvent::Move || event->type() == QEvent::Resize)) {
+        updateControlsOverlayGeometry();
+    }
+    if (obj == videoWidget_) {
+        if (event->type() == QEvent::Show) {
+            QTimer::singleShot(0, this, [this]() {
+                if (controlsChromeEnabled_) {
+                    revealControls();
+                }
+            });
+        } else if (event->type() == QEvent::MouseMove) {
+            revealControls();
+        } else if (event->type() == QEvent::MouseButtonPress) {
+            auto* mouseEvent = static_cast<QMouseEvent*>(event);
+            if (mouseEvent->button() == Qt::LeftButton) {
+                onTogglePlayPause();
+                return true;
+            }
         }
+    } else if (obj == videoControlsBar_ &&
+               (event->type() == QEvent::MouseMove || event->type() == QEvent::Enter)) {
+        revealControls();
     }
     return QWidget::eventFilter(obj, event);
 }

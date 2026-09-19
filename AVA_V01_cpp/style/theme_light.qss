@@ -965,8 +965,14 @@ QSlider#TimelineSlider::handle:horizontal:hover {
 }
 
 /* =========================
-   Video controls bar (compact – all modes)
+   Video controls bar (compact overlay chip)
 ========================= */
+
+QWidget#VideoControlsBar {
+  background-color: rgba(9, 9, 11, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+}
 
 QWidget#VideoControlsBar QPushButton {
   padding: 4px 8px;
@@ -977,6 +983,11 @@ QWidget#VideoControlsBar QPushButton {
 
 QWidget#VideoControlsBar QLabel {
   font-size: 12px;
+  color: #e4e4e7;
+}
+
+QWidget#VideoControlsBar QLabel[role="muted"] {
+  color: #d4d4d8;
 }
 
 /* Compact game controls in tagging right column */

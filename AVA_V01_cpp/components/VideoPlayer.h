@@ -11,6 +11,10 @@ class QVideoWidget;
 class QAudioOutput;
 class QMediaDevices;
 class QAction;
+class QHideEvent;
+class QMoveEvent;
+class QPropertyAnimation;
+class QShowEvent;
 class QTimer;
 class VideoControlsBar;
 class TimelineBar;
@@ -73,12 +77,27 @@ private slots:
 
 protected:
   bool eventFilter(QObject* obj, QEvent* event) override;
+  void resizeEvent(QResizeEvent* event) override;
+  void moveEvent(QMoveEvent* event) override;
+  void showEvent(QShowEvent* event) override;
+  void hideEvent(QHideEvent* event) override;
+  void enterEvent(QEnterEvent* event) override;
+  void leaveEvent(QEvent* event) override;
 
 private:
   void buildUi();
   void wireSignals();
   void buildKeyboardShortcuts();
   void updatePlaybackShortcutActionStates();
+  void revealControls();
+  void startControlsIdleTimer();
+  void hideControlsOverlay();
+  void updateControlsOverlayGeometry();
+  void setupControlsOverlay();
+  void applyControlsOverlayOpacity(qreal opacity);
+  void raiseControlsOverlay();
+  bool isPointerOverControlsBar() const;
+  void installWindowMoveTracking();
 
   void seekByMs(qint64 deltaMs);
   void setPlaybackRateAndPlay(double rate);
@@ -131,12 +150,17 @@ private:
 
   bool mediaControlsEnabled_ = false;
   bool playbackKeyboardShortcutsEnabled_ = true;
+  bool controlsChromeEnabled_ = false;
+  qreal controlsOverlayOpacity_ = 0.85;
 
   // Settings or constants:
   double playbackRate_ = 1.0;
   bool wasPlayingBeforeScrub_ = false;
 
   QTimer* playbackStallTimer_ = nullptr;
+  QTimer* controlsIdleTimer_ = nullptr;
+  QPropertyAnimation* controlsFadeAnimation_ = nullptr;
+  QWidget* overlayPositionHost_ = nullptr;
   PendingMediaSession pendingMediaSession_;
   QString loadedSourcePath_;
   qint64 lastStallCheckPositionMs_ = -1;

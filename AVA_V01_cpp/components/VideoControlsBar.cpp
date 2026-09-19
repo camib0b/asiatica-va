@@ -64,9 +64,11 @@ VideoControlsBar::VideoControlsBar(QWidget* parent)
 void VideoControlsBar
 ::buildUi() {
   setObjectName(QStringLiteral("VideoControlsBar"));
+  setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+  setAttribute(Qt::WA_StyledBackground, true);
 
   auto* layout = new QHBoxLayout(this);
-  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setContentsMargins(8, 6, 8, 6);
   layout->setSpacing(8);
 
   playButton_       = new QPushButton(this);
@@ -121,7 +123,7 @@ void VideoControlsBar
   layout->addWidget(slowerButton_);
   layout->addWidget(resetSpeedButton_);
   layout->addWidget(fasterButton_);
-  layout->addStretch(1);
+  layout->addSpacing(8);
   layout->addWidget(speedLabel_);
   layout->addSpacing(8);
   layout->addWidget(muteButton_);
