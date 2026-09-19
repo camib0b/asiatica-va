@@ -7,10 +7,14 @@
 #include "../i18n/AppLocale.h"
 #include "../style/StyleProps.h"
 
+#include <QAbstractItemView>
+#include <QApplication>
 #include <QComboBox>
 #include <QColor>
 #include <QDate>
+#include <QEvent>
 #include <QHBoxLayout>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -24,6 +28,21 @@ const QColor kDefaultAwayTeamColor(Qt::red);
 
 QString hexFromColor(const QColor& color) {
   return color.name(QColor::HexRgb).toUpper();
+}
+
+bool isBackwardTabKey(const QKeyEvent& keyEvent) {
+  return keyEvent.key() == Qt::Key_Backtab ||
+         (keyEvent.key() == Qt::Key_Tab && keyEvent.modifiers().testFlag(Qt::ShiftModifier));
+}
+
+bool isForwardTabKey(const QKeyEvent& keyEvent) {
+  return keyEvent.key() == Qt::Key_Tab && !keyEvent.modifiers().testFlag(Qt::ShiftModifier);
+}
+
+QWidget* keyboardFocusTarget(QWidget* widget) {
+  if (!widget) return nullptr;
+  if (QWidget* proxy = widget->focusProxy()) return proxy;
+  return widget;
 }
 
 /// Uppercase alphanumeric runs, treating spaces/punctuation as word breaks.
@@ -226,7 +245,7 @@ void GameSetupWindow::buildUi() {
   languageCombo->addItem(QString());
   languageCombo->addItem(QString());
   languageCombo->setMaximumWidth(140);
-  languageCombo->setFocusPolicy(Qt::ClickFocus);
+  languageCombo->setFocusPolicy(Qt::StrongFocus);
   Style::setVariant(languageCombo.get(), "compact");
   languageCombo_ = languageCombo.get();
   headerRow->addStretch(1);
@@ -323,13 +342,14 @@ void GameSetupWindow::buildUi() {
   outerLayout->addWidget(contentContainer.get(), 0, Qt::AlignCenter);
   outerLayout->addStretch(1);
 
+  setTabOrder(languageCombo_, homeNameEdit_);
   setTabOrder(homeNameEdit_, homeAbbrevEdit_);
   setTabOrder(homeAbbrevEdit_, homeColorPicker_);
   setTabOrder(homeColorPicker_, awayNameEdit_);
   setTabOrder(awayNameEdit_, awayAbbrevEdit_);
   setTabOrder(awayAbbrevEdit_, awayColorPicker_);
-  setTabOrder(awayColorPicker_, continueButton_);
-  setTabOrder(continueButton_, backButton_);
+  setTabOrder(awayColorPicker_, backButton_);
+  setTabOrder(backButton_, continueButton_);
 }
 
 void GameSetupWindow::wireSignals() {
@@ -341,6 +361,72 @@ void GameSetupWindow::wireSignals() {
           &GameSetupWindow::onHomeNameEditingFinished);
   connect(awayNameEdit_, &QLineEdit::editingFinished, this,
           &GameSetupWindow::onAwayNameEditingFinished);
+
+  const QVector<QWidget*> tabFilterTargets = {languageCombo_,   homeNameEdit_,   homeAbbrevEdit_,
+                                              homeColorPicker_, awayNameEdit_,   awayAbbrevEdit_,
+                                              awayColorPicker_, backButton_,     continueButton_};
+  for (QWidget* candidate : tabFilterTargets) {
+    if (QWidget* target = keyboardFocusTarget(candidate)) {
+      target->installEventFilter(this);
+    }
+  }
+}
+
+QVector<QWidget*> GameSetupWindow::keyboardFocusChain() const {
+  const QVector<QWidget*> candidates = {languageCombo_,   homeNameEdit_,   homeAbbrevEdit_,
+                                        homeColorPicker_, awayNameEdit_,   awayAbbrevEdit_,
+                                        awayColorPicker_, backButton_,     continueButton_};
+  QVector<QWidget*> chain;
+  chain.reserve(candidates.size());
+  for (QWidget* candidate : candidates) {
+    QWidget* target = keyboardFocusTarget(candidate);
+    if (!target || !target->isEnabled()) continue;
+    if ((target->focusPolicy() & Qt::TabFocus) == 0) continue;
+    chain.append(target);
+  }
+  return chain;
+}
+
+bool GameSetupWindow::moveCircularKeyboardFocus(bool forward) {
+  const QVector<QWidget*> chain = keyboardFocusChain();
+  if (chain.isEmpty()) return false;
+
+  QWidget* focus = QApplication::focusWidget();
+  int currentIndex = -1;
+  for (int index = 0; index < chain.size(); ++index) {
+    QWidget* candidate = chain.at(index);
+    if (candidate == focus || candidate->isAncestorOf(focus) || candidate->focusProxy() == focus) {
+      currentIndex = index;
+      break;
+    }
+  }
+
+  const int count = chain.size();
+  const int nextIndex = currentIndex < 0
+                            ? (forward ? 0 : count - 1)
+                            : (currentIndex + (forward ? 1 : -1) + count) % count;
+  chain.at(nextIndex)->setFocus(forward ? Qt::TabFocusReason : Qt::BacktabFocusReason);
+  return true;
+}
+
+bool GameSetupWindow::eventFilter(QObject* watched, QEvent* event) {
+  if (!event || event->type() != QEvent::KeyPress) {
+    return QWidget::eventFilter(watched, event);
+  }
+  auto* keyEvent = static_cast<QKeyEvent*>(event);
+  const bool backwardTab = isBackwardTabKey(*keyEvent);
+  const bool forwardTab = isForwardTabKey(*keyEvent);
+  if (!backwardTab && !forwardTab) {
+    return QWidget::eventFilter(watched, event);
+  }
+
+  if (auto* combo = qobject_cast<QComboBox*>(QApplication::focusWidget())) {
+    if (combo->view() && combo->view()->isVisible()) {
+      return QWidget::eventFilter(watched, event);
+    }
+  }
+
+  return moveCircularKeyboardFocus(forwardTab);
 }
 
 void GameSetupWindow::connectMetadataSuggester() {

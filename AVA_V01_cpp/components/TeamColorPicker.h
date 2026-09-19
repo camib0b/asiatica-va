@@ -6,6 +6,7 @@
 #include <QWidget>
 
 class QAbstractButton;
+class QEvent;
 class QFrame;
 class QLineEdit;
 class QPushButton;
@@ -23,6 +24,7 @@ public:
   void setColorDialogTitle(const QString& title);
   void setFallbackPreviewColor(const QColor& color);
   void applyUiStrings() const;
+  bool eventFilter(QObject* watched, QEvent* event) override;
 
 signals:
   void colorChanged(const QString& hex);
@@ -37,6 +39,8 @@ private:
   void buildUi();
   void showPalettePopup();
   void hidePalettePopup();
+  QVector<QWidget*> popupKeyboardFocusChain() const;
+  bool movePopupKeyboardFocus(bool forward);
   void applyNormalizedColor(const QString& normalizedHex, bool emitChange);
   void refreshWell() const;
   void refreshSwatchSelection() const;

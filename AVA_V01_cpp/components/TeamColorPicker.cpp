@@ -5,11 +5,14 @@
 #include "../style/ThemeColors.h"
 
 #include <QAbstractButton>
+#include <QApplication>
 #include <QColor>
 #include <QColorDialog>
+#include <QEvent>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMouseEvent>
@@ -43,6 +46,33 @@ constexpr PaletteEntry kPalette[] = {
     {"setup.color_green", "#16A34A"},
     {"setup.color_pink", "#EC4899"},
 };
+
+constexpr int kPaletteColumnCount = 5;
+
+bool isBackwardTabKey(const QKeyEvent& keyEvent) {
+  return keyEvent.key() == Qt::Key_Backtab ||
+         (keyEvent.key() == Qt::Key_Tab && keyEvent.modifiers().testFlag(Qt::ShiftModifier));
+}
+
+bool isForwardTabKey(const QKeyEvent& keyEvent) {
+  return keyEvent.key() == Qt::Key_Tab && !keyEvent.modifiers().testFlag(Qt::ShiftModifier);
+}
+
+int neighboringSwatchIndex(int currentIndex, int swatchCount, int key) {
+  if (swatchCount <= 0) return currentIndex;
+  switch (key) {
+    case Qt::Key_Left:
+      return (currentIndex + swatchCount - 1) % swatchCount;
+    case Qt::Key_Right:
+      return (currentIndex + 1) % swatchCount;
+    case Qt::Key_Up:
+      return (currentIndex - kPaletteColumnCount + swatchCount) % swatchCount;
+    case Qt::Key_Down:
+      return (currentIndex + kPaletteColumnCount) % swatchCount;
+    default:
+      return currentIndex;
+  }
+}
 
 double linearChannel(double channel) {
   return channel <= 0.04045 ? channel / 12.92 : std::pow((channel + 0.055) / 1.055, 2.4);
@@ -101,7 +131,7 @@ class ColorCircleButton final : public QAbstractButton {
 public:
   explicit ColorCircleButton(QWidget* parent = nullptr) : QAbstractButton(parent) {
     setCursor(Qt::PointingHandCursor);
-    setFocusPolicy(Qt::TabFocus);
+    setFocusPolicy(Qt::StrongFocus);
     setCheckable(false);
   }
 
@@ -211,6 +241,7 @@ TeamColorPicker::TeamColorPicker(QWidget* parent)
       swatchButtons_() {
   setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
   setFixedSize(36, 36);
+  setFocusPolicy(Qt::StrongFocus);
   buildUi();
   applyUiStrings();
 }
@@ -267,7 +298,7 @@ void TeamColorPicker::buildUi() {
   popup_->setObjectName(QStringLiteral("TeamColorPopup"));
   popup_->setAttribute(Qt::WA_StyledBackground, true);
   popup_->setFrameShape(QFrame::NoFrame);
-  popup_->setFocusPolicy(Qt::NoFocus);
+  popup_->setFocusPolicy(Qt::StrongFocus);
 
   auto* popupLayout = new QVBoxLayout(popup_);
   popupLayout->setContentsMargins(12, 12, 12, 12);
@@ -286,9 +317,9 @@ void TeamColorPicker::buildUi() {
     swatch->setEmpty(false);
     swatch->setProperty("paletteHex", QString::fromLatin1(entry.hex));
     swatch->setProperty("nameKey", QString::fromLatin1(entry.nameKey));
-    swatch->setFocusPolicy(Qt::NoFocus);
-    const int row = paletteIndex / 5;
-    const int column = paletteIndex % 5;
+    swatch->setFocusPolicy(Qt::StrongFocus);
+    const int row = paletteIndex / kPaletteColumnCount;
+    const int column = paletteIndex % kPaletteColumnCount;
     swatchGrid->addWidget(swatch, row, column);
     swatchButtons_.append(swatch);
     connect(swatch, &QAbstractButton::clicked, this, [this, hex = QString::fromLatin1(entry.hex)]() {
@@ -316,7 +347,7 @@ void TeamColorPicker::buildUi() {
   moreColorsButton_->setCursor(Qt::PointingHandCursor);
   moreColorsButton_->setAutoDefault(false);
   moreColorsButton_->setDefault(false);
-  moreColorsButton_->setFocusPolicy(Qt::NoFocus);
+  moreColorsButton_->setFocusPolicy(Qt::StrongFocus);
   Style::setVariant(moreColorsButton_, "ghost");
   Style::setSize(moreColorsButton_, "xs");
   popupLayout->addWidget(moreColorsButton_, 0, Qt::AlignLeft);
@@ -325,6 +356,17 @@ void TeamColorPicker::buildUi() {
   connect(hexEdit_, &QLineEdit::textChanged, this, &TeamColorPicker::onHexTextChanged);
   connect(hexEdit_, &QLineEdit::editingFinished, this, &TeamColorPicker::onHexEditingFinished);
   connect(moreColorsButton_, &QPushButton::clicked, this, &TeamColorPicker::onMoreColorsClicked);
+
+  popup_->installEventFilter(this);
+  hexEdit_->installEventFilter(this);
+  moreColorsButton_->installEventFilter(this);
+  for (QAbstractButton* swatch : swatchButtons_) {
+    swatch->installEventFilter(this);
+  }
+  const QVector<QWidget*> popupStops = popupKeyboardFocusChain();
+  for (int index = 0; index + 1 < popupStops.size(); ++index) {
+    setTabOrder(popupStops.at(index), popupStops.at(index + 1));
+  }
 }
 
 void TeamColorPicker::onWellClicked() {
@@ -344,12 +386,93 @@ void TeamColorPicker::showPalettePopup() {
   popup_->move(belowWell);
   popup_->show();
   popup_->raise();
+
+  QWidget* initialFocus = swatchButtons_.isEmpty()
+                              ? static_cast<QWidget*>(hexEdit_)
+                              : static_cast<QWidget*>(swatchButtons_.constFirst());
+  for (QAbstractButton* swatch : swatchButtons_) {
+    const QString paletteHex = swatch->property("paletteHex").toString();
+    if (!colorHex_.isEmpty() && paletteHex.compare(colorHex_, Qt::CaseInsensitive) == 0) {
+      initialFocus = swatch;
+      break;
+    }
+  }
+  if (initialFocus) {
+    initialFocus->setFocus(Qt::PopupFocusReason);
+  }
 }
 
 void TeamColorPicker::hidePalettePopup() {
+  const bool restoreWellFocus =
+      popup_ && popup_->isVisible() &&
+      (popup_->hasFocus() || popup_->isAncestorOf(QApplication::focusWidget()));
   if (popup_ && popup_->isVisible()) {
     popup_->hide();
   }
+  if (restoreWellFocus && wellButton_) {
+    wellButton_->setFocus(Qt::PopupFocusReason);
+  }
+}
+
+QVector<QWidget*> TeamColorPicker::popupKeyboardFocusChain() const {
+  QVector<QWidget*> chain;
+  chain.reserve(swatchButtons_.size() + 2);
+  for (QAbstractButton* swatch : swatchButtons_) {
+    chain.append(swatch);
+  }
+  if (hexEdit_) chain.append(hexEdit_);
+  if (moreColorsButton_) chain.append(moreColorsButton_);
+  return chain;
+}
+
+bool TeamColorPicker::movePopupKeyboardFocus(bool forward) {
+  const QVector<QWidget*> chain = popupKeyboardFocusChain();
+  if (chain.isEmpty()) return false;
+
+  QWidget* focus = QApplication::focusWidget();
+  int currentIndex = -1;
+  for (int index = 0; index < chain.size(); ++index) {
+    if (chain.at(index) == focus) {
+      currentIndex = index;
+      break;
+    }
+  }
+
+  const int count = chain.size();
+  const int nextIndex = currentIndex < 0
+                            ? (forward ? 0 : count - 1)
+                            : (currentIndex + (forward ? 1 : -1) + count) % count;
+  chain.at(nextIndex)->setFocus(forward ? Qt::TabFocusReason : Qt::BacktabFocusReason);
+  return true;
+}
+
+bool TeamColorPicker::eventFilter(QObject* watched, QEvent* event) {
+  if (!event || event->type() != QEvent::KeyPress || !popup_ || !popup_->isVisible()) {
+    return QWidget::eventFilter(watched, event);
+  }
+
+  auto* keyEvent = static_cast<QKeyEvent*>(event);
+  if (keyEvent->key() == Qt::Key_Escape) {
+    hidePalettePopup();
+    return true;
+  }
+
+  auto* watchedButton = qobject_cast<QAbstractButton*>(watched);
+  const int swatchIndex = watchedButton ? swatchButtons_.indexOf(watchedButton) : -1;
+  if (swatchIndex >= 0) {
+    const int key = keyEvent->key();
+    if (key == Qt::Key_Left || key == Qt::Key_Right || key == Qt::Key_Up || key == Qt::Key_Down) {
+      const int nextIndex = neighboringSwatchIndex(swatchIndex, swatchButtons_.size(), key);
+      swatchButtons_.at(nextIndex)->setFocus(Qt::TabFocusReason);
+      return true;
+    }
+  }
+
+  if (isForwardTabKey(*keyEvent) || isBackwardTabKey(*keyEvent)) {
+    return movePopupKeyboardFocus(isForwardTabKey(*keyEvent));
+  }
+
+  return QWidget::eventFilter(watched, event);
 }
 
 void TeamColorPicker::onHexTextChanged(const QString& text) {

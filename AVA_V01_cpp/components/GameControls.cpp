@@ -951,6 +951,10 @@ bool GameControls::eventFilter(QObject* obj, QEvent* event) {
     const bool forwardTab =
         (keyEvent->key() == Qt::Key_Tab) && !(keyEvent->modifiers() & Qt::ShiftModifier);
     if (forwardTab || shiftTab) {
+      QWidget* focus = QApplication::focusWidget();
+      if (!isVisible() || !focus || (focus != this && !isAncestorOf(focus))) {
+        return QWidget::eventFilter(obj, event);
+      }
       applyTeamOnlyTabNavigation(forwardTab);
       return true;
     }

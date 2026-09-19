@@ -11,6 +11,7 @@
 
 class GameMetadataSuggester;
 class QComboBox;
+class QEvent;
 class QLabel;
 class QLineEdit;
 class QPushButton;
@@ -34,6 +35,7 @@ public:
   void setInitialFocus();
 
   void applyUiStrings() const;
+  bool eventFilter(QObject* watched, QEvent* event) override;
 
 signals:
   void gameSetupConfirmed(const QString& filePath,
@@ -80,6 +82,8 @@ private:
   void discardMetadataSuggester();
   bool suggestionSignalsArmed() const;
   void setSuggestionStatusKey(const char* key);
+  QVector<QWidget*> keyboardFocusChain() const;
+  bool moveCircularKeyboardFocus(bool forward);
 
   QString videoPath_;
   QDate gameDate_;
