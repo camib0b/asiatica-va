@@ -25,6 +25,7 @@ qt_add_executable(AVA
   license/LicenseManager.cpp
   components/TeamColorPicker.cpp
   ui/PresentationPanel.cpp
+  ui/PresentationInstancesModel.cpp
   ui/ClipDurationSettingsDialog.cpp
   ui/XmlSyncDialog.cpp
   ui/XmlEventMappingDialog.cpp

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PresentationInstancesModel.h"
+
 #include <QSet>
 #include <QVector>
 #include <QWidget>
@@ -10,8 +12,7 @@ class QComboBox;
 class QDoubleSpinBox;
 class QLabel;
 class QPushButton;
-class QTableWidget;
-class QTableWidgetItem;
+class QTableView;
 class QToolButton;
 
 class TagSession;
@@ -26,6 +27,7 @@ class PresentationPanel final : public QWidget {
 
 public:
   explicit PresentationPanel(QWidget* parent = nullptr);
+  ~PresentationPanel() override;
 
   void setTagSession(TagSession* session);
   /// Rebuilds filters and rows from the session, keeping selected instances that still exist.
@@ -53,8 +55,8 @@ signals:
 
 private slots:
   void onFilterChanged();
-  void onTableItemChanged(QTableWidgetItem* item);
-  void onTableCellDoubleClicked(int row, int column);
+  void onModelCheckStateChanged(quint64 tagId, bool checked);
+  void onTableRowDoubleClicked(const QModelIndex& index);
   void onSelectAllClicked();
   void onSelectNoneClicked();
   void onLeadLagSpinChanged();
@@ -63,13 +65,17 @@ private slots:
 private:
   void buildUi();
   void rebuildEventFilterOptions();
+  QVector<PresentationInstancesModel::Row> buildVisibleRows() const;
   void rebuildRows();
+  void syncModelSelection();
   void updateSelectionSummary();
   void updateCurrentClipControlsEnabled();
   void emitSelectionChanged();
   void pruneSelectionToExistingTags();
+  bool resolveCurrentClip(int tagSessionIndex, int* resolvedIndex, quint64* resolvedTagId) const;
   quint64 tagIdAt(int tagSessionIndex) const;
   bool passesFilters(const QString& mainEvent, const QString& team) const;
+  bool eventFilterValueIsValid(const QString& eventFilter) const;
   QString teamDisplayName(const QString& teamKey) const;
 
   TagSession* tagSession_ = nullptr;
@@ -82,7 +88,8 @@ private:
   QToolButton* selectAllButton_ = nullptr;
   QToolButton* selectNoneButton_ = nullptr;
   QLabel* selectionSummaryLabel_ = nullptr;
-  QTableWidget* instancesTable_ = nullptr;
+  PresentationInstancesModel* instancesModel_ = nullptr;
+  QTableView* instancesTable_ = nullptr;
 
   QLabel* currentClipTitleLabel_ = nullptr;
   QLabel* leadLabel_ = nullptr;
@@ -99,5 +106,4 @@ private:
   quint64 currentTagId_ = 0;
   int currentTagSessionIndex_ = -1;
   QVector<int> lastEmittedSelectedIndexes_{};
-  bool populatingRows_ = false;
 };
