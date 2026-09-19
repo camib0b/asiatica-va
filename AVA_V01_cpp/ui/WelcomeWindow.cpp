@@ -13,8 +13,6 @@
 #include <QDateTime>
 #include <QTimeZone>
 #include <QSizePolicy>
-#include <QStyle>
-#include <QStyleOptionButton>
 #include <QEvent>
 
 
@@ -32,35 +30,6 @@ WelcomeWindow::WelcomeWindow(QWidget* parent)
     applyUiStrings();
     setMinimumSize(320, 250);
 }
-
-namespace {
-
-int styledPushButtonMinimumWidth(const QPushButton* button) {
-    if (!button) return 0;
-
-    button->ensurePolished();
-
-    auto widthForFocus = [button](bool focused) {
-        QStyleOptionButton option;
-        option.initFrom(button);
-        if (focused) {
-            option.state |= QStyle::State_HasFocus;
-        } else {
-            option.state &= ~QStyle::State_HasFocus;
-        }
-        option.text = button->text();
-        option.icon = button->icon();
-        option.iconSize = button->iconSize();
-
-        const QSize textSize = button->fontMetrics().size(Qt::TextShowMnemonic, button->text());
-        return button->style()->sizeFromContents(QStyle::CT_PushButton, &option, textSize, button).width();
-    };
-
-    // :focus rules can thicken the border or change padding; size for both states.
-    return qMax(widthForFocus(false), widthForFocus(true));
-}
-
-} // namespace
 
 void WelcomeWindow::applyUiStrings() {
     if (titleLabel_) titleLabel_->setText(QStringLiteral("ava"));
@@ -139,7 +108,7 @@ void WelcomeWindow::changeEvent(QEvent* event) {
 
 void WelcomeWindow::syncImportButtonMinimumWidth() {
     if (!importButton_) return;
-    importButton_->setMinimumWidth(styledPushButtonMinimumWidth(importButton_));
+    importButton_->setMinimumWidth(Style::pushButtonMinimumWidth(importButton_));
 }
 
 void WelcomeWindow::wireSignals() {

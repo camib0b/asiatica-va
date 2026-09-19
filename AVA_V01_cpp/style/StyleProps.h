@@ -1,10 +1,38 @@
 #pragma once
 
-#include <QWidget>
+#include <QPushButton>
+#include <QSize>
 #include <QStyle>
+#include <QStyleOptionButton>
 #include <QVariant>
+#include <QWidget>
 
 namespace Style {
+
+/// Minimum width that fits label text in both normal and :focus QSS states.
+inline int pushButtonMinimumWidth(const QPushButton* button) {
+  if (!button) return 0;
+
+  button->ensurePolished();
+
+  auto widthForFocus = [button](bool focused) {
+    QStyleOptionButton option;
+    option.initFrom(button);
+    if (focused) {
+      option.state |= QStyle::State_HasFocus;
+    } else {
+      option.state &= ~QStyle::State_HasFocus;
+    }
+    option.text = button->text();
+    option.icon = button->icon();
+    option.iconSize = button->iconSize();
+
+    const QSize textSize = button->fontMetrics().size(Qt::TextShowMnemonic, button->text());
+    return button->style()->sizeFromContents(QStyle::CT_PushButton, &option, textSize, button).width();
+  };
+
+  return qMax(widthForFocus(false), widthForFocus(true));
+}
 
 inline bool setProp(QWidget* w, const char* key, const QVariant& v) {
   if (!w || !key) return false;

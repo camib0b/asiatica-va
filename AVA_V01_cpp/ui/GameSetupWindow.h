@@ -37,6 +37,9 @@ public:
   void applyUiStrings() const;
   bool eventFilter(QObject* watched, QEvent* event) override;
 
+protected:
+  void changeEvent(QEvent* event) override;
+
 signals:
   void gameSetupConfirmed(const QString& filePath,
                           const QString& homeName, const QString& awayName,
@@ -64,6 +67,7 @@ private:
   void onContinue();
   void onBack();
   void updateContinueButtonEnabled() const;
+  void syncContinueButtonMinimumWidth() const;
   struct SetupFormValues {
     QString homeName;
     QString awayName;

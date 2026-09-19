@@ -180,7 +180,10 @@ void GameSetupWindow::applyUiStrings() const {
   if (homeAbbrevEdit_) homeAbbrevEdit_->setPlaceholderText(AppLocale::trUi("setup.placeholder_abbrev"));
   if (awayAbbrevEdit_) awayAbbrevEdit_->setPlaceholderText(AppLocale::trUi("setup.placeholder_abbrev"));
   if (backButton_) backButton_->setText(AppLocale::trUi("setup.back"));
-  if (continueButton_) continueButton_->setText(AppLocale::trUi("setup.continue"));
+  if (continueButton_) {
+    continueButton_->setText(AppLocale::trUi("setup.continue"));
+    syncContinueButtonMinimumWidth();
+  }
   if (languageCombo_) {
     languageCombo_->blockSignals(true);
     languageCombo_->setItemText(0, AppLocale::trUi("setup.lang_en"));
@@ -203,6 +206,19 @@ void GameSetupWindow::applyUiStrings() const {
     suggestionStatusLabel_->setText(AppLocale::trUi(suggestionStatusKey_));
   }
   updateContinueButtonEnabled();
+}
+
+void GameSetupWindow::changeEvent(QEvent* event) {
+  QWidget::changeEvent(event);
+  if (!event) return;
+  if (event->type() == QEvent::StyleChange || event->type() == QEvent::FontChange) {
+    syncContinueButtonMinimumWidth();
+  }
+}
+
+void GameSetupWindow::syncContinueButtonMinimumWidth() const {
+  if (!continueButton_) return;
+  continueButton_->setMinimumWidth(Style::pushButtonMinimumWidth(continueButton_));
 }
 
 void GameSetupWindow::onLanguageComboChanged(int index) {
@@ -332,6 +348,7 @@ void GameSetupWindow::buildUi() {
   continueButton->setEnabled(false);
   Style::setVariant(continueButton.get(), "welcomeImport");
   Style::setSize(continueButton.get(), "lg");
+  continueButton->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
   continueButton_ = continueButton.get();
   buttonRow->addStretch(1);
   buttonRow->addWidget(backButton.get(), 0);
