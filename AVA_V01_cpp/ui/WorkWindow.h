@@ -16,8 +16,8 @@ class QLabel;
 class QAction;
 class QToolButton;
 class QMenu;
-class QTableWidget;
-class QTableWidgetItem;
+class QTableView;
+class TagsTableModel;
 class QPlainTextEdit;
 class QVBoxLayout;
 class QStackedWidget;
@@ -140,11 +140,10 @@ private:
   void detachPresentationKeyboardShortcuts();
   void disconnectTagSessionSignals();
   void syncContextPeriodFromSession();
-  void rebuildTagsList();
+  void refreshTagsTableRows();
   void rebuildFilterMenu();
   void updateFilterIndicator() const;
   void updateFilterButtonsVisibility() const;
-  void updateTagPlayheadHighlight(qint64 positionMs) const;
   void flushPendingClipNote();
   void discardPendingClipNote();
   quint64 selectedTagId() const;
@@ -153,8 +152,6 @@ private:
   void refreshMatchNoteMentionCandidates() const;
   void flashNewTagRow();
   void clearNewTagFlash();
-  QTableWidgetItem* selectedTagRowTimeItem() const;
-  void setTagTableRowBackground(int row, const QBrush& brush) const;
   QString displayTeamForTag(const TagSession::GameTag& tag) const;
   bool isMainEventAllowed(const QString& mainEvent) const;
   bool isTagAllowed(const QString& mainEvent, const QString& followUpEvent) const;
@@ -234,20 +231,17 @@ private:
   QTimer* matchNoteDebounceTimer_ = nullptr;
   quint64 pendingNoteTagId_ = 0;
   QString pendingNoteText_;
-  bool suppressClipNoteReload_ = false;
-
   QLabel* tagsHeaderLabel_ = nullptr;
   QToolButton* tagsFilterButton_ = nullptr;
   QToolButton* tagsRemoveFiltersButton_ = nullptr;
   QMenu* tagsFilterMenu_ = nullptr;
   QLabel* tagsFilterIndicator_ = nullptr;
   QToolButton* undoLastTagButton_ = nullptr;
-  QTableWidget* tagsTable_ = nullptr;
+  QTableView* tagsTable_ = nullptr;
+  TagsTableModel* tagsModel_ = nullptr;
 
   QTimer* newTagFlashTimer_ = nullptr;
-  int newTagFlashRow_ = -1;
-  QTimer* playheadSideEffectsDebounceTimer_ = nullptr;
-  qint64 lastPlayheadPositionForSideEffectsMs_ = 0;
+  quint64 lastAddedTagId_ = 0;
 
   TagSession* tagSession_ = nullptr;
   QVector<QMetaObject::Connection> tagSessionConnections_;

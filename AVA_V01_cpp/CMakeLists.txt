@@ -26,6 +26,7 @@ qt_add_executable(AVA
   components/TeamColorPicker.cpp
   ui/PresentationPanel.cpp
   ui/PresentationInstancesModel.cpp
+  ui/TagsTableModel.cpp
   ui/ClipDurationSettingsDialog.cpp
   ui/XmlSyncDialog.cpp
   ui/XmlEventMappingDialog.cpp

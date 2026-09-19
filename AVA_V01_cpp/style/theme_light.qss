@@ -828,7 +828,8 @@ QMenu::separator {
    Table (Tags table)
 ========================= */
 
-QTableWidget {
+QTableWidget,
+QTableView#TagsTable {
   background: #FFFFFF;
   border: 1px solid #e4e4e7;
   border-radius: 6px;
@@ -840,17 +841,20 @@ QTableWidget {
   outline: none;
 }
 
-QTableWidget::item {
+QTableWidget::item,
+QTableView#TagsTable::item {
   border-bottom: 1px solid #f4f4f5;
   padding: 4px 8px;
 }
 
-QTableWidget::item:selected {
+QTableWidget::item:selected,
+QTableView#TagsTable::item:selected {
   background: #f4f4f5;
   color: #09090b;
 }
 
-QTableWidget::item:hover {
+QTableWidget::item:hover,
+QTableView#TagsTable::item:hover {
   background: rgba(244, 244, 245, 0.5);
 }
 
