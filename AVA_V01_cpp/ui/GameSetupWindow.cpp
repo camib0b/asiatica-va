@@ -10,7 +10,6 @@
 #include <QComboBox>
 #include <QColor>
 #include <QDate>
-#include <QDateEdit>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -19,10 +18,19 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+namespace {
+const QColor kDefaultHomeTeamColor(Qt::blue);
+const QColor kDefaultAwayTeamColor(Qt::red);
+
+QString hexFromColor(const QColor& color) {
+  return color.name(QColor::HexRgb).toUpper();
+}
+}
+
 GameSetupWindow::GameSetupWindow(QWidget* parent)
     : QWidget(parent),
       videoPath_(),
-      optionalDateChosen_(false),
+      gameDate_(QDate::currentDate()),
       suggestionSignalsArmed_(false),
       suggestionStatusKey_(nullptr),
       metadataSuggester_(std::make_unique<GameMetadataSuggester>()),
@@ -31,13 +39,10 @@ GameSetupWindow::GameSetupWindow(QWidget* parent)
       suggestionStatusLabel_(nullptr),
       homeTeamLabel_(nullptr),
       awayTeamLabel_(nullptr),
-      optionalLabel_(nullptr),
-      dateLabel_(nullptr),
       homeNameEdit_(nullptr),
       awayNameEdit_(nullptr),
       homeAbbrevEdit_(nullptr),
       awayAbbrevEdit_(nullptr),
-      gameDateEdit_(nullptr),
       homeColorPicker_(nullptr),
       awayColorPicker_(nullptr),
       languageCombo_(nullptr),
@@ -48,8 +53,7 @@ GameSetupWindow::GameSetupWindow(QWidget* parent)
   buildUi();
   wireSignals();
   applyUiStrings();
-  applyOptionalDate(QDate::currentDate(), OptionalDateCommit::Placeholder);
-  setMinimumSize(480, 520);
+  setMinimumSize(480, 440);
 }
 
 GameSetupWindow::~GameSetupWindow() {
@@ -73,7 +77,7 @@ void GameSetupWindow::setTeamDefaults(const QString& homeName, const QString& aw
 void GameSetupWindow::setMetadataDefaults(const QDate& gameDate,
                                           const QString& homeAbbrev,
                                           const QString& awayAbbrev) {
-  applyOptionalDate(gameDate, OptionalDateCommit::Placeholder);
+  gameDate_ = gameDate.isValid() ? gameDate : QDate::currentDate();
   if (homeAbbrevEdit_) homeAbbrevEdit_->setText(homeAbbrev);
   if (awayAbbrevEdit_) awayAbbrevEdit_->setText(awayAbbrev);
   updateContinueButtonEnabled();
@@ -97,8 +101,6 @@ void GameSetupWindow::applyUiStrings() const {
   if (titleLabel_) titleLabel_->setText(AppLocale::trUi("setup.title"));
   if (homeTeamLabel_) homeTeamLabel_->setText(AppLocale::trUi("setup.home_team"));
   if (awayTeamLabel_) awayTeamLabel_->setText(AppLocale::trUi("setup.away_team"));
-  if (optionalLabel_) optionalLabel_->setText(AppLocale::trUi("setup.optional"));
-  if (dateLabel_) dateLabel_->setText(AppLocale::trUi("setup.date"));
   if (homeNameEdit_) homeNameEdit_->setPlaceholderText(AppLocale::trUi("setup.placeholder_home_team"));
   if (awayNameEdit_) awayNameEdit_->setPlaceholderText(AppLocale::trUi("setup.placeholder_away_team"));
   if (homeAbbrevEdit_) homeAbbrevEdit_->setPlaceholderText(AppLocale::trUi("setup.placeholder_abbrev"));
@@ -169,28 +171,6 @@ void GameSetupWindow::onAwayNameEditingFinished() {
   updateContinueButtonEnabled();
 }
 
-void GameSetupWindow::onGameDateChanged(QDate) {
-  optionalDateChosen_ = true;
-  updateOptionalFieldAppearance();
-}
-
-void GameSetupWindow::applyOptionalDate(const QDate& date, OptionalDateCommit commit) {
-  if (gameDateEdit_) {
-    const QDate dateToShow = date.isValid() ? date : QDate::currentDate();
-    const QSignalBlocker dateChangeBlocker(gameDateEdit_);
-    gameDateEdit_->setDate(dateToShow);
-  }
-  optionalDateChosen_ = (commit == OptionalDateCommit::Chosen);
-  updateOptionalFieldAppearance();
-}
-
-void GameSetupWindow::updateOptionalFieldAppearance() const {
-  if (!gameDateEdit_ || !dateLabel_) return;
-  const char* dateState = optionalDateChosen_ ? "active" : "stale";
-  Style::setProp(gameDateEdit_, "optionalState", dateState);
-  Style::setProp(dateLabel_, "optionalState", dateState);
-}
-
 void GameSetupWindow::buildUi() {
   auto outerLayout = makeQtPtr<QVBoxLayout>(this);
   outerLayout->setContentsMargins(24, 16, 24, 24);
@@ -258,7 +238,7 @@ void GameSetupWindow::buildUi() {
     groupAbbrevEdit->setMinimumWidth(64);
 
     auto groupColorPicker = makeQtPtr<TeamColorPicker>(group.get());
-    groupColorPicker->setFallbackPreviewColor(homeSide ? QColor(Qt::blue) : QColor(Qt::red));
+    groupColorPicker->setFallbackPreviewColor(homeSide ? kDefaultHomeTeamColor : kDefaultAwayTeamColor);
 
     nameEdit = groupNameEdit.get();
     abbrevEdit = groupAbbrevEdit.get();
@@ -273,39 +253,6 @@ void GameSetupWindow::buildUi() {
 
   addTeamGroup(homeTeamLabel_, homeNameEdit_, homeAbbrevEdit_, homeColorPicker_, true);
   addTeamGroup(awayTeamLabel_, awayNameEdit_, awayAbbrevEdit_, awayColorPicker_, false);
-
-  auto optionalLabel = makeQtPtr<QLabel>(contentContainer.get());
-  Style::setRole(optionalLabel.get(), "faint");
-  optionalLabel_ = optionalLabel.get();
-  layout->addWidget(optionalLabel.get());
-
-  auto optionalBlock = makeQtPtr<QWidget>(contentContainer.get());
-  optionalBlock->setObjectName(QStringLiteral("OptionalSetupFields"));
-  auto optionalLayout = makeQtPtr<QVBoxLayout>(optionalBlock.get());
-  optionalLayout->setContentsMargins(0, 0, 0, 0);
-  optionalLayout->setSpacing(8);
-
-  auto addOptionalRow = [&](QPointer<QLabel>& label, QWidget* field) {
-    auto row = makeQtPtr<QHBoxLayout>();
-    row->setContentsMargins(0, 0, 0, 0);
-    row->setSpacing(8);
-    auto rowLabel = makeQtPtr<QLabel>(optionalBlock.get());
-    rowLabel->setMinimumWidth(96);
-    Style::setRole(rowLabel.get(), "faint");
-    label = rowLabel.get();
-    row->addWidget(rowLabel.get(), 0);
-    row->addWidget(field, 1);
-    optionalLayout->addLayout(row.get());
-  };
-
-  auto gameDateEdit = makeQtPtr<QDateEdit>(QDate::currentDate(), optionalBlock.get());
-  gameDateEdit->setDisplayFormat(QStringLiteral("yyyy-MM-dd"));
-  gameDateEdit->setCalendarPopup(true);
-  gameDateEdit->setMaximumWidth(180);
-  gameDateEdit_ = gameDateEdit.get();
-  addOptionalRow(dateLabel_, gameDateEdit.get());
-
-  layout->addWidget(optionalBlock.get());
 
   auto buttonRow = makeQtPtr<QHBoxLayout>();
   buttonRow->setSpacing(12);
@@ -338,8 +285,7 @@ void GameSetupWindow::buildUi() {
   setTabOrder(homeColorPicker_, awayNameEdit_);
   setTabOrder(awayNameEdit_, awayAbbrevEdit_);
   setTabOrder(awayAbbrevEdit_, awayColorPicker_);
-  setTabOrder(awayColorPicker_, gameDateEdit_);
-  setTabOrder(gameDateEdit_, continueButton_);
+  setTabOrder(awayColorPicker_, continueButton_);
   setTabOrder(continueButton_, backButton_);
 }
 
@@ -352,13 +298,6 @@ void GameSetupWindow::wireSignals() {
           &GameSetupWindow::onHomeNameEditingFinished);
   connect(awayNameEdit_, &QLineEdit::editingFinished, this,
           &GameSetupWindow::onAwayNameEditingFinished);
-  connect(homeNameEdit_, &QLineEdit::textChanged, this, [this] { updateContinueButtonEnabled(); });
-  connect(awayNameEdit_, &QLineEdit::textChanged, this, [this] { updateContinueButtonEnabled(); });
-  connect(homeAbbrevEdit_, &QLineEdit::textChanged, this, [this] { updateContinueButtonEnabled(); });
-  connect(awayAbbrevEdit_, &QLineEdit::textChanged, this, [this] { updateContinueButtonEnabled(); });
-  connect(homeColorPicker_, &TeamColorPicker::colorChanged, this, [this] { updateContinueButtonEnabled(); });
-  connect(awayColorPicker_, &TeamColorPicker::colorChanged, this, [this] { updateContinueButtonEnabled(); });
-  connect(gameDateEdit_, &QDateEdit::dateChanged, this, &GameSetupWindow::onGameDateChanged);
 }
 
 void GameSetupWindow::connectMetadataSuggester() {
@@ -442,8 +381,8 @@ void GameSetupWindow::onNameDateSuggested(const QString& homeTeamName,
     awayNameEdit_->setText(awayTeamName.trimmed());
     onAwayNameEditingFinished();
   }
-  if (gameDate.isValid() && !optionalDateChosen_) {
-    applyOptionalDate(gameDate, OptionalDateCommit::Chosen);
+  if (gameDate.isValid()) {
+    gameDate_ = gameDate;
   }
   updateContinueButtonEnabled();
 }
@@ -471,7 +410,7 @@ void GameSetupWindow::onMetadataSuggestionFinished() {
 
 void GameSetupWindow::updateContinueButtonEnabled() const {
   if (!continueButton_) return;
-  const bool canContinue = hasRequiredSetupFields(collectSetupFormValues());
+  const bool canContinue = !videoPath_.trimmed().isEmpty();
   continueButton_->setEnabled(canContinue);
   continueButton_->setCursor(canContinue ? Qt::PointingHandCursor : Qt::ArrowCursor);
   continueButton_->setToolTip(canContinue ? QString() : AppLocale::trUi("setup.continue_disabled_hint"));
@@ -491,7 +430,7 @@ GameSetupWindow::SetupFormValues GameSetupWindow::collectSetupFormValues() const
   if (values.awayAbbrev.isEmpty()) {
     values.awayAbbrev = deriveAbbreviationFromTeamName(values.awayName);
   }
-  values.gameDate = gameDateEdit_ ? gameDateEdit_->date() : QDate();
+  values.gameDate = gameDate_;
   return values;
 }
 
@@ -505,7 +444,37 @@ bool GameSetupWindow::hasRequiredSetupFields(const SetupFormValues& values) cons
       && !values.awayColor.isEmpty();
 }
 
+bool GameSetupWindow::fillMissingRequiredFields() {
+  bool filledAnyField = false;
+
+  if (homeNameEdit_ && homeNameEdit_->text().trimmed().isEmpty()) {
+    homeNameEdit_->setText(AppLocale::trUi("setup.placeholder_home_team"));
+    onHomeNameEditingFinished();
+    filledAnyField = true;
+  }
+  if (awayNameEdit_ && awayNameEdit_->text().trimmed().isEmpty()) {
+    awayNameEdit_->setText(AppLocale::trUi("setup.placeholder_away_team"));
+    onAwayNameEditingFinished();
+    filledAnyField = true;
+  }
+  if (homeColorPicker_ && homeColorPicker_->color().trimmed().isEmpty()) {
+    homeColorPicker_->setColor(hexFromColor(kDefaultHomeTeamColor));
+    filledAnyField = true;
+  }
+  if (awayColorPicker_ && awayColorPicker_->color().trimmed().isEmpty()) {
+    awayColorPicker_->setColor(hexFromColor(kDefaultAwayTeamColor));
+    filledAnyField = true;
+  }
+
+  return filledAnyField;
+}
+
 void GameSetupWindow::onContinue() {
+  if (fillMissingRequiredFields()) {
+    updateContinueButtonEnabled();
+    return;
+  }
+
   const SetupFormValues values = collectSetupFormValues();
   if (!hasRequiredSetupFields(values)) {
     updateContinueButtonEnabled();

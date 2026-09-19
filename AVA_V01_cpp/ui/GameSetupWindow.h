@@ -11,7 +11,6 @@
 
 class GameMetadataSuggester;
 class QComboBox;
-class QDateEdit;
 class QLabel;
 class QLineEdit;
 class QPushButton;
@@ -50,7 +49,6 @@ private slots:
   void onLanguageComboChanged(int index);
   void onHomeNameEditingFinished();
   void onAwayNameEditingFinished();
-  void onGameDateChanged(QDate date);
   void onNameDateSuggested(const QString& homeTeamName,
                            const QString& awayTeamName,
                            const QDate& gameDate);
@@ -63,12 +61,6 @@ private:
   void wireSignals();
   void onContinue();
   void onBack();
-  void updateOptionalFieldAppearance() const;
-  enum class OptionalDateCommit {
-    Placeholder,
-    Chosen,
-  };
-  void applyOptionalDate(const QDate& date, OptionalDateCommit commit);
   void updateContinueButtonEnabled() const;
   struct SetupFormValues {
     QString homeName;
@@ -81,6 +73,7 @@ private:
   };
   SetupFormValues collectSetupFormValues() const;
   bool hasRequiredSetupFields(const SetupFormValues& values) const;
+  bool fillMissingRequiredFields();
   void abortMetadataSuggestion();
   void connectMetadataSuggester();
   void disconnectMetadataSuggester();
@@ -92,7 +85,7 @@ private:
   static QString deriveAbbreviationFromTeamName(const QString& teamName);
 
   QString videoPath_;
-  bool optionalDateChosen_ = false;
+  QDate gameDate_;
   bool suggestionSignalsArmed_ = false;
   const char* suggestionStatusKey_ = nullptr;
 
@@ -102,13 +95,10 @@ private:
   QPointer<QLabel> suggestionStatusLabel_;
   QPointer<QLabel> homeTeamLabel_;
   QPointer<QLabel> awayTeamLabel_;
-  QPointer<QLabel> optionalLabel_;
-  QPointer<QLabel> dateLabel_;
   QPointer<QLineEdit> homeNameEdit_;
   QPointer<QLineEdit> awayNameEdit_;
   QPointer<QLineEdit> homeAbbrevEdit_;
   QPointer<QLineEdit> awayAbbrevEdit_;
-  QPointer<QDateEdit> gameDateEdit_;
   QPointer<TeamColorPicker> homeColorPicker_;
   QPointer<TeamColorPicker> awayColorPicker_;
   QPointer<QComboBox> languageCombo_;
