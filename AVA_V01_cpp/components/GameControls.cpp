@@ -601,7 +601,7 @@ void GameControls::buildUi() {
   auto* teamRowWidget = new QWidget(this);
   auto* teamRowLayout = new QHBoxLayout(teamRowWidget);
   teamRowLayout->setContentsMargins(0, 0, 0, 0);
-  teamRowLayout->setSpacing(12);
+  teamRowLayout->setSpacing(8);
 
   homeTeamButton_ = new QPushButton(teamRowWidget);
   awayTeamButton_ = new QPushButton(teamRowWidget);
@@ -611,7 +611,7 @@ void GameControls::buildUi() {
     Style::setSize(btn, "lg");
     Style::setVariant(btn, "gameControl");
     btn->setFocusPolicy(Qt::StrongFocus);
-    btn->setMinimumHeight(48);
+    btn->setMinimumHeight(64);
   }
   teamRowLayout->addWidget(homeTeamButton_, 1);
   teamRowLayout->addWidget(awayTeamButton_, 1);
