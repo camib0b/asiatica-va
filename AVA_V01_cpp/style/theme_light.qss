@@ -1099,19 +1099,6 @@ QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"] {
   border-radius: 6px;
 }
 
-QLabel[role="quarterSegment"] {
-  min-height: 10px;
-  max-height: 10px;
-  border-radius: 2px;
-  background: #e4e4e7;
-}
-QLabel[role="quarterSegment"][quarterState="complete"] {
-  background: #18181b;
-}
-QLabel[role="quarterSegment"][quarterState="current"] {
-  background: #52525b;
-}
-
 QLabel[role="quarterTrackLabel"] {
   color: #a1a1aa;
   font-size: 10px;
@@ -1155,7 +1142,7 @@ QProgressDialog[role="blocking"] {
 
 QScrollBar:vertical {
   background: transparent;
-  width: 8px;
+  width: 6px;
   border: none;
   margin: 0;
 }
@@ -1181,7 +1168,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
 
 QScrollBar:horizontal {
   background: transparent;
-  height: 8px;
+  height: 6px;
   border: none;
   margin: 0;
 }

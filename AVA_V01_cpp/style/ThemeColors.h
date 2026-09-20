@@ -14,6 +14,13 @@ inline QColor playheadHighlight(int alpha = 255) {
 // Tokens mirrored from theme_light.qss for QPainter (QSS cannot stroke custom paint).
 inline QColor ring() { return QColor(QStringLiteral("#18181b")); }   // --ring / zinc-900
 inline QColor faint() { return QColor(QStringLiteral("#a1a1aa")); }  // QLabel[role="faint"]
+inline QColor border() { return QColor(QStringLiteral("#e4e4e7")); } // --border / zinc-200
+inline QColor mutedForeground() { return QColor(QStringLiteral("#52525b")); } // zinc-600
+
+// Quarter track segments (QPainter; QWidget QSS does not paint empty frames).
+inline QColor quarterSegmentEmpty() { return border(); }
+inline QColor quarterSegmentCurrent() { return mutedForeground(); }
+inline QColor quarterSegmentComplete() { return ring(); }
 
 // ClipTrimBar (presentation trim track; QPainter-only, not QWidget QSS).
 inline QColor clipTrimTrackBackground() { return QColor(QStringLiteral("#323232")); }

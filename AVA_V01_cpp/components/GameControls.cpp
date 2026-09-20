@@ -1,6 +1,7 @@
 #include "GameControls.h"
 #include "FollowUpCatalog.h"
 #include "../style/StyleProps.h"
+#include "../style/ThemeColors.h"
 #include "../i18n/AppLocale.h"
 #include "../state/TagSession.h"
 
@@ -21,11 +22,42 @@
 #include <QColor>
 #include <QSizePolicy>
 #include <QLayout>
+#include <QPainter>
+#include <QPaintEvent>
 
 namespace {
 
 constexpr QLatin1StringView kDefaultTeamSelectedBorderHex("#18181b");
 constexpr int kFlashDurationMs = 150;
+constexpr int kQuarterSegmentHeightPx = 10;
+constexpr int kQuarterSegmentRadiusPx = 2;
+
+class QuarterSegmentBar final : public QWidget {
+public:
+  explicit QuarterSegmentBar(QWidget* parent = nullptr) : QWidget(parent) {
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    setFixedHeight(kQuarterSegmentHeightPx);
+  }
+
+  QSize sizeHint() const override { return QSize(24, kQuarterSegmentHeightPx); }
+  QSize minimumSizeHint() const override { return QSize(8, kQuarterSegmentHeightPx); }
+
+protected:
+  void paintEvent(QPaintEvent*) override {
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    const QString state = property("quarterState").toString();
+    QColor fill = Style::ThemeColors::quarterSegmentEmpty();
+    if (state == QLatin1String("complete")) {
+      fill = Style::ThemeColors::quarterSegmentComplete();
+    } else if (state == QLatin1String("current")) {
+      fill = Style::ThemeColors::quarterSegmentCurrent();
+    }
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(fill);
+    painter.drawRoundedRect(QRectF(rect()), kQuarterSegmentRadiusPx, kQuarterSegmentRadiusPx);
+  }
+};
 
 void setButtonFlashState(QPushButton* button, bool flashing) {
   if (!button) {
@@ -533,6 +565,7 @@ void GameControls::buildUi() {
   trackLayout->setSpacing(4);
 
   auto* segmentsRow = new QWidget(quarterTrack_);
+  segmentsRow->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   auto* segmentsLayout = new QHBoxLayout(segmentsRow);
   segmentsLayout->setContentsMargins(0, 0, 0, 0);
   segmentsLayout->setSpacing(3);
@@ -545,10 +578,7 @@ void GameControls::buildUi() {
   const std::array<QString, 4> quarterNames = {
       QStringLiteral("Q1"), QStringLiteral("Q2"), QStringLiteral("Q3"), QStringLiteral("Q4")};
   for (int quarterIndex = 0; quarterIndex < static_cast<int>(quarterNames.size()); ++quarterIndex) {
-    auto* segment = new QLabel(segmentsRow);
-    segment->setAttribute(Qt::WA_StyledBackground, true);
-    segment->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    segment->setFixedHeight(10);
+    auto* segment = new QuarterSegmentBar(segmentsRow);
     Style::setRole(segment, "quarterSegment");
     Style::setProp(segment, "quarterState", QStringLiteral("empty"));
     quarterSegments_.at(quarterIndex) = segment;
@@ -571,7 +601,7 @@ void GameControls::buildUi() {
   auto* teamRowWidget = new QWidget(this);
   auto* teamRowLayout = new QHBoxLayout(teamRowWidget);
   teamRowLayout->setContentsMargins(0, 0, 0, 0);
-  teamRowLayout->setSpacing(8);
+  teamRowLayout->setSpacing(12);
 
   homeTeamButton_ = new QPushButton(teamRowWidget);
   awayTeamButton_ = new QPushButton(teamRowWidget);
@@ -581,7 +611,7 @@ void GameControls::buildUi() {
     Style::setSize(btn, "lg");
     Style::setVariant(btn, "gameControl");
     btn->setFocusPolicy(Qt::StrongFocus);
-    btn->setMinimumHeight(64);
+    btn->setMinimumHeight(48);
   }
   teamRowLayout->addWidget(homeTeamButton_, 1);
   teamRowLayout->addWidget(awayTeamButton_, 1);
