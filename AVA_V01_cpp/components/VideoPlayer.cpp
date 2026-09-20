@@ -38,6 +38,7 @@ static void avaRemoveSystemPowerObservers(void*) {}
 #include <QApplication>
 #include <QMediaDevices>
 #include <QMouseEvent>
+#include <QWindow>
 #include <algorithm>
 
 namespace {
@@ -58,6 +59,21 @@ namespace {
     constexpr int kControlsOverlayIdleMs = 2000;
     constexpr int kControlsOverlayFadeMs = 250;
     constexpr qreal kControlsOverlayActiveOpacity = 0.85;
+
+    void lockOverlayWindowSize(QWidget* overlay) {
+        if (!overlay) return;
+        overlay->adjustSize();
+        overlay->setFixedSize(overlay->sizeHint());
+    }
+
+    void ensureOverlayWindowNotResizable(QWidget* overlay) {
+        if (!overlay) return;
+        if (QWindow* window = overlay->windowHandle()) {
+            const QSize size = overlay->size();
+            window->setMinimumSize(size);
+            window->setMaximumSize(size);
+        }
+    }
 } // namespace
 
 VideoPlayer::VideoPlayer(QWidget* parent)
@@ -159,9 +175,10 @@ void VideoPlayer::setupControlsOverlay() {
     videoControlsBar_->setAttribute(Qt::WA_TranslucentBackground, true);
     videoControlsBar_->setAttribute(Qt::WA_ShowWithoutActivating, true);
     videoControlsBar_->setWindowFlags(Qt::Tool | Qt::FramelessWindowHint |
-                                      Qt::WindowDoesNotAcceptFocus | Qt::NoDropShadowWindowHint);
+                                      Qt::WindowDoesNotAcceptFocus | Qt::NoDropShadowWindowHint |
+                                      Qt::MSWindowsFixedSizeDialogHint);
     videoControlsBar_->setAutoFillBackground(false);
-    videoControlsBar_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+    videoControlsBar_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     videoControlsBar_->setWindowOpacity(kControlsOverlayActiveOpacity);
 
     controlsIdleTimer_ = new QTimer(this);
@@ -206,8 +223,8 @@ void VideoPlayer::installWindowMoveTracking() {
 void VideoPlayer::updateControlsOverlayGeometry() {
     if (!videoControlsBar_) return;
 
-    videoControlsBar_->adjustSize();
-    const QSize barSize = videoControlsBar_->sizeHint();
+    lockOverlayWindowSize(videoControlsBar_);
+    const QSize barSize = videoControlsBar_->size();
     const QRect overlayAnchorRect = (videoWidget_ && videoWidget_->isVisible())
         ? videoWidget_->geometry()
         : rect();
@@ -215,7 +232,8 @@ void VideoPlayer::updateControlsOverlayGeometry() {
     const int y = overlayAnchorRect.y()
         + qMax(0, overlayAnchorRect.height() - barSize.height() - kControlsOverlayBottomMarginPx);
     const QPoint globalTopLeft = mapToGlobal(QPoint(x, y));
-    videoControlsBar_->setGeometry(QRect(globalTopLeft, barSize));
+    videoControlsBar_->move(globalTopLeft);
+    ensureOverlayWindowNotResizable(videoControlsBar_);
     raiseControlsOverlay();
 }
 
@@ -238,6 +256,7 @@ void VideoPlayer::revealControls() {
     applyControlsOverlayOpacity(kControlsOverlayActiveOpacity);
     updateControlsOverlayGeometry();
     videoControlsBar_->show();
+    ensureOverlayWindowNotResizable(videoControlsBar_);
     raiseControlsOverlay();
     startControlsIdleTimer();
 }
