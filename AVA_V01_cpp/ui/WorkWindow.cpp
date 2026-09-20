@@ -178,11 +178,11 @@ bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(const QWidget* focus
 }
 
 void WorkWindow::onApplicationFocusWidgetChanged(QWidget* /*oldFocus*/, QWidget* newFocus) const {
-    if (!videoPlayer_ || !videoPlayer_->controlsBar()) {
+    if (!videoPlayer_) {
         return;
     }
     const bool allowPlaybackShortcuts = shouldDeliverPlaybackKeyboardToVideoPlayer(newFocus);
-    videoPlayer_->controlsBar()->setPlaybackShortcutFocusGate(allowPlaybackShortcuts);
+    videoPlayer_->setPlaybackShortcutFocusGate(allowPlaybackShortcuts);
 }
 
 void WorkWindow::refreshPlaybackShortcutFocusGate() const {

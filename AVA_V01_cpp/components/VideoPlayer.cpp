@@ -317,10 +317,6 @@ void VideoPlayer::wireSignals() {
     connect(videoControlsBar_, &VideoControlsBar::seekRequestedMs, this, [this](qint64 deltaMs) {
         seekByMs(deltaMs);
     });
-    connect(videoControlsBar_, &VideoControlsBar::togglePlayPauseFromKeyboardShortcut, this,
-            &VideoPlayer::togglePlayPauseWithControlFlash);
-    connect(videoControlsBar_, &VideoControlsBar::toggleMuteFromKeyboardShortcut, this,
-            &VideoPlayer::toggleMuteWithControlFlash);
     connect(videoControlsBar_, &VideoControlsBar::playRequested, this, &VideoPlayer::revealControls);
     connect(videoControlsBar_, &VideoControlsBar::pauseRequested, this, &VideoPlayer::revealControls);
     connect(videoControlsBar_, &VideoControlsBar::seekRequestedMs, this, [this](qint64) {
@@ -397,7 +393,46 @@ void VideoPlayer::wireSignals() {
 void VideoPlayer::buildKeyboardShortcuts() {
     Q_ASSERT(QApplication::instance() != nullptr);
 
-    // Space and playback-speed keys live on VideoControlsBar (Qt::ApplicationShortcut), same pattern as GameControls.
+    auto makePlaybackShortcut = [this](const QList<QKeySequence>& shortcuts) {
+        auto action = makeQtPtr<QAction>(this);
+        action->setShortcuts(shortcuts);
+        action->setShortcutContext(Qt::ApplicationShortcut);
+        action->setEnabled(false);
+        addAction(action.get());
+        return action;
+    };
+
+    togglePlayPauseAction_ = makePlaybackShortcut({QKeySequence(Qt::Key_Space)});
+    connect(togglePlayPauseAction_.get(), &QAction::triggered, this,
+            &VideoPlayer::togglePlayPauseWithControlFlash);
+
+    slowerPlaybackAction_ = makePlaybackShortcut({
+        QKeySequence(Qt::Key_Minus),
+        QKeySequence(Qt::Key_Minus | Qt::KeypadModifier),
+    });
+    connect(slowerPlaybackAction_.get(), &QAction::triggered, this,
+            &VideoPlayer::playbackSlowerWithControlFlash);
+
+    fasterPlaybackAction_ = makePlaybackShortcut({
+        QKeySequence(Qt::Key_Plus),
+        QKeySequence(Qt::Key_Plus | Qt::KeypadModifier),
+        QKeySequence(Qt::SHIFT | Qt::Key_Equal),
+    });
+    connect(fasterPlaybackAction_.get(), &QAction::triggered, this,
+            &VideoPlayer::playbackFasterWithControlFlash);
+
+    resetSpeedAction_ = makePlaybackShortcut({
+        QKeySequence(Qt::SHIFT | Qt::Key_BraceRight),
+    });
+    connect(resetSpeedAction_.get(), &QAction::triggered, this,
+            &VideoPlayer::playbackResetSpeedWithControlFlash);
+
+    muteToggleAction_ = makePlaybackShortcut({
+        QKeySequence(Qt::SHIFT | Qt::Key_M),
+        QKeySequence(Qt::Key_VolumeMute),
+    });
+    connect(muteToggleAction_.get(), &QAction::triggered, this,
+            &VideoPlayer::toggleMuteWithControlFlash);
 
     seekSmallBackAction_ = makeQtPtr<QAction>(this);
     seekSmallBackAction_->setShortcut(QKeySequence(Qt::Key_Left));
@@ -480,15 +515,23 @@ void VideoPlayer::setPlaybackKeyboardShortcutsEnabled(bool enabled) {
     updatePlaybackShortcutActionStates();
 }
 
+void VideoPlayer::setPlaybackShortcutFocusGate(bool allowed) {
+    playbackShortcutFocusGate_ = allowed;
+    updatePlaybackShortcutActionStates();
+}
+
 void VideoPlayer::updatePlaybackShortcutActionStates() {
-    const bool shortcutsOn = mediaControlsEnabled_ && playbackKeyboardShortcutsEnabled_;
+    const bool shortcutsOn =
+        mediaControlsEnabled_ && playbackKeyboardShortcutsEnabled_ && playbackShortcutFocusGate_;
     if (seekSmallBackAction_) seekSmallBackAction_->setEnabled(shortcutsOn);
     if (seekSmallForwardAction_) seekSmallForwardAction_->setEnabled(shortcutsOn);
     if (seekBigBackAction_) seekBigBackAction_->setEnabled(shortcutsOn);
     if (seekBigForwardAction_) seekBigForwardAction_->setEnabled(shortcutsOn);
-    if (videoControlsBar_) {
-        videoControlsBar_->setPlaybackShortcutMediaGate(shortcutsOn);
-    }
+    if (togglePlayPauseAction_) togglePlayPauseAction_->setEnabled(shortcutsOn);
+    if (slowerPlaybackAction_) slowerPlaybackAction_->setEnabled(shortcutsOn);
+    if (fasterPlaybackAction_) fasterPlaybackAction_->setEnabled(shortcutsOn);
+    if (resetSpeedAction_) resetSpeedAction_->setEnabled(shortcutsOn);
+    if (muteToggleAction_) muteToggleAction_->setEnabled(shortcutsOn);
 }
 
 void VideoPlayer::seekByMs(qint64 deltaMs) {

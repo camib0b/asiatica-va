@@ -38,6 +38,7 @@ public:
   void setControlsVisible(bool visible);
   void setControlsEnabled(bool enabled);
   void setPlaybackKeyboardShortcutsEnabled(bool enabled);
+  void setPlaybackShortcutFocusGate(bool allowed);
 
   /// True when keyboard shortcuts should drive playback (media loaded and not temporarily disabled).
   bool isMediaKeyboardControlActive() const {
@@ -144,14 +145,21 @@ private:
   TimelineBar* videoTimelineBar_ = nullptr;
   QVideoWidget* videoWidget_ = nullptr;
 
-  // keyboard shortcuts (seek arrows only; play/speed keys are handled in WorkWindow — see buildKeyboardShortcuts):
+  // Application-wide playback shortcuts live on VideoPlayer so they stay active while the
+  // overlay tool window is faded out or hidden.
   std::unique_ptr<QAction, QtParentDeleter> seekSmallBackAction_;
   std::unique_ptr<QAction, QtParentDeleter> seekSmallForwardAction_;
   std::unique_ptr<QAction, QtParentDeleter> seekBigBackAction_;
   std::unique_ptr<QAction, QtParentDeleter> seekBigForwardAction_;
+  std::unique_ptr<QAction, QtParentDeleter> togglePlayPauseAction_;
+  std::unique_ptr<QAction, QtParentDeleter> slowerPlaybackAction_;
+  std::unique_ptr<QAction, QtParentDeleter> fasterPlaybackAction_;
+  std::unique_ptr<QAction, QtParentDeleter> resetSpeedAction_;
+  std::unique_ptr<QAction, QtParentDeleter> muteToggleAction_;
 
   bool mediaControlsEnabled_ = false;
   bool playbackKeyboardShortcutsEnabled_ = true;
+  bool playbackShortcutFocusGate_ = false;
   bool controlsChromeEnabled_ = false;
   qreal controlsOverlayOpacity_ = 0.85;
 

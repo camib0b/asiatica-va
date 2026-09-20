@@ -11,11 +11,6 @@
 #include <QPushButton>
 #include <QSizePolicy>
 
-#include <QAction>
-#include <QApplication>
-#include <QKeySequence>
-#include <QList>
-
 #include <QTimer>
 #include <QPointer>
 
@@ -48,17 +43,12 @@ void applyButtonStrings(QPushButton* button, const char* textKey, const char* to
 
 VideoControlsBar::VideoControlsBar(QWidget* parent)
     : QWidget(parent),
-      playbackShortcutMediaGate_(false),
-      playbackShortcutFocusGate_(false),
       mediaEnabled_(false),
       playing_(false),
       muted_(false),
       playbackRate_(PlaybackRates::kResetRate) {
   buildUi();
   wireSignals();
-  setPlaybackShortcutMediaGate(false);
-  setPlaybackShortcutFocusGate(false);
-  buildKeyboardShortcuts();
   setEnabledForMedia(false);
   setPlaying(false);
   setPlaybackRate(PlaybackRates::kResetRate);
@@ -140,89 +130,6 @@ void VideoControlsBar::wireSignals() {
           &VideoControlsBar::speedDragStarted);
   connect(speedometer_, &PlaybackSpeedometer::interactionFinished, this,
           &VideoControlsBar::speedDragFinished);
-}
-
-void VideoControlsBar::buildKeyboardShortcuts() {
-  Q_ASSERT(QApplication::instance() != nullptr);
-
-  auto makeGatedPlaybackShortcut = [this](const QList<QKeySequence>& shortcuts) {
-    auto* action = new QAction(this);
-    action->setShortcuts(shortcuts);
-    action->setShortcutContext(Qt::ApplicationShortcut);
-    action->setEnabled(false);
-    addAction(action);
-    return action;
-  };
-
-  togglePlayPauseAction_ = makeGatedPlaybackShortcut({QKeySequence(Qt::Key_Space)});
-  connect(togglePlayPauseAction_, &QAction::triggered, this, [this]() {
-    emit togglePlayPauseFromKeyboardShortcut();
-  });
-
-  slowerPlaybackAction_ = makeGatedPlaybackShortcut({
-      QKeySequence(Qt::Key_Minus),
-      QKeySequence(Qt::Key_Minus | Qt::KeypadModifier),
-  });
-  connect(slowerPlaybackAction_, &QAction::triggered, this, [this]() {
-    flashSpeedometer();
-    emit playbackRateRequested(PlaybackRates::slower(playbackRate_));
-  });
-
-  fasterPlaybackAction_ = makeGatedPlaybackShortcut({
-      QKeySequence(Qt::Key_Plus),
-      QKeySequence(Qt::Key_Plus | Qt::KeypadModifier),
-      QKeySequence(Qt::SHIFT | Qt::Key_Equal),
-  });
-  connect(fasterPlaybackAction_, &QAction::triggered, this, [this]() {
-    flashSpeedometer();
-    emit playbackRateRequested(PlaybackRates::faster(playbackRate_));
-  });
-
-  resetSpeedAction_ = makeGatedPlaybackShortcut({
-      QKeySequence(Qt::SHIFT | Qt::Key_BraceRight),
-  });
-  connect(resetSpeedAction_, &QAction::triggered, this, [this]() {
-    flashSpeedometer();
-    emit playbackRateRequested(PlaybackRates::kResetRate);
-  });
-
-  muteToggleAction_ = makeGatedPlaybackShortcut({
-      QKeySequence(Qt::SHIFT | Qt::Key_M),
-      QKeySequence(Qt::Key_VolumeMute),
-  });
-  connect(muteToggleAction_, &QAction::triggered, this, [this]() {
-    if (mediaEnabled_) {
-      emit toggleMuteFromKeyboardShortcut();
-    }
-  });
-
-  updatePlaybackShortcutEnablement();
-}
-
-void VideoControlsBar::setPlaybackShortcutMediaGate(bool enabled) {
-  playbackShortcutMediaGate_ = enabled;
-  updatePlaybackShortcutEnablement();
-}
-
-void VideoControlsBar::setPlaybackShortcutFocusGate(bool allowed) {
-  playbackShortcutFocusGate_ = allowed;
-  updatePlaybackShortcutEnablement();
-}
-
-void VideoControlsBar::updatePlaybackShortcutEnablement() {
-  const bool shortcutsActive = playbackShortcutMediaGate_ && playbackShortcutFocusGate_;
-  const std::array<QAction*, 5> playbackShortcutActions = {
-    togglePlayPauseAction_,
-    slowerPlaybackAction_,
-    fasterPlaybackAction_,
-    resetSpeedAction_,
-    muteToggleAction_,
-  };
-  for (auto* action : playbackShortcutActions) {
-    if (action) {
-      action->setEnabled(shortcutsActive);
-    }
-  }
 }
 
 void VideoControlsBar::setEnabledForMedia(bool enabled) {
