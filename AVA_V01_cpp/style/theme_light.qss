@@ -961,9 +961,8 @@ QSlider#TimelineSlider::handle:horizontal:hover {
 ========================= */
 
 QWidget#VideoControlsBar {
-  background-color: rgba(9, 9, 11, 0.48);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
+  background: transparent;
+  border: none;
 }
 
 QWidget#VideoControlsBar QPushButton {
@@ -974,6 +973,7 @@ QWidget#VideoControlsBar QPushButton {
   border-radius: 6px;
   border: none;
   color: #fafafa;
+  background-color: transparent;
   background: transparent;
   font-weight: 500;
 }
@@ -1070,7 +1070,7 @@ QWidget#VideoControlsBar QWidget#PlaybackSpeedometer {
 
 QWidget#VideoControlsBar QLabel {
   font-size: 12px;
-  color: #e4e4e7;
+  color: #d1d5dc;
 }
 
 QWidget#VideoControlsBar QLabel[role="muted"] {

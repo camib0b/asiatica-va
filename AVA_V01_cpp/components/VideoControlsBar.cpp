@@ -5,6 +5,9 @@
 #include "../i18n/AppLocale.h"
 
 #include <QHBoxLayout>
+#include <QPainter>
+#include <QPainterPath>
+#include <QPaintEvent>
 #include <QPushButton>
 #include <QSizePolicy>
 
@@ -22,6 +25,9 @@
 namespace {
 constexpr qint64 kSeekStepMs = 2000;
 constexpr int kFlashDurationMs = 150;
+constexpr int kTrayCornerRadiusPx = 10;
+constexpr int kTrayFillAlpha = 122;      // ~48% of zinc-950
+constexpr int kTrayBorderAlpha = 31;     // ~12% white hairline
 
 void setButtonFlashState(QPushButton* button, bool flashing) {
   if (!button) {
@@ -67,8 +73,8 @@ void VideoControlsBar
   setAttribute(Qt::WA_StyledBackground, true);
 
   auto* layout = new QHBoxLayout(this);
-  layout->setContentsMargins(6, 4, 6, 4);
-  layout->setSpacing(4);
+  layout->setContentsMargins(16, 14, 16, 14);
+  layout->setSpacing(10);
 
   playPauseButton_ = new QPushButton(this);
   playPauseButton_->setObjectName(QStringLiteral("PlayPauseButton"));
@@ -85,6 +91,9 @@ void VideoControlsBar
   for (auto* button : videoControlButtons) {
     Style::setSize(button, "sm");
     button->setFocusPolicy(Qt::NoFocus);
+    button->setFlat(true);
+    button->setAutoDefault(false);
+    button->setDefault(false);
     button->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
   }
 
@@ -297,4 +306,18 @@ void VideoControlsBar::flashSpeedometer() {
   if (speedometer_) {
     speedometer_->flash();
   }
+}
+
+void VideoControlsBar::paintEvent(QPaintEvent* event) {
+  QPainter painter(this);
+  painter.setRenderHint(QPainter::Antialiasing, true);
+
+  QPainterPath trayPath;
+  trayPath.addRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5),
+                          kTrayCornerRadiusPx, kTrayCornerRadiusPx);
+  painter.fillPath(trayPath, QColor(9, 9, 11, kTrayFillAlpha));
+  painter.setPen(QPen(QColor(255, 255, 255, kTrayBorderAlpha), 1.0));
+  painter.drawPath(trayPath);
+
+  QWidget::paintEvent(event);
 }

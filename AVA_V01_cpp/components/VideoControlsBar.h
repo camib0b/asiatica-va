@@ -48,6 +48,9 @@ signals:
   void togglePlayPauseFromKeyboardShortcut();
   void toggleMuteFromKeyboardShortcut();
 
+protected:
+  void paintEvent(QPaintEvent* event) override;
+
 private:
   void buildUi();
   void wireSignals();
