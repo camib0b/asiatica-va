@@ -116,6 +116,7 @@ private:
   void wireSignals();
   void applyUiStrings() const;
   void applyModeChrome();
+  void applySidePanelCompressedWidth();
 
   /// Cycles Tagging → Analyzing → Presenting → Tagging (the M shortcut).
   static constexpr Mode nextModeInCycle(Mode current) {

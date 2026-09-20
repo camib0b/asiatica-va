@@ -46,7 +46,6 @@ private:
   void wireSignals();
   void updateEnabledState() const;
   void updatePlayPauseButton() const;
-  void updateSpeedometerTooltip() const;
   void flashButtonBorder(QPushButton* button);
 
   QPushButton* playPauseButton_   = nullptr;

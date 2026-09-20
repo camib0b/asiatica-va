@@ -505,8 +505,24 @@ void WorkWindow::applyModeChrome() {
 
     if (gameControls_) {
         gameControls_->setMinimumWidth(GameControls::kMinimumPanelWidthPx);
-        gameControls_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+        gameControls_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
     }
+    if (taggingRightCol_) {
+        taggingRightCol_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+    }
+    if (workSideStack_) {
+        workSideStack_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+    }
+}
+
+void WorkWindow::applySidePanelCompressedWidth() {
+    if (!workOuterSplitter_ || !workOuterSplitter_->isVisible()) return;
+
+    const int sideMinimumWidth = GameControls::kMinimumPanelWidthPx;
+    const int totalWidth = workOuterSplitter_->width();
+    if (totalWidth <= sideMinimumWidth) return;
+
+    workOuterSplitter_->setSizes({totalWidth - sideMinimumWidth, sideMinimumWidth});
 }
 
 TagSession::GameTag WorkWindow::pendingTagPeriodAndTeam() const {
@@ -1190,7 +1206,10 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
         }
         contextTeam_ = "Home";
     }
-    if (workOuterSplitter_) workOuterSplitter_->show();
+    if (workOuterSplitter_) {
+        workOuterSplitter_->show();
+        QTimer::singleShot(0, this, &WorkWindow::applySidePanelCompressedWidth);
+    }
     if (modeTaggingBtn_) modeTaggingBtn_->show();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->show();
     if (modePresentingBtn_) modePresentingBtn_->show();

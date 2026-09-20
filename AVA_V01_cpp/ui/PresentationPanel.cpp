@@ -8,17 +8,24 @@
 
 #include <QAbstractItemView>
 #include <QAbstractSpinBox>
+#include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
+#include <QEvent>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QMouseEvent>
+#include <QPointer>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSignalBlocker>
+#include <QStyle>
+#include <QStyleOptionSpinBox>
 #include <QTableView>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -37,6 +44,31 @@ qint64 leadLagMillisecondsFromSpin(const QDoubleSpinBox* spinBox) {
       spinBox->value(), EventDefaults::kMinLeadLagMs, EventDefaults::kMaxLeadLagMs);
 }
 
+bool mouseHitsSpinBoxButton(const QDoubleSpinBox* spinBox, const QPoint& localPos) {
+  if (!spinBox) return false;
+
+  QStyleOptionSpinBox option;
+  option.initFrom(spinBox);
+  option.subControls = QStyle::SC_All;
+  option.activeSubControls = QStyle::SC_None;
+  option.buttonSymbols = spinBox->buttonSymbols();
+  option.frame = spinBox->hasFrame();
+
+  const QRect upRect = spinBox->style()->subControlRect(
+      QStyle::CC_SpinBox, &option, QStyle::SC_SpinBoxUp, spinBox);
+  const QRect downRect = spinBox->style()->subControlRect(
+      QStyle::CC_SpinBox, &option, QStyle::SC_SpinBoxDown, spinBox);
+  return upRect.contains(localPos) || downRect.contains(localPos);
+}
+
+void releaseSpinBoxFocusSoon(QDoubleSpinBox* spinBox) {
+  if (!spinBox) return;
+  QTimer::singleShot(0, spinBox, [spinBoxGuard = QPointer<QDoubleSpinBox>(spinBox)]() {
+    if (!spinBoxGuard) return;
+    spinBoxGuard->clearFocus();
+  });
+}
+
 QDoubleSpinBox* makeLeadLagSpinBox(QWidget* parent) {
   auto* spinBox = new QDoubleSpinBox(parent);
   spinBox->setRange(kMinLeadLagSeconds, kMaxLeadLagSeconds);
@@ -45,6 +77,8 @@ QDoubleSpinBox* makeLeadLagSpinBox(QWidget* parent) {
   spinBox->setSuffix(QStringLiteral(" s"));
   spinBox->setAlignment(Qt::AlignRight);
   spinBox->setButtonSymbols(QAbstractSpinBox::UpDownArrows);
+  spinBox->setFocusPolicy(Qt::ClickFocus);
+  spinBox->setKeyboardTracking(true);
   return spinBox;
 }
 
@@ -56,9 +90,11 @@ PresentationPanel::PresentationPanel(QWidget* parent)
   buildUi();
   applyUiStrings();
   updateCurrentClipControlsEnabled();
+  qApp->installEventFilter(this);
 }
 
 PresentationPanel::~PresentationPanel() {
+  if (qApp) qApp->removeEventFilter(this);
   if (tagSession_) disconnect(tagSession_, nullptr, this, nullptr);
 }
 
@@ -162,16 +198,24 @@ void PresentationPanel::buildUi() {
   leadLabel_ = new QLabel(this);
   Style::setRole(leadLabel_, "muted");
   leadSpinBox_ = makeLeadLagSpinBox(this);
+  leadSpinBox_->setObjectName(QStringLiteral("LeadSpinBox"));
   leadSpinBox_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   connect(leadSpinBox_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
           &PresentationPanel::onLeadLagSpinChanged);
+  connect(leadSpinBox_, &QAbstractSpinBox::editingFinished, this, [this]() {
+    if (leadSpinBox_ && leadSpinBox_->hasFocus()) leadSpinBox_->clearFocus();
+  });
 
   lagLabel_ = new QLabel(this);
   Style::setRole(lagLabel_, "muted");
   lagSpinBox_ = makeLeadLagSpinBox(this);
+  lagSpinBox_->setObjectName(QStringLiteral("LagSpinBox"));
   lagSpinBox_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   connect(lagSpinBox_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
           &PresentationPanel::onLeadLagSpinChanged);
+  connect(lagSpinBox_, &QAbstractSpinBox::editingFinished, this, [this]() {
+    if (lagSpinBox_ && lagSpinBox_->hasFocus()) lagSpinBox_->clearFocus();
+  });
 
   leadLagRow->addWidget(leadLabel_);
   leadLagRow->addWidget(leadSpinBox_, 1);
@@ -264,6 +308,7 @@ void PresentationPanel::refreshFromSession() {
   rebuildRows();
   updateSelectionSummary();
   updateCurrentClipControlsEnabled();
+  updateShowNotesCheckboxVisibility();
 
   const QVector<int> currentIndexes = selectedTagIndexes();
   if (currentIndexes != lastEmittedSelectedIndexes_) {
@@ -384,6 +429,7 @@ QVector<int> PresentationPanel::selectedTagIndexes() const {
 void PresentationPanel::emitSelectionChanged() {
   lastEmittedSelectedIndexes_ = selectedTagIndexes();
   updateSelectionSummary();
+  updateShowNotesCheckboxVisibility();
   emit selectedTagIndexesChanged(lastEmittedSelectedIndexes_);
 }
 
@@ -544,7 +590,26 @@ void PresentationPanel::clearCurrentClip() {
   updateCurrentClipControlsEnabled();
 }
 
-bool PresentationPanel::showNotesEnabled() const { return showNotesCheckBox_->isChecked(); }
+bool PresentationPanel::showNotesEnabled() const {
+  if (!showNotesCheckBox_ || !showNotesCheckBox_->isVisible()) return false;
+  return showNotesCheckBox_->isChecked();
+}
+
+bool PresentationPanel::selectionHasAnyNotes() const {
+  if (!tagSession_) return false;
+
+  for (quint64 tagId : selectedTagIdSet_) {
+    const int tagIndex = tagSession_->indexOfTagId(tagId);
+    if (tagIndex < 0) continue;
+    if (!tagSession_->tagNote(tagIndex).trimmed().isEmpty()) return true;
+  }
+  return false;
+}
+
+void PresentationPanel::updateShowNotesCheckboxVisibility() {
+  if (!showNotesCheckBox_) return;
+  showNotesCheckBox_->setVisible(selectionHasAnyNotes());
+}
 
 void PresentationPanel::setExportEnabled(bool enabled) { exportButton_->setEnabled(enabled); }
 
@@ -571,6 +636,54 @@ void PresentationPanel::onApplyLeadLagToAllClicked() {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+QDoubleSpinBox* PresentationPanel::focusedLeadLagSpinBox() const {
+  QWidget* focusWidget = QApplication::focusWidget();
+  if (!focusWidget) return nullptr;
+  if (leadSpinBox_ && (focusWidget == leadSpinBox_ || leadSpinBox_->isAncestorOf(focusWidget))) {
+    return leadSpinBox_;
+  }
+  if (lagSpinBox_ && (focusWidget == lagSpinBox_ || lagSpinBox_->isAncestorOf(focusWidget))) {
+    return lagSpinBox_;
+  }
+  return nullptr;
+}
+
+bool PresentationPanel::isInsideLeadLagSpinBox(const QWidget* widget) const {
+  if (!widget) return false;
+  if (leadSpinBox_ && (widget == leadSpinBox_ || leadSpinBox_->isAncestorOf(widget))) return true;
+  if (lagSpinBox_ && (widget == lagSpinBox_ || lagSpinBox_->isAncestorOf(widget))) return true;
+  return false;
+}
+
+void PresentationPanel::releaseLeadLagSpinBoxFocus() {
+  if (QDoubleSpinBox* focusedSpinBox = focusedLeadLagSpinBox()) {
+    focusedSpinBox->clearFocus();
+  }
+}
+
+bool PresentationPanel::eventFilter(QObject* watched, QEvent* event) {
+  if (!event) return QWidget::eventFilter(watched, event);
+
+  auto* targetWidget = qobject_cast<QWidget*>(watched);
+  const QEvent::Type eventType = event->type();
+
+  if (eventType == QEvent::MouseButtonPress) {
+    if (focusedLeadLagSpinBox() && !isInsideLeadLagSpinBox(targetWidget)) {
+      releaseLeadLagSpinBoxFocus();
+    }
+  } else if (eventType == QEvent::MouseButtonRelease) {
+    auto* spinBox = qobject_cast<QDoubleSpinBox*>(watched);
+    if ((spinBox == leadSpinBox_ || spinBox == lagSpinBox_) && spinBox) {
+      auto* mouseEvent = static_cast<QMouseEvent*>(event);
+      if (mouseHitsSpinBoxButton(spinBox, mouseEvent->pos())) {
+        releaseSpinBoxFocusSoon(spinBox);
+      }
+    }
+  }
+
+  return QWidget::eventFilter(watched, event);
+}
 
 bool PresentationPanel::passesFilters(const QString& mainEvent, const QString& team) const {
   const QString eventFilter = eventFilterCombo_->currentData().toString();

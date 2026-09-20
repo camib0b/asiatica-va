@@ -34,10 +34,10 @@ void setButtonFlashState(QPushButton* button, bool flashing) {
   button->update();
 }
 
-void applyButtonStrings(QPushButton* button, const char* textKey, const char* tooltipKey) {
+void applyButtonStrings(QPushButton* button, const char* textKey) {
   Q_ASSERT(button != nullptr);
   button->setText(AppLocale::trUi(textKey));
-  button->setToolTip(AppLocale::trUi(tooltipKey));
+  button->setToolTip(QString());
 }
 }
 
@@ -100,10 +100,12 @@ void VideoControlsBar
 void VideoControlsBar::applyUiStrings() {
   Q_ASSERT(playPauseButton_ && backButton_ && forwardButton_ && speedometer_);
 
-  applyButtonStrings(backButton_, "vc.back", "vc.tt.back");
-  applyButtonStrings(forwardButton_, "vc.forward", "vc.tt.forward");
+  applyButtonStrings(backButton_, "vc.back");
+  applyButtonStrings(forwardButton_, "vc.forward");
   updatePlayPauseButton();
-  updateSpeedometerTooltip();
+  if (speedometer_) {
+    speedometer_->setToolTip(QString());
+  }
 }
 
 void VideoControlsBar::wireSignals() {
@@ -157,8 +159,7 @@ void VideoControlsBar::updatePlayPauseButton() const {
 
   playPauseButton_->setText(playing_ ? QString::fromUtf8("\u23F8")
                                      : QString::fromUtf8("\u25B6"));
-  playPauseButton_->setToolTip(playing_ ? AppLocale::trUi("vc.tt.pause")
-                                        : AppLocale::trUi("vc.tt.play"));
+  playPauseButton_->setToolTip(QString());
 }
 
 void VideoControlsBar::setPlaybackRate(double rate) {
@@ -178,13 +179,6 @@ void VideoControlsBar::toggleMute() {
   }
   muted_ = !muted_;
   emit muteToggled(muted_);
-}
-
-void VideoControlsBar::updateSpeedometerTooltip() const {
-  if (!speedometer_) {
-    return;
-  }
-  speedometer_->setToolTip(AppLocale::trUi("vc.tt.speed"));
 }
 
 void VideoControlsBar::flashButtonBorder(QPushButton* button) {

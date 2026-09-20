@@ -763,26 +763,72 @@ QWidget#PresentationStageColumn {
 }
 
 QWidget#PresentationBanner {
-  background-color: #09090b;
+  background-color: #18181b;
+  border: 1px solid #3f3f46;
   border-radius: 6px;
 }
 
 QLabel#PresentationEventLabel {
-  color: #FAFAFA;
+  color: #ffffff;
   font-size: 16px;
   font-weight: 600;
 }
 
 QLabel#PresentationContextLabel {
-  color: #d4d4d8;
+  color: #e4e4e7;
   font-size: 12px;
   font-weight: 500;
 }
 
 QLabel#PresentationNoteLabel {
-  color: #FDE68A;
+  color: #fde68a;
   font-size: 13px;
   font-weight: 500;
+}
+
+QWidget#PresentationPanel QPushButton[variant="primary"] {
+  background-color: #09090b;
+  border: 1px solid #09090b;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+QWidget#PresentationPanel QPushButton[variant="primary"]:hover {
+  background-color: #27272a;
+  border-color: #27272a;
+  color: #ffffff;
+}
+
+QWidget#PresentationPanel QPushButton[variant="primary"]:pressed {
+  background-color: #18181b;
+  border-color: #18181b;
+  color: #ffffff;
+}
+
+QWidget#PresentationPanel QPushButton[variant="primary"]:disabled {
+  background-color: #52525b;
+  border-color: #52525b;
+  color: #fafafa;
+}
+
+QDoubleSpinBox#LeadSpinBox::up-button,
+QDoubleSpinBox#LeadSpinBox::down-button {
+  background-color: rgba(72, 199, 142, 0.18);
+}
+
+QDoubleSpinBox#LeadSpinBox::up-button:hover,
+QDoubleSpinBox#LeadSpinBox::down-button:hover {
+  background-color: rgba(72, 199, 142, 0.40);
+}
+
+QDoubleSpinBox#LagSpinBox::up-button,
+QDoubleSpinBox#LagSpinBox::down-button {
+  background-color: rgba(248, 113, 113, 0.18);
+}
+
+QDoubleSpinBox#LagSpinBox::up-button:hover,
+QDoubleSpinBox#LagSpinBox::down-button:hover {
+  background-color: rgba(248, 113, 113, 0.40);
 }
 
 QWidget#ExportJobsBar {

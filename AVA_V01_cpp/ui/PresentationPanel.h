@@ -10,6 +10,7 @@
 class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
+class QEvent;
 class QLabel;
 class QPushButton;
 class QTableView;
@@ -44,6 +45,9 @@ public:
 
   void applyUiStrings();
 
+protected:
+  bool eventFilter(QObject* watched, QEvent* event) override;
+
 signals:
   void selectedTagIndexesChanged(const QVector<int>& tagSessionIndexes);
   /// A row was double-clicked: jump to that instance and start presenting it.
@@ -70,6 +74,8 @@ private:
   void syncModelSelection();
   void updateSelectionSummary();
   void updateCurrentClipControlsEnabled();
+  void updateShowNotesCheckboxVisibility();
+  bool selectionHasAnyNotes() const;
   void emitSelectionChanged();
   void pruneSelectionToExistingTags();
   bool resolveCurrentClip(int tagSessionIndex, int* resolvedIndex, quint64* resolvedTagId) const;
@@ -77,6 +83,9 @@ private:
   bool passesFilters(const QString& mainEvent, const QString& team) const;
   bool eventFilterValueIsValid(const QString& eventFilter) const;
   QString teamDisplayName(const QString& teamKey) const;
+  QDoubleSpinBox* focusedLeadLagSpinBox() const;
+  bool isInsideLeadLagSpinBox(const QWidget* widget) const;
+  void releaseLeadLagSpinBoxFocus();
 
   TagSession* tagSession_ = nullptr;
 
