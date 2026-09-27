@@ -486,7 +486,35 @@ void WorkWindow::applyModeChrome() {
     if (presentationBanner_) presentationBanner_->setVisible(isPresenting);
     if (presentationClipBar_) presentationClipBar_->setVisible(isPresenting);
     if (workTagsNotesSplitter_) workTagsNotesSplitter_->setVisible(!isPresenting);
-    if (notesColumn_) notesColumn_->setVisible(isAnalyzing);
+    if (notesColumn_) {
+        const bool showNotes = isTagging || isAnalyzing;
+        notesColumn_->setVisible(showNotes);
+
+        if (isTagging && taggingRightCol_) {
+            if (workTagsNotesSplitter_ && workTagsNotesSplitter_->indexOf(notesColumn_) >= 0) {
+                notesColumn_->setParent(nullptr);
+            }
+            if (auto* sideLayout = qobject_cast<QVBoxLayout*>(taggingRightCol_->layout())) {
+                if (sideLayout->indexOf(notesColumn_) < 0) {
+                    notesColumn_->setParent(taggingRightCol_);
+                    sideLayout->addWidget(notesColumn_, 1);
+                }
+            }
+        } else if (isAnalyzing && workTagsNotesSplitter_) {
+            if (taggingRightCol_) {
+                if (auto* sideLayout = qobject_cast<QVBoxLayout*>(taggingRightCol_->layout())) {
+                    if (sideLayout->indexOf(notesColumn_) >= 0) {
+                        sideLayout->removeWidget(notesColumn_);
+                    }
+                }
+            }
+            if (workTagsNotesSplitter_->indexOf(notesColumn_) < 0) {
+                workTagsNotesSplitter_->addWidget(notesColumn_);
+                workTagsNotesSplitter_->setStretchFactor(0, 1);
+                workTagsNotesSplitter_->setStretchFactor(1, 1);
+            }
+        }
+    }
     if (tagsHeaderRow_) tagsHeaderRow_->setVisible(isAnalyzing);
 
     if (workOuterSplitter_) {
@@ -736,7 +764,7 @@ void WorkWindow::buildUi() {
 
     gameControls_ = new GameControls(this);
     gameControls_->setMinimumWidth(GameControls::kMinimumPanelWidthPx);
-    taggingRightLayout->addWidget(gameControls_, 1);
+    taggingRightLayout->addWidget(gameControls_, 0);
     statsWindow_ = new StatsWindow(this);
     statsWindow_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     statsWindow_->setMinimumHeight(180);
@@ -764,6 +792,7 @@ void WorkWindow::buildUi() {
     notesColumnLayout->addWidget(matchNotesEditor_, 1);
     notesColumnLayout->addWidget(clipNotesLabel_);
     notesColumnLayout->addWidget(notesEdit_, 0);
+    taggingRightLayout->addWidget(notesColumn_, 1);
 
     videoColumn_ = new QWidget(this);
     videoColumn_->setObjectName(QStringLiteral("PresentationStageColumn"));
@@ -812,9 +841,7 @@ void WorkWindow::buildUi() {
     workTagsNotesSplitter_->setChildrenCollapsible(false);
     workTagsNotesSplitter_->setHandleWidth(6);
     workTagsNotesSplitter_->addWidget(tagsSection_);
-    workTagsNotesSplitter_->addWidget(notesColumn_);
     workTagsNotesSplitter_->setStretchFactor(0, 1);
-    workTagsNotesSplitter_->setStretchFactor(1, 1);
     tagsSection_->setMinimumWidth(160);
 
     workLeftSplitter_ = new QSplitter(Qt::Vertical, this);
