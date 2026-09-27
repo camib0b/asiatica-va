@@ -165,6 +165,7 @@ private slots:
     void chapterMetadataUsesMillisecondTimebase();
     void mixedTeamsStayInConcatOrder();
     void xmlInstanceIdMatchesCatalogNotCompilationIndex();
+    void quartosLabelUsesQuarterSpanContainingMark();
     void shortClipKeepsSourceIntervalAndHalfSecondEncode();
 };
 
@@ -464,6 +465,60 @@ void CompilationSidecarOffsetTest::xmlInstanceIdMatchesCatalogNotCompilationInde
     }
 }
 
+namespace {
+
+QString quartosLabel(const XmlExporter::ExportedXmlInstance& instance) {
+    for (const XmlExporter::ExportedXmlLabel& label : instance.labels) {
+        if (label.group == QStringLiteral("QUARTOS")) return label.text;
+    }
+    return QString();
+}
+
+}  // namespace
+
+void CompilationSidecarOffsetTest::quartosLabelUsesQuarterSpanContainingMark() {
+    TagSession session;
+    configureMatch(session);
+
+    appendTag(session, makeTag(QStringLiteral("Q1"), QString(), 28592, 1124879, 28592,
+                               QStringLiteral("Q1")));
+    appendTag(session, makeTag(QStringLiteral("Q2"), QString(), 1124879, 2200000, 1124879,
+                               QStringLiteral("Q2")));
+    appendTag(session, makeTag(QStringLiteral("Q3"), QString(), 2200000, 3300000, 2200000,
+                               QStringLiteral("Q3")));
+    appendTag(session, makeTag(QStringLiteral("Q4"), QString(), 3300000, 4400000, 3300000,
+                               QStringLiteral("Q4")));
+
+    // Tagged after the match had already reached Q4; the play itself is inside Q1.
+    const TagSession::GameTag retrospectiveGoal = appendTag(
+        session, makeTag(QStringLiteral("Goal"), QStringLiteral("Away"),
+                         290000, 304510, 296510, QStringLiteral("Q4")));
+    // Stamped with an earlier quarter; the play is inside the closed Q4 span.
+    const TagSession::GameTag fourthQuarterShot = appendTag(
+        session, makeTag(QStringLiteral("Shot"), QStringLiteral("Home"),
+                         3400000, 3410000, 3405000, QStringLiteral("Q1")));
+
+    const QVector<XmlExporter::ExportedXmlInstance> catalog =
+        XmlExporter::buildExportedInstances(&session);
+    const std::optional<XmlExporter::ExportedXmlInstance> goalInstance =
+        XmlExporter::taggedTeamInstanceFor(catalog, retrospectiveGoal.id, QStringLiteral("Goal"));
+    const std::optional<XmlExporter::ExportedXmlInstance> shotInstance =
+        XmlExporter::taggedTeamInstanceFor(catalog, fourthQuarterShot.id, QStringLiteral("Shot"));
+    QVERIFY(goalInstance.has_value());
+    QVERIFY(shotInstance.has_value());
+    QCOMPARE(quartosLabel(*goalInstance), QStringLiteral("Q1"));
+    QCOMPARE(quartosLabel(*shotInstance), QStringLiteral("Q4"));
+
+    bool opposingGoalLabeled = false;
+    for (const XmlExporter::ExportedXmlInstance& instance : catalog) {
+        if (instance.sourceTagId != retrospectiveGoal.id) continue;
+        if (instance.code != QStringLiteral("UC GOAL-")) continue;
+        opposingGoalLabeled = true;
+        QCOMPARE(quartosLabel(instance), QStringLiteral("Q1"));
+    }
+    QVERIFY(opposingGoalLabeled);
+}
+
 void CompilationSidecarOffsetTest::shortClipKeepsSourceIntervalAndHalfSecondEncode() {
     TagSession session;
     configureMatch(session);
@@ -517,6 +572,9 @@ void CompilationSidecarExportTest::exportsSidecarBesideCompilation() {
 
     TagSession session;
     configureMatch(session);
+    appendTag(session, makeTag(QStringLiteral("Q1"), QString(), 0, 4500, 0, QStringLiteral("Q1")));
+    appendTag(session, makeTag(QStringLiteral("Q2"), QString(), 4500, 8000, 4500,
+                               QStringLiteral("Q2")));
     appendTag(session, makeTag(QStringLiteral("Goal"), QStringLiteral("Home"), 200, 1200, 800,
                                QStringLiteral("Q1")));
     const TagSession::GameTag early = appendTag(

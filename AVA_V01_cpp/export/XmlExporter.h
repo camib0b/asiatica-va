@@ -17,6 +17,9 @@ class TagSession;
 ///
 /// <start>/<end> use EventDefaults lead/lag for each main event around the tag position; manually
 /// trimmed tags (export review or fixed game-time spans) keep their stored start/end instead.
+/// QUARTOS is the quarter span that contains the event mark (closed Q1–Q4, or the quarter
+/// still in progress). It is not the period stored on the tag: that value is whichever
+/// quarter was current when the analyst tagged, including after rolling the video back.
 /// Instance IDs follow game time (mark), with an originating event before a derived Goal that
 /// shares its mark; RESULTADO only counts Goal instances already emitted. IDs are assigned once
 /// by buildExportedInstances(); compilation sidecars must use taggedTeamInstanceFor() so a clip

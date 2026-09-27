@@ -304,8 +304,12 @@ QPair<int, int> runningScoreAt(const QVector<TagSession::GameTag>& tags, int thr
 }
 
 /// Turns a single GameTag into its zero, one, or two emitted XML instances.
+/// \p periodLabel is the quarter that contains the event mark. Callers must not pass
+/// the period stored on the tag: that field tracks the quarter that was current when
+/// the analyst tagged, which is wrong after a rollback into an earlier quarter.
 QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
-                                             const TeamInfo& teams) {
+                                             const TeamInfo& teams,
+                                             const QString& periodLabel) {
   QVector<EmittedInstance> result;
   const QPair<qint64, qint64> interval = exportIntervalFor(tag);
   const qint64 exportStartMs = interval.first;
@@ -318,7 +322,7 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
     instance.startMs = exportStartMs;
     instance.endMs = exportEndMs;
     instance.code = neutralCode;
-    instance.period = tag.period;
+    instance.period = periodLabel;
     // Quarter / start-anchor instances do not carry the per-event metadata labels in the
     // reference (see <ID>1 Q1, <ID>3 Inicio, <ID>13 TM examples), so suppress them.
     instance.includeMatchLabels = false;
@@ -338,7 +342,7 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
     instance.startMs = exportStartMs;
     instance.endMs = exportEndMs;
     instance.code = tag.mainEvent;
-    instance.period = tag.period;
+    instance.period = periodLabel;
     result.append(instance);
     return result;
   }
@@ -347,14 +351,14 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
   positive.startMs = exportStartMs;
   positive.endMs = exportEndMs;
   positive.code = QStringLiteral("%1 %2+").arg(taggedAbbrev, *shortCode);
-  positive.period = tag.period;
+  positive.period = periodLabel;
   result.append(positive);
 
   EmittedInstance negative;
   negative.startMs = exportStartMs;
   negative.endMs = exportEndMs;
   negative.code = QStringLiteral("%1 %2-").arg(opposingAbbrev, *shortCode);
-  negative.period = tag.period;
+  negative.period = periodLabel;
   result.append(negative);
 
   return result;
@@ -426,7 +430,10 @@ QVector<ExportedXmlInstance> buildExportedInstances(const TagSession* session) {
   catalog.reserve(exportTags.size() * 2);
   for (int tagIndex = 0; tagIndex < exportTags.size(); ++tagIndex) {
     const TagSession::GameTag& tag = exportTags.at(tagIndex);
-    const QVector<EmittedInstance> instances = emittedInstancesFor(tag, teams);
+    // Place the play in the quarter whose span contains the mark, not the quarter
+    // that was current when the analyst tagged it.
+    const QString periodLabel = session->periodLabelAtTimestampMs(tag.markMs);
+    const QVector<EmittedInstance> instances = emittedInstancesFor(tag, teams, periodLabel);
     if (instances.isEmpty()) continue;
 
     const QPair<int, int> score = runningScoreAt(exportTags, tagIndex);
