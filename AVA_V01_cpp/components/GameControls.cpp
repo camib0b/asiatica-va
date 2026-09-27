@@ -90,7 +90,7 @@ QString teamSelectedButtonStylesheet(const QString& borderHex) {
              "  background: #f4f4f5;"
              "  font-weight: 700;"
              "  color: #09090b;"
-             "  padding: 7px 15px;"
+             "  padding: 4px 2px;"
              "}"
              "QPushButton:hover {"
              "  background: #e4e4e7;"
@@ -101,7 +101,7 @@ QString teamSelectedButtonStylesheet(const QString& borderHex) {
              "  border: 2px solid %1;"
              "  border-radius: 6px;"
              "  background: #f4f4f5;"
-             "  padding: 7px 15px;"
+             "  padding: 4px 2px;"
              "}")
       .arg(borderColor);
 }
@@ -907,9 +907,9 @@ void GameControls::presentFollowUpChoices(const QStringList& actions, FollowUpSt
   for (int actionIndex = 0; actionIndex < actions.size(); ++actionIndex) {
     const QString& action = actions.at(actionIndex);
     auto* button = new QPushButton(followUpContainer_);
-    configureFollowUpButton(button, action, QString::number(actionIndex + 1));
     Style::setSize(button, "md");
     Style::setVariant(button, "gameControlFollowUp");
+    configureFollowUpButton(button, action, QString::number(actionIndex + 1));
     button->setFocusPolicy(Qt::ClickFocus);
     button->setMinimumHeight(44);
 

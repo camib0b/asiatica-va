@@ -366,43 +366,47 @@ QPushButton[variant="gameControl"][activeMain="true"] QLabel[role="muted"] {
   color: #71717a;
 }
 
-/* Follow-up buttons */
+/* Follow-up buttons — zinc-950 fill so light labels stay readable */
 QPushButton[variant="gameControlFollowUp"] {
-  background: #18181b;
-  border: 1px solid #18181b;
+  background: #09090b;
+  border: 1px solid #09090b;
   border-radius: 6px;
   font-weight: 600;
   color: #fafafa;
 }
 QPushButton[variant="gameControlFollowUp"]:hover {
-  background: #27272a;
-  border-color: #27272a;
+  background: #18181b;
+  border-color: #18181b;
 }
 QPushButton[variant="gameControlFollowUp"]:pressed {
-  background: #09090b;
-  border-color: #09090b;
+  background: #000000;
+  border-color: #000000;
 }
 QPushButton[variant="gameControlFollowUp"]:focus {
   border: 2px solid #18181b;
+  background: #09090b;
   padding: 7px 15px;
 }
 QPushButton[variant="gameControlFollowUp"][flash="true"] {
-  border: 1px solid #3f3f46;
-  background: #27272a;
+  border: 1px solid #18181b;
+  background: #18181b;
   padding: 8px 16px;
 }
 QPushButton[variant="gameControlFollowUp"][flash="true"]:focus {
   border: 2px solid #18181b;
+  background: #09090b;
   padding: 7px 15px;
 }
 
 QPushButton[variant="gameControlFollowUp"] QLabel[role="gameControlTitle"] {
+  background: transparent;
   color: #fafafa;
   font-weight: 600;
   font-size: 12px;
 }
 
 QPushButton[variant="gameControlFollowUp"] QLabel[role="muted"] {
+  background: transparent;
   color: #a1a1aa;
   font-size: 11px;
   font-weight: 400;
@@ -787,27 +791,33 @@ QLabel#PresentationNoteLabel {
 }
 
 QWidget#PresentationPanel QPushButton[variant="primary"] {
-  background-color: #09090b;
-  border: 1px solid #09090b;
+  background: #000000;
+  border: 1px solid #000000;
   color: #ffffff;
   font-weight: 600;
 }
 
 QWidget#PresentationPanel QPushButton[variant="primary"]:hover {
-  background-color: #27272a;
-  border-color: #27272a;
+  background: #09090b;
+  border-color: #09090b;
   color: #ffffff;
 }
 
 QWidget#PresentationPanel QPushButton[variant="primary"]:pressed {
-  background-color: #18181b;
-  border-color: #18181b;
+  background: #000000;
+  border-color: #000000;
+  color: #ffffff;
+}
+
+QWidget#PresentationPanel QPushButton[variant="primary"]:focus {
+  background: #000000;
+  border: 2px solid #ffffff;
   color: #ffffff;
 }
 
 QWidget#PresentationPanel QPushButton[variant="primary"]:disabled {
-  background-color: #52525b;
-  border-color: #52525b;
+  background: #18181b;
+  border-color: #18181b;
   color: #fafafa;
 }
 
@@ -1123,23 +1133,38 @@ QWidget#VideoControlsBar QLabel[role="muted"] {
   color: #d4d4d8;
 }
 
-/* Compact game controls in tagging right column */
-QWidget#TaggingRightCol QPushButton[variant="gameControl"] {
-  padding: 4px 6px;
+/* Compact game controls in tagging right column.
+   Size, focus, and state rules elsewhere set 15–24px of horizontal padding;
+   these selectors win so the tagging side panel is not forced wide. */
+QWidget#TaggingRightCol QPushButton[variant="gameControl"],
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][size="md"],
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][size="lg"],
+QWidget#TaggingRightCol QPushButton[variant="gameControl"]:focus,
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][size="md"]:focus,
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][size="lg"]:focus,
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][activeMain="true"],
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][activeMain="true"]:focus,
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][teamSelected="true"],
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][teamSelected="true"]:focus,
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][flash="true"],
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][flash="true"]:focus {
+  padding: 4px 2px;
   min-height: 52px;
   border-radius: 6px;
 }
-QWidget#TaggingRightCol QPushButton[variant="gameControl"][size="sm"] {
-  padding: 4px 8px;
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][size="sm"],
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][size="sm"]:focus {
+  padding: 4px 2px;
   min-height: 32px;
   border-radius: 6px;
 }
-QWidget#TaggingRightCol QPushButton[variant="gameControl"][size="sm"]:focus {
-  padding: 4px 8px;
-  min-height: 32px;
-}
-QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"] {
-  padding: 4px 6px;
+QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"],
+QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"][size="md"],
+QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"]:focus,
+QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"][size="md"]:focus,
+QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"][flash="true"],
+QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"][flash="true"]:focus {
+  padding: 4px 2px;
   font-size: 11px;
   min-height: 36px;
   border-radius: 6px;
