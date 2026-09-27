@@ -122,7 +122,7 @@ void configureFollowUpButton(QPushButton* button, const QString& canonicalKey,
   button->setText(QString());
   button->setProperty("gameEventKey", canonicalKey);
   auto* layout = new QVBoxLayout(button);
-  layout->setContentsMargins(6, 4, 6, 4);
+  layout->setContentsMargins(2, 4, 2, 4);
   layout->setSpacing(2);
   auto* titleLabel = new QLabel(AppLocale::trEvent(canonicalKey), button);
   titleLabel->setProperty("gameEventName", canonicalKey);
@@ -504,7 +504,7 @@ void GameControls::configureMainGameControlButton(QPushButton* button, const QSt
   button->setText(QString());
   button->setProperty("gameEventName", eventName);
   auto* layout = new QVBoxLayout(button);
-  layout->setContentsMargins(8, 6, 8, 6);
+  layout->setContentsMargins(2, 4, 2, 4);
   layout->setSpacing(2);
   auto* titleLabel = new QLabel(eventName, button);
   titleLabel->setProperty("gameEventName", eventName);
@@ -525,7 +525,7 @@ void GameControls::configurePeriodAdvanceButton(QPushButton* button, const QStri
   if (!button) return;
   button->setText(QString());
   auto* layout = new QHBoxLayout(button);
-  layout->setContentsMargins(8, 4, 8, 4);
+  layout->setContentsMargins(4, 4, 4, 4);
   layout->setSpacing(8);
   periodAdvanceTitleLabel_ = new QLabel(button);
   periodAdvanceTitleLabel_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
@@ -555,7 +555,7 @@ void GameControls::buildUi() {
   Style::setVariant(periodAdvanceButton_, "gameControl");
   Style::setSize(periodAdvanceButton_, "sm");
   periodAdvanceButton_->setFocusPolicy(Qt::ClickFocus);
-  periodAdvanceButton_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+  periodAdvanceButton_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
   configurePeriodAdvanceButton(periodAdvanceButton_, QStringLiteral("G"));
 
   quarterTrack_ = new QWidget(gameTimeRowWidget);
@@ -611,6 +611,7 @@ void GameControls::buildUi() {
     Style::setSize(btn, "lg");
     Style::setVariant(btn, "gameControl");
     btn->setFocusPolicy(Qt::StrongFocus);
+    btn->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     btn->setMinimumHeight(64);
   }
   teamRowLayout->addWidget(homeTeamButton_, 1);
@@ -670,7 +671,11 @@ void GameControls::buildUi() {
     Style::setVariant(button, "gameControl");
     // ClickFocus: not in Tab chain; main actions use Q/W/E… shortcuts and mouse.
     button->setFocusPolicy(Qt::ClickFocus);
+    button->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     button->setMinimumHeight(52);
+  }
+  for (int column = 0; column < 4; ++column) {
+    mainGridLayout_->setColumnStretch(column, 1);
   }
   setFocusPolicy(Qt::StrongFocus);
 
@@ -911,12 +916,13 @@ void GameControls::presentFollowUpChoices(const QStringList& actions, FollowUpSt
     Style::setVariant(button, "gameControlFollowUp");
     configureFollowUpButton(button, action, QString::number(actionIndex + 1));
     button->setFocusPolicy(Qt::ClickFocus);
+    button->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     button->setMinimumHeight(44);
 
     connect(button, &QPushButton::clicked, this, [this, button]() { flashButtonBorder(button); });
     connect(button, &QPushButton::clicked, this, &GameControls::onFollowUpButtonClicked);
     button->installEventFilter(this);
-    followUpLayout_->addWidget(button);
+    followUpLayout_->addWidget(button, 1);
     followUpButtons_.append(button);
   }
 

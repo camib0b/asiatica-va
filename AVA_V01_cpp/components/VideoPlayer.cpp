@@ -128,30 +128,31 @@ void VideoPlayer::seekToMs(qint64 posMs) {
 }
 
 void VideoPlayer::buildUi() {
+    setObjectName(QStringLiteral("VideoStage"));
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     setAttribute(Qt::WA_Hover, true);
     setAttribute(Qt::WA_StyledBackground, true);
-    setStyleSheet(QStringLiteral("background-color: black;"));
 
     auto* stageLayout = new QVBoxLayout(this);
     stageLayout->setContentsMargins(0, 0, 0, 0);
     stageLayout->setSpacing(0);
 
     videoWidget_ = new QVideoWidget(this);
+    videoWidget_->setObjectName(QStringLiteral("VideoSurface"));
     videoWidget_->setAspectRatioMode(Qt::KeepAspectRatio);
     videoWidget_->setMinimumHeight(360);
     videoWidget_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     videoWidget_->setAttribute(Qt::WA_Hover, true);
+    videoWidget_->setAttribute(Qt::WA_StyledBackground, true);
     videoWidget_->setMouseTracking(true);
-    videoWidget_->setStyleSheet(QStringLiteral("background-color: black;"));
     stageLayout->addWidget(videoWidget_, 1);
 
     videoControlsBar_ = new VideoControlsBar(this);
     videoTimelineBar_ = new TimelineBar(this);
+    videoTimelineBar_->setObjectName(QStringLiteral("VideoTimelineBar"));
     videoTimelineBar_->setMinimumHeight(44);
     videoTimelineBar_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     videoTimelineBar_->setAttribute(Qt::WA_StyledBackground, true);
-    videoTimelineBar_->setStyleSheet(QStringLiteral("background-color: #FFFFFF;"));
     stageLayout->addWidget(videoTimelineBar_, 0);
     setupControlsOverlay();
 

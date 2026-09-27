@@ -531,15 +531,32 @@ void WorkWindow::applyModeChrome() {
         }
     }
 
+    // Preferred can shrink to the longest button word. Minimum treated each
+    // button's full line as a hard floor, which locked this column near 472px.
+    // Hidden stack pages are Ignored so stats and presentation cannot hold
+    // the tagging column open.
     if (gameControls_) {
         gameControls_->setMinimumWidth(GameControls::kMinimumPanelWidthPx);
-        gameControls_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+        gameControls_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    }
+    if (notesColumn_) {
+        notesColumn_->setMinimumWidth(0);
+        notesColumn_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     }
     if (taggingRightCol_) {
-        taggingRightCol_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+        taggingRightCol_->setSizePolicy(isTagging ? QSizePolicy::Preferred : QSizePolicy::Ignored,
+                                        QSizePolicy::Preferred);
+    }
+    if (statsWindow_) {
+        statsWindow_->setSizePolicy(isAnalyzing ? QSizePolicy::Preferred : QSizePolicy::Ignored,
+                                    QSizePolicy::Preferred);
+    }
+    if (presentationPanel_) {
+        presentationPanel_->setSizePolicy(isPresenting ? QSizePolicy::Preferred : QSizePolicy::Ignored,
+                                          QSizePolicy::Preferred);
     }
     if (workSideStack_) {
-        workSideStack_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+        workSideStack_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     }
 }
 
@@ -778,6 +795,7 @@ void WorkWindow::buildUi() {
     matchNotesLabel_ = new QLabel(notesColumn_);
     Style::setRole(matchNotesLabel_, "muted");
     matchNotesEditor_ = new MatchNotesEditor(notesColumn_);
+    matchNotesEditor_->setMinimumWidth(0);
     matchNotesEditor_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     clipNotesLabel_ = new QLabel(notesColumn_);
@@ -785,6 +803,7 @@ void WorkWindow::buildUi() {
     notesEdit_ = new QPlainTextEdit(notesColumn_);
     notesEdit_->setMaximumHeight(88);
     notesEdit_->setMinimumHeight(64);
+    notesEdit_->setMinimumWidth(0);
     notesEdit_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     Style::setRole(notesEdit_, "muted");
 
@@ -872,7 +891,7 @@ void WorkWindow::buildUi() {
     workOuterSplitter_->setStretchFactor(1, 1);
 
     for (QSplitter* splitter : {workOuterSplitter_, workLeftSplitter_, workTagsNotesSplitter_}) {
-        splitter->setStyleSheet(QStringLiteral("background-color: #FFFFFF;"));
+        splitter->setAttribute(Qt::WA_StyledBackground, true);
     }
 
     contentAreaLayout->addWidget(workOuterSplitter_, 1);

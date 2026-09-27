@@ -758,7 +758,9 @@ QToolButton#WorkModePresentingButton:!checked:hover {
    Presentation mode
 ========================= */
 
-QSplitter#PresentationSplitter {
+QSplitter#PresentationSplitter,
+QSplitter#WorkLeftSplitter,
+QSplitter#WorkTagsNotesSplitter {
   background-color: #FFFFFF;
 }
 
@@ -979,6 +981,15 @@ QTreeWidget::branch {
 /* =========================
    Timeline slider
 ========================= */
+
+QWidget#VideoStage,
+QVideoWidget#VideoSurface {
+  background-color: #000000;
+}
+
+QWidget#VideoTimelineBar {
+  background-color: #FFFFFF;
+}
 
 QSlider#TimelineSlider::groove:horizontal {
   height: 6px;
