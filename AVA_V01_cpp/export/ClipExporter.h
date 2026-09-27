@@ -1,5 +1,7 @@
 #pragma once
 
+#include "CompilationSidecar.h"
+
 #include <QObject>
 #include <QProcess>
 #include <QSize>
@@ -34,6 +36,8 @@ struct ClipSegment {
     QString overlayText;
     QString secondaryOverlayText;
     QVector<TimedScoreboard> scoreboards;
+    /// Sidecar identity for this segment. Stays in the same order as the concat list.
+    ClipCompilationRecord compilation;
 };
 
 class ClipExporter final : public QObject {
@@ -48,6 +52,8 @@ public:
     void setClips(const QVector<ClipSegment>& clips);
     void setIncludeAudioTrack(bool includeAudioTrack);
     void setIncludeBrandingOverlay(bool includeBrandingOverlay);
+    /// File name only. Empty leaves "matchXml" null in the clips sidecar.
+    void setMatchXmlFileName(const QString& fileName);
 
     void startExport();
     void cancelExport();
@@ -68,6 +74,10 @@ private slots:
 private:
     void processNextClip();
     void concatenateClips();
+    void finalizeCompilationSidecar();
+    void embedChapterMetadata(const QVector<qint64>& offsetMilliseconds,
+                              const QVector<qint64>& durationMilliseconds);
+    void discardPartialSidecar();
     void cleanup();
     void stopAndDiscardProcess();
     void finishExport(bool success, const QString& message);
@@ -75,7 +85,11 @@ private:
 
     QString sourceVideoPath_;
     QString outputPath_;
+    QString matchXmlFileName_;
     QVector<ClipSegment> clips_;
+    /// ffprobe durations of tempClipPaths_, in the same order.
+    QVector<double> measuredSegmentDurationSeconds_;
+    bool outputWriteStarted_ = false;
 
     /// Unparented QObject; this unique_ptr is the only owner. Replace via
     /// stopAndDiscardProcess() (release + deleteLater) so finished() cannot
@@ -87,6 +101,7 @@ private:
     bool exportFinishedEmitted_ = false;
     QStringList tempClipPaths_;
     QString ffmpegPath_;
+    QString ffprobePath_;
     QString brandingImagePath_;
     QSize sourceVideoSize_;
     int sourceRotationDegrees_ = 0;

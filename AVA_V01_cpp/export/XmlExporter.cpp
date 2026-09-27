@@ -413,6 +413,77 @@ Rgb16 colorForCode(const QString& code, const TeamInfo& teams) {
 
 } // namespace
 
+QVector<ExportedXmlInstance> buildExportedInstances(const TagSession* session) {
+  QVector<ExportedXmlInstance> catalog;
+  if (!session) return catalog;
+
+  const QVector<TagSession::GameTag> exportTags = tagsForExport(session->tags());
+  const TeamInfo teams = teamInfoFromSession(*session);
+  const QString competitionName = session->competitionName();
+  const int gameYear = session->gameYear();
+
+  int nextInstanceId = 1;
+  catalog.reserve(exportTags.size() * 2);
+  for (int tagIndex = 0; tagIndex < exportTags.size(); ++tagIndex) {
+    const TagSession::GameTag& tag = exportTags.at(tagIndex);
+    const QVector<EmittedInstance> instances = emittedInstancesFor(tag, teams);
+    if (instances.isEmpty()) continue;
+
+    const QPair<int, int> score = runningScoreAt(exportTags, tagIndex);
+    const QString resultadoLabel = resultadoLabelFor(teams, score);
+
+    for (const EmittedInstance& instance : instances) {
+      ExportedXmlInstance record;
+      record.id = nextInstanceId++;
+      record.sourceTagId = tag.id;
+      record.mainEvent = tag.mainEvent;
+      record.team = tag.team;
+      record.startMs = instance.startMs;
+      record.endMs = instance.endMs;
+      record.code = xmlTextContent(instance.code);
+      if (instance.includeMatchLabels) {
+        if (!competitionName.isEmpty()) {
+          ExportedXmlLabel label;
+          label.group = QStringLiteral("COMPETICION");
+          label.text = xmlTextContent(competitionName);
+          record.labels.append(label);
+        }
+        if (!resultadoLabel.isEmpty()) {
+          ExportedXmlLabel label;
+          label.group = QStringLiteral("RESULTADO");
+          label.text = xmlTextContent(resultadoLabel);
+          record.labels.append(label);
+        }
+        if (!instance.period.isEmpty()) {
+          ExportedXmlLabel label;
+          label.group = QStringLiteral("QUARTOS");
+          label.text = xmlTextContent(instance.period);
+          record.labels.append(label);
+        }
+        if (gameYear > 0) {
+          ExportedXmlLabel label;
+          label.group = QStringLiteral("ANO");
+          label.text = xmlTextContent(QString::number(gameYear));
+          record.labels.append(label);
+        }
+      }
+      catalog.append(record);
+    }
+  }
+  return catalog;
+}
+
+std::optional<ExportedXmlInstance> taggedTeamInstanceFor(const QVector<ExportedXmlInstance>& instances,
+                                                          quint64 sourceTagId,
+                                                          const QString& mainEvent) {
+  for (const ExportedXmlInstance& instance : instances) {
+    if (instance.sourceTagId != sourceTagId) continue;
+    if (instance.mainEvent != mainEvent) continue;
+    return instance;
+  }
+  return std::nullopt;
+}
+
 bool writeAllInstances(const TagSession* session,
                        const QString& filePath,
                        QString* errorMessage) {
@@ -425,13 +496,9 @@ bool writeAllInstances(const TagSession* session,
     return false;
   }
 
-  // Expand follow-up Goals, then sort that full list so instance IDs and RESULTADO
-  // walk game time (synthetic Goals are not visible to a pre-sort of session tags).
-  const QVector<TagSession::GameTag> exportTags = tagsForExport(session->tags());
-
+  // IDs, codes, and labels come from the same catalog the compilation sidecar reads.
+  const QVector<ExportedXmlInstance> instances = buildExportedInstances(session);
   const TeamInfo teams = teamInfoFromSession(*session);
-  const QString competitionName = session->competitionName();
-  const int gameYear = session->gameYear();
 
   QSaveFile file(filePath);
   if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -453,55 +520,25 @@ bool writeAllInstances(const TagSession* session,
   // Unique codes in first-seen timeline order for the <ROWS> palette.
   QStringList emittedCodesOrder;
 
-  int nextInstanceId = 1;
-  for (int tagIndex = 0; tagIndex < exportTags.size(); ++tagIndex) {
-    const TagSession::GameTag& tag = exportTags.at(tagIndex);
-    const QVector<EmittedInstance> instances = emittedInstancesFor(tag, teams);
-    if (instances.isEmpty()) continue;
+  for (const ExportedXmlInstance& instance : instances) {
+    writer.writeStartElement(QStringLiteral("instance"));
+    writer.writeTextElement(QStringLiteral("ID"), QString::number(instance.id));
+    writer.writeTextElement(QStringLiteral("start"), secondsString(instance.startMs));
+    writer.writeTextElement(QStringLiteral("end"), secondsString(instance.endMs));
+    writeXmlTextElement(writer, QStringLiteral("code"), instance.code);
 
-    const QPair<int, int> score = runningScoreAt(exportTags, tagIndex);
-    const QString resultadoLabel = resultadoLabelFor(teams, score);
-
-    for (const auto& instance : instances) {
-      writer.writeStartElement(QStringLiteral("instance"));
-      writer.writeTextElement(QStringLiteral("ID"), QString::number(nextInstanceId++));
-      writer.writeTextElement(QStringLiteral("start"), secondsString(instance.startMs));
-      writer.writeTextElement(QStringLiteral("end"), secondsString(instance.endMs));
-      writeXmlTextElement(writer, QStringLiteral("code"), instance.code);
-
-      if (!emittedCodesOrder.contains(instance.code)) {
-        emittedCodesOrder.append(instance.code);
-      }
-
-      if (instance.includeMatchLabels) {
-        if (!competitionName.isEmpty()) {
-          writer.writeStartElement(QStringLiteral("label"));
-          writer.writeTextElement(QStringLiteral("group"), QStringLiteral("COMPETICION"));
-          writeXmlTextElement(writer, QStringLiteral("text"), competitionName);
-          writer.writeEndElement();
-        }
-        if (!resultadoLabel.isEmpty()) {
-          writer.writeStartElement(QStringLiteral("label"));
-          writer.writeTextElement(QStringLiteral("group"), QStringLiteral("RESULTADO"));
-          writeXmlTextElement(writer, QStringLiteral("text"), resultadoLabel);
-          writer.writeEndElement();
-        }
-        if (!instance.period.isEmpty()) {
-          writer.writeStartElement(QStringLiteral("label"));
-          writer.writeTextElement(QStringLiteral("group"), QStringLiteral("QUARTOS"));
-          writeXmlTextElement(writer, QStringLiteral("text"), instance.period);
-          writer.writeEndElement();
-        }
-        if (gameYear > 0) {
-          writer.writeStartElement(QStringLiteral("label"));
-          writer.writeTextElement(QStringLiteral("group"), QStringLiteral("ANO"));
-          writer.writeTextElement(QStringLiteral("text"), QString::number(gameYear));
-          writer.writeEndElement();
-        }
-      }
-
-      writer.writeEndElement(); // instance
+    if (!emittedCodesOrder.contains(instance.code)) {
+      emittedCodesOrder.append(instance.code);
     }
+
+    for (const ExportedXmlLabel& label : instance.labels) {
+      writer.writeStartElement(QStringLiteral("label"));
+      writer.writeTextElement(QStringLiteral("group"), label.group);
+      writeXmlTextElement(writer, QStringLiteral("text"), label.text);
+      writer.writeEndElement();
+    }
+
+    writer.writeEndElement(); // instance
   }
 
   writer.writeEndElement(); // ALL_INSTANCES
