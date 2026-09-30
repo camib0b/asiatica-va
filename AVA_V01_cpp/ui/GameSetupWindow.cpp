@@ -18,7 +18,9 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QResizeEvent>
 #include <QSignalBlocker>
+#include <QSizePolicy>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -204,6 +206,7 @@ void GameSetupWindow::applyUiStrings() const {
   }
   if (suggestionStatusLabel_ && suggestionStatusKey_) {
     suggestionStatusLabel_->setText(AppLocale::trUi(suggestionStatusKey_));
+    syncSuggestionStatusLabelLayout();
   }
   updateContinueButtonEnabled();
 }
@@ -213,12 +216,37 @@ void GameSetupWindow::changeEvent(QEvent* event) {
   if (!event) return;
   if (event->type() == QEvent::StyleChange || event->type() == QEvent::FontChange) {
     syncContinueButtonMinimumWidth();
+    syncSuggestionStatusLabelLayout();
   }
+}
+
+void GameSetupWindow::resizeEvent(QResizeEvent* event) {
+  QWidget::resizeEvent(event);
+  syncSuggestionStatusLabelLayout();
 }
 
 void GameSetupWindow::syncContinueButtonMinimumWidth() const {
   if (!continueButton_) return;
   continueButton_->setMinimumWidth(Style::pushButtonMinimumWidth(continueButton_));
+}
+
+void GameSetupWindow::syncSuggestionStatusLabelLayout() const {
+  if (!suggestionStatusLabel_) return;
+  if (suggestionStatusLabel_->isHidden() || !suggestionStatusKey_) {
+    suggestionStatusLabel_->setMinimumHeight(0);
+    return;
+  }
+
+  const QWidget* content = suggestionStatusLabel_->parentWidget();
+  if (!content) return;
+  const int availableWidth = content->contentsRect().width();
+  if (availableWidth <= 0) return;
+
+  suggestionStatusLabel_->ensurePolished();
+  const int wrappedHeight = suggestionStatusLabel_->heightForWidth(availableWidth);
+  if (wrappedHeight > 0) {
+    suggestionStatusLabel_->setMinimumHeight(wrappedHeight);
+  }
 }
 
 void GameSetupWindow::onLanguageComboChanged(int index) {
@@ -287,10 +315,11 @@ void GameSetupWindow::buildUi() {
   auto suggestionStatusLabel = makeQtPtr<QLabel>(contentContainer.get());
   suggestionStatusLabel->setWordWrap(true);
   suggestionStatusLabel->setAlignment(Qt::AlignCenter);
+  suggestionStatusLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
   Style::setRole(suggestionStatusLabel.get(), "faint");
   suggestionStatusLabel->hide();
   suggestionStatusLabel_ = suggestionStatusLabel.get();
-  layout->addWidget(suggestionStatusLabel.get(), 0, Qt::AlignHCenter);
+  layout->addWidget(suggestionStatusLabel.get());
 
   auto addTeamGroup = [&](QPointer<QLabel>& teamLabel, QPointer<QLineEdit>& nameEdit,
                           QPointer<QLineEdit>& abbrevEdit, QPointer<TeamColorPicker>& colorPicker,
@@ -509,10 +538,12 @@ void GameSetupWindow::setSuggestionStatusKey(const char* key) {
   if (!suggestionStatusKey_) {
     suggestionStatusLabel_->clear();
     suggestionStatusLabel_->hide();
+    suggestionStatusLabel_->setMinimumHeight(0);
     return;
   }
   suggestionStatusLabel_->setText(AppLocale::trUi(suggestionStatusKey_));
   suggestionStatusLabel_->show();
+  syncSuggestionStatusLabelLayout();
 }
 
 void GameSetupWindow::onNameDateSuggested(const QString& homeTeamName,

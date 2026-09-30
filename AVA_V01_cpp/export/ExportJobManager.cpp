@@ -226,6 +226,9 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
     exporter->setClips(request.clips);
     exporter->setIncludeAudioTrack(request.includeAudioTrack);
     exporter->setIncludeBrandingOverlay(request.includeBrandingOverlay);
+    if (request.format == ExportOutputFormat::Both && !xmlPath.isEmpty()) {
+        exporter->setMatchXmlFileName(QFileInfo(xmlPath).fileName());
+    }
 
     // Heap address is stable across unique_ptr move into jobs_. Use the
     // exporter as context so Qt drops these slots when discardExporter()

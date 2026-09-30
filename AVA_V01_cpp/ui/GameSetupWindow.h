@@ -12,6 +12,7 @@
 class GameMetadataSuggester;
 class QComboBox;
 class QEvent;
+class QResizeEvent;
 class QLabel;
 class QLineEdit;
 class QPushButton;
@@ -39,6 +40,7 @@ public:
 
 protected:
   void changeEvent(QEvent* event) override;
+  void resizeEvent(QResizeEvent* event) override;
 
 signals:
   void gameSetupConfirmed(const QString& filePath,
@@ -68,6 +70,7 @@ private:
   void onBack();
   void updateContinueButtonEnabled() const;
   void syncContinueButtonMinimumWidth() const;
+  void syncSuggestionStatusLabelLayout() const;
   struct SetupFormValues {
     QString homeName;
     QString awayName;
