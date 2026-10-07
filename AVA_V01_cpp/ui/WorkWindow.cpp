@@ -72,6 +72,7 @@ void setToolButtonFlashState(QToolButton* button, bool flashing) {
 #include <QFrame>
 #include <QBoxLayout>
 #include <QLayout>
+#include <QDir>
 #include <QFileInfo>
 #include <QTimer>
 #include <QSignalBlocker>
@@ -298,6 +299,7 @@ void WorkWindow::applyUiStrings() const {
     if (replaceVideoAction_) replaceVideoAction_->setText(AppLocale::trUi("menu.replace_video"));
     if (closeVideoAction_) closeVideoAction_->setText(AppLocale::trUi("menu.close_video"));
     if (importXmlAction_) importXmlAction_->setText(AppLocale::trUi("menu.import_xml"));
+    if (exportXmlAction_) exportXmlAction_->setText(AppLocale::trUi("menu.export_xml"));
     if (clipDurationSettingsAction_) {
         clipDurationSettingsAction_->setText(AppLocale::trUi("menu.clip_durations"));
     }
@@ -667,6 +669,7 @@ void WorkWindow::buildUi() {
     closeVideoAction_ = videoMenu_->addAction(QString());
     videoMenu_->addSeparator();
     importXmlAction_ = videoMenu_->addAction(QString());
+    exportXmlAction_ = videoMenu_->addAction(QString());
     clipDurationSettingsAction_ = videoMenu_->addAction(QString());
     videoMenuButton_->setMenu(videoMenu_);
     videoControlsLayout->addWidget(videoMenuButton_, 0, Qt::AlignRight | Qt::AlignVCenter);
@@ -955,6 +958,7 @@ void WorkWindow::wireSignals() {
     connect(videoPlayer_, &VideoPlayer::muteToolbarFlashRequested, this, &WorkWindow::flashVideoMuteButton);
 
     connect(importXmlAction_, &QAction::triggered, this, &WorkWindow::onImportXml);
+    connect(exportXmlAction_, &QAction::triggered, this, &WorkWindow::onExportXml);
     connect(clipDurationSettingsAction_, &QAction::triggered, this,
             &WorkWindow::onClipDurationSettings);
 
@@ -1404,6 +1408,42 @@ void WorkWindow::onPresentationExportRequested() {
     QString errorMessage;
     if (!exportJobManager_->startJob(request, &errorMessage)) {
         QMessageBox::warning(this, AppLocale::trUi("export.title"), errorMessage);
+    }
+}
+
+void WorkWindow::onExportXml() {
+    if (!LicenseManager::instance().isEntitled()) return;
+    if (!tagSession_ || sourceVideoPath_.isEmpty() || !exportJobManager_) return;
+
+    if (tagSession_->tags().isEmpty()) {
+        QMessageBox::warning(this,
+                             AppLocale::trUi("export.xml_title"),
+                             AppLocale::trUi("export.no_tags_for_xml"));
+        return;
+    }
+
+    const QString baseName = ExportClipBuilder::xmlReportBaseName(tagSession_);
+    QString directoryPath = exportDefaultDirectoryPath_.trimmed();
+    if (directoryPath.isEmpty()) {
+        directoryPath = QFileInfo(sourceVideoPath_).absolutePath();
+    }
+    const QString suggestedPath = QDir(directoryPath).filePath(baseName + QStringLiteral(".xml"));
+
+    const QString outputPath = QFileDialog::getSaveFileName(
+        this,
+        AppLocale::trUi("export.xml_save_dialog_title"),
+        suggestedPath,
+        AppLocale::trUi("file.xml_filter"));
+    if (outputPath.isEmpty()) return;
+
+    ExportJobRequest request;
+    request.format = ExportOutputFormat::Xml;
+    request.outputPath = outputPath;
+    request.tagSession = tagSession_;
+
+    QString errorMessage;
+    if (!exportJobManager_->startJob(request, &errorMessage)) {
+        QMessageBox::warning(this, AppLocale::trUi("export.xml_title"), errorMessage);
     }
 }
 
