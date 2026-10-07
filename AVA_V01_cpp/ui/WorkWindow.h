@@ -94,6 +94,7 @@ private slots:
   void onNextQuarterRequested();
   void onClipDurationSettings();
   void onImportXml();
+  void onExportXml();
   void onApplicationLanguageChanged();
 
   // Presentation mode
@@ -218,6 +219,7 @@ private:
   QAction* replaceVideoAction_ = nullptr;
   QAction* closeVideoAction_ = nullptr;
   QAction* importXmlAction_ = nullptr;
+  QAction* exportXmlAction_ = nullptr;
   QAction* clipDurationSettingsAction_ = nullptr;
   QAction* statsOverlayAction_ = nullptr;
 

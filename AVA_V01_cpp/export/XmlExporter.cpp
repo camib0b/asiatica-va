@@ -304,8 +304,12 @@ QPair<int, int> runningScoreAt(const QVector<TagSession::GameTag>& tags, int thr
 }
 
 /// Turns a single GameTag into its zero, one, or two emitted XML instances.
+/// \p periodLabel is the quarter that contains the event mark. Callers must not pass
+/// the period stored on the tag: that field tracks the quarter that was current when
+/// the analyst tagged, which is wrong after a rollback into an earlier quarter.
 QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
-                                             const TeamInfo& teams) {
+                                             const TeamInfo& teams,
+                                             const QString& periodLabel) {
   QVector<EmittedInstance> result;
   const QPair<qint64, qint64> interval = exportIntervalFor(tag);
   const qint64 exportStartMs = interval.first;
@@ -318,7 +322,7 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
     instance.startMs = exportStartMs;
     instance.endMs = exportEndMs;
     instance.code = neutralCode;
-    instance.period = tag.period;
+    instance.period = periodLabel;
     // Quarter / start-anchor instances do not carry the per-event metadata labels in the
     // reference (see <ID>1 Q1, <ID>3 Inicio, <ID>13 TM examples), so suppress them.
     instance.includeMatchLabels = false;
@@ -338,7 +342,7 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
     instance.startMs = exportStartMs;
     instance.endMs = exportEndMs;
     instance.code = tag.mainEvent;
-    instance.period = tag.period;
+    instance.period = periodLabel;
     result.append(instance);
     return result;
   }
@@ -347,14 +351,14 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
   positive.startMs = exportStartMs;
   positive.endMs = exportEndMs;
   positive.code = QStringLiteral("%1 %2+").arg(taggedAbbrev, *shortCode);
-  positive.period = tag.period;
+  positive.period = periodLabel;
   result.append(positive);
 
   EmittedInstance negative;
   negative.startMs = exportStartMs;
   negative.endMs = exportEndMs;
   negative.code = QStringLiteral("%1 %2-").arg(opposingAbbrev, *shortCode);
-  negative.period = tag.period;
+  negative.period = periodLabel;
   result.append(negative);
 
   return result;
@@ -413,6 +417,80 @@ Rgb16 colorForCode(const QString& code, const TeamInfo& teams) {
 
 } // namespace
 
+QVector<ExportedXmlInstance> buildExportedInstances(const TagSession* session) {
+  QVector<ExportedXmlInstance> catalog;
+  if (!session) return catalog;
+
+  const QVector<TagSession::GameTag> exportTags = tagsForExport(session->tags());
+  const TeamInfo teams = teamInfoFromSession(*session);
+  const QString competitionName = session->competitionName();
+  const int gameYear = session->gameYear();
+
+  int nextInstanceId = 1;
+  catalog.reserve(exportTags.size() * 2);
+  for (int tagIndex = 0; tagIndex < exportTags.size(); ++tagIndex) {
+    const TagSession::GameTag& tag = exportTags.at(tagIndex);
+    // Place the play in the quarter whose span contains the mark, not the quarter
+    // that was current when the analyst tagged it.
+    const QString periodLabel = session->periodLabelAtTimestampMs(tag.markMs);
+    const QVector<EmittedInstance> instances = emittedInstancesFor(tag, teams, periodLabel);
+    if (instances.isEmpty()) continue;
+
+    const QPair<int, int> score = runningScoreAt(exportTags, tagIndex);
+    const QString resultadoLabel = resultadoLabelFor(teams, score);
+
+    for (const EmittedInstance& instance : instances) {
+      ExportedXmlInstance record;
+      record.id = nextInstanceId++;
+      record.sourceTagId = tag.id;
+      record.mainEvent = tag.mainEvent;
+      record.team = tag.team;
+      record.startMs = instance.startMs;
+      record.endMs = instance.endMs;
+      record.code = xmlTextContent(instance.code);
+      if (instance.includeMatchLabels) {
+        if (!competitionName.isEmpty()) {
+          ExportedXmlLabel label;
+          label.group = QStringLiteral("COMPETICION");
+          label.text = xmlTextContent(competitionName);
+          record.labels.append(label);
+        }
+        if (!resultadoLabel.isEmpty()) {
+          ExportedXmlLabel label;
+          label.group = QStringLiteral("RESULTADO");
+          label.text = xmlTextContent(resultadoLabel);
+          record.labels.append(label);
+        }
+        if (!instance.period.isEmpty()) {
+          ExportedXmlLabel label;
+          label.group = QStringLiteral("QUARTOS");
+          label.text = xmlTextContent(instance.period);
+          record.labels.append(label);
+        }
+        if (gameYear > 0) {
+          ExportedXmlLabel label;
+          label.group = QStringLiteral("ANO");
+          label.text = xmlTextContent(QString::number(gameYear));
+          record.labels.append(label);
+        }
+      }
+      catalog.append(record);
+    }
+  }
+  return catalog;
+}
+
+std::optional<ExportedXmlInstance> taggedTeamInstanceFor(const QVector<ExportedXmlInstance>& instances,
+                                                          quint64 sourceTagId,
+                                                          const QString& mainEvent) {
+  for (const ExportedXmlInstance& instance : instances) {
+    if (instance.sourceTagId != sourceTagId) continue;
+    if (instance.mainEvent != mainEvent) continue;
+    return instance;
+  }
+  return std::nullopt;
+}
+
 bool writeAllInstances(const TagSession* session,
                        const QString& filePath,
                        QString* errorMessage) {
@@ -425,13 +503,9 @@ bool writeAllInstances(const TagSession* session,
     return false;
   }
 
-  // Expand follow-up Goals, then sort that full list so instance IDs and RESULTADO
-  // walk game time (synthetic Goals are not visible to a pre-sort of session tags).
-  const QVector<TagSession::GameTag> exportTags = tagsForExport(session->tags());
-
+  // IDs, codes, and labels come from the same catalog the compilation sidecar reads.
+  const QVector<ExportedXmlInstance> instances = buildExportedInstances(session);
   const TeamInfo teams = teamInfoFromSession(*session);
-  const QString competitionName = session->competitionName();
-  const int gameYear = session->gameYear();
 
   QSaveFile file(filePath);
   if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -453,55 +527,25 @@ bool writeAllInstances(const TagSession* session,
   // Unique codes in first-seen timeline order for the <ROWS> palette.
   QStringList emittedCodesOrder;
 
-  int nextInstanceId = 1;
-  for (int tagIndex = 0; tagIndex < exportTags.size(); ++tagIndex) {
-    const TagSession::GameTag& tag = exportTags.at(tagIndex);
-    const QVector<EmittedInstance> instances = emittedInstancesFor(tag, teams);
-    if (instances.isEmpty()) continue;
+  for (const ExportedXmlInstance& instance : instances) {
+    writer.writeStartElement(QStringLiteral("instance"));
+    writer.writeTextElement(QStringLiteral("ID"), QString::number(instance.id));
+    writer.writeTextElement(QStringLiteral("start"), secondsString(instance.startMs));
+    writer.writeTextElement(QStringLiteral("end"), secondsString(instance.endMs));
+    writeXmlTextElement(writer, QStringLiteral("code"), instance.code);
 
-    const QPair<int, int> score = runningScoreAt(exportTags, tagIndex);
-    const QString resultadoLabel = resultadoLabelFor(teams, score);
-
-    for (const auto& instance : instances) {
-      writer.writeStartElement(QStringLiteral("instance"));
-      writer.writeTextElement(QStringLiteral("ID"), QString::number(nextInstanceId++));
-      writer.writeTextElement(QStringLiteral("start"), secondsString(instance.startMs));
-      writer.writeTextElement(QStringLiteral("end"), secondsString(instance.endMs));
-      writeXmlTextElement(writer, QStringLiteral("code"), instance.code);
-
-      if (!emittedCodesOrder.contains(instance.code)) {
-        emittedCodesOrder.append(instance.code);
-      }
-
-      if (instance.includeMatchLabels) {
-        if (!competitionName.isEmpty()) {
-          writer.writeStartElement(QStringLiteral("label"));
-          writer.writeTextElement(QStringLiteral("group"), QStringLiteral("COMPETICION"));
-          writeXmlTextElement(writer, QStringLiteral("text"), competitionName);
-          writer.writeEndElement();
-        }
-        if (!resultadoLabel.isEmpty()) {
-          writer.writeStartElement(QStringLiteral("label"));
-          writer.writeTextElement(QStringLiteral("group"), QStringLiteral("RESULTADO"));
-          writeXmlTextElement(writer, QStringLiteral("text"), resultadoLabel);
-          writer.writeEndElement();
-        }
-        if (!instance.period.isEmpty()) {
-          writer.writeStartElement(QStringLiteral("label"));
-          writer.writeTextElement(QStringLiteral("group"), QStringLiteral("QUARTOS"));
-          writeXmlTextElement(writer, QStringLiteral("text"), instance.period);
-          writer.writeEndElement();
-        }
-        if (gameYear > 0) {
-          writer.writeStartElement(QStringLiteral("label"));
-          writer.writeTextElement(QStringLiteral("group"), QStringLiteral("ANO"));
-          writer.writeTextElement(QStringLiteral("text"), QString::number(gameYear));
-          writer.writeEndElement();
-        }
-      }
-
-      writer.writeEndElement(); // instance
+    if (!emittedCodesOrder.contains(instance.code)) {
+      emittedCodesOrder.append(instance.code);
     }
+
+    for (const ExportedXmlLabel& label : instance.labels) {
+      writer.writeStartElement(QStringLiteral("label"));
+      writer.writeTextElement(QStringLiteral("group"), label.group);
+      writeXmlTextElement(writer, QStringLiteral("text"), label.text);
+      writer.writeEndElement();
+    }
+
+    writer.writeEndElement(); // instance
   }
 
   writer.writeEndElement(); // ALL_INSTANCES

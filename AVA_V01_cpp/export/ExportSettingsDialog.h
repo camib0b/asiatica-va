@@ -43,14 +43,12 @@ public:
     Result resultSettings() const { return result_; }
 
 private slots:
-    void onOutputFormatChanged(int index);
     void onBrowseOutputPath();
     void onExportClicked();
 
 private:
     void buildUi();
-    void updateUiForFormat();
-    ExportOutputFormat selectedOutputFormat() const;
+    void updateForm();
     QString suggestedBaseName() const;
     QString defaultSuggestedFilePath() const;
     void applySuggestedOutputPathFromForm();
@@ -66,7 +64,6 @@ private:
     QString lastAutoOutputPathSuggestion_;
     bool outputPathFollowsSuggestion_ = true;
 
-    QComboBox* outputFormatCombo_ = nullptr;
     QLabel* sortOrderLabel_ = nullptr;
     QComboBox* sortOrderCombo_ = nullptr;
     QComboBox* exportLanguageCombo_ = nullptr;

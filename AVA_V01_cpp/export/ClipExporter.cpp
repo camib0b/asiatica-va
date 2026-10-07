@@ -1,10 +1,12 @@
 #include "ClipExporter.h"
 
 #include "AppLocale.h"
+#include "AvaVersion.h"
 #include "FfmpegLocator.h"
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QFont>
 #include <QFontMetrics>
 #include <QImage>
@@ -67,7 +69,7 @@ QSize cappedOutputSize(const QSize& sourceSize) {
 // - Top ~8–10% covers the title / share / watch-later bar when visible (hover, pause, start).
 // Keep our overlays clear of those bands so they stay readable on YouTube.
 // Refs: title-safe guidance for YouTube player UI (bottom ~8%); classic 10% title-safe margins.
-constexpr qreal kYouTubeTopSafeFraction = 0.10;
+constexpr qreal kYouTubeTopSafeFraction = 0.065;
 constexpr qreal kYouTubeBottomSafeFraction = 0.12;
 
 class OverlayScaler {
@@ -365,12 +367,20 @@ void ClipExporter::setIncludeAudioTrack(bool includeAudioTrack) {
 void ClipExporter::setIncludeBrandingOverlay(bool includeBrandingOverlay) {
     includeBrandingOverlay_ = includeBrandingOverlay;
 }
+void ClipExporter::setMatchXmlFileName(const QString& fileName) {
+    matchXmlFileName_ = QFileInfo(fileName).fileName();
+}
 
 void ClipExporter::startExport() {
     exportFinishedEmitted_ = false;
     ffmpegPath_ = FfmpegLocator::findFfmpeg();
     if (ffmpegPath_.isEmpty()) {
         finishExport(false, AppLocale::trUi("export.ffmpeg_not_found"));
+        return;
+    }
+    ffprobePath_ = FfmpegLocator::findFfprobe();
+    if (ffprobePath_.isEmpty()) {
+        finishExport(false, AppLocale::trUi("export.ffprobe_not_found"));
         return;
     }
 
@@ -389,7 +399,9 @@ void ClipExporter::startExport() {
 
     cancelled_ = false;
     currentClipIndex_ = 0;
+    outputWriteStarted_ = false;
     tempClipPaths_.clear();
+    measuredSegmentDurationSeconds_.clear();
 
     cleanup();
     tempDir_ = std::make_unique<QTemporaryDir>();
@@ -723,6 +735,14 @@ void ClipExporter::onClipProcessFinished(int exitCode, QProcess::ExitStatus exit
 
     const QString tempPath = tempDir_->filePath(
         QStringLiteral("clip_%1.mp4").arg(currentClipIndex_, 4, 10, QChar('0')));
+    const std::optional<double> measuredDuration =
+        CompilationSidecar::probeMediaDurationSeconds(ffprobePath_, tempPath);
+    if (!measuredDuration.has_value()) {
+        finishExport(false,
+                     AppLocale::trUi("export.sidecar_probe_failed").arg(currentClipIndex_ + 1));
+        return;
+    }
+    measuredSegmentDurationSeconds_.append(*measuredDuration);
     tempClipPaths_.append(tempPath);
 
     ++currentClipIndex_;
@@ -741,13 +761,15 @@ void ClipExporter::concatenateClips() {
     }
 
     if (tempClipPaths_.size() == 1) {
+        outputWriteStarted_ = true;
+        discardPartialSidecar();
         if (QFile::exists(outputPath_) && !QFile::remove(outputPath_)) {
             finishExport(false,
                 QStringLiteral("Could not replace existing output file:\n%1").arg(outputPath_));
             return;
         }
         if (QFile::copy(tempClipPaths_.first(), outputPath_)) {
-            finishExport(true, {});
+            finalizeCompilationSidecar();
         } else {
             finishExport(false,
                 QStringLiteral("Failed to copy clip to output path:\n%1").arg(outputPath_));
@@ -782,6 +804,9 @@ void ClipExporter::concatenateClips() {
     }
     listFile.close();
 
+    outputWriteStarted_ = true;
+    discardPartialSidecar();
+
     QStringList arguments;
     arguments << QStringLiteral("-y")
               << QStringLiteral("-f") << QStringLiteral("concat")
@@ -813,7 +838,7 @@ void ClipExporter::onConcatProcessFinished(int exitCode, QProcess::ExitStatus ex
         return;
     }
 
-    finishExport(true, {});
+    finalizeCompilationSidecar();
 }
 
 void ClipExporter::cleanup() {
@@ -828,9 +853,168 @@ void ClipExporter::finishExport(bool success, const QString& message) {
         cleanup();
         return;
     }
+    if (!success && outputWriteStarted_) {
+        discardPartialSidecar();
+    }
     exportFinishedEmitted_ = true;
     emit exportFinished(success, message);
     cleanup();
+}
+
+void ClipExporter::discardPartialSidecar() {
+    if (outputPath_.isEmpty()) {
+        return;
+    }
+    QFile::remove(CompilationSidecar::clipsJsonPathForVideo(outputPath_));
+}
+
+namespace {
+
+bool replaceDestinationFile(const QString& replacementPath, const QString& destinationPath) {
+    const QString backupPath = destinationPath + QStringLiteral(".ava-replace-backup");
+    QFile::remove(backupPath);
+    const bool destinationExisted = QFile::exists(destinationPath);
+    if (destinationExisted && !QFile::rename(destinationPath, backupPath)) {
+        return false;
+    }
+    if (QFile::rename(replacementPath, destinationPath)) {
+        QFile::remove(backupPath);
+        return true;
+    }
+    if (QFile::copy(replacementPath, destinationPath)) {
+        QFile::remove(replacementPath);
+        QFile::remove(backupPath);
+        return true;
+    }
+    if (destinationExisted) {
+        QFile::rename(backupPath, destinationPath);
+    }
+    return false;
+}
+
+}  // namespace
+
+void ClipExporter::embedChapterMetadata(const QVector<qint64>& offsetMilliseconds,
+                                        const QVector<qint64>& durationMilliseconds) {
+    if (cancelled_ || !tempDir_ || offsetMilliseconds.size() != clips_.size() ||
+        durationMilliseconds.size() != clips_.size()) {
+        qWarning("ClipExporter: skipped chapter metadata because export state was incomplete");
+        return;
+    }
+
+    QStringList titles;
+    titles.reserve(clips_.size());
+    for (int index = 0; index < clips_.size(); ++index) {
+        titles.append(CompilationSidecar::chapterTitle(
+            index + 1, clips_.size(), clips_.at(index).compilation.periodLabel));
+    }
+    const QString metadata = CompilationSidecar::renderChapterMetadata(
+        offsetMilliseconds, durationMilliseconds, titles);
+    const QString metadataPath = tempDir_->filePath(QStringLiteral("chapters.ffmeta"));
+    QFile metadataFile(metadataPath);
+    if (!metadataFile.open(QIODevice::WriteOnly)) {
+        qWarning("ClipExporter: could not write chapter metadata: %s",
+                 qPrintable(metadataFile.errorString()));
+        return;
+    }
+    const QByteArray metadataBytes = metadata.toUtf8();
+    if (metadataFile.write(metadataBytes) != metadataBytes.size()) {
+        qWarning("ClipExporter: chapter metadata write was short");
+        metadataFile.close();
+        return;
+    }
+    metadataFile.close();
+
+    const QString remuxPath = tempDir_->filePath(QStringLiteral("with_chapters.mp4"));
+    QProcess remux;
+    remux.start(ffmpegPath_, {
+        QStringLiteral("-y"),
+        QStringLiteral("-i"), outputPath_,
+        QStringLiteral("-f"), QStringLiteral("ffmetadata"),
+        QStringLiteral("-i"), metadataPath,
+        QStringLiteral("-map"), QStringLiteral("0"),
+        QStringLiteral("-c"), QStringLiteral("copy"),
+        QStringLiteral("-map_metadata"), QStringLiteral("1"),
+        QStringLiteral("-map_chapters"), QStringLiteral("1"),
+        remuxPath,
+    });
+    if (!remux.waitForFinished(120000)) {
+        remux.kill();
+        remux.waitForFinished(1000);
+        qWarning("ClipExporter: chapter remux timed out; keeping the compilation without chapters");
+        return;
+    }
+    if (remux.exitStatus() != QProcess::NormalExit || remux.exitCode() != 0) {
+        const QString stderrOutput =
+            QString::fromUtf8(remux.readAllStandardError()).trimmed().right(500);
+        qWarning("ClipExporter: chapter remux failed; keeping the compilation without chapters: %s",
+                 qPrintable(stderrOutput));
+        return;
+    }
+    if (!replaceDestinationFile(remuxPath, outputPath_)) {
+        qWarning("ClipExporter: could not replace the compilation with the chapter remux");
+    }
+}
+
+void ClipExporter::finalizeCompilationSidecar() {
+    if (cancelled_) {
+        finishExport(false, QStringLiteral("Export cancelled."));
+        return;
+    }
+    if (measuredSegmentDurationSeconds_.size() != clips_.size()) {
+        finishExport(false, QStringLiteral("Measured clip durations do not match the concat list."));
+        return;
+    }
+
+    QVector<qint64> durationMilliseconds;
+    durationMilliseconds.reserve(measuredSegmentDurationSeconds_.size());
+    for (const double measuredSeconds : measuredSegmentDurationSeconds_) {
+        durationMilliseconds.append(
+            CompilationSidecar::roundSecondsToMilliseconds(measuredSeconds));
+    }
+    const CompilationSidecar::OffsetAccumulation offsets =
+        CompilationSidecar::accumulateOffsets(durationMilliseconds);
+
+    embedChapterMetadata(offsets.offsetMilliseconds, durationMilliseconds);
+    if (cancelled_) {
+        finishExport(false, QStringLiteral("Export cancelled."));
+        return;
+    }
+
+    CompilationSidecar::SidecarBuildInput input;
+    input.avaVersion = AvaVersion::current();
+    input.videoFileName = QFileInfo(outputPath_).fileName();
+    input.sourceVideoFileName = QFileInfo(sourceVideoPath_).fileName();
+    input.matchXmlFileName = matchXmlFileName_;
+    input.finalDurationSeconds =
+        CompilationSidecar::probeMediaDurationSeconds(ffprobePath_, outputPath_);
+    input.framesPerSecond =
+        CompilationSidecar::probeVideoFramesPerSecond(ffprobePath_, outputPath_);
+    input.measuredDurationSeconds = measuredSegmentDurationSeconds_;
+    input.clipsInConcatOrder.reserve(clips_.size());
+    for (const ClipSegment& clip : clips_) {
+        input.clipsInConcatOrder.append(clip.compilation);
+    }
+
+    const CompilationSidecar::SidecarDocument document = CompilationSidecar::buildDocument(input);
+    if (!document.verified) {
+        const QString finalText = document.durationKnown
+            ? CompilationSidecar::formatSeconds(document.durationMilliseconds)
+            : QStringLiteral("unknown");
+        qWarning("ClipExporter: clip timestamp check failed for \"%s\" (final %s s, clips end at %s s)",
+                 qPrintable(outputPath_),
+                 qPrintable(finalText),
+                 qPrintable(CompilationSidecar::formatSeconds(offsets.summedEndMilliseconds)));
+    }
+
+    QString writeError;
+    const QByteArray jsonBytes = CompilationSidecar::renderJson(document);
+    if (!CompilationSidecar::writeUtf8FileAtomically(
+            CompilationSidecar::clipsJsonPathForVideo(outputPath_), jsonBytes, &writeError)) {
+        finishExport(false, AppLocale::trUi("export.sidecar_write_failed").arg(writeError));
+        return;
+    }
+    finishExport(true, {});
 }
 
 void ClipExporter::stopAndDiscardProcess() {
@@ -886,9 +1070,9 @@ QString generateScoreboardImage(const ScoreboardOverlay& data,
         [&data, &homeScoreStr, &awayScoreStr, &separator](const qreal scale) -> ScoreboardLayout {
         ScoreboardLayout layout(scale);
         layout.paddingH = layout.scaler.pixels(16 * kScoreboardScale);
-        layout.paddingV = layout.scaler.pixels(10 * kScoreboardScale);
+        layout.paddingV = layout.scaler.pixels(6 * kScoreboardScale);
         layout.swatchWidth = layout.scaler.pixels(5 * kScoreboardScale);
-        layout.swatchHeight = layout.scaler.pixels(22 * kScoreboardScale);
+        layout.swatchHeight = layout.scaler.pixels(18 * kScoreboardScale);
         layout.swatchRadius = layout.scaler.pixels(2 * kScoreboardScale);
         layout.elementSpacing = layout.scaler.pixels(10 * kScoreboardScale);
         layout.scoreSpacing = layout.scaler.pixels(12 * kScoreboardScale);
@@ -956,7 +1140,7 @@ QString generateScoreboardImage(const ScoreboardOverlay& data,
     painter.setRenderHint(QPainter::TextAntialiasing);
 
     painter.setPen(Qt::NoPen);
-    constexpr int kScoreboardBackgroundAlpha = 198;
+    constexpr int kScoreboardBackgroundAlpha = 140;
     painter.setBrush(QColor(15, 23, 42, kScoreboardBackgroundAlpha));
     painter.drawRoundedRect(image.rect(), layout.cornerRadius, layout.cornerRadius);
 
@@ -1072,7 +1256,8 @@ QString generateBrandingImage(const QString& outputPath,
                                              qreal overlayScale) {
     constexpr double kBrandingScale = 1.3225;
     const OverlayScaler scaler(overlayScale);
-    const int kPadding = scaler.pixels(8 * kBrandingScale);
+    const int kPaddingH = scaler.pixels(8 * kBrandingScale);
+    const int kPaddingV = scaler.pixels(4 * kBrandingScale);
     const qreal kFontPointSize = scaler.points(12.0 * kBrandingScale);
     const int kCornerRadius = scaler.pixels(4 * kBrandingScale);
     const QString brandingText = QStringLiteral("Made with AVA");
@@ -1084,8 +1269,8 @@ QString generateBrandingImage(const QString& outputPath,
     const QFontMetrics metrics(font);
     const QRect textBounds = metrics.boundingRect(brandingText);
 
-    const int imageWidth = textBounds.width() + 2 * kPadding;
-    const int imageHeight = metrics.height() + 2 * kPadding;
+    const int imageWidth = textBounds.width() + 2 * kPaddingH;
+    const int imageHeight = metrics.height() + 2 * kPaddingV;
     if (imageWidth <= 0 || imageHeight <= 0) return {};
 
     QImage image(imageWidth, imageHeight, QImage::Format_ARGB32_Premultiplied);
@@ -1114,6 +1299,7 @@ QString generateOverlayImage(const QString& primaryText,
                                             const QString& outputPath,
                                             qreal overlayScale,
                                             int maxImageWidth) {
+    constexpr qreal kBottomOverlayContentScale = 0.7;
     constexpr qreal kDesignPadding = 16;
     constexpr qreal kDesignPrimaryFontSize = 24;
     constexpr qreal kDesignSecondaryFontSize = 18;
@@ -1157,10 +1343,11 @@ QString generateOverlayImage(const QString& primaryText,
         return layout;
     };
 
-    BottomOverlayLayout layout = measureLayout(overlayScale);
+    const qreal bottomOverlayScale = overlayScale * kBottomOverlayContentScale;
+    BottomOverlayLayout layout = measureLayout(bottomOverlayScale);
     if (maxImageWidth > 0 && layout.imageWidth > maxImageWidth) {
         layout = measureLayout(
-            scaleToFitWidth(overlayScale, layout.imageWidth, maxImageWidth));
+            scaleToFitWidth(bottomOverlayScale, layout.imageWidth, maxImageWidth));
     }
 
     if (layout.imageWidth <= 0 || layout.imageHeight <= 0) return {};

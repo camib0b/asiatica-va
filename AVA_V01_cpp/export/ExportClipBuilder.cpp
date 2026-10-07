@@ -1,10 +1,40 @@
 #include "ExportClipBuilder.h"
 
 #include "TagSession.h"
+#include "XmlExporter.h"
 
 #include <algorithm>
+#include <optional>
 
 namespace ExportClipBuilder {
+
+namespace {
+
+QString teamAbbrevForClip(const TagSession* session, const QString& teamKey) {
+    if (!session) {
+        return {};
+    }
+    if (teamKey == QStringLiteral("Home")) {
+        return session->homeAbbrev();
+    }
+    if (teamKey == QStringLiteral("Away")) {
+        return session->awayAbbrev();
+    }
+    return {};
+}
+
+QString periodLabelFromTag(const TagSession* session, quint64 tagId) {
+    if (!session) {
+        return {};
+    }
+    const int tagIndex = session->indexOfTagId(tagId);
+    if (!session->isValidTagIndex(tagIndex)) {
+        return {};
+    }
+    return session->tags().at(tagIndex).period;
+}
+
+}  // namespace
 
 QString teamDisplayName(const TagSession* session, const QString& teamKey) {
     if (teamKey == QStringLiteral("Home")) {
@@ -122,23 +152,54 @@ QVector<ClipSegment> buildClipSegments(const TagSession* session,
     const QVector<TagSession::GameTag> emptyTags;
     const auto& allTags = session ? session->tags() : emptyTags;
     const int totalClips = clips.size();
+    const QVector<XmlExporter::ExportedXmlInstance> exportedInstances =
+        XmlExporter::buildExportedInstances(session);
 
     for (int index = 0; index < totalClips; ++index) {
         const PresentationQueue::Clip& clip = clips.at(index);
         qint64 durationMs = clip.endMs - clip.startMs;
         if (durationMs < 500) durationMs = 500;
 
+        QString overlayLabel;
         QString primary;
         QString secondary;
         if (options.includeBottomOverlay) {
             const QString translatedEvent =
                 AppLocale::trEventForLanguage(clip.mainEvent, options.language);
-            primary = QStringLiteral("%1 - %2  %3 / %4")
-                .arg(teamDisplayName(session, clip.team), translatedEvent)
+            overlayLabel = QStringLiteral("%1 - %2")
+                .arg(teamDisplayName(session, clip.team), translatedEvent);
+            // Two spaces before the counter: "{label}  {n} / {N}".
+            primary = QStringLiteral("%1  %2 / %3")
+                .arg(overlayLabel)
                 .arg(index + 1)
                 .arg(totalClips);
             if (options.includeNotesOverlay && !clip.note.trimmed().isEmpty()) {
                 secondary = clip.note.trimmed();
+            }
+        }
+
+        ClipCompilationRecord compilation;
+        compilation.teamAbbrev = teamAbbrevForClip(session, clip.team);
+        compilation.overlayLabel = overlayLabel;
+        compilation.periodLabel = periodLabelFromTag(session, clip.tagId);
+        compilation.sourceStartMs = clip.startMs;
+        compilation.sourceEndMs = clip.endMs;
+        const std::optional<XmlExporter::ExportedXmlInstance> matchedInstance =
+            XmlExporter::taggedTeamInstanceFor(exportedInstances, clip.tagId, clip.mainEvent);
+        if (matchedInstance.has_value()) {
+            compilation.code = matchedInstance->code;
+            compilation.xmlInstanceId = matchedInstance->id;
+            compilation.sourceStartMs = matchedInstance->startMs;
+            compilation.sourceEndMs = matchedInstance->endMs;
+            compilation.labels.reserve(matchedInstance->labels.size());
+            for (const XmlExporter::ExportedXmlLabel& label : matchedInstance->labels) {
+                ClipSidecarLabel sidecarLabel;
+                sidecarLabel.group = label.group;
+                sidecarLabel.text = label.text;
+                compilation.labels.append(sidecarLabel);
+                if (label.group == QStringLiteral("QUARTOS") && !label.text.isEmpty()) {
+                    compilation.periodLabel = label.text;
+                }
             }
         }
 
@@ -195,7 +256,14 @@ QVector<ClipSegment> buildClipSegments(const TagSession* session,
             }
         }
 
-        segments.append({clip.startMs, durationMs, primary, secondary, scoreboardPhases});
+        ClipSegment segment;
+        segment.startMs = clip.startMs;
+        segment.durationMs = durationMs;
+        segment.overlayText = primary;
+        segment.secondaryOverlayText = secondary;
+        segment.scoreboards = scoreboardPhases;
+        segment.compilation = compilation;
+        segments.append(segment);
     }
 
     return segments;
