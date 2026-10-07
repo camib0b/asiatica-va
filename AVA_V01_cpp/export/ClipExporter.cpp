@@ -69,7 +69,7 @@ QSize cappedOutputSize(const QSize& sourceSize) {
 // - Top ~8–10% covers the title / share / watch-later bar when visible (hover, pause, start).
 // Keep our overlays clear of those bands so they stay readable on YouTube.
 // Refs: title-safe guidance for YouTube player UI (bottom ~8%); classic 10% title-safe margins.
-constexpr qreal kYouTubeTopSafeFraction = 0.10;
+constexpr qreal kYouTubeTopSafeFraction = 0.065;
 constexpr qreal kYouTubeBottomSafeFraction = 0.12;
 
 class OverlayScaler {
@@ -1070,9 +1070,9 @@ QString generateScoreboardImage(const ScoreboardOverlay& data,
         [&data, &homeScoreStr, &awayScoreStr, &separator](const qreal scale) -> ScoreboardLayout {
         ScoreboardLayout layout(scale);
         layout.paddingH = layout.scaler.pixels(16 * kScoreboardScale);
-        layout.paddingV = layout.scaler.pixels(10 * kScoreboardScale);
+        layout.paddingV = layout.scaler.pixels(6 * kScoreboardScale);
         layout.swatchWidth = layout.scaler.pixels(5 * kScoreboardScale);
-        layout.swatchHeight = layout.scaler.pixels(22 * kScoreboardScale);
+        layout.swatchHeight = layout.scaler.pixels(18 * kScoreboardScale);
         layout.swatchRadius = layout.scaler.pixels(2 * kScoreboardScale);
         layout.elementSpacing = layout.scaler.pixels(10 * kScoreboardScale);
         layout.scoreSpacing = layout.scaler.pixels(12 * kScoreboardScale);
@@ -1140,7 +1140,7 @@ QString generateScoreboardImage(const ScoreboardOverlay& data,
     painter.setRenderHint(QPainter::TextAntialiasing);
 
     painter.setPen(Qt::NoPen);
-    constexpr int kScoreboardBackgroundAlpha = 198;
+    constexpr int kScoreboardBackgroundAlpha = 140;
     painter.setBrush(QColor(15, 23, 42, kScoreboardBackgroundAlpha));
     painter.drawRoundedRect(image.rect(), layout.cornerRadius, layout.cornerRadius);
 
@@ -1256,7 +1256,8 @@ QString generateBrandingImage(const QString& outputPath,
                                              qreal overlayScale) {
     constexpr double kBrandingScale = 1.3225;
     const OverlayScaler scaler(overlayScale);
-    const int kPadding = scaler.pixels(8 * kBrandingScale);
+    const int kPaddingH = scaler.pixels(8 * kBrandingScale);
+    const int kPaddingV = scaler.pixels(4 * kBrandingScale);
     const qreal kFontPointSize = scaler.points(12.0 * kBrandingScale);
     const int kCornerRadius = scaler.pixels(4 * kBrandingScale);
     const QString brandingText = QStringLiteral("Made with AVA");
@@ -1268,8 +1269,8 @@ QString generateBrandingImage(const QString& outputPath,
     const QFontMetrics metrics(font);
     const QRect textBounds = metrics.boundingRect(brandingText);
 
-    const int imageWidth = textBounds.width() + 2 * kPadding;
-    const int imageHeight = metrics.height() + 2 * kPadding;
+    const int imageWidth = textBounds.width() + 2 * kPaddingH;
+    const int imageHeight = metrics.height() + 2 * kPaddingV;
     if (imageWidth <= 0 || imageHeight <= 0) return {};
 
     QImage image(imageWidth, imageHeight, QImage::Format_ARGB32_Premultiplied);
@@ -1298,6 +1299,7 @@ QString generateOverlayImage(const QString& primaryText,
                                             const QString& outputPath,
                                             qreal overlayScale,
                                             int maxImageWidth) {
+    constexpr qreal kBottomOverlayContentScale = 0.7;
     constexpr qreal kDesignPadding = 16;
     constexpr qreal kDesignPrimaryFontSize = 24;
     constexpr qreal kDesignSecondaryFontSize = 18;
@@ -1341,10 +1343,11 @@ QString generateOverlayImage(const QString& primaryText,
         return layout;
     };
 
-    BottomOverlayLayout layout = measureLayout(overlayScale);
+    const qreal bottomOverlayScale = overlayScale * kBottomOverlayContentScale;
+    BottomOverlayLayout layout = measureLayout(bottomOverlayScale);
     if (maxImageWidth > 0 && layout.imageWidth > maxImageWidth) {
         layout = measureLayout(
-            scaleToFitWidth(overlayScale, layout.imageWidth, maxImageWidth));
+            scaleToFitWidth(bottomOverlayScale, layout.imageWidth, maxImageWidth));
     }
 
     if (layout.imageWidth <= 0 || layout.imageHeight <= 0) return {};
