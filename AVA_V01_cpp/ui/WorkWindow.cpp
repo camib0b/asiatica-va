@@ -1583,12 +1583,18 @@ void WorkWindow::onPresentationQueueChanged() {
         presentationAutoPauseArmed_ = false;
     }
     updatePresentationStage();
-    configurePresentationClipBarForCurrentClip();
+    // setClipInterval refresh emits queueChanged before clipIntervalChanged; reconfiguring here
+    // would reset ClipTrimBar::dragTarget_ and end an in-progress handle drag.
+    if (!updatingPresentationClipBar_) {
+        configurePresentationClipBarForCurrentClip();
+    }
 }
 
 void WorkWindow::onPresentationCurrentClipChanged(int /*queueIndex*/) {
     updatePresentationStage();
-    configurePresentationClipBarForCurrentClip();
+    if (!updatingPresentationClipBar_) {
+        configurePresentationClipBarForCurrentClip();
+    }
 }
 
 void WorkWindow::onPresentationClipIntervalChanged(int queueIndex) {
