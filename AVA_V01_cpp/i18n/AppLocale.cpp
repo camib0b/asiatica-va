@@ -87,7 +87,7 @@ struct SpanishEventEntry {
   const char* spanish;
 };
 
-constexpr std::array<SpanishEventEntry, 63> kSpanishEventEntries{{
+constexpr std::array<SpanishEventEntry, 64> kSpanishEventEntries{{
     // Main grid
     {"Circle Entry", "Ingreso área"},
     {"Shot", "Tiro"},
@@ -154,6 +154,7 @@ constexpr std::array<SpanishEventEntry, 63> kSpanishEventEntries{{
     {"Right", "Derecha"},
     {"3 man", "de 3"},
     {"4 man", "de 4"},
+    {"Fast", "rápida"},
     // Default follow-up team labels (when names empty; English canonical tokens)
     {"home", "Local"},
     {"away", "Visita"},
