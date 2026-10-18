@@ -9,6 +9,7 @@
 #include <exception>
 #include <new>
 #include "style/theme.h"
+#include "style/Motion.h"
 
 namespace {
 
@@ -41,6 +42,7 @@ int main(int argc, char* argv[]) {
             Style::ApplyLightTheme();
             XaiConfig::bootstrap();
             AppLocale::loadFromSettings();
+            Motion::loadFromSettings();
             EventDefaults::loadFromSettings();
             LicenseManager::instance().bootstrap();
 

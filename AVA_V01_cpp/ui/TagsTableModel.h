@@ -10,6 +10,7 @@
 /// incremental playhead and new-tag flash highlighting.
 class TagsTableModel final : public QAbstractTableModel {
   Q_OBJECT
+  Q_PROPERTY(QColor flashTint READ flashTint WRITE setFlashTint)
 
 public:
   struct Row {
@@ -37,6 +38,8 @@ public:
 
   void setPlayheadMs(qint64 playheadMs);
   void setFlashTagId(quint64 tagId);
+  QColor flashTint() const { return flashTint_; }
+  void setFlashTint(const QColor& color);
 
   quint64 tagIdAt(int row) const;
   int tagSessionIndexAt(int row) const;
@@ -53,5 +56,6 @@ private:
   QVector<Row> rows_;
   qint64 playheadMs_ = -1;
   quint64 flashTagId_ = 0;
+  QColor flashTint_ = QColor(0, 0, 0, 0);
   QSet<int> playheadHighlightedRows_;
 };

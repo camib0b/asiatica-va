@@ -473,8 +473,6 @@ void ClipExporter::processNextClip() {
         return;
     }
 
-    emit progressChanged(currentClipIndex_ + 1, clips_.size());
-
     const ClipSegment& clip = clips_.at(currentClipIndex_);
     if (clip.durationMs <= 0) {
         finishExport(false,
@@ -1039,6 +1037,10 @@ void ClipExporter::startFfmpegJob(const QStringList& arguments, bool concatenati
         connect(currentProcess_.get(),
                 QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &ClipExporter::onClipProcessFinished);
+        connect(currentProcess_.get(), &QProcess::started, this, [this]() {
+            if (cancelled_ || exportFinishedEmitted_) return;
+            emit progressChanged(currentClipIndex_ + 1, clips_.size());
+        });
     }
     connect(currentProcess_.get(), &QProcess::errorOccurred, this, &ClipExporter::onProcessError);
     currentProcess_->start(ffmpegPath_, arguments);

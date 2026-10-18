@@ -2,6 +2,7 @@
 #include "TagsTableModel.h"
 #include "ClipDurationSettingsDialog.h"
 #include "PresentationPanel.h"
+#include "../style/Motion.h"
 #include "../style/StyleProps.h"
 #include "../style/ThemeColors.h"
 #include "../components/VideoPlayer.h"
@@ -48,6 +49,10 @@
 #include <QHeaderView>
 #include <QTableView>
 #include <QItemSelectionModel>
+#include <QPainter>
+#include <QPaintEvent>
+#include <QResizeEvent>
+#include <QPropertyAnimation>
 #include <QAction>
 #include <QKeySequence>
 #include <QBrush>
@@ -150,7 +155,155 @@ QString followUpForEventColumn(const QString& followUpEvent, const TagSession* s
     }
     return AppLocale::followUpPathWithoutTeamSegments(followUpEvent, session->homeTeamName(), session->awayTeamName());
 }
+
+Motion::ButtonColors tagButtonColors() {
+    Motion::ButtonColors colors;
+    colors.restBackground = Style::ThemeColors::transparent();
+    colors.restBorder = Style::ThemeColors::transparent();
+    colors.hoverBackground = Style::ThemeColors::hoverSurface();
+    colors.hoverBorder = Style::ThemeColors::transparent();
+    colors.pressedBackground = Style::ThemeColors::pressedSurface();
+    colors.pressedBorder = Style::ThemeColors::transparent();
+    return colors;
+}
+
 } // namespace
+
+class ModeLabelTint final : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(QColor textColor READ textColor WRITE setTextColor)
+
+public:
+    explicit ModeLabelTint(QToolButton* button) : QObject(button), button_(button) {
+        setObjectName(QStringLiteral("motion.modeLabel"));
+    }
+
+    QColor textColor() const { return textColor_; }
+
+    void setTextColor(const QColor& color) {
+        if (textColor_ == color) return;
+        textColor_ = color;
+        if (!button_) return;
+        const QString selector = button_->objectName().isEmpty()
+            ? QStringLiteral("QToolButton")
+            : QStringLiteral("QToolButton#%1").arg(button_->objectName());
+        button_->setStyleSheet(QStringLiteral("%1 { color: %2; }").arg(selector, color.name(QColor::HexRgb)));
+    }
+
+private:
+    QPointer<QToolButton> button_;
+    QColor textColor_;
+};
+
+class ModeToggleTrack final : public QWidget {
+    Q_OBJECT
+    Q_PROPERTY(QRectF pillRect READ pillRect WRITE setPillRect)
+
+public:
+    explicit ModeToggleTrack(QWidget* parent = nullptr) : QWidget(parent) {
+        setObjectName(QStringLiteral("WorkModeToggleGroup"));
+        setAttribute(Qt::WA_StyledBackground, true);
+    }
+
+    void setButtons(QToolButton* tagging, QToolButton* analyzing, QToolButton* presenting) {
+        taggingButton_ = tagging;
+        analyzingButton_ = analyzing;
+        presentingButton_ = presenting;
+        tintFor(tagging);
+        tintFor(analyzing);
+        tintFor(presenting);
+    }
+
+    void syncToMode(bool animate) {
+        syncLabels(animate);
+        syncPillGeometry(animate);
+    }
+
+    QRectF pillRect() const { return pillRect_; }
+
+    void setPillRect(const QRectF& rect) {
+        if (pillRect_ == rect) return;
+        pillRect_ = rect;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent* event) override {
+        QWidget::paintEvent(event);
+        if (pillRect_.width() < 1.0) return;
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setPen(QPen(Style::ThemeColors::border(), 1.0));
+        painter.setBrush(Style::ThemeColors::surface());
+        painter.drawRoundedRect(pillRect_.adjusted(0.5, 0.5, -0.5, -0.5), 6.0, 6.0);
+    }
+
+    void resizeEvent(QResizeEvent* event) override {
+        QWidget::resizeEvent(event);
+        auto* animation = findChild<QPropertyAnimation*>(QStringLiteral("motion.property.pillRect"),
+                                                        Qt::FindDirectChildrenOnly);
+        const bool sliding = animation && animation->state() == QAbstractAnimation::Running;
+        syncPillGeometry(sliding);
+    }
+
+private:
+    ModeLabelTint* tintFor(QToolButton* button) {
+        if (!button) return nullptr;
+        auto* tint = button->findChild<ModeLabelTint*>(QStringLiteral("motion.modeLabel"),
+                                                       Qt::FindDirectChildrenOnly);
+        if (!tint) tint = new ModeLabelTint(button);
+        return tint;
+    }
+
+    QToolButton* activeButton() const {
+        if (taggingButton_ && taggingButton_->isChecked()) return taggingButton_;
+        if (analyzingButton_ && analyzingButton_->isChecked()) return analyzingButton_;
+        if (presentingButton_ && presentingButton_->isChecked()) return presentingButton_;
+        return taggingButton_;
+    }
+
+    QRectF rectForButton(QToolButton* button) const {
+        if (!button || !button->isVisible()) return {};
+        return QRectF(button->geometry()).adjusted(1.0, 1.0, -1.0, -1.0);
+    }
+
+    void syncLabels(bool animate) {
+        const int duration = animate ? Motion::kHoverIn : 0;
+        const QList<QPointer<QToolButton>> buttons = {taggingButton_, analyzingButton_, presentingButton_};
+        for (const QPointer<QToolButton>& button : buttons) {
+            if (!button) continue;
+            ModeLabelTint* tint = tintFor(button);
+            if (!tint) continue;
+            const QColor color = button->isChecked() ? Style::ThemeColors::foreground()
+                                                     : Style::ThemeColors::quietText();
+            Motion::animateColor(tint, "textColor", color, duration);
+        }
+    }
+
+    void syncPillGeometry(bool animate) {
+        const QRectF target = rectForButton(activeButton());
+        const QEasingCurve curve = Motion::strongOut();
+        if (target.width() < 1.0) {
+            if (pillRect_.width() >= 1.0) {
+                Motion::animateProperty(this, "pillRect", QVariant::fromValue(QRectF()), 0, curve);
+            }
+            return;
+        }
+        const bool instant = !animate || !pillPlaced_ || Motion::reduced();
+        Motion::animateProperty(this,
+                                "pillRect",
+                                QVariant::fromValue(target),
+                                instant ? 0 : Motion::kEnter,
+                                curve);
+        pillPlaced_ = true;
+    }
+
+    QPointer<QToolButton> taggingButton_;
+    QPointer<QToolButton> analyzingButton_;
+    QPointer<QToolButton> presentingButton_;
+    QRectF pillRect_;
+    bool pillPlaced_ = false;
+};
 
 WorkWindow::WorkWindow(QWidget* parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground, true);
@@ -303,6 +456,10 @@ void WorkWindow::applyUiStrings() const {
     if (clipDurationSettingsAction_) {
         clipDurationSettingsAction_->setText(AppLocale::trUi("menu.clip_durations"));
     }
+    if (reduceMotionAction_) {
+        reduceMotionAction_->setText(AppLocale::trUi("menu.reduce_motion"));
+        reduceMotionAction_->setToolTip(AppLocale::trUi("menu.reduce_motion_tooltip"));
+    }
     if (tagsHeaderLabel_) tagsHeaderLabel_->setText(AppLocale::trUi("tags.header"));
     if (tagsFilterButton_) tagsFilterButton_->setText(AppLocale::trUi("tags.filter"));
     if (tagsRemoveFiltersButton_) tagsRemoveFiltersButton_->setText(AppLocale::trUi("tags.remove_filters"));
@@ -453,11 +610,22 @@ void WorkWindow::setTagSession(TagSession* session) {
     }));
 }
 
+void WorkWindow::syncModeToggleChecks() {
+    if (modeTaggingBtn_) modeTaggingBtn_->setChecked(mode_ == Mode::Tagging);
+    if (modeAnalyzingBtn_) modeAnalyzingBtn_->setChecked(mode_ == Mode::Analyzing);
+    if (modePresentingBtn_) modePresentingBtn_->setChecked(mode_ == Mode::Presenting);
+    if (modeToggleTrack_) modeToggleTrack_->syncToMode(false);
+}
+
 void WorkWindow::setMode(Mode m) {
     if (m == Mode::Presenting && !LicenseManager::instance().isEntitled()) {
+        syncModeToggleChecks();
         return;
     }
-    if (mode_ == m) return;
+    if (mode_ == m) {
+        syncModeToggleChecks();
+        return;
+    }
     flushPendingClipNote();
     if (mode_ == Mode::Presenting && m != Mode::Presenting) {
         detachPresentationKeyboardShortcuts();
@@ -477,6 +645,7 @@ void WorkWindow::setMode(Mode m) {
     if (modeTaggingBtn_) modeTaggingBtn_->setChecked(m == Mode::Tagging);
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->setChecked(m == Mode::Analyzing);
     if (modePresentingBtn_) modePresentingBtn_->setChecked(m == Mode::Presenting);
+    if (modeToggleTrack_) modeToggleTrack_->syncToMode(true);
     refreshPlaybackShortcutFocusGate();
 }
 
@@ -598,7 +767,9 @@ void WorkWindow::buildUi() {
     topLayout->setContentsMargins(0, 0, 0, 0);
     topLayout->setSpacing(12);
 
-    modeTaggingBtn_ = new QToolButton(topRow);
+    modeToggleTrack_ = new ModeToggleTrack(topRow);
+
+    modeTaggingBtn_ = new QToolButton(modeToggleTrack_);
     modeTaggingBtn_->setObjectName(QStringLiteral("WorkModeTaggingButton"));
     modeTaggingBtn_->setCheckable(true);
     modeTaggingBtn_->setChecked(true);
@@ -606,7 +777,7 @@ void WorkWindow::buildUi() {
     Style::setSize(modeTaggingBtn_, "sm");
     modeTaggingBtn_->setCursor(Qt::PointingHandCursor);
 
-    modeAnalyzingBtn_ = new QToolButton(topRow);
+    modeAnalyzingBtn_ = new QToolButton(modeToggleTrack_);
     modeAnalyzingBtn_->setObjectName(QStringLiteral("WorkModeAnalyzingButton"));
     modeAnalyzingBtn_->setCheckable(true);
     modeAnalyzingBtn_->setChecked(false);
@@ -614,7 +785,7 @@ void WorkWindow::buildUi() {
     Style::setSize(modeAnalyzingBtn_, "sm");
     modeAnalyzingBtn_->setCursor(Qt::PointingHandCursor);
 
-    modePresentingBtn_ = new QToolButton(topRow);
+    modePresentingBtn_ = new QToolButton(modeToggleTrack_);
     modePresentingBtn_->setObjectName(QStringLiteral("WorkModePresentingButton"));
     modePresentingBtn_->setCheckable(true);
     modePresentingBtn_->setChecked(false);
@@ -622,15 +793,15 @@ void WorkWindow::buildUi() {
     Style::setSize(modePresentingBtn_, "sm");
     modePresentingBtn_->setCursor(Qt::PointingHandCursor);
 
-    auto* modeToggleGroup = new QWidget(topRow);
-    modeToggleGroup->setObjectName(QStringLiteral("WorkModeToggleGroup"));
-    auto* modeToggleLayout = new QHBoxLayout(modeToggleGroup);
+    auto* modeToggleLayout = new QHBoxLayout(modeToggleTrack_);
     modeToggleLayout->setContentsMargins(3, 3, 3, 3);
     modeToggleLayout->setSpacing(4);
     modeToggleLayout->addWidget(modeTaggingBtn_);
     modeToggleLayout->addWidget(modeAnalyzingBtn_);
     modeToggleLayout->addWidget(modePresentingBtn_);
-    topLayout->addWidget(modeToggleGroup);
+    modeToggleTrack_->setButtons(modeTaggingBtn_, modeAnalyzingBtn_, modePresentingBtn_);
+    modeToggleTrack_->syncToMode(false);
+    topLayout->addWidget(modeToggleTrack_);
     topLayout->addSpacing(16);
 
     videoControlsRow_ = new QWidget(this);
@@ -671,6 +842,10 @@ void WorkWindow::buildUi() {
     importXmlAction_ = videoMenu_->addAction(QString());
     exportXmlAction_ = videoMenu_->addAction(QString());
     clipDurationSettingsAction_ = videoMenu_->addAction(QString());
+    videoMenu_->addSeparator();
+    reduceMotionAction_ = videoMenu_->addAction(QString());
+    reduceMotionAction_->setCheckable(true);
+    reduceMotionAction_->setChecked(Motion::reducedMotionPreferred());
     videoMenuButton_->setMenu(videoMenu_);
     videoControlsLayout->addWidget(videoMenuButton_, 0, Qt::AlignRight | Qt::AlignVCenter);
 
@@ -735,6 +910,9 @@ void WorkWindow::buildUi() {
     Style::setVariant(undoLastTagButton_, "ghost");
     Style::setSize(undoLastTagButton_, "sm");
     undoLastTagButton_->setCursor(Qt::PointingHandCursor);
+    Motion::installButtonHover(tagsFilterButton_, tagButtonColors());
+    Motion::installButtonHover(tagsRemoveFiltersButton_, tagButtonColors());
+    Motion::installButtonHover(undoLastTagButton_, tagButtonColors());
 
     tagsHeaderLayout->addWidget(tagsHeaderLabel_, 0);
     tagsHeaderLayout->addStretch(1);
@@ -906,6 +1084,7 @@ void WorkWindow::buildUi() {
     if (modeTaggingBtn_) modeTaggingBtn_->hide();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->hide();
     if (modePresentingBtn_) modePresentingBtn_->hide();
+    if (modeToggleTrack_) modeToggleTrack_->syncToMode(false);
 }
 
 void WorkWindow::buildPresentationUi() {
@@ -961,6 +1140,9 @@ void WorkWindow::wireSignals() {
     connect(exportXmlAction_, &QAction::triggered, this, &WorkWindow::onExportXml);
     connect(clipDurationSettingsAction_, &QAction::triggered, this,
             &WorkWindow::onClipDurationSettings);
+    connect(reduceMotionAction_, &QAction::toggled, this, [](bool checked) {
+        Motion::setReducedMotionPreferred(checked);
+    });
 
     // GameControls -> capture timestamp and store tags
     connect(gameControls_, &GameControls::mainEventTimestampCaptured, this, [this](const QString& mainEvent) {
@@ -1263,6 +1445,11 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     if (modeTaggingBtn_) modeTaggingBtn_->show();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->show();
     if (modePresentingBtn_) modePresentingBtn_->show();
+    if (modeToggleTrack_) {
+        QTimer::singleShot(0, modeToggleTrack_, [track = QPointer<ModeToggleTrack>(modeToggleTrack_)]() {
+            if (track) track->syncToMode(false);
+        });
+    }
 
     if (presentationQueue_) {
         presentationQueue_->clear();
@@ -1340,6 +1527,7 @@ void WorkWindow::onCloseVideo() {
     if (modeTaggingBtn_) modeTaggingBtn_->hide();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->hide();
     if (modePresentingBtn_) modePresentingBtn_->hide();
+    if (modeToggleTrack_) modeToggleTrack_->syncToMode(false);
     if (presentationQueue_) presentationQueue_->clear();
     if (presentationPanel_) presentationPanel_->setExportEnabled(false);
     presentationAutoPauseArmed_ = false;
@@ -2042,17 +2230,18 @@ void WorkWindow::flashNewTagRow() {
     } else {
         newTagFlashTimer_ = new QTimer(this);
         newTagFlashTimer_->setSingleShot(true);
-        connect(newTagFlashTimer_, &QTimer::timeout, this, &WorkWindow::clearNewTagFlash);
+        connect(newTagFlashTimer_, &QTimer::timeout, this, &WorkWindow::fadeNewTagFlash);
     }
     tagsModel_->setFlashTagId(lastAddedTagId_);
+    Motion::animateColor(tagsModel_, "flashTint", Style::ThemeColors::playheadHighlight(), 0);
     newTagFlashTimer_->start(500);
 }
 
-void WorkWindow::clearNewTagFlash() {
-    if (tagsModel_) {
-        tagsModel_->setFlashTagId(0);
-        if (videoPlayer_) tagsModel_->setPlayheadMs(videoPlayer_->currentPositionMs());
-    }
+void WorkWindow::fadeNewTagFlash() {
+    if (!tagsModel_ || tagsModel_->flashTint().alpha() == 0) return;
+    QColor clearTint = Style::ThemeColors::playheadHighlight();
+    clearTint.setAlpha(0);
+    Motion::animateColor(tagsModel_, "flashTint", clearTint, Motion::kHoverIn);
 }
 
 void WorkWindow::onPlayheadPositionChanged(qint64 positionMs) {
@@ -2299,3 +2488,5 @@ void WorkWindow::refreshTagsTableRows() {
         loadNoteForSelectedTag();
     }
 }
+
+#include "WorkWindow.moc"

@@ -1,5 +1,6 @@
 #include "WelcomeWindow.h"
 #include "QtPtr.h"
+#include "../style/Motion.h"
 #include "../style/StyleProps.h"
 #include "../i18n/AppLocale.h"
 #include "../license/LicenseManager.h"
@@ -14,6 +15,21 @@
 #include <QTimeZone>
 #include <QSizePolicy>
 #include <QEvent>
+#include <QShowEvent>
+
+namespace {
+
+QWidget* mountEntrance(QWidget* parent, QWidget* child, QVBoxLayout* column) {
+  auto frame = makeQtPtr<QWidget>(parent);
+  auto layout = makeQtPtr<QVBoxLayout>(frame.get());
+  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setSpacing(0);
+  layout->addWidget(child, 0, Qt::AlignHCenter);
+  column->addWidget(frame.get(), 0, Qt::AlignHCenter);
+  return frame.release();
+}
+
+}  // namespace
 
 
 WelcomeWindow::WelcomeWindow(QWidget* parent)
@@ -46,7 +62,7 @@ void WelcomeWindow::applyUiStrings() {
             licenseStatusLabel_->setText(AppLocale::trUi("license.status.trial").arg(status.daysRemaining));
         } else if (status.entitled && status.kind == QLatin1String("paid") && status.expiresAt > 0) {
             const QString dateText =
-                QDateTime::fromSecsSinceEpoch(status.expiresAt, QTimeZone::UTC).date().toString(Qt::ISODate);
+                QDateTime::fromSecsSinceEpoch(status.expiresAt, QTimeZone::utc()).date().toString(Qt::ISODate);
             licenseStatusLabel_->setText(AppLocale::trUi("license.status.paid").arg(dateText));
         } else {
             licenseStatusLabel_->clear();
@@ -89,13 +105,35 @@ void WelcomeWindow::buildUi() {
     enterLicenseButton->setFocusPolicy(Qt::TabFocus);
     enterLicenseButton_ = enterLicenseButton.get();
 
-    layout->addWidget(titleLabel.get(), 0, Qt::AlignHCenter);
-    layout->addWidget(importButton.get(), 0, Qt::AlignHCenter);
-    layout->addWidget(licenseStatusLabel.get(), 0, Qt::AlignHCenter);
-    layout->addWidget(enterLicenseButton.get(), 0, Qt::AlignHCenter);
+    titleEntrance_ = mountEntrance(contentContainer.get(), titleLabel.get(), layout.get());
+    importEntrance_ = mountEntrance(contentContainer.get(), importButton.get(), layout.get());
+
+    auto licenseRow = makeQtPtr<QWidget>(contentContainer.get());
+    auto licenseLayout = makeQtPtr<QVBoxLayout>(licenseRow.get());
+    licenseLayout->setContentsMargins(0, 0, 0, 0);
+    licenseLayout->setSpacing(12);
+    licenseLayout->addWidget(licenseStatusLabel.get(), 0, Qt::AlignHCenter);
+    licenseLayout->addWidget(enterLicenseButton.get(), 0, Qt::AlignHCenter);
+    layout->addWidget(licenseRow.get(), 0, Qt::AlignHCenter);
+    licenseEntrance_ = licenseRow.release();
 
     outerLayout->addWidget(contentContainer.get(), 0, Qt::AlignCenter);
     outerLayout->addStretch(1);
+}
+
+void WelcomeWindow::showEvent(QShowEvent* event) {
+    QWidget::showEvent(event);
+    if (entrancePlayed_) return;
+    entrancePlayed_ = true;
+    playEntrance();
+}
+
+void WelcomeWindow::playEntrance() {
+    // The import button is a child of its entrance frame, so it stays enabled
+    // and clickable while the frame is still transparent.
+    Motion::fadeIn(titleEntrance_, Motion::kEnter, 8, 0);
+    Motion::fadeIn(importEntrance_, Motion::kEnter, 8, Motion::kStagger);
+    Motion::fadeIn(licenseEntrance_, Motion::kEnter, 8, Motion::kStagger * 2);
 }
 
 void WelcomeWindow::changeEvent(QEvent* event) {

@@ -96,8 +96,8 @@ private:
   QList<QPushButton*> focusableButtonsOrder() const;
   void focusNextInDirection(Qt::Key key);
   void applyTeamOnlyTabNavigation(bool forwardTab);
-  void updateGameTimeUi();
-  void updateQuarterTrack();
+  void updateGameTimeUi(bool animateQuarterChange);
+  void updateQuarterTrack(bool animateQuarterChange);
 
 protected:
   bool eventFilter(QObject* obj, QEvent* event) override;
@@ -124,6 +124,7 @@ protected:
   QWidget* quarterTrack_ = nullptr;
   std::array<QWidget*, 4> quarterSegments_{};
   std::array<QLabel*, 4> quarterTrackLabels_{};
+  std::array<QString, 4> quarterSegmentStates_{};
 
   QPushButton* homeTeamButton_ = nullptr;
   QPushButton* awayTeamButton_ = nullptr;
