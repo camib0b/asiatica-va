@@ -36,7 +36,12 @@ struct ExportJobSnapshot {
     bool running = false;
     bool canCancel = false;
     bool canDismiss = false;
+    bool succeeded = false;
     bool failed = false;
+    bool cancelled = false;
+    /// True while an MP4 job is waiting for ffmpeg to start.
+    bool progressIndeterminate = false;
+    QString outputDirectory;
 };
 
 class ExportJobManager final : public QObject {

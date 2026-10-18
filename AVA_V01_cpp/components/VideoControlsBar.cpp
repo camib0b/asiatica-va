@@ -1,7 +1,9 @@
 #include "VideoControlsBar.h"
 #include "PlaybackRates.h"
 #include "PlaybackSpeedometer.h"
+#include "../style/Motion.h"
 #include "../style/StyleProps.h"
+#include "../style/ThemeColors.h"
 #include "../i18n/AppLocale.h"
 
 #include <QHBoxLayout>
@@ -10,9 +12,6 @@
 #include <QPaintEvent>
 #include <QPushButton>
 #include <QSizePolicy>
-
-#include <QTimer>
-#include <QPointer>
 
 #include <array>
 
@@ -24,14 +23,16 @@ constexpr int kTrayCornerRadiusPx = 10;
 constexpr int kTrayFillAlpha = 122;      // ~48% of zinc-950
 constexpr int kTrayBorderAlpha = 31;     // ~12% white hairline
 
-void setButtonFlashState(QPushButton* button, bool flashing) {
-  if (!button) {
-    return;
-  }
-  button->setProperty("flash", flashing);
-  button->style()->unpolish(button);
-  button->style()->polish(button);
-  button->update();
+Motion::ButtonColors videoButtonColors() {
+  Motion::ButtonColors colors;
+  colors.restBackground = Style::ThemeColors::transparent();
+  colors.restBorder = Style::ThemeColors::transparent();
+  colors.hoverBackground = QColor(255, 255, 255, 31);
+  colors.hoverBorder = Style::ThemeColors::transparent();
+  colors.pressedBackground = QColor(255, 255, 255, 51);
+  colors.pressedBorder = Style::ThemeColors::transparent();
+  colors.keepFocusRing = false;
+  return colors;
 }
 
 void applyButtonStrings(QPushButton* button, const char* textKey) {
@@ -90,6 +91,10 @@ void VideoControlsBar
   Style::setVariant(playPauseButton_, "outline");
   Style::setVariant(backButton_, "outline");
   Style::setVariant(forwardButton_, "outline");
+
+  for (QPushButton* button : videoControlButtons) {
+    Motion::installButtonHover(button, videoButtonColors());
+  }
 
   layout->addWidget(playPauseButton_);
   layout->addWidget(backButton_);
@@ -182,22 +187,11 @@ void VideoControlsBar::toggleMute() {
 }
 
 void VideoControlsBar::flashButtonBorder(QPushButton* button) {
-  if (!button) {
-    return;
-  }
-
-  auto* timer = button->findChild<QTimer*>(QStringLiteral("flashClearTimer"), Qt::FindDirectChildrenOnly);
-  if (!timer) {
-    timer = new QTimer(button);
-    timer->setObjectName(QStringLiteral("flashClearTimer"));
-    timer->setSingleShot(true);
-    connect(timer, &QTimer::timeout, button, [buttonGuard = QPointer<QPushButton>(button)]() {
-      setButtonFlashState(buttonGuard, false);
-    });
-  }
-
-  setButtonFlashState(button, true);
-  timer->start(kFlashDurationMs);
+  if (!button) return;
+  Motion::flashButtonColors(button,
+                            QColor(255, 255, 255, 71),
+                            Style::ThemeColors::transparent(),
+                            kFlashDurationMs);
 }
 
 void VideoControlsBar::flashPlayPauseButton()  { flashButtonBorder(playPauseButton_); }

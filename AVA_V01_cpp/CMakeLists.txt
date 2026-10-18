@@ -17,6 +17,7 @@ qt_add_executable(AVA
   i18n/AppLocale.cpp
   i18n/LocaleNotifier.cpp
   style/theme.cpp
+  style/Motion.cpp
   ui/MainWindow.cpp
   ui/WelcomeWindow.cpp
   ui/GameSetupWindow.cpp
@@ -67,11 +68,13 @@ if(APPLE)
     macos/PlaybackActivity.mm
     macos/SystemPowerNotifier.mm
     license/DeviceId_mac.mm
+    style/Motion_mac.mm
   )
   set_source_files_properties(
     macos/PlaybackActivity.mm
     macos/SystemPowerNotifier.mm
     license/DeviceId_mac.mm
+    style/Motion_mac.mm
     PROPERTIES COMPILE_OPTIONS -fobjc-arc)
   target_link_libraries(AVA PRIVATE
     "-framework Foundation"

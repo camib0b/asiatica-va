@@ -112,13 +112,23 @@ ExportJobSnapshot ExportJobManager::snapshotFor(const Job& job) const {
     snapshot.id = job.id;
     snapshot.displayName = job.displayName;
     snapshot.statusText = job.statusText;
-    snapshot.failed = job.state == JobState::Failed || job.state == JobState::Cancelled;
+    snapshot.succeeded = job.state == JobState::Succeeded;
+    snapshot.failed = job.state == JobState::Failed;
+    snapshot.cancelled = job.state == JobState::Cancelled;
     snapshot.running = job.state == JobState::Exporting;
     snapshot.canCancel = snapshot.running;
     snapshot.canDismiss = !snapshot.running;
+    if (!job.outputPath.isEmpty()) {
+        snapshot.outputDirectory = QFileInfo(job.outputPath).absolutePath();
+    }
 
-    if (job.totalClips > 0 && job.state == JobState::Exporting) {
-        snapshot.progressPercent = qMin(100, (job.currentClip * 100) / job.totalClips);
+    if (job.state == JobState::Exporting) {
+        if (job.currentClip <= 0 || job.totalClips <= 0) {
+            snapshot.progressIndeterminate = true;
+            snapshot.progressPercent = 0;
+        } else {
+            snapshot.progressPercent = qMin(100, (job.currentClip * 100) / job.totalClips);
+        }
     } else if (job.state == JobState::Succeeded) {
         snapshot.progressPercent = 100;
     } else {

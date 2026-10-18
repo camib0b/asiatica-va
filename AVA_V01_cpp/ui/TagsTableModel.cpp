@@ -89,6 +89,10 @@ QVariant TagsTableModel::data(const QModelIndex& index, int role) const {
       return QBrush(row.teamBackground);
     }
     if (column == kTimeColumn || column == kEventColumn) {
+      if (isFlashHighlightedRow(index.row()) && flashTint_.alpha() > 0
+          && !isPlayheadHighlightedRow(index.row())) {
+        return QBrush(flashTint_);
+      }
       if (isFlashHighlightedRow(index.row()) || isPlayheadHighlightedRow(index.row())) {
         return QBrush(Style::ThemeColors::playheadHighlight());
       }
@@ -151,6 +155,16 @@ void TagsTableModel::setFlashTagId(quint64 tagId) {
 
   if (previousRow >= 0) emitHighlightDataChanged(previousRow);
   if (nextRow >= 0 && nextRow != previousRow) emitHighlightDataChanged(nextRow);
+}
+
+void TagsTableModel::setFlashTint(const QColor& color) {
+  const bool clearFlash = color.alpha() == 0 && flashTagId_ != 0;
+  if (flashTint_ == color && !clearFlash) return;
+
+  const int row = rowForTagId(flashTagId_);
+  flashTint_ = color;
+  if (clearFlash) flashTagId_ = 0;
+  if (row >= 0) emitHighlightDataChanged(row);
 }
 
 quint64 TagsTableModel::tagIdAt(int row) const {

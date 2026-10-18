@@ -37,6 +37,7 @@ class PresentationQueue;
 class ExportJobManager;
 class ExportJobsBar;
 class MatchNotesEditor;
+class ModeToggleTrack;
 
 #include "../state/TagSession.h"
 
@@ -153,7 +154,8 @@ private:
   void loadMatchNote() const;
   void refreshMatchNoteMentionCandidates() const;
   void flashNewTagRow();
-  void clearNewTagFlash();
+  void fadeNewTagFlash();
+  void syncModeToggleChecks();
   QString displayTeamForTag(const TagSession::GameTag& tag) const;
   bool isMainEventAllowed(const QString& mainEvent) const;
   bool isTagAllowed(const QString& mainEvent, const QString& followUpEvent) const;
@@ -192,6 +194,7 @@ private:
   QToolButton* modeTaggingBtn_ = nullptr;
   QToolButton* modeAnalyzingBtn_ = nullptr;
   QToolButton* modePresentingBtn_ = nullptr;
+  ModeToggleTrack* modeToggleTrack_ = nullptr;
 
   // Presentation mode
   QWidget* presentationBanner_ = nullptr;
@@ -221,6 +224,7 @@ private:
   QAction* importXmlAction_ = nullptr;
   QAction* exportXmlAction_ = nullptr;
   QAction* clipDurationSettingsAction_ = nullptr;
+  QAction* reduceMotionAction_ = nullptr;
   QAction* statsOverlayAction_ = nullptr;
 
   // UI:

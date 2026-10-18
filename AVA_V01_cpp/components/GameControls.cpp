@@ -1,5 +1,6 @@
 #include "GameControls.h"
 #include "FollowUpCatalog.h"
+#include "../style/Motion.h"
 #include "../style/StyleProps.h"
 #include "../style/ThemeColors.h"
 #include "../i18n/AppLocale.h"
@@ -23,51 +24,97 @@
 #include <QSizePolicy>
 #include <QLayout>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPaintEvent>
 
 namespace {
-
-constexpr QLatin1StringView kDefaultTeamSelectedBorderHex("#18181b");
-constexpr int kFlashDurationMs = 150;
 constexpr int kQuarterSegmentHeightPx = 10;
 constexpr int kQuarterSegmentRadiusPx = 2;
+}
 
 class QuarterSegmentBar final : public QWidget {
-public:
+  Q_OBJECT
+  Q_PROPERTY(qreal fillProgress READ fillProgress WRITE setFillProgress)
+
+ public:
   explicit QuarterSegmentBar(QWidget* parent = nullptr) : QWidget(parent) {
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     setFixedHeight(kQuarterSegmentHeightPx);
+    setFocusPolicy(Qt::NoFocus);
+    fillColor_ = Style::ThemeColors::quarterSegmentEmpty();
+  }
+
+  qreal fillProgress() const { return fillProgress_; }
+
+  void setFillProgress(qreal progress) {
+    const qreal clamped = qBound(0.0, progress, 1.0);
+    if (qAbs(fillProgress_ - clamped) < 0.001) return;
+    fillProgress_ = clamped;
+    update();
+  }
+
+  void setFillColor(const QColor& color) {
+    if (fillColor_ == color) return;
+    fillColor_ = color;
+    update();
   }
 
   QSize sizeHint() const override { return QSize(24, kQuarterSegmentHeightPx); }
   QSize minimumSizeHint() const override { return QSize(8, kQuarterSegmentHeightPx); }
 
-protected:
+ protected:
   void paintEvent(QPaintEvent*) override {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
-    const QString state = property("quarterState").toString();
-    QColor fill = Style::ThemeColors::quarterSegmentEmpty();
-    if (state == QLatin1String("complete")) {
-      fill = Style::ThemeColors::quarterSegmentComplete();
-    } else if (state == QLatin1String("current")) {
-      fill = Style::ThemeColors::quarterSegmentCurrent();
-    }
+    const QRectF bounds = QRectF(rect());
+    QPainterPath clipPath;
+    clipPath.addRoundedRect(bounds, kQuarterSegmentRadiusPx, kQuarterSegmentRadiusPx);
+    painter.setClipPath(clipPath);
     painter.setPen(Qt::NoPen);
-    painter.setBrush(fill);
-    painter.drawRoundedRect(QRectF(rect()), kQuarterSegmentRadiusPx, kQuarterSegmentRadiusPx);
+    painter.setBrush(Style::ThemeColors::quarterSegmentEmpty());
+    painter.drawRect(bounds);
+    if (fillProgress_ <= 0.0) return;
+    painter.setBrush(fillColor_);
+    painter.drawRect(QRectF(bounds.left(), bounds.top(), bounds.width() * fillProgress_, bounds.height()));
   }
+
+ private:
+  qreal fillProgress_ = 0.0;
+  QColor fillColor_;
 };
 
-void setButtonFlashState(QPushButton* button, bool flashing) {
-  if (!button) {
-    return;
+class QuarterTrackLabel final : public QLabel {
+  Q_OBJECT
+  Q_PROPERTY(QColor textColor READ textColor WRITE setTextColor)
+
+ public:
+  explicit QuarterTrackLabel(const QString& text, QWidget* parent = nullptr) : QLabel(text, parent) {
+    setFocusPolicy(Qt::NoFocus);
+    textColor_ = Style::ThemeColors::faint();
+    applyColor();
   }
-  button->setProperty("flash", flashing);
-  button->style()->unpolish(button);
-  button->style()->polish(button);
-  button->update();
-}
+
+  QColor textColor() const { return textColor_; }
+
+  void setTextColor(const QColor& color) {
+    if (textColor_ == color) return;
+    textColor_ = color;
+    applyColor();
+  }
+
+ private:
+  void applyColor() {
+    setStyleSheet(QStringLiteral("QLabel[role=\"quarterTrackLabel\"] { color: %1; }")
+                      .arg(textColor_.name(QColor::HexRgb)));
+  }
+
+  QColor textColor_;
+};
+
+namespace {
+
+constexpr QLatin1StringView kDefaultTeamSelectedBorderHex("#18181b");
+constexpr int kFlashDurationMs = 150;
 
 QString normalizeTeamColorHex(const QString& hex) {
   QString hexClean = hex.trimmed();
@@ -80,39 +127,60 @@ QString normalizeTeamColorHex(const QString& hex) {
   return color.name(QColor::HexRgb);
 }
 
-QString teamSelectedButtonStylesheet(const QString& borderHex) {
-  const QString borderColor =
-      borderHex.isEmpty() ? QString(kDefaultTeamSelectedBorderHex) : borderHex;
-  return QStringLiteral(
-             "QPushButton {"
-             "  border: 2px solid %1;"
-             "  border-radius: 6px;"
-             "  background: #f4f4f5;"
-             "  font-weight: 700;"
-             "  color: #09090b;"
-             "  padding: 4px 2px;"
-             "}"
-             "QPushButton:hover {"
-             "  background: #e4e4e7;"
-             "  border: 2px solid %1;"
-             "  border-radius: 6px;"
-             "}"
-             "QPushButton:focus {"
-             "  border: 2px solid %1;"
-             "  border-radius: 6px;"
-             "  background: #f4f4f5;"
-             "  padding: 4px 2px;"
-             "}")
-      .arg(borderColor);
+Motion::ButtonColors colorsForGameButton(const QPushButton* button, const QPushButton* activeMainButton) {
+  Motion::ButtonColors colors;
+  const QString variant = button ? button->property("variant").toString() : QString();
+  if (variant == QLatin1String("gameControlFollowUp")) {
+    const QColor rest(QStringLiteral("#09090b"));
+    const QColor hover(QStringLiteral("#18181b"));
+    const QColor pressed(QStringLiteral("#000000"));
+    colors.restBackground = rest;
+    colors.restBorder = rest;
+    colors.hoverBackground = hover;
+    colors.hoverBorder = hover;
+    colors.pressedBackground = pressed;
+    colors.pressedBorder = pressed;
+    return colors;
+  }
+
+  const bool teamSelected = button && button->property("teamSelected").toBool();
+  const bool activeMain = button && button == activeMainButton;
+  if (teamSelected || activeMain) {
+    const QString borderHex = button->property("teamBorderHex").toString();
+    const QColor border = borderHex.isEmpty() ? QColor(kDefaultTeamSelectedBorderHex) : QColor(borderHex);
+    colors.restBackground = Style::ThemeColors::hoverSurface();
+    colors.hoverBackground = Style::ThemeColors::pressedSurface();
+    colors.pressedBackground = QColor(QStringLiteral("#d4d4d8"));
+    colors.restBorder = border;
+    colors.hoverBorder = border;
+    colors.pressedBorder = border;
+    colors.keepFocusRing = !teamSelected;
+    return colors;
+  }
+
+  colors.restBackground = Style::ThemeColors::surface();
+  colors.restBorder = Style::ThemeColors::border();
+  colors.hoverBackground = Style::ThemeColors::hoverSurface();
+  colors.hoverBorder = Style::ThemeColors::hoverBorder();
+  colors.pressedBackground = Style::ThemeColors::pressedSurface();
+  colors.pressedBorder = Style::ThemeColors::hoverBorder();
+  return colors;
+}
+
+void refreshGameButtonMotion(QPushButton* button, QPushButton* activeMainButton) {
+  if (!button) return;
+  Motion::setButtonHoverColors(button, colorsForGameButton(button, activeMainButton));
 }
 
 void applyTeamButtonSelectionStyle(QPushButton* button, bool selected, const QString& colorHex) {
   if (!button) return;
   Style::setState(button, "teamSelected", selected);
   if (selected) {
-    button->setStyleSheet(teamSelectedButtonStylesheet(normalizeTeamColorHex(colorHex)));
+    const QString normalized = normalizeTeamColorHex(colorHex);
+    button->setProperty("teamBorderHex",
+                        normalized.isEmpty() ? QString(kDefaultTeamSelectedBorderHex) : normalized);
   } else {
-    button->setStyleSheet(QString());
+    button->setProperty("teamBorderHex", QString());
   }
 }
 
@@ -282,6 +350,8 @@ void GameControls::updateTeamButtonSelectionVisual() {
                                 homeTeamColorHex_);
   applyTeamButtonSelectionStyle(awayTeamButton_, teamSideSelection_ == TeamSideSelection::Away,
                                 awayTeamColorHex_);
+  refreshGameButtonMotion(homeTeamButton_, activeMainButton_);
+  refreshGameButtonMotion(awayTeamButton_, activeMainButton_);
 }
 
 void GameControls::onHomeTeamButtonClicked() {
@@ -342,12 +412,12 @@ void GameControls::applyUiLanguage() {
       titleLabel->setText(AppLocale::trEvent(key));
     }
   }
-  updateGameTimeUi();
+  updateGameTimeUi(false);
 }
 
 void GameControls::resetGameTimeState() {
   gamePhase_ = GamePhase::NotStarted;
-  updateGameTimeUi();
+  updateGameTimeUi(false);
 }
 
 void GameControls::restoreGamePhase(TagSession::QuarterPhase phase, int currentQuarterIndex) {
@@ -373,7 +443,7 @@ void GameControls::restoreGamePhase(TagSession::QuarterPhase phase, int currentQ
       }
       break;
   }
-  updateGameTimeUi();
+  updateGameTimeUi(false);
 }
 
 QString GameControls::currentPeriodName() const {
@@ -389,7 +459,7 @@ QString GameControls::currentPeriodName() const {
   return QString();
 }
 
-void GameControls::updateGameTimeUi() {
+void GameControls::updateGameTimeUi(bool animateQuarterChange) {
   if (!periodAdvanceButton_ || !periodAdvanceTitleLabel_) return;
 
   const char* titleKey = "gamecontrols.start_game";
@@ -417,10 +487,10 @@ void GameControls::updateGameTimeUi() {
     periodAdvanceTitleLabel_->ensurePolished();
     periodAdvanceButton_->setMinimumWidth(buttonLayout->sizeHint().width());
   }
-  updateQuarterTrack();
+  updateQuarterTrack(animateQuarterChange);
 }
 
-void GameControls::updateQuarterTrack() {
+void GameControls::updateQuarterTrack(bool animateQuarterChange) {
   const bool gameEnded = (gamePhase_ == GamePhase::Ended);
   int currentQuarterIndex = -1;
   switch (gamePhase_) {
@@ -444,12 +514,42 @@ void GameControls::updateQuarterTrack() {
     } else {
       quarterState = QStringLiteral("empty");
     }
-    if (QWidget* segment = quarterSegments_.at(quarterIndex)) {
-      Style::setProp(segment, "quarterState", quarterState);
+
+    auto* segment = qobject_cast<QuarterSegmentBar*>(quarterSegments_.at(quarterIndex));
+    auto* label = qobject_cast<QuarterTrackLabel*>(quarterTrackLabels_.at(quarterIndex));
+    if (segment) Style::setProp(segment, "quarterState", quarterState);
+    if (label) Style::setProp(label, "quarterState", quarterState);
+
+    const QString previousState = quarterSegmentStates_.at(quarterIndex);
+    const bool becameCurrent = animateQuarterChange
+        && quarterState == QLatin1String("current")
+        && previousState != QLatin1String("current");
+
+    QColor fillColor = Style::ThemeColors::quarterSegmentEmpty();
+    qreal targetProgress = 0.0;
+    if (quarterState == QLatin1String("complete")) {
+      fillColor = Style::ThemeColors::quarterSegmentComplete();
+      targetProgress = 1.0;
+    } else if (quarterState == QLatin1String("current")) {
+      fillColor = Style::ThemeColors::quarterSegmentCurrent();
+      targetProgress = 1.0;
     }
-    if (QLabel* label = quarterTrackLabels_.at(quarterIndex)) {
-      Style::setProp(label, "quarterState", quarterState);
+    if (segment) segment->setFillColor(fillColor);
+
+    const QColor labelColor = quarterState == QLatin1String("empty")
+        ? Style::ThemeColors::faint()
+        : Style::ThemeColors::foreground();
+    const QEasingCurve curve = Motion::strongOut();
+    if (becameCurrent && segment && label) {
+      Motion::animateProperty(segment, "fillProgress", 0.0, 0, curve);
+      Motion::animateProperty(segment, "fillProgress", targetProgress, Motion::kMilestone, curve);
+      label->setTextColor(labelColor);
+      Motion::pulseOnce(label, "textColor", labelColor, Style::ThemeColors::accent(), Motion::kEnter);
+    } else {
+      if (segment) Motion::animateProperty(segment, "fillProgress", targetProgress, 0, curve);
+      if (label) Motion::animateColor(label, "textColor", labelColor, 0);
     }
+    quarterSegmentStates_.at(quarterIndex) = quarterState;
   }
 
   if (!quarterTrack_) return;
@@ -470,7 +570,7 @@ void GameControls::onPeriodAdvanceButtonClicked() {
   flashButtonBorder(periodAdvanceButton_);
   if (gamePhase_ == GamePhase::NotStarted) {
     gamePhase_ = GamePhase::Q1;
-    updateGameTimeUi();
+    updateGameTimeUi(true);
     emit gameStartRequested();
     return;
   }
@@ -481,21 +581,26 @@ void GameControls::onPeriodAdvanceButtonClicked() {
     case GamePhase::Q4: gamePhase_ = GamePhase::Ended; break;
     default: return;
   }
-  updateGameTimeUi();
+  updateGameTimeUi(true);
   emit nextQuarterRequested();
 }
 
 void GameControls::setActiveMainButton(QPushButton* button) {
   if (activeMainButton_ == button) return;
+  QPushButton* previous = activeMainButton_;
   if (activeMainButton_) Style::setState(activeMainButton_, "activeMain", false);
   activeMainButton_ = button;
   if (activeMainButton_) Style::setState(activeMainButton_, "activeMain", true);
+  refreshGameButtonMotion(previous, activeMainButton_);
+  refreshGameButtonMotion(activeMainButton_, activeMainButton_);
 }
 
 void GameControls::clearActiveMainButton() {
   if (!activeMainButton_) return;
-  Style::setState(activeMainButton_, "activeMain", false);
+  QPushButton* previous = activeMainButton_;
+  Style::setState(previous, "activeMain", false);
   activeMainButton_ = nullptr;
+  refreshGameButtonMotion(previous, nullptr);
 }
 
 void GameControls::configureMainGameControlButton(QPushButton* button, const QString& eventName,
@@ -584,7 +689,7 @@ void GameControls::buildUi() {
     quarterSegments_.at(quarterIndex) = segment;
     segmentsLayout->addWidget(segment, 1);
 
-    auto* label = new QLabel(quarterNames.at(quarterIndex), labelsRow);
+    auto* label = new QuarterTrackLabel(quarterNames.at(quarterIndex), labelsRow);
     label->setAlignment(Qt::AlignCenter);
     Style::setRole(label, "quarterTrackLabel");
     Style::setProp(label, "quarterState", QStringLiteral("empty"));
@@ -709,6 +814,16 @@ void GameControls::buildUi() {
   mainLayout->addWidget(mainGridWidget);
   mainLayout->addWidget(followUpContainer_);
   mainLayout->addStretch(1);
+
+  const QList<QPushButton*> motionButtons = {
+      periodAdvanceButton_, homeTeamButton_, awayTeamButton_,
+      sixteenYardButton_, fiftyYardButton_, seventyFiveYardButton_, pcButton_,
+      circleEntryButton_, pcFoulButton_, shotButton_, goalButton_,
+      passButton_, specialButton_, turnoverButton_, cardButton_,
+      shootoutButton_, psButton_};
+  for (QPushButton* button : motionButtons) {
+    refreshGameButtonMotion(button, activeMainButton_);
+  }
 }
 
 void GameControls::wireSignals() {
@@ -921,6 +1036,7 @@ void GameControls::presentFollowUpChoices(const QStringList& actions, FollowUpSt
 
     connect(button, &QPushButton::clicked, this, [this, button]() { flashButtonBorder(button); });
     connect(button, &QPushButton::clicked, this, &GameControls::onFollowUpButtonClicked);
+    refreshGameButtonMotion(button, activeMainButton_);
     button->installEventFilter(this);
     followUpLayout_->addWidget(button, 1);
     followUpButtons_.append(button);
@@ -941,25 +1057,20 @@ void GameControls::hideFollowUpButtons() {
 }
 
 void GameControls::flashButtonBorder(QPushButton* button) {
-  if (!button) {
-    return;
-  }
+  if (!button) return;
 
-  auto* timer = button->findChild<QTimer*>(QStringLiteral("flashClearTimer"), Qt::FindDirectChildrenOnly);
-  if (!timer) {
-    timer = new QTimer(button);
-    timer->setObjectName(QStringLiteral("flashClearTimer"));
-    timer->setSingleShot(true);
-    connect(timer, &QTimer::timeout, button, [buttonGuard = QPointer<QPushButton>(button)]() {
-      if (!buttonGuard) {
-        return;
-      }
-      setButtonFlashState(buttonGuard, false);
-    });
+  const Motion::ButtonColors colors = colorsForGameButton(button, activeMainButton_);
+  QColor flashBackground = Style::ThemeColors::hoverSurface();
+  QColor flashBorder = Style::ThemeColors::ring();
+  const QString variant = button->property("variant").toString();
+  if (variant == QLatin1String("gameControlFollowUp")) {
+    flashBackground = QColor(QStringLiteral("#18181b"));
+    flashBorder = flashBackground;
+  } else if (button->property("teamSelected").toBool() || button == activeMainButton_) {
+    flashBackground = Style::ThemeColors::pressedSurface();
+    flashBorder = colors.restBorder;
   }
-
-  setButtonFlashState(button, true);
-  timer->start(kFlashDurationMs);
+  Motion::flashButtonColors(button, flashBackground, flashBorder, kFlashDurationMs);
 }
 
 QList<QPushButton*> GameControls::focusableButtonsOrder() const {
@@ -1122,3 +1233,5 @@ void GameControls::keyPressEvent(QKeyEvent* event) {
   }
   QWidget::keyPressEvent(event);
 }
+
+#include "GameControls.moc"
