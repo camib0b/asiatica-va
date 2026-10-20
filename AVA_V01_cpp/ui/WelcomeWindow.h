@@ -20,7 +20,6 @@ public slots:
 
 signals:
   void videoImportRequested();
-  void enterLicenseRequested();
 
 protected:
   void changeEvent(QEvent* event) override;
@@ -35,10 +34,7 @@ private:
 
   QPointer<QLabel> titleLabel_;
   QPointer<QPushButton> importButton_;
-  QPointer<QLabel> licenseStatusLabel_;
-  QPointer<QPushButton> enterLicenseButton_;
   QPointer<QWidget> titleEntrance_;
   QPointer<QWidget> importEntrance_;
-  QPointer<QWidget> licenseEntrance_;
   bool entrancePlayed_ = false;
 };

@@ -56,11 +56,6 @@ QLabel[role="h3"] {
   color: #09090b;
 }
 
-QLabel[role="subhero"] {
-  font-size: 15px;
-  color: #71717a;
-}
-
 /* =========================
    Separator
 ========================= */

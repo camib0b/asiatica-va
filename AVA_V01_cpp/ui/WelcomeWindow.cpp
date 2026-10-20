@@ -3,16 +3,12 @@
 #include "../style/Motion.h"
 #include "../style/StyleProps.h"
 #include "../i18n/AppLocale.h"
-#include "../license/LicenseManager.h"
-#include "../license/LicenseTypes.h"
 
 #include <QLabel>
 #include <QPushButton>
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QAction>
-#include <QDateTime>
-#include <QTimeZone>
 #include <QSizePolicy>
 #include <QEvent>
 #include <QShowEvent>
@@ -35,9 +31,7 @@ QWidget* mountEntrance(QWidget* parent, QWidget* child, QVBoxLayout* column) {
 WelcomeWindow::WelcomeWindow(QWidget* parent)
     : QWidget(parent),
       titleLabel_(nullptr),
-      importButton_(nullptr),
-      licenseStatusLabel_(nullptr),
-      enterLicenseButton_(nullptr) {
+      importButton_(nullptr) {
     setObjectName("AppRoot");
     setAttribute(Qt::WA_StyledBackground, true);
     buildUi();
@@ -52,21 +46,6 @@ void WelcomeWindow::applyUiStrings() {
     if (importButton_) {
         importButton_->setText(AppLocale::trUi("welcome.import"));
         syncImportButtonMinimumWidth();
-    }
-    if (enterLicenseButton_) {
-        enterLicenseButton_->setText(AppLocale::trUi("license.enter_key"));
-    }
-    if (licenseStatusLabel_) {
-        const LicenseUiStatus status = LicenseManager::instance().uiStatus();
-        if (status.entitled && status.kind == QLatin1String("trial")) {
-            licenseStatusLabel_->setText(AppLocale::trUi("license.status.trial").arg(status.daysRemaining));
-        } else if (status.entitled && status.kind == QLatin1String("paid") && status.expiresAt > 0) {
-            const QString dateText =
-                QDateTime::fromSecsSinceEpoch(status.expiresAt, QTimeZone::utc()).date().toString(Qt::ISODate);
-            licenseStatusLabel_->setText(AppLocale::trUi("license.status.paid").arg(dateText));
-        } else {
-            licenseStatusLabel_->clear();
-        }
     }
 }
 
@@ -94,28 +73,8 @@ void WelcomeWindow::buildUi() {
     importButton->setFocusPolicy(Qt::TabFocus); // Allow keyboard focus but don't auto-focus on window open
     importButton_ = importButton.get();
 
-    auto licenseStatusLabel = makeQtPtr<QLabel>(contentContainer.get());
-    licenseStatusLabel->setAlignment(Qt::AlignCenter);
-    Style::setRole(licenseStatusLabel.get(), "muted");
-    licenseStatusLabel_ = licenseStatusLabel.get();
-
-    auto enterLicenseButton = makeQtPtr<QPushButton>(contentContainer.get());
-    enterLicenseButton->setCursor(Qt::PointingHandCursor);
-    enterLicenseButton->setFlat(true);
-    enterLicenseButton->setFocusPolicy(Qt::TabFocus);
-    enterLicenseButton_ = enterLicenseButton.get();
-
     titleEntrance_ = mountEntrance(contentContainer.get(), titleLabel.get(), layout.get());
     importEntrance_ = mountEntrance(contentContainer.get(), importButton.get(), layout.get());
-
-    auto licenseRow = makeQtPtr<QWidget>(contentContainer.get());
-    auto licenseLayout = makeQtPtr<QVBoxLayout>(licenseRow.get());
-    licenseLayout->setContentsMargins(0, 0, 0, 0);
-    licenseLayout->setSpacing(12);
-    licenseLayout->addWidget(licenseStatusLabel.get(), 0, Qt::AlignHCenter);
-    licenseLayout->addWidget(enterLicenseButton.get(), 0, Qt::AlignHCenter);
-    layout->addWidget(licenseRow.get(), 0, Qt::AlignHCenter);
-    licenseEntrance_ = licenseRow.release();
 
     outerLayout->addWidget(contentContainer.get(), 0, Qt::AlignCenter);
     outerLayout->addStretch(1);
@@ -133,7 +92,6 @@ void WelcomeWindow::playEntrance() {
     // and clickable while the frame is still transparent.
     Motion::fadeIn(titleEntrance_, Motion::kEnter, 8, 0);
     Motion::fadeIn(importEntrance_, Motion::kEnter, 8, Motion::kStagger);
-    Motion::fadeIn(licenseEntrance_, Motion::kEnter, 8, Motion::kStagger * 2);
 }
 
 void WelcomeWindow::changeEvent(QEvent* event) {
@@ -151,7 +109,6 @@ void WelcomeWindow::syncImportButtonMinimumWidth() {
 
 void WelcomeWindow::wireSignals() {
     connect(importButton_, &QPushButton::clicked, this, &WelcomeWindow::videoImportRequested);
-    connect(enterLicenseButton_, &QPushButton::clicked, this, &WelcomeWindow::enterLicenseRequested);
 }
 
 void WelcomeWindow::buildKeyboardShortcuts() {

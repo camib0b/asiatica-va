@@ -1,7 +1,6 @@
 #include "ui/MainWindow.h"
 #include "i18n/AppLocale.h"
 #include "state/EventDefaults.h"
-#include "license/LicenseManager.h"
 #include "XaiConfig.h"
 #include <QApplication>
 #include <QIcon>
@@ -44,7 +43,6 @@ int main(int argc, char* argv[]) {
             AppLocale::loadFromSettings();
             Motion::loadFromSettings();
             EventDefaults::loadFromSettings();
-            LicenseManager::instance().bootstrap();
 
             MainWindow w;
             w.show();

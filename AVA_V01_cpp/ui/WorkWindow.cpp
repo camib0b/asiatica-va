@@ -23,7 +23,6 @@
 #include "../export/VideoConcatenator.h"
 #include "../export/PlaybackVideoPreparer.h"
 #include "../export/XmlImporter.h"
-#include "../license/LicenseManager.h"
 #include "XmlSyncDialog.h"
 #include "XmlEventMappingDialog.h"
 
@@ -99,10 +98,6 @@ void setToolButtonFlashState(QToolButton* button, bool flashing) {
 #include <cstddef>
 
 namespace {
-
-bool requireEntitlement() {
-    return LicenseManager::instance().isEntitled();
-}
 
 bool isTextInteractionFocusWidget(const QWidget* widget) {
     if (!widget) return false;
@@ -600,10 +595,6 @@ void WorkWindow::syncModeToggleChecks() {
 }
 
 void WorkWindow::setMode(Mode m) {
-    if (m == Mode::Presenting && !requireEntitlement()) {
-        syncModeToggleChecks();
-        return;
-    }
     if (mode_ == m) {
         syncModeToggleChecks();
         return;
@@ -1131,7 +1122,6 @@ void WorkWindow::wireSignals() {
 
     // GameControls -> capture timestamp and store tags
     connect(gameControls_, &GameControls::mainEventTimestampCaptured, this, [this](const QString& mainEvent) {
-        if (!requireEntitlement()) return;
         if (!videoPlayer_) return;
         capturedMainEvent_ = CapturedMainEvent{mainEvent, videoPlayer_->currentPositionMs()};
     });
@@ -1144,7 +1134,6 @@ void WorkWindow::wireSignals() {
     }
 
     connect(gameControls_, &GameControls::tagCommitted, this, [this](const QString& mainEvent, const QString& followUpEvent) {
-        if (!requireEntitlement()) return;
         if (!videoPlayer_) return;
 
         qint64 timestampMs = videoPlayer_->currentPositionMs();
@@ -1201,11 +1190,7 @@ void WorkWindow::wireSignals() {
     modeAction->setShortcut(QKeySequence(Qt::Key_M));
     modeAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     connect(modeAction, &QAction::triggered, this, [this]() {
-        Mode next = nextModeInCycle(mode_);
-        if (next == Mode::Presenting && !requireEntitlement()) {
-            next = nextModeInCycle(next);
-        }
-        setMode(next);
+        setMode(nextModeInCycle(mode_));
     });
     addAction(modeAction);
 
@@ -1293,7 +1278,6 @@ void WorkWindow::onGameSetupConfirmed(const QString& filePath,
 }
 
 void WorkWindow::onGameStartRequested() {
-    if (!requireEntitlement()) return;
     if (!videoPlayer_ || !tagSession_) return;
     if (tagSession_->startGame(videoPlayer_->currentPositionMs())) return;
     if (gameControls_) {
@@ -1303,7 +1287,6 @@ void WorkWindow::onGameStartRequested() {
 }
 
 void WorkWindow::onNextQuarterRequested() {
-    if (!requireEntitlement()) return;
     if (!videoPlayer_ || !tagSession_) return;
     if (tagSession_->advanceQuarter(videoPlayer_->currentPositionMs())) return;
     if (gameControls_) {
@@ -1469,7 +1452,6 @@ void WorkWindow::onCloseVideo() {
 }
 
 void WorkWindow::onPresentationExportRequested() {
-    if (!requireEntitlement()) return;
     if (!tagSession_ || !hasOpenVideo() || !exportJobManager_) return;
 
     QVector<PresentationQueue::Clip> queuedClips;
@@ -1520,7 +1502,6 @@ void WorkWindow::onPresentationExportRequested() {
 }
 
 void WorkWindow::onExportXml() {
-    if (!requireEntitlement()) return;
     if (!tagSession_ || !hasOpenVideo() || !exportJobManager_) return;
 
     if (tagSession_->tags().isEmpty()) {
@@ -1565,7 +1546,6 @@ void WorkWindow::onClipDurationSettings() {
 }
 
 void WorkWindow::onImportXml() {
-    if (!requireEntitlement()) return;
     if (!tagSession_ || !videoPlayer_ || !hasOpenVideo()) return;
 
     const QString filePath = QFileDialog::getOpenFileName(
@@ -1710,7 +1690,6 @@ void WorkWindow::onPresentationSelectionChanged(const QVector<int>& tagSessionIn
 }
 
 void WorkWindow::onPresentationClipActivated(int tagSessionIndex) {
-    if (!requireEntitlement()) return;
     if (!presentationQueue_) return;
     if (mode_ != Mode::Presenting) setMode(Mode::Presenting);
     if (!presentationQueue_->setCurrentTagIndex(tagSessionIndex)) return;

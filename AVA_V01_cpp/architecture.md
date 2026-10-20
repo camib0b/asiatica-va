@@ -1,14 +1,13 @@
 # Codebase Architecture
 
-- main.cpp  is the application entry point containing main(). It initializes a QApplication with metadata and icon, applies a light theme, bootstraps configuration/locale/defaults/licensing, creates and shows the MainWindow on the stack, then runs the Qt event loop.
+- main.cpp  is the application entry point containing main(). It initializes a QApplication with metadata and icon, applies a light theme, bootstraps configuration/locale/defaults, creates and shows the MainWindow on the stack, then runs the Qt event loop.
 
 ## UI Views
 
-- WelcomeWindow builds a centered Qt UI for the app splash with title, import button (with dynamic width calc), license status, and enter-license link. It wires signals, applies i18n strings, and handles trial/paid license display logic
+- WelcomeWindow builds a centered Qt UI for the app splash with a title and an import button (with dynamic width calc). It wires signals, applies i18n strings, and plays a short entrance.
 - GameSetupWindow is a Qt QWidget that builds a configurable form UI for home/away team names, abbreviations, colors, optional game date, and language selection; it integrates with GameMetadataSuggester for AI-driven auto-population from video paths and derives abbreviations via a simple character-collection routine.
 - WorkWindow implements the main application UI with dynamic mode-based layouts (Tagging/Analyzing/Presenting), coordinating VideoPlayer, TagSession, splitters, tag table, notes, and presentation queue.
-- MainWindow acts as the top-level Qt UI orchestrator, using a QStackedWidget to manage transitions between WelcomeWindow, WorkWindow, and LicenseLockOverlay. It drives video import/concatenation flows (via VideoConcatenator and QTemporaryDir), enforces license entitlement gating, maintains a TagSession, and handles locale and shutdown cleanup.
-- LicenseLockOverlay is a Qt widget that renders a license activation screen (or lock message) with dynamic localized text, email/key inputs, action buttons, and language selection. It observes LicenseManager signals to refresh UI state and maps lock reasons to specific translated strings.
+- MainWindow acts as the top-level Qt UI orchestrator, using a QStackedWidget to manage transitions between WelcomeWindow and WorkWindow. It drives video import/concatenation flows (via VideoConcatenator and QTemporaryDir), maintains a TagSession, and handles locale and shutdown cleanup.
 - StatsWindow is a Qt QWidget displaying hierarchical event statistics for a TagSession, with team (home/away/both) filtering via QButtonGroup/QToolButtons and a QTreeWidget showing main/follow-up counts plus percentages. Core design centers on signal-driven rebuildTree() that aggregates tags, applies filters, sorts case-insensitively, and populates tree items with UserRole metadata for double-click navigation.
 - PresentationPanel is a Qt widget implementing a presentation panel for filtering, selecting, and exporting tagged clips from a TagSession, with a checkable table sorted by time, lead/lag spinbox controls for the current clip, and UI state synchronization.
 - PresentationInstancesModel is a QAbstractTableModel for presentation-mode tag instances (time, team, event columns) with checkable rows, current-clip highlighting, and a RAII bulk-update guard that suppresses checkStateChanged during programmatic updates.
@@ -52,13 +51,6 @@
 
 - AppLocale implements bilingual (EN/ES) localization for UI strings and field-hockey event taxonomy using static QHash lookup tables, global language state persisted via QSettings, and helper functions that compose/translate compound event paths while stripping team labels.
 - LocaleNotifier implements a Qt QObject-based singleton for broadcasting language change notifications via signals. Uses static local variable for lazy-initialized instance and a simple notify method to emit the signal.
-
-## License
-
-- DeviceId implements avaStableDeviceId() for non-macOS platforms by hashing /etc/machine-id or QSysInfo::machineUniqueId() with SHA-256 (truncated), falling back to a UUID persisted in an app-data file. Key design relies on system identifiers for stability while using a simple file-based fallback with no synchronization or strong integrity controls.
-- LicenseConfig implements priority-based lookup for a license server API URL (environment, QSettings, standard config JSONs, compile define, bundled file) with URL sanitization, a validity check, and bootstrap to deploy the default JSON to user config dirs.
-- LicenseCrypto implements license token signing/verification and store record persistence using HMAC-SHA256 over base64url-encoded canonical JSON payloads; relies on custom string-based JSON serialization and fragile key-lookup parsing instead of a full parser.
-- LicenseManager is a Qt-based singleton that handles license activation/validation via crypto tokens, manages local persistent state (settings + file), performs server checks over HTTP, implements tamper-resistant timing, local trials, and entitlement evaluation with grace periods and lock reasons.
 
 ## Style
 
