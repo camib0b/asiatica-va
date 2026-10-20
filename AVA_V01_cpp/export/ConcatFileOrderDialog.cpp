@@ -25,6 +25,7 @@
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QShortcut>
+#include <QTextDocument>
 #include <QTextLayout>
 #include <QTextOption>
 #include <QTimer>
@@ -146,13 +147,13 @@ public:
     // Keep the full sequence as the minimum height so the scroll area scrolls
     // instead of squeezing wrapped filenames onto one clipped line.
     QSize minimumSizeHint() const override {
-        const int width = std::max(width(), 320);
-        return QSize(0, heightForWidth(width));
+        const int availableWidth = std::max(width(), 320);
+        return QSize(0, heightForWidth(availableWidth));
     }
 
     QSize sizeHint() const override {
-        const int width = std::max(width(), 480);
-        return QSize(width, heightForWidth(width));
+        const int availableWidth = std::max(width(), 480);
+        return QSize(availableWidth, heightForWidth(availableWidth));
     }
 
 protected:
@@ -328,6 +329,12 @@ int clipIndexFromMime(const QMimeData* mimeData) {
     bool ok = false;
     const int index = mimeData->data(QLatin1String(kClipIndexMime)).toInt(&ok);
     return ok ? index : -1;
+}
+
+QString plainToolTip(const QString& text) {
+    // Tooltips are rich text when the string looks like HTML. A path that
+    // contains "<b>" or "<script>" would otherwise hide those characters.
+    return Qt::mightBeRichText(text) ? text.toHtmlEscaped() : text;
 }
 
 bool fixturePreviewEnabled() {
@@ -615,12 +622,19 @@ void ConcatFileOrderDialog::rebuildRows() {
 }
 
 void ConcatFileOrderDialog::clearRows() {
+    // A visible child becomes a window when unparented. That posts show and
+    // paint events, and deleting it immediately leaves those events pointing
+    // at freed widgets. Delete while the canvas is still the parent.
+    if (QWidget* focusWidget = QApplication::focusWidget()) {
+        if (listCanvas_ && listCanvas_->isAncestorOf(focusWidget)) focusWidget->clearFocus();
+    }
     rows_.clear();
     if (!listLayout_) return;
     while (listLayout_->count() > 1) {
         QLayoutItem* item = listLayout_->takeAt(0);
-        if (QWidget* widget = item->widget()) unparentAndDelete(widget);
+        QWidget* widget = item->widget();
         delete item;
+        delete widget;
     }
 }
 
@@ -636,7 +650,7 @@ QFrame* ConcatFileOrderDialog::createRow(int index) {
     row->setAttribute(Qt::WA_Hover, true);
     row->setAcceptDrops(true);
     row->setCursor(Qt::OpenHandCursor);
-    row->setToolTip(clip.filePath);
+    row->setToolTip(plainToolTip(clip.filePath));
     row->setFocusPolicy(Qt::NoFocus);
     Style::setRole(row.get(), "clipRow");
     Style::setState(row.get(), "selected", index == selectedIndex_);

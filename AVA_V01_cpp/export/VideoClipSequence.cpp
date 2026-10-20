@@ -1,5 +1,6 @@
 #include "VideoClipSequence.h"
 
+#include <QDir>
 #include <QFileInfo>
 #include <QRegularExpression>
 

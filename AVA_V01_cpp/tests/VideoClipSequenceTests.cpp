@@ -5,6 +5,7 @@
 #include <QApplication>
 #include <QFile>
 #include <QLabel>
+#include <QLayout>
 #include <QLocale>
 #include <QPushButton>
 #include <QScrollArea>
@@ -178,15 +179,34 @@ void VideoClipSequenceTest::sentenceCasesDiacriticsEmojiAndMarkup() {
     QVERIFY(emoji.hasDuration());
     QCOMPARE(emoji.durationMs(), 0);
 
+    // A slash inside "</b>" is a path separator, so the file name is the last
+    // segment. Angle brackets that stay in that segment remain literal text.
     const VideoClip markup = VideoClipSequence::clipFromFilePath(
         QStringLiteral("/matches/markup/<b>bold</b>_012_8m00s-9m00s_p3.mp4"));
     QVERIFY(markup.parsed);
-    QCOMPARE(markup.title(), QStringLiteral("<b>bold</b> 12"));
+    QCOMPARE(markup.fileName, QStringLiteral("b>_012_8m00s-9m00s_p3.mp4"));
+    QCOMPARE(markup.title(), QStringLiteral("B> 12"));
+
+    const VideoClip literalMarkup = VideoClipSequence::clipFromFilePath(
+        QStringLiteral("/matches/markup/<b>bold<b>_012_8m00s-9m00s_p3.mp4"));
+    QVERIFY(literalMarkup.parsed);
+    QCOMPARE(literalMarkup.title(), QStringLiteral("<b>bold<b> 12"));
 
     const VideoClip script = VideoClipSequence::clipFromFilePath(
         QStringLiteral("/matches/script/<script>alert(1)</script>_016_30m00s-31m00s_p7.mp4"));
     QVERIFY(script.parsed);
-    QVERIFY(script.title().contains(QStringLiteral("<script>alert(1)</script>")));
+    QCOMPARE(script.fileName, QStringLiteral("script>_016_30m00s-31m00s_p7.mp4"));
+    QCOMPARE(script.title(), QStringLiteral("Script> 16"));
+
+    const VideoClip literalScript = VideoClipSequence::clipFromFilePath(
+        QStringLiteral("/matches/script/<script>alert(1)<script>_016_30m00s-31m00s_p7.mp4"));
+    QVERIFY(literalScript.parsed);
+    QVERIFY(literalScript.title().contains(QStringLiteral("<script>alert(1)<script>")));
+
+    const VideoClip ampersand = VideoClipSequence::clipFromFilePath(
+        QStringLiteral("/matches/entity/club_&amp;_001_1m00s-2m00s_p1.mp4"));
+    QVERIFY(ampersand.parsed);
+    QCOMPARE(ampersand.title(), QStringLiteral("Club &amp; 1"));
 
     const VideoClip arabic = VideoClipSequence::clipFromFilePath(
         QString::fromUtf8("/matches/rtl/نور_الهدى_011_6m00s-7m00s_p2.mp4"));
@@ -267,8 +287,14 @@ void VideoClipSequenceTest::sortsChronologicallyAndKeepsUntimedClips() {
     }));
     QVERIFY(VideoClipSequence::isChronological(ordered));
 
+    // Equal start times stay chronological in either order. A later start
+    // moved ahead of an earlier one does not.
+    QVector<VideoClip> tied = ordered;
+    QVERIFY(VideoClipSequence::moveClip(tied, 0, 1));
+    QVERIFY(VideoClipSequence::isChronological(tied));
+
     QVector<VideoClip> swapped = ordered;
-    QVERIFY(VideoClipSequence::moveClip(swapped, 0, 1));
+    QVERIFY(VideoClipSequence::moveClip(swapped, 0, 2));
     QVERIFY(!VideoClipSequence::isChronological(swapped));
     QVERIFY(VideoClipSequence::isChronological(VideoClipSequence::chronologicalOrder(swapped)));
     QVERIFY(VideoClipSequence::isChronological({}));
@@ -580,18 +606,27 @@ void ConcatFileOrderDialogTest::worstCaseKeepsTextReadableAndActionsPinned() {
     QCOMPARE(email->toolTip(),
              QStringLiteral("/matches/inbox/bartholomew.fitzgerald@northwind-industries-holdings.example.com.mp4"));
 
+    const QString markupPath =
+        QStringLiteral("/matches/markup/<b>bold</b>_012_8m00s-9m00s_p3.mp4");
     QFrame* markup = rowWithPath(&dialog, QStringLiteral("<b>bold</b>"));
     QVERIFY(markup);
     auto* markupTitle = markup->findChild<QLabel*>(QStringLiteral("clipTitle"));
     QVERIFY(markupTitle);
     QCOMPARE(markupTitle->textFormat(), Qt::PlainText);
-    QCOMPARE(markupTitle->text(), QStringLiteral("<b>bold</b> 12"));
+    QCOMPARE(markupTitle->text(), QStringLiteral("B> 12"));
+    QCOMPARE(markup->toolTip(), markupPath.toHtmlEscaped());
+    QVERIFY(markup->toolTip().contains(QStringLiteral("&lt;b&gt;bold")));
 
+    const QString scriptPath =
+        QStringLiteral("/matches/script/<script>alert(1)</script>_016_30m00s-31m00s_p7.mp4");
     QFrame* script = rowWithPath(&dialog, QStringLiteral("<script>alert(1)</script>"));
     QVERIFY(script);
     auto* scriptTitle = script->findChild<QLabel*>(QStringLiteral("clipTitle"));
     QVERIFY(scriptTitle);
-    QVERIFY(scriptTitle->text().contains(QStringLiteral("<script>alert(1)</script>")));
+    QCOMPARE(scriptTitle->textFormat(), Qt::PlainText);
+    QCOMPARE(scriptTitle->text(), QStringLiteral("Script> 16"));
+    QCOMPARE(script->toolTip(), scriptPath.toHtmlEscaped());
+    QVERIFY(script->toolTip().contains(QStringLiteral("&lt;script&gt;alert(1)")));
 
     QFrame* vietnamese = rowWithPath(&dialog, QString::fromUtf8("đặng_thị"));
     QVERIFY(vietnamese);
