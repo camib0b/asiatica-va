@@ -910,8 +910,14 @@ void CompilationSidecarExportTest::cancelBeforeOutputReplaceDoesNotWriteSidecar(
 
 #include "CompilationSidecarTests.moc"
 
+int runPresentationPlaybackTests(int argc, char** argv);
+
 int main(int argc, char** argv) {
     QApplication application(argc, argv);
+    const int playbackStatus = runPresentationPlaybackTests(argc, argv);
+    if (playbackStatus != 0) {
+        return playbackStatus;
+    }
     int status = 0;
     {
         CompilationSidecarOffsetTest offsets;

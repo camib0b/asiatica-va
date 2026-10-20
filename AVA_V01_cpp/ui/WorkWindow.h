@@ -39,6 +39,7 @@ class ExportJobsBar;
 class MatchNotesEditor;
 class ModeToggleTrack;
 
+#include "../state/PresentationPlayback.h"
 #include "../state/TagSession.h"
 
 class WorkWindow final : public QWidget {
@@ -131,14 +132,16 @@ private:
   }
 
   // Presentation mode helpers
-  void showPresentationClip(int queueIndex, bool startPlaying);
+  void showPresentationClip(int queueIndex);
   void goToNextPresentationClip();
   void goToPreviousPresentationClip();
+  void stepPresentationQueue(bool forward);
+  void commitPresentationPlayback(const PresentationPlayback::Result& result);
+  void resetPresentationForVideoChange();
   void updatePresentationStage() const;
   void configurePresentationClipBarForCurrentClip() const;
   void savePresentationClipIntervalFromClipBar();
   void updatePresentationPlayhead(qint64 positionMs);
-  void armPresentationAutoPause(qint64 clipEndMs);
   void attachPresentationKeyboardShortcuts();
   void detachPresentationKeyboardShortcuts();
   void disconnectTagSessionSignals();
@@ -207,13 +210,8 @@ private:
   ExportJobManager* exportJobManager_ = nullptr;
   ExportJobsBar* exportJobsBar_ = nullptr;
   bool presentationKeyboardShortcutsInstalled_ = false;
-  bool presentationAutoPauseArmed_ = false;
   bool updatingPresentationClipBar_ = false;
-  /// False until the first clip of the queue has been played, so the very first Tab starts the
-  /// queue instead of skipping past its first clip.
-  bool presentationPlaybackStarted_ = false;
-  qint64 presentationAutoPauseAtMs_ = 0;
-  qint64 lastPresentationPlayheadMs_ = -1;
+  PresentationPlayback::State presentationPlayback_{};
 
   // close or swap video files:
   QToolButton* videoMuteButton_ = nullptr;

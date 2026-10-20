@@ -96,6 +96,7 @@ void setToolButtonFlashState(QToolButton* button, bool flashing) {
 #include <QTextEdit>
 
 #include <algorithm>
+#include <cstddef>
 
 namespace {
 
@@ -629,7 +630,8 @@ void WorkWindow::setMode(Mode m) {
     flushPendingClipNote();
     if (mode_ == Mode::Presenting && m != Mode::Presenting) {
         detachPresentationKeyboardShortcuts();
-        presentationAutoPauseArmed_ = false;
+        commitPresentationPlayback(PresentationPlayback::reduce(
+            presentationPlayback_, PresentationPlayback::ModeExit{}));
     }
     mode_ = m;
     applyModeChrome();
@@ -1455,9 +1457,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
         presentationQueue_->clear();
         presentationQueue_->setVideoDurationMs(videoPlayer_ ? videoPlayer_->durationMs() : 0);
     }
-    presentationPlaybackStarted_ = false;
-    presentationAutoPauseArmed_ = false;
-    lastPresentationPlayheadMs_ = -1;
+    resetPresentationForVideoChange();
     if (presentationPanel_) {
         presentationPanel_->refreshFromSession();
         presentationPanel_->setExportEnabled(true);
@@ -1517,7 +1517,6 @@ void WorkWindow::onReplaceVideo() {
 void WorkWindow::onCloseVideo() {
     if (mode_ == Mode::Presenting) {
         detachPresentationKeyboardShortcuts();
-        presentationAutoPauseArmed_ = false;
     }
     if (videoPlayer_) videoPlayer_->setControlsVisible(false);
     setVideoMuteButtonEnabled(false);
@@ -1530,9 +1529,7 @@ void WorkWindow::onCloseVideo() {
     if (modeToggleTrack_) modeToggleTrack_->syncToMode(false);
     if (presentationQueue_) presentationQueue_->clear();
     if (presentationPanel_) presentationPanel_->setExportEnabled(false);
-    presentationAutoPauseArmed_ = false;
-    presentationPlaybackStarted_ = false;
-    lastPresentationPlayheadMs_ = -1;
+    resetPresentationForVideoChange();
 
     discardPendingClipNote();
     if (tagSession_) tagSession_->clear();
@@ -1752,6 +1749,43 @@ void WorkWindow::onModeToggled() {
 // Presentation mode
 // ---------------------------------------------------------------------------
 
+namespace {
+
+template <typename... Functions>
+struct Overloaded : Functions... {
+    using Functions::operator()...;
+};
+
+template <typename... Functions>
+Overloaded(Functions...) -> Overloaded<Functions...>;
+
+PresentationPlayback::QueueSnapshot queueSnapshot(const PresentationQueue& queue) {
+    PresentationPlayback::QueueSnapshot snapshot;
+    snapshot.currentIndex = queue.currentIndex();
+    const int clipCount = queue.count();
+    snapshot.clips.reserve(static_cast<std::size_t>(clipCount));
+    for (int index = 0; index < clipCount; ++index) {
+        const PresentationQueue::Clip& clip = queue.clipAt(index);
+        snapshot.clips.push_back(PresentationPlayback::ClipSpan{clip.startMs, clip.endMs});
+    }
+    return snapshot;
+}
+
+void applyPresentationEffect(VideoPlayer& player, const PresentationPlayback::Effect& effect) {
+    std::visit(Overloaded{
+                   [&player](const PresentationPlayback::Seek& seek) {
+                       player.seekToMs(seek.positionMs);
+                   },
+                   [&player](const PresentationPlayback::Play&) { player.playWithControlFlash(); },
+                   [&player](const PresentationPlayback::Pause&) {
+                       player.pauseWithControlFlash();
+                   },
+               },
+               effect);
+}
+
+}  // namespace
+
 void WorkWindow::onPresentationSelectionChanged(const QVector<int>& tagSessionIndexes) {
     if (!presentationQueue_) return;
     presentationQueue_->setSelectedTagIndexes(tagSessionIndexes);
@@ -1762,13 +1796,13 @@ void WorkWindow::onPresentationClipActivated(int tagSessionIndex) {
     if (!presentationQueue_) return;
     if (mode_ != Mode::Presenting) setMode(Mode::Presenting);
     if (!presentationQueue_->setCurrentTagIndex(tagSessionIndex)) return;
-    showPresentationClip(presentationQueue_->currentIndex(), /*startPlaying=*/true);
+    showPresentationClip(presentationQueue_->currentIndex());
 }
 
 void WorkWindow::onPresentationQueueChanged() {
     if (presentationQueue_ && presentationQueue_->isEmpty()) {
-        presentationPlaybackStarted_ = false;
-        presentationAutoPauseArmed_ = false;
+        commitPresentationPlayback(PresentationPlayback::reduce(
+            presentationPlayback_, PresentationPlayback::QueueEmptied{}));
     }
     updatePresentationStage();
     // setClipInterval refresh emits queueChanged before clipIntervalChanged; reconfiguring here
@@ -1799,9 +1833,9 @@ void WorkWindow::onPresentationClipIntervalChanged(int queueIndex) {
     }
 
     const qint64 positionMs = videoPlayer_ ? videoPlayer_->currentPositionMs() : 0;
-    if (positionMs < clip->endMs) {
-        armPresentationAutoPause(clip->endMs);
-    }
+    commitPresentationPlayback(PresentationPlayback::reduce(
+        presentationPlayback_,
+        PresentationPlayback::ClipIntervalUpdated{positionMs, clip->endMs}));
 }
 
 void WorkWindow::onPresentationLeadLagEdited(qint64 leadMs, qint64 lagMs) {
@@ -1823,7 +1857,7 @@ void WorkWindow::onPresentationShowNotesToggled(bool /*enabled*/) {
     updatePresentationStage();
 }
 
-void WorkWindow::showPresentationClip(int queueIndex, bool startPlaying) {
+void WorkWindow::showPresentationClip(int queueIndex) {
     if (!presentationQueue_ || !videoPlayer_) return;
     presentationQueue_->setVideoDurationMs(videoPlayer_->durationMs());
     if (!presentationQueue_->setCurrentIndex(queueIndex)) return;
@@ -1831,34 +1865,45 @@ void WorkWindow::showPresentationClip(int queueIndex, bool startPlaying) {
     const PresentationQueue::Clip* clip = presentationQueue_->currentClip();
     if (!clip) return;
 
-    presentationPlaybackStarted_ = true;
-    lastPresentationPlayheadMs_ = clip->startMs;
-    videoPlayer_->seekToMs(clip->startMs);
-    armPresentationAutoPause(clip->endMs);
-    if (startPlaying) {
-        videoPlayer_->playWithControlFlash();
-    }
+    commitPresentationPlayback(PresentationPlayback::reduce(
+        presentationPlayback_, PresentationPlayback::OpenClip{clip->startMs, clip->endMs}));
 }
 
 void WorkWindow::goToNextPresentationClip() {
-    if (!presentationQueue_ || presentationQueue_->isEmpty()) return;
-    // The first hop starts the queue where it stands instead of skipping the first clip.
-    if (!presentationPlaybackStarted_) {
-        showPresentationClip(qMax(0, presentationQueue_->currentIndex()), /*startPlaying=*/true);
-        return;
-    }
-    if (!presentationQueue_->hasNextClip()) return;
-    showPresentationClip(presentationQueue_->currentIndex() + 1, /*startPlaying=*/true);
+    stepPresentationQueue(true);
 }
 
 void WorkWindow::goToPreviousPresentationClip() {
-    if (!presentationQueue_ || presentationQueue_->isEmpty()) return;
-    if (!presentationPlaybackStarted_) {
-        showPresentationClip(qMax(0, presentationQueue_->currentIndex()), /*startPlaying=*/true);
-        return;
+    stepPresentationQueue(false);
+}
+
+void WorkWindow::stepPresentationQueue(bool forward) {
+    if (!presentationQueue_ || presentationQueue_->isEmpty() || !videoPlayer_) return;
+    presentationQueue_->setVideoDurationMs(videoPlayer_->durationMs());
+
+    const PresentationPlayback::QueueSnapshot snapshot = queueSnapshot(*presentationQueue_);
+    const PresentationPlayback::Action action =
+        forward ? PresentationPlayback::Action{PresentationPlayback::Next{snapshot}}
+                : PresentationPlayback::Action{PresentationPlayback::Previous{snapshot}};
+    commitPresentationPlayback(PresentationPlayback::reduce(presentationPlayback_, action));
+}
+
+void WorkWindow::commitPresentationPlayback(const PresentationPlayback::Result& result) {
+    if (result.queueIndex.has_value()) {
+        if (!presentationQueue_ || !presentationQueue_->setCurrentIndex(*result.queueIndex)) {
+            return;
+        }
     }
-    if (!presentationQueue_->hasPreviousClip()) return;
-    showPresentationClip(presentationQueue_->currentIndex() - 1, /*startPlaying=*/true);
+    presentationPlayback_ = result.state;
+    if (!videoPlayer_) return;
+    for (const PresentationPlayback::Effect& effect : result.effects) {
+        applyPresentationEffect(*videoPlayer_, effect);
+    }
+}
+
+void WorkWindow::resetPresentationForVideoChange() {
+    commitPresentationPlayback(
+        PresentationPlayback::reduce(presentationPlayback_, PresentationPlayback::Reset{}));
 }
 
 void WorkWindow::updatePresentationStage() const {
@@ -1948,35 +1993,16 @@ void WorkWindow::savePresentationClipIntervalFromClipBar() {
     updatingPresentationClipBar_ = false;
 }
 
-void WorkWindow::armPresentationAutoPause(qint64 clipEndMs) {
-    presentationAutoPauseAtMs_ = clipEndMs;
-    presentationAutoPauseArmed_ = true;
-}
-
 void WorkWindow::updatePresentationPlayhead(qint64 positionMs) {
-    if (mode_ != Mode::Presenting) {
-        lastPresentationPlayheadMs_ = positionMs;
-        return;
+    const bool presenting = mode_ == Mode::Presenting;
+    if (presenting && presentationClipBar_) {
+        presentationClipBar_->setPlayheadMs(positionMs);
     }
-    if (presentationClipBar_) presentationClipBar_->setPlayheadMs(positionMs);
 
-    const qint64 previousPositionMs = lastPresentationPlayheadMs_;
-    lastPresentationPlayheadMs_ = positionMs;
-
-    if (!presentationAutoPauseArmed_ || positionMs < presentationAutoPauseAtMs_) return;
-
-    // Stop once when playback runs into the lag boundary. Crossing it by scrubbing or seeking is a
-    // deliberate move past the clip, so it only disarms the stop: exploring is never interrupted.
-    constexpr qint64 kMaxPlaybackAdvancePerSampleMs = 2000;
-    const bool crossedWhilePlaying =
-        videoPlayer_ && videoPlayer_->isPlaying() && previousPositionMs >= 0 &&
-        previousPositionMs < presentationAutoPauseAtMs_ &&
-        (positionMs - previousPositionMs) <= kMaxPlaybackAdvancePerSampleMs;
-
-    presentationAutoPauseArmed_ = false;
-    if (crossedWhilePlaying) {
-        videoPlayer_->pauseWithControlFlash();
-    }
+    const bool playerIsPlaying = videoPlayer_ && videoPlayer_->isPlaying();
+    commitPresentationPlayback(PresentationPlayback::reduce(
+        presentationPlayback_,
+        PresentationPlayback::PlayheadTick{positionMs, presenting, playerIsPlaying}));
 }
 
 void WorkWindow::attachPresentationKeyboardShortcuts() {

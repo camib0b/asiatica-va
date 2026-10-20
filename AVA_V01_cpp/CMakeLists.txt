@@ -37,6 +37,7 @@ qt_add_executable(AVA
   state/EventDefaults.cpp
   state/EventCodeMap.cpp
   state/PresentationQueue.cpp
+  state/PresentationPlayback.cpp
   state/TagSession.cpp
   components/VideoControlsBar.cpp
   components/PlaybackSpeedometer.cpp
@@ -187,6 +188,8 @@ find_package(Qt6 REQUIRED COMPONENTS Test)
 
 qt_add_executable(AVAExportTests
   tests/CompilationSidecarTests.cpp
+  tests/PresentationPlaybackTests.cpp
+  state/PresentationPlayback.cpp
   i18n/AppLocale.cpp
   i18n/LocaleNotifier.cpp
   state/EventDefaults.cpp
