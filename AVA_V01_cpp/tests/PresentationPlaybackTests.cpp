@@ -116,6 +116,7 @@ private slots:
     void intervalEditRearmsWhenThePlayheadIsBeforeTheNewEnd();
     void intervalEditDoesNotRearmWhenThePlayheadIsAtTheNewEnd();
     void intervalEditKeepsTheOldPausePointWhenThePlayheadIsAlreadyPastTheNewEnd();
+    void videoChangeDropsTheStartedLatchSoTheNextPressStartsTheCurrentClip();
 };
 
 void PresentationPlaybackTest::firstNextStartsCurrentClipInsteadOfSkipping() {
@@ -419,6 +420,24 @@ void PresentationPlaybackTest::intervalEditKeepsTheOldPausePointWhenThePlayheadI
 
     expectState(result.state, state);
     QVERIFY(result.effects.empty());
+}
+
+void PresentationPlaybackTest::videoChangeDropsTheStartedLatchSoTheNextPressStartsTheCurrentClip() {
+    const State inProgress = armedClip(1000, 4000);
+    const Result reset = PresentationPlayback::reduce(inProgress, Reset{});
+    QCOMPARE(reset.state.playbackStarted, false);
+    QCOMPARE(reset.state.autoPauseArmed, false);
+    QCOMPARE(reset.state.lastPlayheadMs, qint64{-1});
+
+    const Result staleTick =
+        PresentationPlayback::reduce(reset.state, PlayheadTick{9000, true, true});
+    QVERIFY(staleTick.effects.empty());
+    QCOMPARE(staleTick.state.autoPauseArmed, false);
+    QCOMPARE(staleTick.state.playbackStarted, false);
+
+    const Result next =
+        PresentationPlayback::reduce(staleTick.state, Next{makeQueue(kThreeClips, 1)});
+    expectShowClip(next, 1, 4000, 5500);
 }
 
 int runPresentationPlaybackTests(int argc, char** argv) {

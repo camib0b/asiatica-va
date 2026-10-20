@@ -1515,9 +1515,6 @@ void WorkWindow::onReplaceVideo() {
 }
 
 void WorkWindow::onCloseVideo() {
-    if (mode_ == Mode::Presenting) {
-        detachPresentationKeyboardShortcuts();
-    }
     if (videoPlayer_) videoPlayer_->setControlsVisible(false);
     setVideoMuteButtonEnabled(false);
     updateVideoMuteButton(false);
@@ -1902,6 +1899,14 @@ void WorkWindow::commitPresentationPlayback(const PresentationPlayback::Result& 
 }
 
 void WorkWindow::resetPresentationForVideoChange() {
+    // Closing or loading a video leaves Presenting. The next video would otherwise
+    // open there with the Tab filter already removed, and setMode would not install it again.
+    if (mode_ == Mode::Presenting) {
+        mode_ = Mode::Tagging;
+        detachPresentationKeyboardShortcuts();
+        applyModeChrome();
+        syncModeToggleChecks();
+    }
     commitPresentationPlayback(
         PresentationPlayback::reduce(presentationPlayback_, PresentationPlayback::Reset{}));
 }
