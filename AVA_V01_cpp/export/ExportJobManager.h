@@ -1,7 +1,9 @@
 #pragma once
 
 #include "ClipExporter.h"
+#include "TagSession.h"
 
+#include <QDate>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -10,13 +12,29 @@
 #include <memory>
 #include <vector>
 
-class TagSession;
-
 enum class ExportOutputFormat {
     Mp4 = 0,
     Xml = 1,
     Both = 2,
 };
+
+/// Tags and game metadata copied at the moment export is requested.
+/// Jobs keep this instead of a TagSession*: an MP4+XML job writes the XML
+/// only after ffmpeg finishes, and the live session may already have been
+/// cleared (tag ids restart at 1) or destroyed.
+struct TagSessionExportData {
+    QVector<TagSession::GameTag> tags;
+    QString homeTeamName;
+    QString awayTeamName;
+    QString homeTeamColor;
+    QString awayTeamColor;
+    QString competitionName;
+    QDate gameDate;
+    QString homeAbbrev;
+    QString awayAbbrev;
+};
+
+TagSessionExportData captureTagSessionExportData(const TagSession& session);
 
 struct ExportJobRequest {
     ExportOutputFormat format = ExportOutputFormat::Mp4;
@@ -25,7 +43,7 @@ struct ExportJobRequest {
     QVector<ClipSegment> clips;
     bool includeAudioTrack = true;
     bool includeBrandingOverlay = true;
-    TagSession* tagSession = nullptr;
+    TagSessionExportData session;
 };
 
 struct ExportJobSnapshot {
@@ -90,6 +108,9 @@ private:
         /// cancel, deleteLater). Job must outlive a connected exporter: never
         /// erase a Job from jobs_ while exporter is non-null.
         std::unique_ptr<ClipExporter> exporter;
+        /// Detached copy of the session used to write the companion XML after
+        /// ffmpeg. Null for MP4-only jobs. Address is stable for the Job's life.
+        std::unique_ptr<TagSession> exportSession;
     };
 
     Job* jobById(int jobId);

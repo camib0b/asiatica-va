@@ -326,7 +326,7 @@ WorkWindow::~WorkWindow() {
 }
 
 bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(const QWidget* focusWidget) const {
-    if (!contentStack_ || contentStack_->currentIndex() != 1) return false;
+    if (!hasOpenVideo()) return false;
     if (!videoPlayer_ || !videoPlayer_->isMediaKeyboardControlActive()) return false;
     if (!focusWidget) return true;
     if (focusWidget->window() != window()) return false;
@@ -485,6 +485,8 @@ void WorkWindow::applyUiStrings() const {
                                   ? videoPlayer_->controlsBar()->muted()
                                   : false);
     }
+    if (filterSelectAllAction_) filterSelectAllAction_->setText(AppLocale::trUi("filter.select_all"));
+    if (filterSelectNoneAction_) filterSelectNoneAction_->setText(AppLocale::trUi("filter.select_none"));
     if (statsOverlayAction_) statsOverlayAction_->setToolTip(AppLocale::trUi("stats_overlay.tooltip"));
     if (statsOverlayDialog_) statsOverlayDialog_->setWindowTitle(AppLocale::trUi("stats.overlay_title"));
     if (gameSetupWidget_) gameSetupWidget_->applyUiStrings();
@@ -499,9 +501,8 @@ void WorkWindow::onApplicationLanguageChanged() {
     if (videoPlayer_ && videoPlayer_->controlsBar()) videoPlayer_->controlsBar()->applyUiStrings();
     if (presentationPanel_) presentationPanel_->applyUiStrings();
     updatePresentationStage();
-    rebuildFilterMenu();
+    syncFilterMenu();
     refreshTagsTableRows();
-    updateFilterIndicator();
 }
 
 void WorkWindow::disconnectTagSessionSignals() {
@@ -511,23 +512,18 @@ void WorkWindow::disconnectTagSessionSignals() {
     tagSessionConnections_.clear();
 }
 
-void WorkWindow::syncContextPeriodFromSession() {
-    if (!tagSession_) {
-        contextPeriod_.clear();
-        return;
+void WorkWindow::applySessionTeamIdentity() {
+    if (gameControls_) {
+        if (tagSession_) {
+            gameControls_->setSessionTeamNames(tagSession_->homeTeamName(), tagSession_->awayTeamName(),
+                                               tagSession_->homeTeamColor(), tagSession_->awayTeamColor());
+        } else {
+            gameControls_->setSessionTeamNames(QString(), QString(), QString(), QString());
+        }
     }
-    // GameEnded leaves currentQuarterIndex_ at -1 (no quarter in progress). New tags
-    // after the whistle still belong to Q4, matching periodLabelAtTimestampMs().
-    if (tagSession_->quarterPhase() == TagSession::QuarterPhase::GameEnded) {
-        contextPeriod_ = EventDefaults::quarterCode(3);
-        return;
-    }
-    const int currentQuarterIndex = tagSession_->currentQuarterIndex();
-    if (currentQuarterIndex >= 0) {
-        contextPeriod_ = EventDefaults::quarterCode(currentQuarterIndex);
-        return;
-    }
-    contextPeriod_.clear();
+    refreshTagsTableRows();
+    updatePresentationStage();
+    if (presentationPanel_) presentationPanel_->refreshFromSession();
 }
 
 void WorkWindow::setTagSession(TagSession* session) {
@@ -542,46 +538,33 @@ void WorkWindow::setTagSession(TagSession* session) {
     if (presentationQueue_) presentationQueue_->setTagSession(tagSession_);
     if (presentationPanel_) presentationPanel_->setTagSession(tagSession_);
 
-    rebuildFilterMenu();
-    refreshTagsTableRows();
+    if (gameControls_) {
+        gameControls_->setTeamSide(tagSession_ ? TagSession::TeamSide::Home
+                                               : TagSession::TeamSide::Unspecified);
+    }
+    syncFilterMenu();
+    applySessionTeamIdentity();
     loadMatchNote();
 
-    if (!tagSession_) {
-        if (gameControls_) {
-            gameControls_->setSessionTeamNames(QString(), QString(), QString(), QString());
-        }
-        return;
-    }
+    if (!tagSession_) return;
 
-    if (gameControls_) {
-        gameControls_->setSessionTeamNames(tagSession_->homeTeamName(), tagSession_->awayTeamName(),
-                                           tagSession_->homeTeamColor(), tagSession_->awayTeamColor());
-        gameControls_->setInitialTeamSide(true);
-    }
+    tagSessionConnections_.append(connect(
+        tagSession_, &TagSession::aboutToClear, this, &WorkWindow::flushPendingClipNote,
+        Qt::DirectConnection));
+    tagSessionConnections_.append(connect(
+        tagSession_, &TagSession::aboutToReplaceTags, this, &WorkWindow::flushPendingClipNote,
+        Qt::DirectConnection));
 
-    tagSessionConnections_.append(connect(tagSession_, &TagSession::cleared, this, [this]() {
+    tagSessionConnections_.append(connect(tagSession_, &TagSession::tagsChanged, this,
+                                          [this](quint64 addedTagId) {
         if (!tagSession_) return;
-        discardPendingClipNote();
-        rebuildFilterMenu();
-    }));
-
-    tagSessionConnections_.append(connect(tagSession_, &TagSession::tagsChanged, this, [this]() {
-        if (!tagSession_) return;
-        rebuildFilterMenu();
+        syncFilterMenu();
         refreshTagsTableRows();
-        if (lastAddedTagId_ != 0) {
-            flashNewTagRow();
-            lastAddedTagId_ = 0;
-        }
+        if (addedTagId != 0) flashNewTagRow(addedTagId);
         if (gameControls_) {
             gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
                                             tagSession_->currentQuarterIndex());
         }
-        syncContextPeriodFromSession();
-    }));
-
-    tagSessionConnections_.append(connect(tagSession_, &TagSession::tagAdded, this, [this](const TagSession::GameTag& tag) {
-        lastAddedTagId_ = tag.id;
     }));
     tagSessionConnections_.append(connect(tagSession_, &TagSession::tagsImported, this, [this]() {
         if (!tagSession_) return;
@@ -589,11 +572,10 @@ void WorkWindow::setTagSession(TagSession* session) {
             gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
                                             tagSession_->currentQuarterIndex());
         }
-        syncContextPeriodFromSession();
     }));
     tagSessionConnections_.append(connect(tagSession_, &TagSession::tagNoteChanged, this, [this](int changedIndex) {
         if (!notesEdit_ || !tagSession_) return;
-        if (notesEdit_->hasFocus() || pendingNoteTagId_ != 0) return;
+        if (notesEdit_->hasFocus() || pendingClipNote_.has_value()) return;
         if (!tagSession_->isValidTagIndex(changedIndex)) return;
         const quint64 changedTagId = tagSession_->tags().at(changedIndex).id;
         if (selectedTagId() != changedTagId) return;
@@ -606,12 +588,7 @@ void WorkWindow::setTagSession(TagSession* session) {
     }));
     tagSessionConnections_.append(connect(tagSession_, &TagSession::gameMetadataChanged, this, [this]() {
         if (!tagSession_) return;
-        if (gameControls_) {
-            gameControls_->setSessionTeamNames(tagSession_->homeTeamName(), tagSession_->awayTeamName(),
-                                               tagSession_->homeTeamColor(), tagSession_->awayTeamColor());
-        }
-        refreshTagsTableRows();
-        refreshMatchNoteMentionCandidates();
+        applySessionTeamIdentity();
     }));
 }
 
@@ -640,9 +617,6 @@ void WorkWindow::setMode(Mode m) {
     mode_ = m;
     applyModeChrome();
     if (m == Mode::Presenting) {
-        if (presentationQueue_ && videoPlayer_) {
-            presentationQueue_->setVideoDurationMs(videoPlayer_->durationMs());
-        }
         if (presentationPanel_) presentationPanel_->refreshFromSession();
         updatePresentationStage();
         configurePresentationClipBarForCurrentClip();
@@ -747,11 +721,11 @@ void WorkWindow::applySidePanelCompressedWidth() {
     workOuterSplitter_->setSizes({totalWidth - sideMinimumWidth, sideMinimumWidth});
 }
 
-TagSession::GameTag WorkWindow::pendingTagPeriodAndTeam() const {
-    TagSession::GameTag pendingTag;
-    pendingTag.period = contextPeriod_;
-    pendingTag.team = contextTeam_;
-    return pendingTag;
+WorkWindow::TagContext WorkWindow::tagContext() const {
+    TagContext context;
+    if (tagSession_) context.period = tagSession_->currentPeriodLabel();
+    if (gameControls_) context.team = gameControls_->selectedTeamSide();
+    return context;
 }
 
 void WorkWindow::buildUi() {
@@ -907,6 +881,11 @@ void WorkWindow::buildUi() {
     tagsRemoveFiltersButton_->hide();
     tagsFilterMenu_ = new QMenu(tagsFilterButton_);
     tagsFilterButton_->setMenu(tagsFilterMenu_);
+    filterSelectAllAction_ = tagsFilterMenu_->addAction(QString());
+    filterSelectNoneAction_ = tagsFilterMenu_->addAction(QString());
+    tagsFilterMenu_->addSeparator();
+    connect(filterSelectAllAction_, &QAction::triggered, this, &WorkWindow::onSelectAllFilters);
+    connect(filterSelectNoneAction_, &QAction::triggered, this, &WorkWindow::onSelectNoFilters);
     tagsFilterIndicator_ = new QLabel(tagsHeaderRow_);
     tagsFilterIndicator_->setWordWrap(false);
     Style::setRole(tagsFilterIndicator_, "muted");
@@ -1154,13 +1133,7 @@ void WorkWindow::wireSignals() {
     connect(gameControls_, &GameControls::mainEventTimestampCaptured, this, [this](const QString& mainEvent) {
         if (!requireEntitlement()) return;
         if (!videoPlayer_) return;
-        pendingMainEvent_ = mainEvent;
-        pendingTimestampMs_ = videoPlayer_->currentPositionMs();
-        hasPendingTag_ = true;
-    });
-
-    connect(gameControls_, &GameControls::teamSideSelected, this, [this](bool isHome) {
-        contextTeam_ = isHome ? QStringLiteral("Home") : QStringLiteral("Away");
+        capturedMainEvent_ = CapturedMainEvent{mainEvent, videoPlayer_->currentPositionMs()};
     });
 
     if (gameControls_) {
@@ -1175,38 +1148,19 @@ void WorkWindow::wireSignals() {
         if (!videoPlayer_) return;
 
         qint64 timestampMs = videoPlayer_->currentPositionMs();
-        if (hasPendingTag_ && pendingMainEvent_ == mainEvent) {
-            timestampMs = pendingTimestampMs_;
+        if (capturedMainEvent_ && capturedMainEvent_->event == mainEvent) {
+            timestampMs = capturedMainEvent_->positionMs;
         }
-
-        hasPendingTag_ = false;
-        pendingMainEvent_.clear();
-        pendingTimestampMs_ = 0;
+        capturedMainEvent_.reset();
 
         if (tagSession_) {
-            // Refresh the period context from GameControls so every newly tagged event lands in the
-            // correct quarter even if the user has not interacted with WorkWindow in between.
-            if (gameControls_) {
-                const QString currentPeriod = gameControls_->currentPeriodName();
-                if (!currentPeriod.isEmpty()) {
-                    contextPeriod_ = currentPeriod;
-                }
-            }
+            const TagContext context = tagContext();
             TagSession::GameTag tag;
             tag.mainEvent = mainEvent;
             tag.followUpEvent = followUpEvent;
             tag.markMs = timestampMs;
-            TagSession::GameTag pendingPeriodAndTeam = pendingTagPeriodAndTeam();
-            tag.period = pendingPeriodAndTeam.period;
-            if (gameControls_) {
-                const QString sideKey = gameControls_->selectedTeamSideKey();
-                tag.team = sideKey.isEmpty() ? pendingPeriodAndTeam.team : sideKey;
-                if (!sideKey.isEmpty()) {
-                    contextTeam_ = sideKey;
-                }
-            } else {
-                tag.team = pendingPeriodAndTeam.team;
-            }
+            tag.period = context.period;
+            tag.team = TagSession::teamSideKey(context.team);
             // tag.startMs / tag.endMs left at 0 so TagSession::addTag seeds them from EventDefaults.
             tagSession_->addTag(tag);
         }
@@ -1276,6 +1230,9 @@ void WorkWindow::wireSignals() {
         onPlayheadPositionChanged(positionMs);
         updatePresentationPlayhead(positionMs);
     });
+    connect(videoPlayer_, &VideoPlayer::durationChangedMs, this, [this](qint64 durationMs) {
+        if (presentationQueue_) presentationQueue_->setVideoDurationMs(durationMs);
+    });
 
     // Backspace to delete selected tag
     auto* deleteTagAction = new QAction(this);
@@ -1317,6 +1274,7 @@ void WorkWindow::onGameSetupConfirmed(const QString& filePath,
                                        const QString& homeAbbrev,
                                        const QString& awayAbbrev) {
     if (pendingConcatenator_) {
+        stopNoteTimers();
         const bool concatOk = pendingConcatenator_->waitWithProgress(this);
         const QString errorMessage = pendingConcatenator_->errorMessage();
         if (!concatOk) {
@@ -1337,51 +1295,20 @@ void WorkWindow::onGameSetupConfirmed(const QString& filePath,
 void WorkWindow::onGameStartRequested() {
     if (!requireEntitlement()) return;
     if (!videoPlayer_ || !tagSession_) return;
-    const qint64 anchorMs = videoPlayer_->currentPositionMs();
-    tagSession_->setGameStartAnchor(anchorMs);
-    tagSession_->setCurrentQuarter(0, anchorMs);
-    contextPeriod_ = QStringLiteral("Q1");
-
-    // Insert the start-anchor instance: a 2-second window starting at the anchor moment.
-    TagSession::GameTag anchorTag;
-    anchorTag.mainEvent = QString::fromLatin1(EventDefaults::TimeCodes::kStartAnchor);
-    anchorTag.markMs = anchorMs;
-    anchorTag.startMs = anchorMs;
-    anchorTag.endMs = anchorMs + 2000;
-    anchorTag.period = QStringLiteral("Q1");
-    anchorTag.intervalManuallyEdited = true; // anchor span is fixed; default-table changes must not move it
-    tagSession_->addTag(anchorTag);
+    if (tagSession_->startGame(videoPlayer_->currentPositionMs())) return;
+    if (gameControls_) {
+        gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
+                                        tagSession_->currentQuarterIndex());
+    }
 }
 
 void WorkWindow::onNextQuarterRequested() {
     if (!requireEntitlement()) return;
     if (!videoPlayer_ || !tagSession_) return;
-    if (tagSession_->currentQuarterIndex() < 0) return;
-
-    const int closingIndex = tagSession_->currentQuarterIndex();
-    const qint64 quarterStartMs = tagSession_->currentQuarterStartMs();
-    const qint64 nowMs = videoPlayer_->currentPositionMs();
-    const qint64 endMs = nowMs >= quarterStartMs ? nowMs : quarterStartMs;
-
-    if (closingIndex > 3) return;
-
-    TagSession::GameTag quarterTag;
-    quarterTag.mainEvent = EventDefaults::quarterCode(closingIndex);
-    quarterTag.markMs = quarterStartMs;
-    quarterTag.startMs = quarterStartMs;
-    quarterTag.endMs = endMs;
-    quarterTag.period = quarterTag.mainEvent;
-    quarterTag.intervalManuallyEdited = true; // quarter span is anchored to user clicks
-    tagSession_->addTag(quarterTag);
-
-    const int nextIndex = closingIndex + 1;
-    if (nextIndex >= 4) {
-        tagSession_->clearCurrentQuarter();
-        tagSession_->setQuarterPhase(TagSession::QuarterPhase::GameEnded);
-        syncContextPeriodFromSession();
-    } else {
-        tagSession_->setCurrentQuarter(nextIndex, nowMs);
-        contextPeriod_ = EventDefaults::quarterCode(nextIndex);
+    if (tagSession_->advanceQuarter(videoPlayer_->currentPositionMs())) return;
+    if (gameControls_) {
+        gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
+                                        tagSession_->currentQuarterIndex());
     }
 }
 
@@ -1392,6 +1319,7 @@ void WorkWindow::onGameSetupCancelled() {
 void WorkWindow::loadVideoFromFile(const QString& filePath) {
     if (filePath.isEmpty()) return;
 
+    stopNoteTimers();
     QString playbackPath = filePath;
     cleanupPlaybackPrepVideo();
 
@@ -1419,13 +1347,10 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     }
 
     sourceVideoPath_ = filePath;
+    workStage_ = WorkStage::VideoOpen;
 
-    discardPendingClipNote();
+    capturedMainEvent_.reset();
     if (tagSession_) tagSession_->clear();
-    hasPendingTag_ = false;
-    pendingMainEvent_.clear();
-    pendingTimestampMs_ = 0;
-    contextPeriod_.clear();
     if (tagsModel_) tagsModel_->setRows({});
 
     if (videoPlayer_) {
@@ -1436,12 +1361,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
 
     if (gameControls_) {
         gameControls_->resetGameTimeState();
-        if (tagSession_) {
-            gameControls_->setSessionTeamNames(tagSession_->homeTeamName(), tagSession_->awayTeamName(),
-                                               tagSession_->homeTeamColor(), tagSession_->awayTeamColor());
-            gameControls_->setInitialTeamSide(true);
-        }
-        contextTeam_ = "Home";
+        gameControls_->setTeamSide(TagSession::TeamSide::Home);
     }
     if (workOuterSplitter_) {
         workOuterSplitter_->show();
@@ -1456,10 +1376,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
         });
     }
 
-    if (presentationQueue_) {
-        presentationQueue_->clear();
-        presentationQueue_->setVideoDurationMs(videoPlayer_ ? videoPlayer_->durationMs() : 0);
-    }
+    if (presentationQueue_) presentationQueue_->clear();
     resetPresentationForVideoChange();
     if (presentationPanel_) {
         presentationPanel_->refreshFromSession();
@@ -1468,17 +1385,19 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     updatePresentationStage();
 
     applyModeChrome();
-    updateFilterIndicator();
     if (statsWindow_) statsWindow_->setTagSession(tagSession_);
-
-    rebuildFilterMenu();
+    syncFilterMenu();
     refreshTagsTableRows();
     refreshPlaybackShortcutFocusGate();
 }
 
 void WorkWindow::onReplaceVideo() {
+    stopNoteTimers();
     QStringList filePaths = VideoConcatenator::selectVideoFiles(this);
-    if (filePaths.isEmpty()) return;
+    if (filePaths.isEmpty()) {
+        resumeNoteTimers();
+        return;
+    }
 
     if (filePaths.size() == 1) {
         releaseTransientResources();
@@ -1488,7 +1407,10 @@ void WorkWindow::onReplaceVideo() {
     }
 
     filePaths.sort(Qt::CaseInsensitive);
-    if (!VideoConcatenator::showFileOrderDialog(filePaths, this)) return;
+    if (!VideoConcatenator::showFileOrderDialog(filePaths, this)) {
+        resumeNoteTimers();
+        return;
+    }
     setExportDefaultDirectoryFromVideoPath(filePaths.first());
 
     auto tempDir = std::make_unique<QTemporaryDir>();
@@ -1496,6 +1418,7 @@ void WorkWindow::onReplaceVideo() {
         QMessageBox::warning(this,
                              AppLocale::trUi("app.title"),
                              AppLocale::trUi("concat.error_failed"));
+        resumeNoteTimers();
         return;
     }
 
@@ -1507,6 +1430,7 @@ void WorkWindow::onReplaceVideo() {
         if (!result.errorMessage.isEmpty()) {
             QMessageBox::warning(this, AppLocale::trUi("app.title"), result.errorMessage);
         }
+        resumeNoteTimers();
         return;
     }
 
@@ -1518,6 +1442,10 @@ void WorkWindow::onReplaceVideo() {
 }
 
 void WorkWindow::onCloseVideo() {
+    workStage_ = WorkStage::NoVideo;
+    sourceVideoPath_.clear();
+    capturedMainEvent_.reset();
+    if (gameControls_) gameControls_->setTeamSide(TagSession::TeamSide::Unspecified);
     if (videoPlayer_) videoPlayer_->setControlsVisible(false);
     setVideoMuteButtonEnabled(false);
     updateVideoMuteButton(false);
@@ -1531,12 +1459,7 @@ void WorkWindow::onCloseVideo() {
     if (presentationPanel_) presentationPanel_->setExportEnabled(false);
     resetPresentationForVideoChange();
 
-    discardPendingClipNote();
     if (tagSession_) tagSession_->clear();
-    hasPendingTag_ = false;
-    pendingMainEvent_.clear();
-    pendingTimestampMs_ = 0;
-    contextPeriod_.clear();
     if (tagsModel_) tagsModel_->setRows({});
 
     releaseTransientResources();
@@ -1547,7 +1470,7 @@ void WorkWindow::onCloseVideo() {
 
 void WorkWindow::onPresentationExportRequested() {
     if (!requireEntitlement()) return;
-    if (!tagSession_ || sourceVideoPath_.isEmpty() || !exportJobManager_) return;
+    if (!tagSession_ || !hasOpenVideo() || !exportJobManager_) return;
 
     QVector<PresentationQueue::Clip> queuedClips;
     if (presentationQueue_) {
@@ -1588,7 +1511,7 @@ void WorkWindow::onPresentationExportRequested() {
     request.clips = ExportClipBuilder::buildClipSegments(tagSession_, orderedClips, overlayOptions);
     request.includeAudioTrack = settings.includeAudioTrack;
     request.includeBrandingOverlay = settings.includeBrandingOverlay;
-    request.tagSession = tagSession_;
+    request.session = captureTagSessionExportData(*tagSession_);
 
     QString errorMessage;
     if (!exportJobManager_->startJob(request, &errorMessage)) {
@@ -1598,7 +1521,7 @@ void WorkWindow::onPresentationExportRequested() {
 
 void WorkWindow::onExportXml() {
     if (!requireEntitlement()) return;
-    if (!tagSession_ || sourceVideoPath_.isEmpty() || !exportJobManager_) return;
+    if (!tagSession_ || !hasOpenVideo() || !exportJobManager_) return;
 
     if (tagSession_->tags().isEmpty()) {
         QMessageBox::warning(this,
@@ -1624,7 +1547,7 @@ void WorkWindow::onExportXml() {
     ExportJobRequest request;
     request.format = ExportOutputFormat::Xml;
     request.outputPath = outputPath;
-    request.tagSession = tagSession_;
+    request.session = captureTagSessionExportData(*tagSession_);
 
     QString errorMessage;
     if (!exportJobManager_->startJob(request, &errorMessage)) {
@@ -1643,7 +1566,7 @@ void WorkWindow::onClipDurationSettings() {
 
 void WorkWindow::onImportXml() {
     if (!requireEntitlement()) return;
-    if (!tagSession_ || !videoPlayer_ || sourceVideoPath_.isEmpty()) return;
+    if (!tagSession_ || !videoPlayer_ || !hasOpenVideo()) return;
 
     const QString filePath = QFileDialog::getOpenFileName(
         this,
@@ -1715,11 +1638,6 @@ void WorkWindow::onImportXml() {
     }
 
     const qint64 videoDurationMs = videoPlayer_->durationMs();
-    if (importMode == TagSession::ImportMode::Replace) {
-        discardPendingClipNote();
-    } else {
-        flushPendingClipNote();
-    }
     const TagSession::ImportResult result =
         tagSession_->importTags(importedTags, importMode, videoDurationMs);
 
@@ -1859,7 +1777,6 @@ void WorkWindow::onPresentationShowNotesToggled() {
 
 void WorkWindow::showPresentationClip(int queueIndex) {
     if (!presentationQueue_ || !videoPlayer_) return;
-    presentationQueue_->setVideoDurationMs(videoPlayer_->durationMs());
     if (!presentationQueue_->setCurrentIndex(queueIndex)) return;
 
     const PresentationQueue::Clip* clip = presentationQueue_->currentClip();
@@ -1879,7 +1796,6 @@ void WorkWindow::goToPreviousPresentationClip() {
 
 void WorkWindow::stepPresentationQueue(bool forward) {
     if (!presentationQueue_ || presentationQueue_->isEmpty() || !videoPlayer_) return;
-    presentationQueue_->setVideoDurationMs(videoPlayer_->durationMs());
 
     const PresentationPlayback::QueueSnapshot snapshot = queueSnapshot(*presentationQueue_);
     const PresentationPlayback::Action action =
@@ -2072,9 +1988,26 @@ void WorkWindow::onNoteTextChanged() {
     if (!notesEdit_ || !tagSession_ || !noteDebounceTimer_) return;
     const quint64 tagId = selectedTagId();
     if (tagId == 0 || tagSession_->indexOfTagId(tagId) < 0) return;
-    pendingNoteTagId_ = tagId;
-    pendingNoteText_ = notesEdit_->toPlainText();
+    pendingClipNote_ = PendingClipNote{tagId, tagSession_->tagIdEpoch(), notesEdit_->toPlainText()};
     noteDebounceTimer_->start(400);
+}
+
+void WorkWindow::stopNoteTimers() {
+    resumeClipNoteTimer_ = noteDebounceTimer_ && noteDebounceTimer_->isActive();
+    resumeMatchNoteTimer_ = matchNoteDebounceTimer_ && matchNoteDebounceTimer_->isActive();
+    if (noteDebounceTimer_) noteDebounceTimer_->stop();
+    if (matchNoteDebounceTimer_) matchNoteDebounceTimer_->stop();
+}
+
+void WorkWindow::resumeNoteTimers() {
+    if (resumeClipNoteTimer_ && pendingClipNote_ && noteDebounceTimer_) {
+        noteDebounceTimer_->start(400);
+    }
+    if (resumeMatchNoteTimer_ && matchNoteDebounceTimer_) {
+        matchNoteDebounceTimer_->start(400);
+    }
+    resumeClipNoteTimer_ = false;
+    resumeMatchNoteTimer_ = false;
 }
 
 void WorkWindow::saveNoteDebounceFired() {
@@ -2093,23 +2026,23 @@ void WorkWindow::saveMatchNoteDebounceFired() {
 
 void WorkWindow::discardPendingClipNote() {
     if (noteDebounceTimer_) noteDebounceTimer_->stop();
-    pendingNoteTagId_ = 0;
-    pendingNoteText_.clear();
+    resumeClipNoteTimer_ = false;
+    pendingClipNote_.reset();
 }
 
 void WorkWindow::flushPendingClipNote() {
     if (noteDebounceTimer_) noteDebounceTimer_->stop();
-    if (pendingNoteTagId_ == 0) return;
+    resumeClipNoteTimer_ = false;
+    if (!pendingClipNote_) return;
 
-    const quint64 tagId = pendingNoteTagId_;
-    const QString noteText = pendingNoteText_;
-    pendingNoteTagId_ = 0;
-    pendingNoteText_.clear();
-
+    const PendingClipNote note = *pendingClipNote_;
+    pendingClipNote_.reset();
     if (!tagSession_) return;
-    const int sessionIndex = tagSession_->indexOfTagId(tagId);
-    if (sessionIndex < 0 || !tagSession_->isValidTagIndex(sessionIndex)) return;
-    tagSession_->setTagNote(sessionIndex, noteText);
+
+    const int sessionIndex = tagSession_->indexOfTagId(note.tagId);
+    const bool tagStillPresent = tagSession_->isValidTagIndex(sessionIndex);
+    if (!pendingClipNoteApplies(note, tagSession_->tagIdEpoch(), tagStillPresent)) return;
+    tagSession_->setTagNote(sessionIndex, note.text);
 }
 
 quint64 WorkWindow::selectedTagId() const {
@@ -2141,10 +2074,10 @@ void WorkWindow::loadNoteForSelectedTag() const {
     if (!notesEdit_) return;
 
     const quint64 selectedId = selectedTagId();
-    if (pendingNoteTagId_ != 0 && pendingNoteTagId_ == selectedId) {
+    if (pendingClipNote_ && pendingClipNote_->tagId == selectedId) {
         notesEdit_->blockSignals(true);
-        if (notesEdit_->toPlainText() != pendingNoteText_) {
-            notesEdit_->setPlainText(pendingNoteText_);
+        if (notesEdit_->toPlainText() != pendingClipNote_->text) {
+            notesEdit_->setPlainText(pendingClipNote_->text);
         }
         notesEdit_->blockSignals(false);
         notesEdit_->setEnabled(true);
@@ -2256,9 +2189,9 @@ QString WorkWindow::displayTeamForTag(const TagSession::GameTag& tag) const {
     return tag.team.isEmpty() ? QStringLiteral("—") : tag.team;
 }
 
-void WorkWindow::flashNewTagRow() {
-    if (!tagsModel_ || lastAddedTagId_ == 0) return;
-    if (tagsModel_->rowForTagId(lastAddedTagId_) < 0) return;
+void WorkWindow::flashNewTagRow(quint64 tagId) {
+    if (!tagsModel_ || tagId == 0) return;
+    if (tagsModel_->rowForTagId(tagId) < 0) return;
     if (newTagFlashTimer_) {
         newTagFlashTimer_->stop();
     } else {
@@ -2266,7 +2199,7 @@ void WorkWindow::flashNewTagRow() {
         newTagFlashTimer_->setSingleShot(true);
         connect(newTagFlashTimer_, &QTimer::timeout, this, &WorkWindow::fadeNewTagFlash);
     }
-    tagsModel_->setFlashTagId(lastAddedTagId_);
+    tagsModel_->setFlashTagId(tagId);
     Motion::animateColor(tagsModel_, "flashTint", Style::ThemeColors::playheadHighlight(), 0);
     newTagFlashTimer_->start(500);
 }
@@ -2297,7 +2230,7 @@ void WorkWindow::onDeleteSelectedTag() {
     }
     if (tagIndex < 0 || !tagSession_->isValidTagIndex(tagIndex)) return;
 
-    if (pendingNoteTagId_ != 0 && pendingNoteTagId_ == tagId) {
+    if (pendingClipNote_ && pendingClipNote_->tagId == tagId) {
         discardPendingClipNote();
     } else {
         flushPendingClipNote();
@@ -2313,64 +2246,49 @@ void WorkWindow::onUndoLastTag() {
 }
 
 void WorkWindow::onSelectAllFilters() {
-    for (auto it = filterActionByMainEvent_.begin(); it != filterActionByMainEvent_.end(); ++it) {
-        it.value()->setChecked(true);
-    }
+    tagFilter_.showAllMainEvents();
+    syncFilterMenu();
     refreshTagsTableRows();
-    updateFilterIndicator();
-    updateFilterButtonsVisibility();
 }
 
 void WorkWindow::onSelectNoFilters() {
-    for (auto it = filterActionByMainEvent_.begin(); it != filterActionByMainEvent_.end(); ++it) {
-        it.value()->setChecked(false);
-    }
+    QStringList mainEvents;
+    if (tagSession_) mainEvents = tagSession_->mainEventCounts().keys();
+    tagFilter_.hideAllMainEvents(mainEvents);
+    syncFilterMenu();
     refreshTagsTableRows();
 }
 
-void WorkWindow::onFilterActionToggled(bool /*checked*/) {
+void WorkWindow::onFilterActionToggled(bool checked) {
+    auto* action = qobject_cast<QAction*>(sender());
+    if (!action) return;
+    const QString mainEvent = action->data().toString();
+    if (mainEvent.isEmpty()) return;
+    if (checked) tagFilter_.hiddenMainEvents.remove(mainEvent);
+    else tagFilter_.hiddenMainEvents.insert(mainEvent);
     refreshTagsTableRows();
-    updateFilterIndicator();
-    updateFilterButtonsVisibility();
 }
 
 void WorkWindow::onFilterByEventPathRequested(const QString& mainEvent, const QString& followUpEvent) {
-    activeEventPathMainEvent_ = mainEvent;
-    activeEventPathFollowUp_ = followUpEvent;
+    if (mainEvent.isEmpty()) tagFilter_.clearEventPath();
+    else tagFilter_.eventPath = EventPathFilter{mainEvent, followUpEvent};
+    syncFilterMenu();
     refreshTagsTableRows();
-    updateFilterIndicator();
-    updateFilterButtonsVisibility();
 }
 
 void WorkWindow::onRemoveFilters() {
-    activeEventPathMainEvent_.clear();
-    activeEventPathFollowUp_.clear();
-    onSelectAllFilters();
-    updateFilterButtonsVisibility();
-}
-
-bool WorkWindow::isMainEventAllowed(const QString& mainEvent) const {
-    auto it = filterActionByMainEvent_.find(mainEvent);
-    if (it == filterActionByMainEvent_.end()) return true; // no filter entry yet -> allow
-    return it.value()->isChecked();
+    tagFilter_.clearEventPath();
+    tagFilter_.showAllMainEvents();
+    syncFilterMenu();
+    refreshTagsTableRows();
 }
 
 bool WorkWindow::isTagAllowed(const QString& mainEvent, const QString& followUpEvent) const {
-    if (!activeEventPathMainEvent_.isEmpty()) {
-        if (mainEvent != activeEventPathMainEvent_) return false;
-        if (activeEventPathFollowUp_.isEmpty()) return true;
-        return followUpEvent == activeEventPathFollowUp_
-            || followUpEvent.startsWith(activeEventPathFollowUp_ + " → ");
-    }
-    return isMainEventAllowed(mainEvent);
+    return tagFilter_.allows(mainEvent, followUpEvent);
 }
 
 bool WorkWindow::hasAnyFilterActive() const {
-    if (!activeEventPathMainEvent_.isEmpty()) return true;
-    for (auto it = filterActionByMainEvent_.cbegin(); it != filterActionByMainEvent_.cend(); ++it) {
-        if (!it.value()->isChecked()) return true;
-    }
-    return false;
+    return tagFilter_.isActive();
 }
 
 void WorkWindow::updateFilterButtonsVisibility() const {
@@ -2382,65 +2300,74 @@ void WorkWindow::updateFilterButtonsVisibility() const {
     }
 }
 
-void WorkWindow::rebuildFilterMenu() {
-    if (!tagsFilterMenu_) return;
+void WorkWindow::syncFilterMenu() {
+    if (!tagsFilterMenu_ || !filterSelectAllAction_ || !filterSelectNoneAction_) return;
 
-    // Preserve checked state
-    QHash<QString, bool> prevChecked;
-    for (auto it = filterActionByMainEvent_.cbegin(); it != filterActionByMainEvent_.cend(); ++it) {
-        prevChecked.insert(it.key(), it.value()->isChecked());
+    filterSelectAllAction_->setText(AppLocale::trUi("filter.select_all"));
+    filterSelectNoneAction_->setText(AppLocale::trUi("filter.select_none"));
+
+    QSet<QString> liveMainEvents;
+    if (tagSession_) {
+        QStringList mainEvents = tagSession_->mainEventCounts().keys();
+        mainEvents.sort(Qt::CaseInsensitive);
+        for (const QString& mainEvent : mainEvents) {
+            liveMainEvents.insert(mainEvent);
+            QAction* action = filterActionByMainEvent_.value(mainEvent, nullptr);
+            if (!action) {
+                action = tagsFilterMenu_->addAction(AppLocale::trEvent(mainEvent));
+                action->setCheckable(true);
+                action->setData(mainEvent);
+                connect(action, &QAction::toggled, this, &WorkWindow::onFilterActionToggled);
+                filterActionByMainEvent_.insert(mainEvent, action);
+            } else {
+                action->setText(AppLocale::trEvent(mainEvent));
+            }
+            const bool checked = !tagFilter_.hiddenMainEvents.contains(mainEvent);
+            if (action->isChecked() != checked) {
+                const QSignalBlocker blocker(action);
+                action->setChecked(checked);
+            }
+            action->setVisible(true);
+        }
     }
 
-    tagsFilterMenu_->clear();
-    filterActionByMainEvent_.clear();
-
-    auto* selectAll = tagsFilterMenu_->addAction(AppLocale::trUi("filter.select_all"));
-    auto* selectNone = tagsFilterMenu_->addAction(AppLocale::trUi("filter.select_none"));
-    connect(selectAll, &QAction::triggered, this, &WorkWindow::onSelectAllFilters);
-    connect(selectNone, &QAction::triggered, this, &WorkWindow::onSelectNoFilters);
-    tagsFilterMenu_->addSeparator();
-
-    if (!tagSession_) return;
-    QStringList mains = tagSession_->mainEventCounts().keys();
-    mains.sort(Qt::CaseInsensitive);
-
-    for (const QString& mainEvent : mains) {
-        auto* act = tagsFilterMenu_->addAction(AppLocale::trEvent(mainEvent));
-        act->setCheckable(true);
-        act->setChecked(prevChecked.contains(mainEvent) ? prevChecked.value(mainEvent) : true);
-        connect(act, &QAction::toggled, this, &WorkWindow::onFilterActionToggled);
-        filterActionByMainEvent_.insert(mainEvent, act);
+    for (auto it = filterActionByMainEvent_.cbegin(); it != filterActionByMainEvent_.cend(); ++it) {
+        if (!liveMainEvents.contains(it.key())) it.value()->setVisible(false);
     }
 }
 
 void WorkWindow::updateFilterIndicator() const {
     if (!tagsFilterIndicator_) return;
 
-    if (!activeEventPathMainEvent_.isEmpty()) {
-        QString pathText = AppLocale::trEvent(activeEventPathMainEvent_);
-        if (!activeEventPathFollowUp_.isEmpty()) {
-            pathText += QStringLiteral(" → ") + AppLocale::translateCompoundPath(activeEventPathFollowUp_);
+    if (tagFilter_.eventPath.has_value() && !tagFilter_.eventPath->mainEvent.isEmpty()) {
+        QString pathText = AppLocale::trEvent(tagFilter_.eventPath->mainEvent);
+        if (!tagFilter_.eventPath->followUpEvent.isEmpty()) {
+            pathText += QStringLiteral(" → ")
+                + AppLocale::translateCompoundPath(tagFilter_.eventPath->followUpEvent);
         }
         tagsFilterIndicator_->setText(AppLocale::trUi("filter.indicator") + pathText);
         tagsFilterIndicator_->show();
         return;
     }
 
-    QStringList activeFilters;
-    for (auto it = filterActionByMainEvent_.cbegin(); it != filterActionByMainEvent_.cend(); ++it) {
-        if (it.value()->isChecked()) {
-            activeFilters.append(AppLocale::trEvent(it.key()));
-        }
+    QStringList visibleMainEvents;
+    if (tagSession_) {
+        visibleMainEvents = tagSession_->mainEventCounts().keys();
+        visibleMainEvents.sort(Qt::CaseInsensitive);
+    }
+    QStringList shownLabels;
+    for (const QString& mainEvent : visibleMainEvents) {
+        if (tagFilter_.hiddenMainEvents.contains(mainEvent)) continue;
+        shownLabels.append(AppLocale::trEvent(mainEvent));
     }
 
-    if (activeFilters.isEmpty() || activeFilters.size() == filterActionByMainEvent_.size()) {
+    if (shownLabels.isEmpty() || shownLabels.size() == visibleMainEvents.size()) {
         tagsFilterIndicator_->hide();
         return;
     }
 
-    activeFilters.sort(Qt::CaseInsensitive);
-    const QString text = AppLocale::trUi("filter.indicator") + activeFilters.join(QStringLiteral(", "));
-    tagsFilterIndicator_->setText(text);
+    shownLabels.sort(Qt::CaseInsensitive);
+    tagsFilterIndicator_->setText(AppLocale::trUi("filter.indicator") + shownLabels.join(QStringLiteral(", ")));
     tagsFilterIndicator_->show();
 }
 
@@ -2455,6 +2382,8 @@ void WorkWindow::refreshTagsTableRows() {
     if (!tagSession_) {
         tagsModel_->setRows({});
         refreshMatchNoteMentionCandidates();
+        updateFilterIndicator();
+        updateFilterButtonsVisibility();
         if (selectedTagId() != previouslySelectedTagId) {
             loadNoteForSelectedTag();
         }

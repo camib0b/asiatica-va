@@ -296,7 +296,6 @@ void PresentationPanel::setTagSession(TagSession* session) {
     });
     connect(tagSession_, &TagSession::tagsChanged, this, &PresentationPanel::refreshFromSession);
     connect(tagSession_, &TagSession::tagNoteChanged, this, [this](int) { refreshFromSession(); });
-    connect(tagSession_, &TagSession::gameMetadataChanged, this, &PresentationPanel::refreshFromSession);
   }
 
   refreshFromSession();

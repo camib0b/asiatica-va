@@ -7,6 +7,7 @@
 namespace {
 
 constexpr int kQuarterCount = 4;
+constexpr qint64 kStartAnchorDurationMs = 2000;
 
 int quarterIndexForMainEvent(const QString& mainEvent) {
   for (int quarterIndex = 0; quarterIndex < kQuarterCount; ++quarterIndex) {
@@ -51,6 +52,7 @@ bool clampTagInterval(TagSession::GameTag& tag, qint64 videoDurationMs = -1) {
 TagSession::TagSession(QObject* parent)
     : QObject(parent),
       nextTagId_(1),
+      tagIdEpoch_(1),
       gameStartAnchorMs_(-1),
       currentQuarterIndex_(-1),
       currentQuarterStartMs_(0),
@@ -68,9 +70,23 @@ TagSession::TeamSide TagSession::teamSideFromKey(const QString& teamKey) {
   return TeamSide::Unspecified;
 }
 
+QString TagSession::teamSideKey(TeamSide side) {
+  switch (side) {
+    case TeamSide::Home:
+      return QStringLiteral("Home");
+    case TeamSide::Away:
+      return QStringLiteral("Away");
+    case TeamSide::Unspecified:
+      return QString();
+  }
+  return QString();
+}
+
 void TagSession::clear() {
+  emit aboutToClear();
   tags_.clear();
   nextTagId_ = 1;
+  ++tagIdEpoch_;
   gameTimeTags_.clear();
   rebuildEventCountsFromTags();
   if (!matchNote_.isEmpty()) {
@@ -169,17 +185,19 @@ void TagSession::addTag(const GameTag& tag) {
     restoreGameTimeStateFromTags();
   }
   emit tagAdded(stored);
-  emit tagsChanged();
+  emit tagsChanged(stored.id);
 }
 
 TagSession::ImportResult TagSession::importTags(const QVector<GameTag>& tags,
                                                 ImportMode mode,
                                                 qint64 videoDurationMs) {
   ImportResult result;
+  emit aboutToReplaceTags();
 
   if (mode == ImportMode::Replace) {
     tags_.clear();
     nextTagId_ = 1;
+    ++tagIdEpoch_;
     gameTimeTags_.clear();
     resetGameTimeState();
   }
@@ -377,17 +395,6 @@ void TagSession::applyDefaultsToUntrimmedTags(const QString& mainEvent, qint64 l
   }
 }
 
-void TagSession::setCurrentQuarter(int index, qint64 startMs) {
-  currentQuarterIndex_ = index;
-  currentQuarterStartMs_ = startMs;
-  quarterPhase_ = QuarterPhase::QuarterInProgress;
-}
-
-void TagSession::clearCurrentQuarter() {
-  currentQuarterIndex_ = -1;
-  currentQuarterStartMs_ = 0;
-}
-
 void TagSession::resetGameTimeState() {
   gameStartAnchorMs_ = -1;
   currentQuarterIndex_ = -1;
@@ -432,5 +439,50 @@ QString TagSession::periodLabelAtTimestampMs(qint64 positionMs) const {
     }
   }
 
+  return QString();
+}
+
+bool TagSession::startGame(qint64 anchorMs) {
+  if (quarterPhase_ != QuarterPhase::NotStarted) return false;
+  if (anchorMs < 0) anchorMs = 0;
+
+  GameTag anchorTag;
+  anchorTag.mainEvent = QString::fromLatin1(EventDefaults::TimeCodes::kStartAnchor);
+  anchorTag.markMs = anchorMs;
+  anchorTag.startMs = anchorMs;
+  anchorTag.endMs = anchorMs + kStartAnchorDurationMs;
+  anchorTag.period = EventDefaults::quarterCode(0);
+  anchorTag.intervalManuallyEdited = true;
+  addTag(anchorTag);
+  return true;
+}
+
+bool TagSession::advanceQuarter(qint64 nowMs) {
+  if (quarterPhase_ != QuarterPhase::QuarterInProgress) return false;
+  if (currentQuarterIndex_ < 0 || currentQuarterIndex_ >= kQuarterCount) return false;
+
+  const int closingIndex = currentQuarterIndex_;
+  const qint64 quarterStartMs = currentQuarterStartMs_;
+  const qint64 endMs = nowMs >= quarterStartMs ? nowMs : quarterStartMs;
+
+  GameTag quarterTag;
+  quarterTag.mainEvent = EventDefaults::quarterCode(closingIndex);
+  quarterTag.markMs = quarterStartMs;
+  quarterTag.startMs = quarterStartMs;
+  quarterTag.endMs = endMs;
+  quarterTag.period = quarterTag.mainEvent;
+  quarterTag.intervalManuallyEdited = true;
+  addTag(quarterTag);
+  return true;
+}
+
+QString TagSession::currentPeriodLabel() const {
+  if (quarterPhase_ == QuarterPhase::GameEnded) {
+    return EventDefaults::quarterCode(kQuarterCount - 1);
+  }
+  if (quarterPhase_ == QuarterPhase::QuarterInProgress &&
+      currentQuarterIndex_ >= 0 && currentQuarterIndex_ < kQuarterCount) {
+    return EventDefaults::quarterCode(currentQuarterIndex_);
+  }
   return QString();
 }
