@@ -15,7 +15,6 @@
 class QLabel;
 class QAction;
 class QToolButton;
-class QMenu;
 class QTableView;
 class TagsTableModel;
 class QPlainTextEdit;
@@ -39,6 +38,7 @@ class ExportJobsBar;
 class MatchNotesEditor;
 class ModeToggleTrack;
 
+#include "../state/PresentationPlayback.h"
 #include "../state/TagSession.h"
 
 class WorkWindow final : public QWidget {
@@ -106,7 +106,7 @@ private slots:
   void onPresentationClipIntervalChanged(int queueIndex);
   void onPresentationLeadLagEdited(qint64 leadMs, qint64 lagMs);
   void onPresentationApplyLeadLagToAll(qint64 leadMs, qint64 lagMs);
-  void onPresentationShowNotesToggled(bool enabled);
+  void onPresentationShowNotesToggled();
   void onPresentationExportRequested();
 
 protected:
@@ -131,14 +131,16 @@ private:
   }
 
   // Presentation mode helpers
-  void showPresentationClip(int queueIndex, bool startPlaying);
+  void showPresentationClip(int queueIndex);
   void goToNextPresentationClip();
   void goToPreviousPresentationClip();
+  void stepPresentationQueue(bool forward);
+  void commitPresentationPlayback(const PresentationPlayback::Result& result);
+  void resetPresentationForVideoChange();
   void updatePresentationStage() const;
   void configurePresentationClipBarForCurrentClip() const;
   void savePresentationClipIntervalFromClipBar();
   void updatePresentationPlayhead(qint64 positionMs);
-  void armPresentationAutoPause(qint64 clipEndMs);
   void attachPresentationKeyboardShortcuts();
   void detachPresentationKeyboardShortcuts();
   void disconnectTagSessionSignals();
@@ -181,11 +183,9 @@ private:
   QStackedWidget* contentStack_ = nullptr;
   QWidget* mainContentContainer_ = nullptr;
   GameSetupWindow* gameSetupWidget_ = nullptr;
-  QWidget* videoControlsRow_ = nullptr;
   QWidget* taggingRightCol_ = nullptr;
   QWidget* tagsSection_ = nullptr;
   QWidget* tagsHeaderRow_ = nullptr;
-  QWidget* contentArea_ = nullptr;
   QSplitter* workOuterSplitter_ = nullptr;
   QSplitter* workLeftSplitter_ = nullptr;
   QWidget* videoColumn_ = nullptr;
@@ -207,18 +207,12 @@ private:
   ExportJobManager* exportJobManager_ = nullptr;
   ExportJobsBar* exportJobsBar_ = nullptr;
   bool presentationKeyboardShortcutsInstalled_ = false;
-  bool presentationAutoPauseArmed_ = false;
   bool updatingPresentationClipBar_ = false;
-  /// False until the first clip of the queue has been played, so the very first Tab starts the
-  /// queue instead of skipping past its first clip.
-  bool presentationPlaybackStarted_ = false;
-  qint64 presentationAutoPauseAtMs_ = 0;
-  qint64 lastPresentationPlayheadMs_ = -1;
+  PresentationPlayback::State presentationPlayback_{};
 
   // close or swap video files:
   QToolButton* videoMuteButton_ = nullptr;
   QToolButton* videoMenuButton_ = nullptr;
-  QMenu* videoMenu_ = nullptr;
   QAction* replaceVideoAction_ = nullptr;
   QAction* closeVideoAction_ = nullptr;
   QAction* importXmlAction_ = nullptr;
@@ -269,7 +263,6 @@ private:
   QString contextTeam_;
 
   QString sourceVideoPath_;
-  QString playbackVideoPath_;
   QString exportDefaultDirectoryPath_;
   std::unique_ptr<QTemporaryDir> concatenatedVideoTempDir_;
   std::unique_ptr<QTemporaryDir> playbackPrepTempDir_;
