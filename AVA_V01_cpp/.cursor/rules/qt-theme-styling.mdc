@@ -15,7 +15,7 @@ dialog.setMinimumSize(960, 300);
 item->setSizeHint(QSize(150, 52));
 
 // GOOD
-Style::setRole(listWidget, "chipStrip");
+Style::setRole(scrollArea, "clipSequence");
 Style::setRole(&dialog, "fileOrder");
 Style::setVariant(button, "ghost");
 Style::setSize(button, "sm");
@@ -23,4 +23,4 @@ Style::setSize(button, "sm");
 
 QSS owns colors, padding, radius, min/max width and height. Match existing zinc tokens (`#e4e4e7`, `#f4f4f5`, `#09090b`) instead of one-off palettes.
 
-Widget-only Qt APIs (flow, wrapping, drag-drop, scrollbar policy) stay in C++. Pair horizontal `QListView` flow with wrapping and a vertical scrollbar so many items can scale.
+Widget-only Qt APIs (drag-drop, scrollbar policy, wrapping) stay in C++. A vertical sequence scrolls inside the dialog; do not give the list a fixed height that clips rows or pushes the actions off screen.
