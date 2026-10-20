@@ -49,6 +49,8 @@ public:
 
   /// Interprets GameTag::team. Trims whitespace and matches "Home"/"Away" case-insensitively.
   static TeamSide teamSideFromKey(const QString& teamKey);
+  /// Canonical GameTag::team key for \p side. Empty for Unspecified.
+  static QString teamSideKey(TeamSide side);
 
   /// Outcome of importTags(). Skipping happens in XmlEventMappingDialog before
   /// tags reach this API; importTags stores every remaining tag (clamping intervals).
@@ -61,6 +63,9 @@ public:
   ~TagSession() override = default;
 
   void clear();
+  /// Bumps when clear() or a replace import restarts tag ids at 1.
+  /// Pending clip notes capture this so a reused id cannot accept a stale edit.
+  quint64 tagIdEpoch() const { return tagIdEpoch_; }
   /// Clears team names/colors plus competition, date, and abbreviations. Does not clear tags.
   /// Emits gameMetadataChanged() when any field actually changes.
   void clearGameMetadata();
@@ -113,32 +118,46 @@ public:
   void applyDefaultsToUntrimmedTags(const QString& mainEvent, qint64 leadMs, qint64 lagMs);
 
   // ---- Game-time anchor & quarter tracking ----
+  // Quarter phase, the in-progress index, and the start anchor are derived from
+  // quarter tags. startGame() and advanceQuarter() are the only mutators; they
+  // add the tag, restore state, and emit through addTag().
   qint64 gameStartAnchorMs() const { return gameStartAnchorMs_; }
   bool hasGameStartAnchor() const { return gameStartAnchorMs_ >= 0; }
-  void setGameStartAnchor(qint64 positionMs) { gameStartAnchorMs_ = positionMs; }
 
   QuarterPhase quarterPhase() const { return quarterPhase_; }
   /// Index of the quarter currently in progress (0=Q1 .. 3=Q4).
   /// -1 when not in progress (NotStarted or GameEnded). Do not treat GameEnded as Q4
   /// in progress — period labels after the whistle use closed Q4 in
-  /// periodLabelAtTimestampMs(), not this index.
+  /// periodLabelAtTimestampMs() and currentPeriodLabel(), not this index.
   int currentQuarterIndex() const { return currentQuarterIndex_; }
   /// Playhead position when the in-progress quarter started.
   qint64 currentQuarterStartMs() const { return currentQuarterStartMs_; }
-  void setQuarterPhase(QuarterPhase phase) { quarterPhase_ = phase; }
-  void setCurrentQuarter(int index, qint64 startMs);
-  void clearCurrentQuarter();
-  void resetGameTimeState();
+
+  /// Inserts the start-anchor tag and lets restore open Q1. Returns false when
+  /// the game has already started. Emits tagAdded and tagsChanged on success.
+  bool startGame(qint64 anchorMs);
+  /// Closes the in-progress quarter at \p nowMs and lets restore open the next
+  /// quarter or end the game. Returns false when no quarter is in progress.
+  /// Emits tagAdded and tagsChanged on success.
+  bool advanceQuarter(qint64 nowMs);
 
   /// Quarter label from restored game-time state (closed Q1–Q4 spans plus the
   /// in-progress or ended quarter). Empty if the timestamp is before the game.
   QString periodLabelAtTimestampMs(qint64 positionMs) const;
+  /// Period stored on a newly tagged event: the in-progress quarter, or Q4 once
+  /// the game has ended. Empty before the game starts. Not a playhead lookup.
+  QString currentPeriodLabel() const;
 
   const QVector<GameTag>& tags() const { return tags_; }
   const QHash<QString, int>& mainEventCounts() const { return mainEventCounts_; }
   const QHash<QString, QHash<QString, int>>& followUpCountsByMainEvent() const { return followUpCountsByMainEvent_; }
 
 signals:
+  /// Emitted before clear() drops tags or restarts ids. Flush pending notes here.
+  void aboutToClear();
+  /// Emitted before importTags() mutates the tag list, including merge.
+  /// A replace import restarts ids after this signal. Flush pending notes here.
+  void aboutToReplaceTags();
   void cleared();
   void tagAdded(const TagSession::GameTag& tag);
   void tagsImported();
@@ -146,7 +165,10 @@ signals:
   void matchNoteChanged();
   void tagIntervalChanged(int index);
   /// Tag membership, order, or event counts changed. Not emitted for game metadata.
-  void tagsChanged();
+  /// \p addedTagId is the id just inserted by addTag(); 0 for every other change.
+  /// Listeners that flash the new row must use this argument. tagAdded is emitted
+  /// first, but the row model is rebuilt on this signal, so tagAdded is too early.
+  void tagsChanged(quint64 addedTagId = 0);
   /// Team names/colors, competition, date, or abbreviations changed.
   void gameMetadataChanged();
 
@@ -180,9 +202,12 @@ private:
   /// gameTimeTags_. Call after the index changes — not after ordinary play-tag edits.
   void restoreGameTimeStateFromTags();
   void assignStableId(GameTag& tag);
+  void resetGameTimeState();
+
   QVector<GameTag> tags_;
   QString matchNote_;
   quint64 nextTagId_ = 1;
+  quint64 tagIdEpoch_ = 1;
   QHash<QString, int> mainEventCounts_;
   QHash<QString, QHash<QString, int>> followUpCountsByMainEvent_;
   QString homeTeamName_;

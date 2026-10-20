@@ -17,7 +17,8 @@ struct ResolvedOutputPaths {
     QString xmlPath;
 };
 
-ResolvedOutputPaths resolveOutputPaths(const ExportJobRequest& request) {
+ResolvedOutputPaths resolveOutputPaths(const ExportJobRequest& request,
+                                       const TagSession* exportSession) {
     ResolvedOutputPaths paths;
     const QString chosenPath = request.outputPath.trimmed();
     if (chosenPath.isEmpty()) return paths;
@@ -34,13 +35,37 @@ ResolvedOutputPaths resolveOutputPaths(const ExportJobRequest& request) {
     if (request.format == ExportOutputFormat::Both) {
         const QFileInfo info(chosenPath);
         paths.xmlPath = QDir(info.absolutePath())
-            .filePath(ExportClipBuilder::xmlReportBaseName(request.tagSession)
+            .filePath(ExportClipBuilder::xmlReportBaseName(exportSession)
                       + QStringLiteral(".xml"));
     }
     return paths;
 }
 
+std::unique_ptr<TagSession> materializeExportSession(const TagSessionExportData& data) {
+    auto session = std::make_unique<TagSession>();
+    session->setGameTeams(data.homeTeamName, data.awayTeamName, data.homeTeamColor, data.awayTeamColor);
+    session->setGameMetadata(data.competitionName, data.gameDate, data.homeAbbrev, data.awayAbbrev);
+    if (!data.tags.isEmpty()) {
+        session->importTags(data.tags, TagSession::ImportMode::Replace, -1);
+    }
+    return session;
+}
+
 }  // namespace
+
+TagSessionExportData captureTagSessionExportData(const TagSession& session) {
+    TagSessionExportData data;
+    data.tags = session.tags();
+    data.homeTeamName = session.homeTeamName();
+    data.awayTeamName = session.awayTeamName();
+    data.homeTeamColor = session.homeTeamColor();
+    data.awayTeamColor = session.awayTeamColor();
+    data.competitionName = session.competitionName();
+    data.gameDate = session.gameDate();
+    data.homeAbbrev = session.homeAbbrev();
+    data.awayAbbrev = session.awayAbbrev();
+    return data;
+}
 
 ExportJobManager::ExportJobManager(QObject* parent)
     : QObject(parent),
@@ -174,7 +199,14 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
         if (errorMessage) *errorMessage = text;
     };
 
-    const ResolvedOutputPaths paths = resolveOutputPaths(request);
+    std::unique_ptr<TagSession> exportSession;
+    const TagSession* exportSessionPointer = nullptr;
+    if (request.format != ExportOutputFormat::Mp4) {
+        exportSession = materializeExportSession(request.session);
+        exportSessionPointer = exportSession.get();
+    }
+
+    const ResolvedOutputPaths paths = resolveOutputPaths(request, exportSessionPointer);
     if (paths.mp4Path.isEmpty() && paths.xmlPath.isEmpty()) {
         setError(AppLocale::trUi("export.no_output_path"));
         return false;
@@ -199,7 +231,7 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
     if (request.format == ExportOutputFormat::Xml && !paths.xmlPath.isEmpty()) {
         QString xmlError;
         const bool xmlOk =
-            XmlExporter::writeAllInstances(request.tagSession, paths.xmlPath, &xmlError);
+            XmlExporter::writeAllInstances(exportSessionPointer, paths.xmlPath, &xmlError);
         if (!xmlOk) {
             setError(xmlError.isEmpty() ? AppLocale::trUi("export.xml_failed") : xmlError);
             return false;
@@ -228,6 +260,8 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
     job->state = JobState::Exporting;
     job->currentClip = 0;
     updateExportingStatus(*job);
+    job->exportSession = std::move(exportSession);
+    TagSession* const snapshotSession = job->exportSession.get();
 
     job->exporter = std::make_unique<ClipExporter>();
     ClipExporter* exporter = job->exporter.get();
@@ -254,8 +288,7 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
         emit jobsChanged();
     });
     connect(exporter, &ClipExporter::exportFinished, exporter,
-            [this, jobPointer, tagSession = request.tagSession](bool success,
-                                                                const QString& message) {
+            [this, jobPointer, snapshotSession](bool success, const QString& message) {
         if (jobPointer->state != JobState::Exporting) return;
         if (!success) {
             const bool cancelled = message.contains(QStringLiteral("cancelled"), Qt::CaseInsensitive);
@@ -266,7 +299,7 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
         }
         if (jobPointer->format == ExportOutputFormat::Both && !jobPointer->xmlPath.isEmpty()) {
             QString xmlError;
-            if (!XmlExporter::writeAllInstances(tagSession, jobPointer->xmlPath, &xmlError)) {
+            if (!XmlExporter::writeAllInstances(snapshotSession, jobPointer->xmlPath, &xmlError)) {
                 finishJob(*jobPointer,
                           JobState::Failed,
                           xmlError.isEmpty() ? AppLocale::trUi("export.xml_failed") : xmlError);

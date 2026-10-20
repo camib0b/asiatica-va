@@ -306,7 +306,7 @@ GameControls::GameControls(QWidget* parent)
       followUpState_(),
       gamePhase_(GamePhase::NotStarted),
       activeMainButton_(nullptr),
-      teamSideSelection_(TeamSideSelection::None) {
+      teamSide_(TagSession::TeamSide::Unspecified) {
   setMinimumWidth(kMinimumPanelWidthPx);
   buildUi();
   wireSignals();
@@ -340,62 +340,47 @@ void GameControls::setSessionTeamNames(const QString& homeName, const QString& a
 }
 
 QString GameControls::selectedTeamLabel() const {
-  if (teamSideSelection_ == TeamSideSelection::Home) return homeTeamFollowUpLabel_;
-  if (teamSideSelection_ == TeamSideSelection::Away) return awayTeamFollowUpLabel_;
+  if (teamSide_ == TagSession::TeamSide::Home) return homeTeamFollowUpLabel_;
+  if (teamSide_ == TagSession::TeamSide::Away) return awayTeamFollowUpLabel_;
   return QString();
 }
 
 void GameControls::updateTeamButtonSelectionVisual() {
-  applyTeamButtonSelectionStyle(homeTeamButton_, teamSideSelection_ == TeamSideSelection::Home,
+  applyTeamButtonSelectionStyle(homeTeamButton_, teamSide_ == TagSession::TeamSide::Home,
                                 homeTeamColorHex_);
-  applyTeamButtonSelectionStyle(awayTeamButton_, teamSideSelection_ == TeamSideSelection::Away,
+  applyTeamButtonSelectionStyle(awayTeamButton_, teamSide_ == TagSession::TeamSide::Away,
                                 awayTeamColorHex_);
   refreshGameButtonMotion(homeTeamButton_, activeMainButton_);
   refreshGameButtonMotion(awayTeamButton_, activeMainButton_);
 }
 
-void GameControls::onHomeTeamButtonClicked() {
-  teamSideSelection_ = TeamSideSelection::Home;
+void GameControls::setTeamSide(TagSession::TeamSide side) {
+  teamSide_ = side;
   updateTeamButtonSelectionVisual();
-  emit teamSideSelected(true);
+}
+
+void GameControls::onHomeTeamButtonClicked() {
+  setTeamSide(TagSession::TeamSide::Home);
 }
 
 void GameControls::onAwayTeamButtonClicked() {
-  teamSideSelection_ = TeamSideSelection::Away;
-  updateTeamButtonSelectionVisual();
-  emit teamSideSelected(false);
-}
-
-void GameControls::setInitialTeamSide(bool selectHome) {
-  teamSideSelection_ = selectHome ? TeamSideSelection::Home : TeamSideSelection::Away;
-  updateTeamButtonSelectionVisual();
-  emit teamSideSelected(selectHome);
+  setTeamSide(TagSession::TeamSide::Away);
 }
 
 void GameControls::switchTeamSideToOppositeTeam() {
-  if (teamSideSelection_ == TeamSideSelection::Home) {
+  if (teamSide_ == TagSession::TeamSide::Home) {
     onAwayTeamButtonClicked();
     if (awayTeamButton_) {
       awayTeamButton_->setFocus(Qt::TabFocusReason);
       flashButtonBorder(awayTeamButton_);
     }
-  } else if (teamSideSelection_ == TeamSideSelection::Away) {
+  } else if (teamSide_ == TagSession::TeamSide::Away) {
     onHomeTeamButtonClicked();
     if (homeTeamButton_) {
       homeTeamButton_->setFocus(Qt::TabFocusReason);
       flashButtonBorder(homeTeamButton_);
     }
   }
-}
-
-QString GameControls::selectedTeamSideKey() const {
-  if (teamSideSelection_ == TeamSideSelection::Home) {
-    return QStringLiteral("Home");
-  }
-  if (teamSideSelection_ == TeamSideSelection::Away) {
-    return QStringLiteral("Away");
-  }
-  return QString();
 }
 
 void GameControls::applyUiLanguage() {
@@ -937,7 +922,7 @@ void GameControls::onMainButtonClicked() {
   auto* button = qobject_cast<QPushButton*>(sender());
   if (!button) return;
 
-  if (teamSideSelection_ == TeamSideSelection::None) {
+  if (teamSide_ == TagSession::TeamSide::Unspecified) {
     clearActiveMainButton();
     flashButtonBorder(homeTeamButton_);
     flashButtonBorder(awayTeamButton_);

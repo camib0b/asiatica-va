@@ -608,7 +608,7 @@ void CompilationSidecarExportTest::exportsSidecarBesideCompilation() {
     request.clips = segments;
     request.includeAudioTrack = false;
     request.includeBrandingOverlay = false;
-    request.tagSession = &session;
+    request.session = captureTagSessionExportData(session);
 
     ExportJobManager manager;
     QString startError;
@@ -891,7 +891,6 @@ void CompilationSidecarExportTest::cancelBeforeOutputReplaceDoesNotWriteSidecar(
     request.clips = segments;
     request.includeAudioTrack = false;
     request.includeBrandingOverlay = false;
-    request.tagSession = &session;
 
     ExportJobManager manager;
     QString startError;
@@ -911,12 +910,17 @@ void CompilationSidecarExportTest::cancelBeforeOutputReplaceDoesNotWriteSidecar(
 #include "CompilationSidecarTests.moc"
 
 int runPresentationPlaybackTests(int argc, char** argv);
+int runWorkStateTests(int argc, char** argv);
 
 int main(int argc, char** argv) {
     QApplication application(argc, argv);
     const int playbackStatus = runPresentationPlaybackTests(argc, argv);
     if (playbackStatus != 0) {
         return playbackStatus;
+    }
+    const int workStateStatus = runWorkStateTests(argc, argv);
+    if (workStateStatus != 0) {
+        return workStateStatus;
     }
     int status = 0;
     {

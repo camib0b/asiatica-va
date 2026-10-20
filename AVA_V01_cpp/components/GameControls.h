@@ -32,11 +32,11 @@ public:
                            const QString& homeColorHex = QString(),
                            const QString& awayColorHex = QString());
 
-  /// Selects home or away on the top row (e.g. after loading a session so tagging can start immediately).
-  void setInitialTeamSide(bool selectHome);
+  /// Selects the side used for the next tag. Unspecified clears the selection.
+  void setTeamSide(TagSession::TeamSide side);
 
-  /// Canonical side for tagging: \c "Home", \c "Away", or empty if neither is selected.
-  QString selectedTeamSideKey() const;
+  /// Side that will be stored on the next tag. GameControls is the only owner.
+  TagSession::TeamSide selectedTeamSide() const { return teamSide_; }
 
   /// Resets the period-advance UI back to the "no game started" state.
   void resetGameTimeState();
@@ -55,13 +55,11 @@ signals:
   void mainEventTimestampCaptured(const QString& mainEvent);
   /// Follow-up flow finished (or skipped); WorkWindow should create the GameTag.
   void tagCommitted(const QString& mainEvent, const QString& followUpEvent = QString());
-  /// Emitted when the user picks home or away on the top row (isHome true = home team).
-  void teamSideSelected(bool isHome);
   /// Emitted when the user advances from NotStarted (period-advance button / G or H).
-  /// WorkWindow is expected to insert the start-anchor tag and start Q1.
+  /// WorkWindow asks the session to insert the start-anchor tag, which opens Q1.
   void gameStartRequested();
   /// Emitted when the user advances from Q1–Q4 (period-advance button / G or H).
-  /// WorkWindow is expected to close the current quarter and (if applicable) open the next one.
+  /// WorkWindow asks the session to close the current quarter.
   void nextQuarterRequested();
 
 private slots:
@@ -102,12 +100,6 @@ private:
 protected:
   bool eventFilter(QObject* obj, QEvent* event) override;
   void keyPressEvent(QKeyEvent* event) override;
-
-  enum class TeamSideSelection {
-    None,
-    Home,
-    Away,
-  };
 
   enum class GamePhase {
     NotStarted,        // Period-advance enabled; starts the game.
@@ -153,7 +145,7 @@ protected:
   QString awayTeamFollowUpLabel_ = QStringLiteral("away");
   QString homeTeamColorHex_;
   QString awayTeamColorHex_;
-  TeamSideSelection teamSideSelection_ = TeamSideSelection::None;
+  TagSession::TeamSide teamSide_ = TagSession::TeamSide::Unspecified;
 
   QVector<QLabel*> mainButtonTitleLabels_;
 };

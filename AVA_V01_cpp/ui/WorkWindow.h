@@ -10,7 +10,11 @@
 #include <QList>
 #include <QVector>
 
+#include "../state/PendingClipNote.h"
+#include "../state/TagFilter.h"
+
 #include <memory>
+#include <optional>
 
 class QLabel;
 class QAction;
@@ -47,6 +51,10 @@ class WorkWindow final : public QWidget {
 public:
   enum class Mode { Tagging, Analyzing, Presenting };
 
+  /// Whether a source video is loaded. Path, stack index, and widget visibility
+  /// are not substitutes for this.
+  enum class WorkStage { NoVideo, VideoOpen };
+
   explicit WorkWindow(QWidget* parent = nullptr);
   ~WorkWindow() override;
 
@@ -58,6 +66,7 @@ public:
   void setPendingConcatenation(std::unique_ptr<VideoConcatenator> concatenator);
   void releaseTransientResources();
   Mode mode() const { return mode_; }
+  bool hasOpenVideo() const { return workStage_ == WorkStage::VideoOpen; }
   void setMode(Mode m);
 
 signals:
@@ -144,25 +153,38 @@ private:
   void attachPresentationKeyboardShortcuts();
   void detachPresentationKeyboardShortcuts();
   void disconnectTagSessionSignals();
-  void syncContextPeriodFromSession();
   void refreshTagsTableRows();
-  void rebuildFilterMenu();
+  void syncFilterMenu();
   void updateFilterIndicator() const;
   void updateFilterButtonsVisibility() const;
+  void applySessionTeamIdentity();
   void flushPendingClipNote();
   void discardPendingClipNote();
+  void stopNoteTimers();
+  void resumeNoteTimers();
   quint64 selectedTagId() const;
   void loadNoteForSelectedTag() const;
   void loadMatchNote() const;
   void refreshMatchNoteMentionCandidates() const;
-  void flashNewTagRow();
+  void flashNewTagRow(quint64 tagId);
   void fadeNewTagFlash();
   void syncModeToggleChecks();
   QString displayTeamForTag(const TagSession::GameTag& tag) const;
-  bool isMainEventAllowed(const QString& mainEvent) const;
   bool isTagAllowed(const QString& mainEvent, const QString& followUpEvent) const;
   bool hasAnyFilterActive() const;
-  TagSession::GameTag pendingTagPeriodAndTeam() const;
+
+  /// Period and team for a tag that is about to be added. Computed from the
+  /// session and GameControls; not stored.
+  struct TagContext {
+    QString period;
+    TagSession::TeamSide team = TagSession::TeamSide::Unspecified;
+  };
+  TagContext tagContext() const;
+
+  struct CapturedMainEvent {
+    QString event;
+    qint64 positionMs = 0;
+  };
 
   void cleanupConcatenatedVideo();
   void cleanupPlaybackPrepVideo();
@@ -180,6 +202,7 @@ private:
 
   // Mode and layout
   Mode mode_ = Mode::Tagging;
+  WorkStage workStage_ = WorkStage::NoVideo;
   QStackedWidget* contentStack_ = nullptr;
   QWidget* mainContentContainer_ = nullptr;
   GameSetupWindow* gameSetupWidget_ = nullptr;
@@ -234,8 +257,9 @@ private:
   StatsWindow* statsOverlay_ = nullptr;
   QTimer* noteDebounceTimer_ = nullptr;
   QTimer* matchNoteDebounceTimer_ = nullptr;
-  quint64 pendingNoteTagId_ = 0;
-  QString pendingNoteText_;
+  bool resumeClipNoteTimer_ = false;
+  bool resumeMatchNoteTimer_ = false;
+  std::optional<PendingClipNote> pendingClipNote_;
   QLabel* tagsHeaderLabel_ = nullptr;
   QToolButton* tagsFilterButton_ = nullptr;
   QToolButton* tagsRemoveFiltersButton_ = nullptr;
@@ -246,21 +270,15 @@ private:
   TagsTableModel* tagsModel_ = nullptr;
 
   QTimer* newTagFlashTimer_ = nullptr;
-  quint64 lastAddedTagId_ = 0;
 
   TagSession* tagSession_ = nullptr;
   QVector<QMetaObject::Connection> tagSessionConnections_;
+  QAction* filterSelectAllAction_ = nullptr;
+  QAction* filterSelectNoneAction_ = nullptr;
   QHash<QString, QAction*> filterActionByMainEvent_;
-  QString activeEventPathMainEvent_;
-  QString activeEventPathFollowUp_;
+  TagFilter tagFilter_;
 
-  QString pendingMainEvent_;
-  qint64 pendingTimestampMs_ = 0;
-  bool hasPendingTag_ = false;
-
-  // Tag-context state (period/team for new tags)
-  QString contextPeriod_;
-  QString contextTeam_;
+  std::optional<CapturedMainEvent> capturedMainEvent_;
 
   QString sourceVideoPath_;
   QString exportDefaultDirectoryPath_;

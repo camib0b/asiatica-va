@@ -368,8 +368,9 @@ void VideoPlayer::wireSignals() {
     connect(player_, &QMediaPlayer::mediaStatusChanged, this, &VideoPlayer::onMediaStatusChanged);
 
     // Player -> timeline widget
-    connect(player_, &QMediaPlayer::durationChanged, this, [this](qint64 dur) {
-        if (videoTimelineBar_) videoTimelineBar_->setDurationMs(dur);
+    connect(player_, &QMediaPlayer::durationChanged, this, [this](qint64 durationMs) {
+        if (videoTimelineBar_) videoTimelineBar_->setDurationMs(durationMs);
+        emit durationChangedMs(durationMs);
     });
 
     connect(player_, &QMediaPlayer::positionChanged, this, [this](qint64 pos) {

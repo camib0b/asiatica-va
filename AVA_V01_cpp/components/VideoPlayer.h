@@ -61,6 +61,7 @@ public:
 signals:
   void videoClosed();
   void positionChangedMs(qint64 positionMs);
+  void durationChangedMs(qint64 durationMs);
   void muteStateChanged(bool muted);
   void muteToolbarFlashRequested();
 

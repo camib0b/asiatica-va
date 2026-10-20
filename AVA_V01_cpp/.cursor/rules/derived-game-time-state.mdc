@@ -21,7 +21,7 @@ Phase follows the contiguous closed prefix Q1..Qn (a missing Q2 does not skip to
 - Q1 is in progress and no quarter tag is closed yet (`currentQuarterIndex_` + `currentQuarterStartMs_`)
 - the game has ended and the timestamp is after Q4’s recorded end (still Q4)
 
-`GameEnded` does **not** set `currentQuarterIndex_` to 3. That index means “quarter in progress”; leaving it at -1 prevents `onNextQuarterRequested` from closing Q4 twice. `periodLabelAtTimestampMs` uses `closedQuarters_[Q4]` for in-span and post-end timestamps. Tagging UI (`contextPeriod_`) must map `GameEnded` to Q4 itself — do not read `currentQuarterIndex()` as the period after the whistle.
+`GameEnded` does **not** set `currentQuarterIndex_` to 3. That index means “quarter in progress”; leaving it at -1 prevents `advanceQuarter` from closing Q4 twice. `periodLabelAtTimestampMs` uses `closedQuarters_[Q4]` for in-span and post-end timestamps. `currentPeriodLabel()` maps `GameEnded` to Q4 for a new tag — do not read `currentQuarterIndex()` as the period after the whistle, and do not cache that label in the window.
 
 ```cpp
 // BAD — rebuild/sort closed quarters on every playhead query
