@@ -77,9 +77,4 @@ AVA_V01_cpp/third_party/ffmpeg/macos/universal/
 AVA_V01_cpp/third_party/ffmpeg/macos/.download/
 
 # --- Secrets / local API credentials ---
-**/license_server.json
-license-server/.dev.vars
-license-server/.wrangler/
-license-server/node_modules/
-*.ava-license
 **/xai.json

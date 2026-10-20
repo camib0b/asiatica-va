@@ -117,8 +117,8 @@ QString resolveApiKey() {
     return apiKeyFromConfigFiles();
 }
 
-// Persists the API key as owner-readable JSON. Platform keychain storage would be
-// stronger, but matches the existing local desktop config pattern (see LicenseConfig).
+// Persists the API key as owner-readable JSON under the app config directory.
+// Platform keychain storage would be stronger.
 bool writeApiKeyToConfigFile(const QString& filePath,
                              const QString& apiKey,
                              bool createOnly) {
