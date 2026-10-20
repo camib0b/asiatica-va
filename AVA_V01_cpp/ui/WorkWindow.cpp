@@ -806,8 +806,8 @@ void WorkWindow::buildUi() {
     topLayout->addWidget(modeToggleTrack_);
     topLayout->addSpacing(16);
 
-    videoControlsRow_ = new QWidget(this);
-    auto* videoControlsLayout = new QHBoxLayout(videoControlsRow_);
+    auto* videoControlsRow = new QWidget(this);
+    auto* videoControlsLayout = new QHBoxLayout(videoControlsRow);
     videoControlsLayout->setContentsMargins(0, 0, 0, 0);
     videoControlsLayout->setSpacing(8);
     videoControlsLayout->addStretch(1);
@@ -837,29 +837,29 @@ void WorkWindow::buildUi() {
     videoMenuButton_->setPopupMode(QToolButton::InstantPopup);
     videoMenuButton_->setCursor(Qt::PointingHandCursor);
     videoMenuButton_->setFocusPolicy(Qt::NoFocus);
-    videoMenu_ = new QMenu(videoMenuButton_);
-    replaceVideoAction_ = videoMenu_->addAction(QString());
-    closeVideoAction_ = videoMenu_->addAction(QString());
-    videoMenu_->addSeparator();
-    importXmlAction_ = videoMenu_->addAction(QString());
-    exportXmlAction_ = videoMenu_->addAction(QString());
-    clipDurationSettingsAction_ = videoMenu_->addAction(QString());
-    videoMenu_->addSeparator();
-    reduceMotionAction_ = videoMenu_->addAction(QString());
+    auto* videoMenu = new QMenu(videoMenuButton_);
+    replaceVideoAction_ = videoMenu->addAction(QString());
+    closeVideoAction_ = videoMenu->addAction(QString());
+    videoMenu->addSeparator();
+    importXmlAction_ = videoMenu->addAction(QString());
+    exportXmlAction_ = videoMenu->addAction(QString());
+    clipDurationSettingsAction_ = videoMenu->addAction(QString());
+    videoMenu->addSeparator();
+    reduceMotionAction_ = videoMenu->addAction(QString());
     reduceMotionAction_->setCheckable(true);
     reduceMotionAction_->setChecked(Motion::reducedMotionPreferred());
-    videoMenuButton_->setMenu(videoMenu_);
+    videoMenuButton_->setMenu(videoMenu);
     videoControlsLayout->addWidget(videoMenuButton_, 0, Qt::AlignRight | Qt::AlignVCenter);
 
-    topLayout->addWidget(videoControlsRow_, 1);
+    topLayout->addWidget(videoControlsRow, 1);
 
     mainContentLayout->addWidget(topRow);
 
-    contentArea_ = new QWidget(mainContentContainer_);
-    auto* contentAreaLayout = new QVBoxLayout(contentArea_);
+    auto* contentArea = new QWidget(mainContentContainer_);
+    auto* contentAreaLayout = new QVBoxLayout(contentArea);
     contentAreaLayout->setContentsMargins(0, 0, 0, 0);
     contentAreaLayout->setSpacing(0);
-    mainContentLayout->addWidget(contentArea_, 1);
+    mainContentLayout->addWidget(contentArea, 1);
 
     gameSetupWidget_ = new GameSetupWindow(this);
     contentStack_->addWidget(gameSetupWidget_);
@@ -1359,7 +1359,7 @@ void WorkWindow::onNextQuarterRequested() {
     const qint64 nowMs = videoPlayer_->currentPositionMs();
     const qint64 endMs = nowMs >= quarterStartMs ? nowMs : quarterStartMs;
 
-    if (closingIndex < 0 || closingIndex > 3) return;
+    if (closingIndex > 3) return;
 
     TagSession::GameTag quarterTag;
     quarterTag.mainEvent = EventDefaults::quarterCode(closingIndex);
@@ -1415,7 +1415,6 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     }
 
     sourceVideoPath_ = filePath;
-    playbackVideoPath_ = playbackPath;
 
     discardPendingClipNote();
     if (tagSession_) tagSession_->clear();
@@ -1850,7 +1849,7 @@ void WorkWindow::onPresentationApplyLeadLagToAll(qint64 leadMs, qint64 lagMs) {
     configurePresentationClipBarForCurrentClip();
 }
 
-void WorkWindow::onPresentationShowNotesToggled(bool /*enabled*/) {
+void WorkWindow::onPresentationShowNotesToggled() {
     updatePresentationStage();
 }
 
@@ -2106,7 +2105,7 @@ void WorkWindow::flushPendingClipNote() {
     if (!tagSession_) return;
     const int sessionIndex = tagSession_->indexOfTagId(tagId);
     if (sessionIndex < 0 || !tagSession_->isValidTagIndex(sessionIndex)) return;
-    if (!tagSession_->setTagNote(sessionIndex, noteText)) return;
+    tagSession_->setTagNote(sessionIndex, noteText);
 }
 
 quint64 WorkWindow::selectedTagId() const {

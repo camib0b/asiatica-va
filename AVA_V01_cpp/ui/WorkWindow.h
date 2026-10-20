@@ -15,7 +15,6 @@
 class QLabel;
 class QAction;
 class QToolButton;
-class QMenu;
 class QTableView;
 class TagsTableModel;
 class QPlainTextEdit;
@@ -107,7 +106,7 @@ private slots:
   void onPresentationClipIntervalChanged(int queueIndex);
   void onPresentationLeadLagEdited(qint64 leadMs, qint64 lagMs);
   void onPresentationApplyLeadLagToAll(qint64 leadMs, qint64 lagMs);
-  void onPresentationShowNotesToggled(bool enabled);
+  void onPresentationShowNotesToggled();
   void onPresentationExportRequested();
 
 protected:
@@ -184,11 +183,9 @@ private:
   QStackedWidget* contentStack_ = nullptr;
   QWidget* mainContentContainer_ = nullptr;
   GameSetupWindow* gameSetupWidget_ = nullptr;
-  QWidget* videoControlsRow_ = nullptr;
   QWidget* taggingRightCol_ = nullptr;
   QWidget* tagsSection_ = nullptr;
   QWidget* tagsHeaderRow_ = nullptr;
-  QWidget* contentArea_ = nullptr;
   QSplitter* workOuterSplitter_ = nullptr;
   QSplitter* workLeftSplitter_ = nullptr;
   QWidget* videoColumn_ = nullptr;
@@ -216,7 +213,6 @@ private:
   // close or swap video files:
   QToolButton* videoMuteButton_ = nullptr;
   QToolButton* videoMenuButton_ = nullptr;
-  QMenu* videoMenu_ = nullptr;
   QAction* replaceVideoAction_ = nullptr;
   QAction* closeVideoAction_ = nullptr;
   QAction* importXmlAction_ = nullptr;
@@ -267,7 +263,6 @@ private:
   QString contextTeam_;
 
   QString sourceVideoPath_;
-  QString playbackVideoPath_;
   QString exportDefaultDirectoryPath_;
   std::unique_ptr<QTemporaryDir> concatenatedVideoTempDir_;
   std::unique_ptr<QTemporaryDir> playbackPrepTempDir_;
