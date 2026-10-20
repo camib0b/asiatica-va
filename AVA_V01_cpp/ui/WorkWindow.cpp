@@ -100,6 +100,10 @@ void setToolButtonFlashState(QToolButton* button, bool flashing) {
 
 namespace {
 
+bool requireEntitlement() {
+    return LicenseManager::instance().isEntitled();
+}
+
 bool isTextInteractionFocusWidget(const QWidget* widget) {
     if (!widget) return false;
     if (qobject_cast<const QLineEdit*>(widget)) return true;
@@ -619,7 +623,7 @@ void WorkWindow::syncModeToggleChecks() {
 }
 
 void WorkWindow::setMode(Mode m) {
-    if (m == Mode::Presenting && !LicenseManager::instance().isEntitled()) {
+    if (m == Mode::Presenting && !requireEntitlement()) {
         syncModeToggleChecks();
         return;
     }
@@ -1148,7 +1152,7 @@ void WorkWindow::wireSignals() {
 
     // GameControls -> capture timestamp and store tags
     connect(gameControls_, &GameControls::mainEventTimestampCaptured, this, [this](const QString& mainEvent) {
-        if (!LicenseManager::instance().isEntitled()) return;
+        if (!requireEntitlement()) return;
         if (!videoPlayer_) return;
         pendingMainEvent_ = mainEvent;
         pendingTimestampMs_ = videoPlayer_->currentPositionMs();
@@ -1167,7 +1171,7 @@ void WorkWindow::wireSignals() {
     }
 
     connect(gameControls_, &GameControls::tagCommitted, this, [this](const QString& mainEvent, const QString& followUpEvent) {
-        if (!LicenseManager::instance().isEntitled()) return;
+        if (!requireEntitlement()) return;
         if (!videoPlayer_) return;
 
         qint64 timestampMs = videoPlayer_->currentPositionMs();
@@ -1244,7 +1248,7 @@ void WorkWindow::wireSignals() {
     modeAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     connect(modeAction, &QAction::triggered, this, [this]() {
         Mode next = nextModeInCycle(mode_);
-        if (next == Mode::Presenting && !LicenseManager::instance().isEntitled()) {
+        if (next == Mode::Presenting && !requireEntitlement()) {
             next = nextModeInCycle(next);
         }
         setMode(next);
@@ -1331,7 +1335,7 @@ void WorkWindow::onGameSetupConfirmed(const QString& filePath,
 }
 
 void WorkWindow::onGameStartRequested() {
-    if (!LicenseManager::instance().isEntitled()) return;
+    if (!requireEntitlement()) return;
     if (!videoPlayer_ || !tagSession_) return;
     const qint64 anchorMs = videoPlayer_->currentPositionMs();
     tagSession_->setGameStartAnchor(anchorMs);
@@ -1350,7 +1354,7 @@ void WorkWindow::onGameStartRequested() {
 }
 
 void WorkWindow::onNextQuarterRequested() {
-    if (!LicenseManager::instance().isEntitled()) return;
+    if (!requireEntitlement()) return;
     if (!videoPlayer_ || !tagSession_) return;
     if (tagSession_->currentQuarterIndex() < 0) return;
 
@@ -1542,7 +1546,7 @@ void WorkWindow::onCloseVideo() {
 }
 
 void WorkWindow::onPresentationExportRequested() {
-    if (!LicenseManager::instance().isEntitled()) return;
+    if (!requireEntitlement()) return;
     if (!tagSession_ || sourceVideoPath_.isEmpty() || !exportJobManager_) return;
 
     QVector<PresentationQueue::Clip> queuedClips;
@@ -1593,7 +1597,7 @@ void WorkWindow::onPresentationExportRequested() {
 }
 
 void WorkWindow::onExportXml() {
-    if (!LicenseManager::instance().isEntitled()) return;
+    if (!requireEntitlement()) return;
     if (!tagSession_ || sourceVideoPath_.isEmpty() || !exportJobManager_) return;
 
     if (tagSession_->tags().isEmpty()) {
@@ -1638,7 +1642,7 @@ void WorkWindow::onClipDurationSettings() {
 }
 
 void WorkWindow::onImportXml() {
-    if (!LicenseManager::instance().isEntitled()) return;
+    if (!requireEntitlement()) return;
     if (!tagSession_ || !videoPlayer_ || sourceVideoPath_.isEmpty()) return;
 
     const QString filePath = QFileDialog::getOpenFileName(
@@ -1788,7 +1792,7 @@ void WorkWindow::onPresentationSelectionChanged(const QVector<int>& tagSessionIn
 }
 
 void WorkWindow::onPresentationClipActivated(int tagSessionIndex) {
-    if (!LicenseManager::instance().isEntitled()) return;
+    if (!requireEntitlement()) return;
     if (!presentationQueue_) return;
     if (mode_ != Mode::Presenting) setMode(Mode::Presenting);
     if (!presentationQueue_->setCurrentTagIndex(tagSessionIndex)) return;
