@@ -25,7 +25,6 @@
 
 #include <algorithm>
 #include <array>
-#include <map>
 #include <memory>
 #include <optional>
 
@@ -42,12 +41,6 @@ const QColor kActiveRowBgOdd(0xFAFAFA);
 const QColor kInactiveRowBg(0xF4F4F5);
 const QColor kActiveText(0x09090B);
 const QColor kInactiveText(0xA1A1AA);
-
-struct CaseInsensitiveLess {
-  bool operator()(const QString& left, const QString& right) const {
-    return QString::compare(left, right, Qt::CaseInsensitive) < 0;
-  }
-};
 
 bool abbrevListContains(const QStringList& choices, const QString& abbrev) {
   return std::any_of(choices.cbegin(), choices.cend(), [&](const QString& existing) {
@@ -148,6 +141,28 @@ int quarterIndexForMainEvent(const QString& mainEvent) {
 /// Canonical "+"-form of a parsed team code so "home foul+" matches "HOME FOUL-".
 QString canonicalPositiveTeamCode(const QString& abbrev, const QString& shortCode) {
   return QStringLiteral("%1 %2+").arg(abbrev, shortCode);
+}
+
+/// Identity key for an imported XML code. Case and surrounding whitespace are not distinct.
+QString normalizedMappingCode(const QString& code) {
+  return code.trimmed().toUpper();
+}
+
+std::optional<XmlEventMappingDialog::CodeMapping> mappingForCode(
+    const QHash<QString, XmlEventMappingDialog::CodeMapping>& mappingByCode,
+    const QString& code) {
+  const auto iterator = mappingByCode.constFind(normalizedMappingCode(code));
+  if (iterator == mappingByCode.cend()) return std::nullopt;
+  return iterator.value();
+}
+
+QString selectedXmlAbbrev(const QComboBox* combo) {
+  if (!combo) return {};
+  return combo->currentText().trimmed().toUpper();
+}
+
+bool xmlAbbrevsConflict(const QString& homeAbbrev, const QString& awayAbbrev) {
+  return !homeAbbrev.isEmpty() && homeAbbrev == awayAbbrev;
 }
 
 struct ClosedQuarterSpan {
@@ -280,6 +295,8 @@ void XmlEventMappingDialog::buildUi() {
   xmlHomeAbbrevCombo_ = xmlHomeAbbrevCombo.get();
   awayAbbrevLabel_ = awayAbbrevLabel.get();
   xmlAwayAbbrevCombo_ = xmlAwayAbbrevCombo.get();
+  xmlHomeAbbrevCombo_->setObjectName(QStringLiteral("XmlHomeAbbrevCombo"));
+  xmlAwayAbbrevCombo_->setObjectName(QStringLiteral("XmlAwayAbbrevCombo"));
   abbrevRow->addWidget(homeAbbrevLabel.get());
   abbrevRow->addWidget(xmlHomeAbbrevCombo.get());
   abbrevRow->addSpacing(20);
@@ -287,6 +304,14 @@ void XmlEventMappingDialog::buildUi() {
   abbrevRow->addWidget(xmlAwayAbbrevCombo.get());
   abbrevRow->addStretch();
   layout->addLayout(abbrevRow.get());
+
+  auto abbrevConflictLabel = makeQtPtr<QLabel>(this);
+  abbrevConflictLabel->setObjectName(QStringLiteral("XmlAbbrevConflictLabel"));
+  abbrevConflictLabel->setWordWrap(true);
+  Style::setRole(abbrevConflictLabel.get(), "exportError");
+  abbrevConflictLabel->setVisible(false);
+  abbrevConflictLabel_ = abbrevConflictLabel.get();
+  layout->addWidget(abbrevConflictLabel.get());
 
   auto mappingTable = makeQtPtr<QTableWidget>(this);
   mappingTable->setObjectName(QStringLiteral("XmlEventMappingTable"));
@@ -305,6 +330,7 @@ void XmlEventMappingDialog::buildUi() {
   importButton->setDefault(true);
   cancelButton_ = cancelButton.get();
   importButton_ = importButton.get();
+  importButton_->setObjectName(QStringLiteral("XmlMappingImportButton"));
   buttonRow->addWidget(cancelButton.get());
   buttonRow->addWidget(importButton.get());
   layout->addLayout(buttonRow.get());
@@ -329,15 +355,36 @@ void XmlEventMappingDialog::buildUi() {
 }
 
 void XmlEventMappingDialog::populateRows() {
-  std::map<QString, int, CaseInsensitiveLess> codeCounts;
+  struct CodeGroup {
+    QString displayCode;
+    int count = 0;
+  };
+
+  QVector<CodeGroup> groups;
+  QHash<QString, int> groupIndexByCode;
   QSet<QString> detectedAbbrevs;
   for (const XmlImporter::ParsedInstance& instance : instances_) {
-    ++codeCounts[instance.code];
+    const QString lookupKey = normalizedMappingCode(instance.code);
+    const auto existingGroup = groupIndexByCode.constFind(lookupKey);
+    if (existingGroup == groupIndexByCode.cend()) {
+      groupIndexByCode.insert(lookupKey, groups.size());
+      CodeGroup group;
+      group.displayCode = instance.code.trimmed();
+      group.count = 1;
+      groups.append(group);
+    } else {
+      groups[existingGroup.value()].count += 1;
+    }
+
     const ParsedTeamCode parsed = parseTeamCodePattern(instance.code);
     if (parsed.valid && parsed.sign == QLatin1Char('+')) {
       detectedAbbrevs.insert(parsed.abbrev);
     }
   }
+
+  std::sort(groups.begin(), groups.end(), [](const CodeGroup& left, const CodeGroup& right) {
+    return QString::compare(left.displayCode, right.displayCode, Qt::CaseInsensitive) < 0;
+  });
 
   QStringList abbrevChoices(detectedAbbrevs.cbegin(), detectedAbbrevs.cend());
   std::sort(abbrevChoices.begin(), abbrevChoices.end(),
@@ -364,9 +411,9 @@ void XmlEventMappingDialog::populateRows() {
     if (awayIndex >= 0) xmlAwayAbbrevCombo_->setCurrentIndex(awayIndex);
   }
 
-  mappingTable_->setRowCount(static_cast<int>(codeCounts.size()));
+  mappingTable_->setRowCount(groups.size());
   rows_.clear();
-  rows_.reserve(static_cast<int>(codeCounts.size()));
+  rows_.reserve(groups.size());
 
   const QStringList events = eventChoices();
   const QString homeLabel =
@@ -375,12 +422,12 @@ void XmlEventMappingDialog::populateRows() {
       teamSideDisplayLabel(QStringLiteral("Away"), sessionHomeAbbrev_, sessionAwayAbbrev_);
 
   int row = 0;
-  for (const auto& [code, count] : codeCounts) {
+  for (const CodeGroup& group : groups) {
     MappingRow mappingRow;
-    mappingRow.xmlCode = code;
-    mappingRow.count = count;
+    mappingRow.xmlCode = group.displayCode;
+    mappingRow.count = group.count;
 
-    mappingTable_->setItem(row, kColCode, new QTableWidgetItem(code));
+    mappingTable_->setItem(row, kColCode, new QTableWidgetItem(group.displayCode));
     mappingTable_->setItem(row, kColCount,
                            new QTableWidgetItem(QString::number(mappingRow.count)));
 
@@ -507,12 +554,30 @@ XmlEventMappingDialog::ParsedTeamCode XmlEventMappingDialog::parseTeamCodePatter
   return result;
 }
 
+bool XmlEventMappingDialog::abbreviationsCurrentlyConflict() const {
+  return xmlAbbrevsConflict(selectedXmlAbbrev(xmlHomeAbbrevCombo_),
+                            selectedXmlAbbrev(xmlAwayAbbrevCombo_));
+}
+
+void XmlEventMappingDialog::updateAbbrevConflictState() {
+  const bool conflict = abbreviationsCurrentlyConflict();
+  if (abbrevConflictLabel_) {
+    abbrevConflictLabel_->setText(conflict ? AppLocale::trUi("xml_import.mapping_same_abbrev")
+                                           : QString());
+    abbrevConflictLabel_->setVisible(conflict);
+  }
+  if (importButton_) importButton_->setEnabled(!conflict);
+}
+
 void XmlEventMappingDialog::onAbbrevMappingChanged() {
   xmlAbbrevToTeamSide_.clear();
-  const QString homeAbbrev = xmlHomeAbbrevCombo_->currentText().trimmed().toUpper();
-  const QString awayAbbrev = xmlAwayAbbrevCombo_->currentText().trimmed().toUpper();
-  if (!homeAbbrev.isEmpty()) xmlAbbrevToTeamSide_.insert(homeAbbrev, QStringLiteral("Home"));
-  if (!awayAbbrev.isEmpty()) xmlAbbrevToTeamSide_.insert(awayAbbrev, QStringLiteral("Away"));
+  const QString homeAbbrev = selectedXmlAbbrev(xmlHomeAbbrevCombo_);
+  const QString awayAbbrev = selectedXmlAbbrev(xmlAwayAbbrevCombo_);
+  if (!xmlAbbrevsConflict(homeAbbrev, awayAbbrev)) {
+    if (!homeAbbrev.isEmpty()) xmlAbbrevToTeamSide_.insert(homeAbbrev, QStringLiteral("Home"));
+    if (!awayAbbrev.isEmpty()) xmlAbbrevToTeamSide_.insert(awayAbbrev, QStringLiteral("Away"));
+  }
+  updateAbbrevConflictState();
 }
 
 QString XmlEventMappingDialog::teamForAbbrev(const QString& abbrev) const {
@@ -599,16 +664,21 @@ QHash<QString, XmlEventMappingDialog::CodeMapping> XmlEventMappingDialog::buildM
   QHash<QString, CodeMapping> mappingByCode;
   mappingByCode.reserve(rows_.size());
   for (const MappingRow& row : rows_) {
-    mappingByCode.insert(row.xmlCode, mappingForRow(row));
+    mappingByCode.insert(normalizedMappingCode(row.xmlCode), mappingForRow(row));
   }
   return mappingByCode;
 }
 
 bool XmlEventMappingDialog::validateMappings(QString* errorMessage) const {
+  if (abbreviationsCurrentlyConflict()) {
+    if (errorMessage) *errorMessage = AppLocale::trUi("xml_import.mapping_same_abbrev");
+    return false;
+  }
+
   const QHash<QString, CodeMapping> mappingByCode = buildMappingByCode();
 
   for (const XmlImporter::ParsedInstance& instance : instances_) {
-    if (!mappingByCode.contains(instance.code)) {
+    if (!mappingForCode(mappingByCode, instance.code).has_value()) {
       if (errorMessage) {
         *errorMessage = AppLocale::trUi("xml_import.mapping_missing_event").arg(instance.code);
       }
@@ -618,8 +688,8 @@ bool XmlEventMappingDialog::validateMappings(QString* errorMessage) const {
 
   int importableCount = 0;
   for (const XmlImporter::ParsedInstance& instance : instances_) {
-    const CodeMapping& mapping = mappingByCode[instance.code];
-    if (!mapping.skip) ++importableCount;
+    const std::optional<CodeMapping> mapping = mappingForCode(mappingByCode, instance.code);
+    if (mapping.has_value() && !mapping->skip) ++importableCount;
   }
 
   if (importableCount == 0) {
@@ -628,8 +698,14 @@ bool XmlEventMappingDialog::validateMappings(QString* errorMessage) const {
   }
 
   for (const MappingRow& row : rows_) {
-    const CodeMapping mapping = mappingByCode.value(row.xmlCode);
-    if (mapping.skip) continue;
+    const std::optional<CodeMapping> mapping = mappingForCode(mappingByCode, row.xmlCode);
+    if (!mapping.has_value()) {
+      if (errorMessage) {
+        *errorMessage = AppLocale::trUi("xml_import.mapping_missing_event").arg(row.xmlCode);
+      }
+      return false;
+    }
+    if (mapping->skip) continue;
 
     if (row.count <= 0) {
       if (errorMessage) {
@@ -638,13 +714,13 @@ bool XmlEventMappingDialog::validateMappings(QString* errorMessage) const {
       return false;
     }
 
-    if (mapping.canonicalMainEvent.isEmpty()) {
+    if (mapping->canonicalMainEvent.isEmpty()) {
       if (errorMessage) {
         *errorMessage = AppLocale::trUi("xml_import.mapping_missing_event").arg(row.xmlCode);
       }
       return false;
     }
-    if (!EventDefaults::isTimeControlEvent(mapping.canonicalMainEvent) && mapping.team.isEmpty()) {
+    if (!EventDefaults::isTimeControlEvent(mapping->canonicalMainEvent) && mapping->team.isEmpty()) {
       if (errorMessage) {
         *errorMessage = AppLocale::trUi("xml_import.mapping_missing_team").arg(row.xmlCode);
       }
@@ -687,8 +763,8 @@ XmlEventMappingDialog::ImportMappingResult XmlEventMappingDialog::buildImportSna
 
   result.tags.reserve(instances_.size());
   for (const XmlImporter::ParsedInstance& instance : instances_) {
-    const CodeMapping mapping = mappingByCode.value(instance.code);
-    if (mapping.skip) {
+    const std::optional<CodeMapping> mapping = mappingForCode(mappingByCode, instance.code);
+    if (!mapping.has_value() || mapping->skip) {
       ++result.skippedInstanceCount;
       continue;
     }
@@ -697,7 +773,7 @@ XmlEventMappingDialog::ImportMappingResult XmlEventMappingDialog::buildImportSna
     if (interval.adjustedBeforeVideoStart) {
       ++result.adjustedBeforeStartCount;
     }
-    result.tags.append(gameTagFromInstance(instance, mapping));
+    result.tags.append(gameTagFromInstance(instance, *mapping));
   }
 
   inferPeriods(result.tags);
@@ -706,11 +782,11 @@ XmlEventMappingDialog::ImportMappingResult XmlEventMappingDialog::buildImportSna
 
 void XmlEventMappingDialog::onImportClicked() {
   struct ImportButtonGuard {
-    QPointer<QPushButton> button;
+    XmlEventMappingDialog* dialog = nullptr;
     ~ImportButtonGuard() {
-      if (button) button->setEnabled(true);
+      if (dialog) dialog->updateAbbrevConflictState();
     }
-  } importButtonGuard{importButton_};
+  } importButtonGuard{this};
   if (importButton_) importButton_->setEnabled(false);
 
   QString errorMessage;
@@ -755,4 +831,6 @@ void XmlEventMappingDialog::applyUiStrings() {
   for (const MappingRow& row : rows_) {
     applyTeamComboLabels(row.teamCombo, homeLabel, awayLabel);
   }
+
+  updateAbbrevConflictState();
 }

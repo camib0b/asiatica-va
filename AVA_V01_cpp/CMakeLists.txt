@@ -155,7 +155,9 @@ qt_add_executable(AVAExportTests
   tests/PresentationPlaybackTests.cpp
   tests/VideoClipSequenceTests.cpp
   tests/WorkStateTests.cpp
+  tests/XmlEventMappingDialogTests.cpp
   tests/UiPolicyTests.cpp
+  ui/XmlEventMappingDialog.cpp
   ui/GameSetupWindow.cpp
   components/TeamColorPicker.cpp
   export/GameMetadataSuggester.cpp

@@ -798,6 +798,10 @@ const QHash<QString, UiTranslation>& uiTranslationTable() {
       {QStringLiteral("xml_import.mapping_missing_team"),
        {QStringLiteral("Choose a team for code: %1"),
         QStringLiteral("Elija un equipo para el código: %1")}},
+      {QStringLiteral("xml_import.mapping_same_abbrev"),
+       {QStringLiteral("Home and away cannot use the same abbreviation for the XML."),
+        QStringLiteral(
+            "El local y el visitante no pueden usar la misma abreviatura para el XML.")}},
       {QStringLiteral("xml_import.complete_summary"),
        {QStringLiteral("Imported %1 events (%2 skipped, %3 clamped to video bounds)."),
         QStringLiteral("Se importaron %1 eventos (%2 omitidos, %3 ajustados a los límites del video).")}},
@@ -936,13 +940,17 @@ QString trDisplayTagLine(const QString& mainEvent, const QString& followUpEvent)
   return line;
 }
 
-QString trUi(const char* key) {
+QString trUiForLanguage(const char* key, Language language) {
   if (!key) return QString();
   const QLatin1String latinKey(key);
-  const QHash<QString, QString>& strings = uiStringsForLanguage(currentLanguage());
+  const QHash<QString, QString>& strings = uiStringsForLanguage(language);
   const auto iterator = strings.constFind(latinKey);
   if (iterator == strings.cend()) return QString::fromLatin1(key);
   return iterator.value();
+}
+
+QString trUi(const char* key) {
+  return trUiForLanguage(key, currentLanguage());
 }
 
 } // namespace AppLocale

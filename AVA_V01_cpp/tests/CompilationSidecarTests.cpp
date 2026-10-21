@@ -922,6 +922,7 @@ void CompilationSidecarExportTest::cancelBeforeOutputReplaceDoesNotWriteSidecar(
 
 int runPresentationPlaybackTests(int argc, char** argv);
 int runWorkStateTests(int argc, char** argv);
+int runXmlEventMappingDialogTests(int argc, char** argv);
 int runUiPolicyTests(int argc, char** argv);
 int runInteractionGuardTests(int argc, char** argv);
 int runVideoClipSequenceTests(int argc, char** argv);
@@ -935,6 +936,10 @@ int main(int argc, char** argv) {
     const int workStateStatus = runWorkStateTests(argc, argv);
     if (workStateStatus != 0) {
         return workStateStatus;
+    }
+    const int mappingStatus = runXmlEventMappingDialogTests(argc, argv);
+    if (mappingStatus != 0) {
+        return mappingStatus;
     }
     const int uiPolicyStatus = runUiPolicyTests(argc, argv);
     if (uiPolicyStatus != 0) {
