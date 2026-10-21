@@ -42,4 +42,9 @@ QString trDisplayTagLine(const QString& mainEvent, const QString& followUpEvent)
 /// General UI copy (window chrome, menus, setup, etc.).
 QString trUi(const char* key);
 
+/// Same table as trUi, for an explicit language. Does not change the current
+/// language. Export burn-ins use this so the overlay language does not follow
+/// the live application language.
+QString trUiForLanguage(const char* key, Language language);
+
 } // namespace AppLocale

@@ -29,6 +29,8 @@ public:
   struct ImportMappingResult {
     QVector<TagSession::GameTag> tags;
     int skippedInstanceCount = 0;
+    /// Instances whose start was before the video and were shifted or trimmed.
+    int adjustedBeforeStartCount = 0;
   };
 
   XmlEventMappingDialog(const QVector<XmlImporter::ParsedInstance>& instances,
@@ -45,6 +47,9 @@ private slots:
   void onAbbrevMappingChanged();
 
 private:
+  bool abbreviationsCurrentlyConflict() const;
+  void updateAbbrevConflictState();
+
   struct MappingRow {
     QString xmlCode;
     int count = 0;
@@ -92,6 +97,7 @@ private:
   QPointer<QLabel> awayAbbrevLabel_;
   QPointer<QComboBox> xmlHomeAbbrevCombo_;
   QPointer<QComboBox> xmlAwayAbbrevCombo_;
+  QPointer<QLabel> abbrevConflictLabel_;
   QPointer<QTableWidget> mappingTable_;
   QPointer<QPushButton> importButton_;
   QPointer<QPushButton> cancelButton_;

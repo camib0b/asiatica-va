@@ -341,6 +341,19 @@ QString generateScoreboardImage(const ScoreboardOverlay& data,
                                 int maxImageWidth);
 QString generateBrandingImage(const QString& outputPath, qreal overlayScale);
 
+QString timedPhaseEnableExpression(double activationOffsetSeconds,
+                                   bool hasFollowingPhase,
+                                   double followingOffsetSeconds) {
+    if (!hasFollowingPhase) {
+        if (activationOffsetSeconds <= 0.0) return {};
+        return QStringLiteral("gte(t,%1)")
+            .arg(QString::number(activationOffsetSeconds, 'f', 3));
+    }
+    return QStringLiteral("gte(t,%1)*lt(t,%2)")
+        .arg(QString::number(activationOffsetSeconds, 'f', 3))
+        .arg(QString::number(followingOffsetSeconds, 'f', 3));
+}
+
 }  // namespace
 
 ClipExporter::ClipExporter(QObject* parent) : QObject(parent) {}
@@ -527,6 +540,41 @@ void ClipExporter::processNextClip() {
         scoreboardImagePaths.append(path);
     }
 
+    const int shootoutCount = clip.shootouts.size();
+    QStringList shootoutImagePaths;
+    shootoutImagePaths.reserve(shootoutCount);
+    for (int shootoutIndex = 0; shootoutIndex < shootoutCount; ++shootoutIndex) {
+        const QString path = tempDir_->filePath(
+            QStringLiteral("shootout_%1_%2.png")
+                .arg(currentClipIndex_, 4, 10, QChar('0'))
+                .arg(shootoutIndex));
+        if (ShootoutOverlay::writeImage(clip.shootouts.at(shootoutIndex).frame,
+                                        path,
+                                        overlayScale_,
+                                        maxImageWidth)
+                .isEmpty()) {
+            finishExport(false,
+                QStringLiteral("Failed to write shootout overlay image %1 for clip %2.")
+                    .arg(shootoutIndex + 1)
+                    .arg(currentClipIndex_ + 1));
+            return;
+        }
+        shootoutImagePaths.append(path);
+    }
+
+    int scoreboardStackHeight = 0;
+    for (const QString& path : scoreboardImagePaths) {
+        const QImage scoreboardImage(path);
+        scoreboardStackHeight = qMax(scoreboardStackHeight, scoreboardImage.height());
+    }
+    const int shootoutGap = qMax(4, qRound(8.0 * overlayScale_));
+    const int shootoutTopOffset = scoreboardStackHeight == 0
+        ? 0
+        : scoreboardStackHeight + shootoutGap;
+    const QString shootoutY = QStringLiteral("main_h*%1+%2")
+                                  .arg(kYouTubeTopSafeFraction, 0, 'f', 3)
+                                  .arg(shootoutTopOffset);
+
     const OverlayScaler scaler(overlayScale_);
     // Horizontal insets stay design-scaled; vertical insets use frame-height
     // fractions so they track YouTube's chrome regardless of resolution.
@@ -562,11 +610,16 @@ void ClipExporter::processNextClip() {
         arguments << QStringLiteral("-loop") << QStringLiteral("1")
                   << QStringLiteral("-i") << path;
     }
+    for (const QString& path : shootoutImagePaths) {
+        arguments << QStringLiteral("-loop") << QStringLiteral("1")
+                  << QStringLiteral("-i") << path;
+    }
 
     int nextInputIndex = 1;
     int bottomOverlayInput = -1;
     int brandingInput = -1;
     int firstScoreboardInput = -1;
+    int firstShootoutInput = -1;
 
     if (includeBottomOverlay) {
         bottomOverlayInput = nextInputIndex++;
@@ -576,6 +629,10 @@ void ClipExporter::processNextClip() {
     }
     if (scoreboardCount > 0) {
         firstScoreboardInput = nextInputIndex;
+        nextInputIndex += scoreboardCount;
+    }
+    if (shootoutCount > 0) {
+        firstShootoutInput = nextInputIndex;
     }
 
     const QString rotationFilter = rotationCorrectionFilter(sourceRotationDegrees_);
@@ -622,62 +679,74 @@ void ClipExporter::processNextClip() {
                                .arg(topSafeY));
     }
 
-    auto scoreboardEnableExpression =
-        [&clip](const int index, const int count) -> QString {
-            const double thisOffset = clip.scoreboards[index].activationOffsetSeconds;
-            if (count == 1) {
-                if (thisOffset <= 0.0) {
-                    return {};
-                }
-                return QStringLiteral("gte(t,%1)")
-                    .arg(QString::number(thisOffset, 'f', 3));
-            }
-            if (index == count - 1) {
-                return QStringLiteral("gte(t,%1)")
-                    .arg(QString::number(thisOffset, 'f', 3));
-            }
-            const double nextOffset = clip.scoreboards[index + 1].activationOffsetSeconds;
-            return QStringLiteral("gte(t,%1)*lt(t,%2)")
-                .arg(QString::number(thisOffset, 'f', 3))
-                .arg(QString::number(nextOffset, 'f', 3));
-        };
+    const int timedOverlayCount = scoreboardCount + shootoutCount;
+    int timedOverlaysApplied = 0;
+    auto appendTimedOverlay = [&filterComplex, &currentVideoLabel, &timedOverlaysApplied,
+                               timedOverlayCount, cornerMargin](
+                                  const int inputIndex,
+                                  const QString& yExpression,
+                                  const QString& enableExpression) {
+        const bool isLast = timedOverlaysApplied == timedOverlayCount - 1;
+        const QString outputLabel = isLast
+            ? QStringLiteral("v")
+            : QStringLiteral("sb%1").arg(timedOverlaysApplied);
+        ++timedOverlaysApplied;
+        if (!filterComplex.isEmpty()) {
+            filterComplex += QStringLiteral(";");
+        }
+        if (enableExpression.isEmpty()) {
+            filterComplex += QStringLiteral("[%1][%2:v]overlay=%3:%4[%5]")
+                .arg(currentVideoLabel)
+                .arg(inputIndex)
+                .arg(cornerMargin)
+                .arg(yExpression)
+                .arg(outputLabel);
+        } else {
+            filterComplex += QStringLiteral("[%1][%2:v]overlay=%3:%4:enable='%5'[%6]")
+                .arg(currentVideoLabel)
+                .arg(inputIndex)
+                .arg(cornerMargin)
+                .arg(yExpression)
+                .arg(enableExpression)
+                .arg(outputLabel);
+        }
+        currentVideoLabel = outputLabel;
+    };
 
-    if (scoreboardCount == 0) {
+    if (timedOverlayCount == 0) {
         if (!filterComplex.isEmpty()) {
             filterComplex += QStringLiteral(";");
         }
         filterComplex += QStringLiteral("[%1]null[v]").arg(currentVideoLabel);
     } else {
-        // Scoreboard timing uses clip-local seconds (t=0 at clip in-point via -ss). Phase i is
-        // visible on [activationOffsetSeconds[i], activationOffsetSeconds[i+1]); the last phase
-        // stays on until clip end.
-        for (int s = 0; s < scoreboardCount; ++s) {
-            const int inputIndex = firstScoreboardInput + s;
-            const QString outputLabel = (s == scoreboardCount - 1)
-                ? QStringLiteral("v")
-                : QStringLiteral("sb%1").arg(s);
-            const QString enableExpr = scoreboardEnableExpression(s, scoreboardCount);
-
-            if (!filterComplex.isEmpty()) {
-                filterComplex += QStringLiteral(";");
-            }
-            if (enableExpr.isEmpty()) {
-                filterComplex += QStringLiteral("[%1][%2:v]overlay=%3:%4[%5]")
-                    .arg(currentVideoLabel)
-                    .arg(inputIndex)
-                    .arg(cornerMargin)
-                    .arg(topSafeY)
-                    .arg(outputLabel);
-            } else {
-                filterComplex += QStringLiteral("[%1][%2:v]overlay=%3:%4:enable='%5'[%6]")
-                    .arg(currentVideoLabel)
-                    .arg(inputIndex)
-                    .arg(cornerMargin)
-                    .arg(topSafeY)
-                    .arg(enableExpr)
-                    .arg(outputLabel);
-            }
-            currentVideoLabel = outputLabel;
+        // Phase timing is clip-local seconds (t=0 at the clip in-point via -ss).
+        // Phase i is visible on [offset[i], offset[i+1]); the last phase stays on.
+        // The shoot-out plate is a separate input directly under the match scoreboard.
+        for (int scoreboardIndex = 0; scoreboardIndex < scoreboardCount; ++scoreboardIndex) {
+            const bool hasFollowingPhase = scoreboardIndex + 1 < scoreboardCount;
+            const double followingOffset = hasFollowingPhase
+                ? clip.scoreboards.at(scoreboardIndex + 1).activationOffsetSeconds
+                : 0.0;
+            appendTimedOverlay(
+                firstScoreboardInput + scoreboardIndex,
+                topSafeY,
+                timedPhaseEnableExpression(
+                    clip.scoreboards.at(scoreboardIndex).activationOffsetSeconds,
+                    hasFollowingPhase,
+                    followingOffset));
+        }
+        for (int shootoutIndex = 0; shootoutIndex < shootoutCount; ++shootoutIndex) {
+            const bool hasFollowingPhase = shootoutIndex + 1 < shootoutCount;
+            const double followingOffset = hasFollowingPhase
+                ? clip.shootouts.at(shootoutIndex + 1).activationOffsetSeconds
+                : 0.0;
+            appendTimedOverlay(
+                firstShootoutInput + shootoutIndex,
+                shootoutY,
+                timedPhaseEnableExpression(
+                    clip.shootouts.at(shootoutIndex).activationOffsetSeconds,
+                    hasFollowingPhase,
+                    followingOffset));
         }
     }
 
@@ -759,19 +828,7 @@ void ClipExporter::concatenateClips() {
     }
 
     if (tempClipPaths_.size() == 1) {
-        outputWriteStarted_ = true;
-        discardPartialSidecar();
-        if (QFile::exists(outputPath_) && !QFile::remove(outputPath_)) {
-            finishExport(false,
-                QStringLiteral("Could not replace existing output file:\n%1").arg(outputPath_));
-            return;
-        }
-        if (QFile::copy(tempClipPaths_.first(), outputPath_)) {
-            finalizeCompilationSidecar();
-        } else {
-            finishExport(false,
-                QStringLiteral("Failed to copy clip to output path:\n%1").arg(outputPath_));
-        }
+        commitStagedOutput(tempClipPaths_.first());
         return;
     }
 
@@ -802,8 +859,7 @@ void ClipExporter::concatenateClips() {
     }
     listFile.close();
 
-    outputWriteStarted_ = true;
-    discardPartialSidecar();
+    const QString stagedOutputPath = tempDir_->filePath(QStringLiteral("concat_output.mp4"));
 
     QStringList arguments;
     arguments << QStringLiteral("-y")
@@ -811,7 +867,7 @@ void ClipExporter::concatenateClips() {
               << QStringLiteral("-safe") << QStringLiteral("0")
               << QStringLiteral("-i") << concatListPath
               << QStringLiteral("-c") << QStringLiteral("copy")
-              << outputPath_;
+              << stagedOutputPath;
 
     startFfmpegJob(arguments, true);
 }
@@ -836,7 +892,11 @@ void ClipExporter::onConcatProcessFinished(int exitCode, QProcess::ExitStatus ex
         return;
     }
 
-    finalizeCompilationSidecar();
+    if (!tempDir_) {
+        finishExport(false, QStringLiteral("Temporary directory was removed before concatenation."));
+        return;
+    }
+    commitStagedOutput(tempDir_->filePath(QStringLiteral("concat_output.mp4")));
 }
 
 void ClipExporter::cleanup() {
@@ -891,6 +951,25 @@ bool replaceDestinationFile(const QString& replacementPath, const QString& desti
 }
 
 }  // namespace
+
+void ClipExporter::commitStagedOutput(const QString& stagedPath) {
+    if (cancelled_) {
+        finishExport(false, QStringLiteral("Export cancelled."));
+        return;
+    }
+    if (!QFile::exists(stagedPath)) {
+        finishExport(false, QStringLiteral("The exported video was not written."));
+        return;
+    }
+    if (!replaceDestinationFile(stagedPath, outputPath_)) {
+        finishExport(false,
+            QStringLiteral("Could not replace existing output file:\n%1").arg(outputPath_));
+        return;
+    }
+    outputWriteStarted_ = true;
+    discardPartialSidecar();
+    finalizeCompilationSidecar();
+}
 
 void ClipExporter::embedChapterMetadata(const QVector<qint64>& offsetMilliseconds,
                                         const QVector<qint64>& durationMilliseconds) {

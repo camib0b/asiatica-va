@@ -46,7 +46,6 @@ signals:
   void gameSetupConfirmed(const QString& filePath,
                           const QString& homeName, const QString& awayName,
                           const QString& homeColor, const QString& awayColor,
-                          const QString& competitionName,
                           const QDate& gameDate,
                           const QString& homeAbbrev,
                           const QString& awayAbbrev);
@@ -96,6 +95,8 @@ private:
   QDate gameDate_;
   bool suggestionSignalsArmed_ = false;
   const char* suggestionStatusKey_ = nullptr;
+  bool homeAbbrevFollowsName_ = true;
+  bool awayAbbrevFollowsName_ = true;
 
   std::unique_ptr<GameMetadataSuggester> metadataSuggester_;
   QVector<QMetaObject::Connection> metadataSuggesterConnections_;

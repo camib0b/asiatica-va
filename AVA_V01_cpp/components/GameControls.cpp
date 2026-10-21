@@ -5,6 +5,7 @@
 #include "../style/ThemeColors.h"
 #include "../i18n/AppLocale.h"
 #include "../state/TagSession.h"
+#include "../ui/TextInputFocus.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -940,6 +941,15 @@ void GameControls::wireSignals() {
 bool GameControls::handleApplicationShortcut(QKeyEvent* event) {
   if (!event || !isVisible() || event->modifiers() != Qt::NoModifier) {
     return false;
+  }
+  // Letter shortcuts tag the match. A focused text field must receive the key.
+  if (TextInputFocus::widgetIsTextInput(QApplication::focusWidget())) {
+    return false;
+  }
+  // Key repeat would close several quarters while G or H is held.
+  const bool quarterAdvanceKey = event->key() == Qt::Key_G || event->key() == Qt::Key_H;
+  if (event->isAutoRepeat() && quarterAdvanceKey) {
+    return true;
   }
 
   auto clickIfReady = [](QPushButton* button) -> bool {
