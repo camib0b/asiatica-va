@@ -176,6 +176,41 @@ Motion::ButtonColors tagButtonColors() {
     return colors;
 }
 
+void configureModeToolButton(QToolButton* button, const QString& objectName, bool checked) {
+    button->setObjectName(objectName);
+    button->setCheckable(true);
+    button->setChecked(checked);
+    Style::setVariant(button, "ghost");
+    Style::setSize(button, "sm");
+    button->setCursor(Qt::PointingHandCursor);
+}
+
+QString pathWithXmlSuffix(const QString& chosenPath) {
+    const QFileInfo chosenInfo(chosenPath);
+    if (chosenInfo.suffix().compare(QStringLiteral("xml"), Qt::CaseInsensitive) == 0) {
+        return chosenPath;
+    }
+    return QDir(chosenInfo.absolutePath())
+        .filePath(chosenInfo.completeBaseName() + QStringLiteral(".xml"));
+}
+
+/// Same rule as the export reviewer: leave room on both sides of the clip so the presenter can
+/// stretch the interval or scrub past it without the bar clipping the view.
+struct PresentationClipWindow {
+    qint64 startMs = 0;
+    qint64 endMs = 0;
+};
+
+PresentationClipWindow presentationClipWindow(const PresentationQueue::Clip& clip, qint64 videoDurationMs) {
+    const qint64 halfWindowMs =
+        std::max<qint64>(25000, std::max(clip.leadMs(), clip.lagMs()) + 5000);
+    qint64 windowStartMs = clip.markMs - halfWindowMs;
+    qint64 windowEndMs = clip.markMs + halfWindowMs;
+    if (windowStartMs < 0) windowStartMs = 0;
+    if (videoDurationMs > 0 && windowEndMs > videoDurationMs) windowEndMs = videoDurationMs;
+    return PresentationClipWindow{windowStartMs, windowEndMs};
+}
+
 } // namespace
 
 class ModeLabelTint final : public QObject {
@@ -706,11 +741,7 @@ void WorkWindow::setTagSession(TagSession* session) {
     disconnectTagSessionSignals();
 
     tagSession_ = session;
-    if (statsWindow_) statsWindow_->setTagSession(tagSession_);
-    if (statsOverlay_) statsOverlay_->setTagSession(tagSession_);
-    if (presentationQueue_) presentationQueue_->setTagSession(tagSession_);
-    if (presentationPanel_) presentationPanel_->setTagSession(tagSession_);
-
+    bindTagSessionToSurfaces();
     if (gameControls_) {
         gameControls_->setTeamSide(tagSession_ ? TagSession::TeamSide::Home
                                                : TagSession::TeamSide::Unspecified);
@@ -720,56 +751,83 @@ void WorkWindow::setTagSession(TagSession* session) {
     loadMatchNote();
 
     if (!tagSession_) return;
+    connectTagSessionSignals();
+}
 
+void WorkWindow::bindTagSessionToSurfaces() {
+    if (statsWindow_) statsWindow_->setTagSession(tagSession_);
+    if (statsOverlay_) statsOverlay_->setTagSession(tagSession_);
+    if (presentationQueue_) presentationQueue_->setTagSession(tagSession_);
+    if (presentationPanel_) presentationPanel_->setTagSession(tagSession_);
+}
+
+void WorkWindow::connectTagSessionSignals() {
     tagSessionConnections_.append(connect(
         tagSession_, &TagSession::aboutToClear, this, &WorkWindow::flushPendingClipNote,
         Qt::DirectConnection));
     tagSessionConnections_.append(connect(
         tagSession_, &TagSession::aboutToReplaceTags, this, &WorkWindow::flushPendingClipNote,
         Qt::DirectConnection));
+    tagSessionConnections_.append(connect(
+        tagSession_, &TagSession::tagsChanged, this, &WorkWindow::onTagSessionTagsChanged));
+    tagSessionConnections_.append(connect(
+        tagSession_, &TagSession::tagsImported, this, &WorkWindow::onTagSessionTagsImported));
+    tagSessionConnections_.append(connect(
+        tagSession_, &TagSession::tagNoteChanged, this, &WorkWindow::onTagSessionTagNoteChanged));
+    tagSessionConnections_.append(connect(
+        tagSession_, &TagSession::matchNoteChanged, this, &WorkWindow::onTagSessionMatchNoteChanged));
+    tagSessionConnections_.append(connect(
+        tagSession_, &TagSession::gameMetadataChanged, this, &WorkWindow::onTagSessionGameMetadataChanged));
+}
 
-    tagSessionConnections_.append(connect(tagSession_, &TagSession::tagsChanged, this,
-                                          [this](quint64 addedTagId) {
-        if (!tagSession_) return;
-        syncFilterMenu();
-        refreshTagsTableRows();
-        if (addedTagId != 0) flashNewTagRow(addedTagId);
-        if (gameControls_) {
-            gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
-                                            tagSession_->currentQuarterIndex());
-        }
-    }));
-    tagSessionConnections_.append(connect(tagSession_, &TagSession::tagsImported, this, [this]() {
-        if (!tagSession_) return;
-        if (gameControls_) {
-            gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
-                                            tagSession_->currentQuarterIndex());
-        }
-    }));
-    tagSessionConnections_.append(connect(tagSession_, &TagSession::tagNoteChanged, this, [this](int changedIndex) {
-        if (!notesEdit_ || !tagSession_) return;
-        if (notesEdit_->hasFocus() || pendingClipNote_.has_value()) return;
-        if (!tagSession_->isValidTagIndex(changedIndex)) return;
-        const quint64 changedTagId = tagSession_->tags().at(changedIndex).id;
-        if (selectedTagId() != changedTagId) return;
-        loadNoteForSelectedTag();
-    }));
-    tagSessionConnections_.append(connect(tagSession_, &TagSession::matchNoteChanged, this, [this]() {
-        if (!tagSession_) return;
-        if (matchNotesEditor_ && matchNotesEditor_->hasFocus()) return;
-        loadMatchNote();
-    }));
-    tagSessionConnections_.append(connect(tagSession_, &TagSession::gameMetadataChanged, this, [this]() {
-        if (!tagSession_) return;
-        applySessionTeamIdentity();
-    }));
+void WorkWindow::onTagSessionTagsChanged(quint64 addedTagId) {
+    if (!tagSession_) return;
+    syncFilterMenu();
+    refreshTagsTableRows();
+    if (addedTagId != 0) flashNewTagRow(addedTagId);
+    if (gameControls_) {
+        gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
+                                        tagSession_->currentQuarterIndex());
+    }
+}
+
+void WorkWindow::onTagSessionTagsImported() {
+    if (!tagSession_) return;
+    if (gameControls_) {
+        gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
+                                        tagSession_->currentQuarterIndex());
+    }
+}
+
+void WorkWindow::onTagSessionTagNoteChanged(int changedIndex) {
+    if (!notesEdit_ || !tagSession_) return;
+    if (notesEdit_->hasFocus() || pendingClipNote_.has_value()) return;
+    if (!tagSession_->isValidTagIndex(changedIndex)) return;
+    const quint64 changedTagId = tagSession_->tags().at(changedIndex).id;
+    if (selectedTagId() != changedTagId) return;
+    loadNoteForSelectedTag();
+}
+
+void WorkWindow::onTagSessionMatchNoteChanged() {
+    if (!tagSession_) return;
+    if (matchNotesEditor_ && matchNotesEditor_->hasFocus()) return;
+    loadMatchNote();
+}
+
+void WorkWindow::onTagSessionGameMetadataChanged() {
+    if (!tagSession_) return;
+    applySessionTeamIdentity();
 }
 
 void WorkWindow::syncModeToggleChecks() {
+    setModeToggleButtonsChecked();
+    if (modeToggleTrack_) modeToggleTrack_->syncToMode(false);
+}
+
+void WorkWindow::setModeToggleButtonsChecked() {
     if (modeTaggingBtn_) modeTaggingBtn_->setChecked(mode_ == Mode::Tagging);
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->setChecked(mode_ == Mode::Analyzing);
     if (modePresentingBtn_) modePresentingBtn_->setChecked(mode_ == Mode::Presenting);
-    if (modeToggleTrack_) modeToggleTrack_->syncToMode(false);
 }
 
 void WorkWindow::setMode(Mode m) {
@@ -779,23 +837,29 @@ void WorkWindow::setMode(Mode m) {
     }
     flushPendingClipNote();
     if (mode_ == Mode::Presenting && m != Mode::Presenting) {
-        detachPresentationKeyboardShortcuts();
-        commitPresentationPlayback(PresentationPlayback::reduce(
-            presentationPlayback_, PresentationPlayback::ModeExit{}));
+        leavePresentationPlayback();
     }
     mode_ = m;
     applyModeChrome();
     if (m == Mode::Presenting) {
-        if (presentationPanel_) presentationPanel_->refreshFromSession();
-        updatePresentationStage();
-        configurePresentationClipBarForCurrentClip();
-        attachPresentationKeyboardShortcuts();
+        enterPresentationPlayback();
     }
-    if (modeTaggingBtn_) modeTaggingBtn_->setChecked(m == Mode::Tagging);
-    if (modeAnalyzingBtn_) modeAnalyzingBtn_->setChecked(m == Mode::Analyzing);
-    if (modePresentingBtn_) modePresentingBtn_->setChecked(m == Mode::Presenting);
+    setModeToggleButtonsChecked();
     if (modeToggleTrack_) modeToggleTrack_->syncToMode(true);
     refreshPlaybackShortcutFocusGate();
+}
+
+void WorkWindow::leavePresentationPlayback() {
+    detachPresentationKeyboardShortcuts();
+    commitPresentationPlayback(PresentationPlayback::reduce(
+        presentationPlayback_, PresentationPlayback::ModeExit{}));
+}
+
+void WorkWindow::enterPresentationPlayback() {
+    if (presentationPanel_) presentationPanel_->refreshFromSession();
+    updatePresentationStage();
+    configurePresentationClipBarForCurrentClip();
+    attachPresentationKeyboardShortcuts();
 }
 
 void WorkWindow::applyModeChrome() {
@@ -803,54 +867,66 @@ void WorkWindow::applyModeChrome() {
     const bool isAnalyzing = mode_ == Mode::Analyzing;
     const bool isPresenting = mode_ == Mode::Presenting;
 
+    updatePresentationChromeVisibility(isPresenting);
+    placeNotesColumnForMode(isTagging, isAnalyzing);
+    if (tagsHeaderRow_) tagsHeaderRow_->setVisible(isAnalyzing);
+    if (workOuterSplitter_) workOuterSplitter_->setChildrenCollapsible(isPresenting);
+    showModeSidePage(isTagging, isAnalyzing, isPresenting);
+    applyModeSizePolicies(isTagging, isAnalyzing, isPresenting);
+    placeSidePanelForMode(isTagging);
+    applySidePanelCompressedWidth();
+    updateTagToastForMode(isTagging);
+}
+
+void WorkWindow::updatePresentationChromeVisibility(bool isPresenting) {
     if (presentationBanner_) presentationBanner_->setVisible(isPresenting);
     if (presentationClipBar_) presentationClipBar_->setVisible(isPresenting);
     if (workTagsNotesSplitter_) workTagsNotesSplitter_->setVisible(!isPresenting);
-    if (notesColumn_) {
-        const bool showNotes = isTagging || isAnalyzing;
-        notesColumn_->setVisible(showNotes);
+}
 
-        if (isTagging && taggingRightCol_) {
-            if (workTagsNotesSplitter_ && workTagsNotesSplitter_->indexOf(notesColumn_) >= 0) {
-                notesColumn_->setParent(nullptr);
-            }
-            if (auto* sideLayout = qobject_cast<QVBoxLayout*>(taggingRightCol_->layout())) {
-                if (sideLayout->indexOf(notesColumn_) < 0) {
-                    notesColumn_->setParent(taggingRightCol_);
-                    sideLayout->addWidget(notesColumn_, 1);
-                }
-            }
-        } else if (isAnalyzing && workTagsNotesSplitter_) {
-            if (taggingRightCol_) {
-                if (auto* sideLayout = qobject_cast<QVBoxLayout*>(taggingRightCol_->layout())) {
-                    if (sideLayout->indexOf(notesColumn_) >= 0) {
-                        sideLayout->removeWidget(notesColumn_);
-                    }
-                }
-            }
-            if (workTagsNotesSplitter_->indexOf(notesColumn_) < 0) {
-                workTagsNotesSplitter_->addWidget(notesColumn_);
-                workTagsNotesSplitter_->setStretchFactor(0, 1);
-                workTagsNotesSplitter_->setStretchFactor(1, 1);
+void WorkWindow::placeNotesColumnForMode(bool isTagging, bool isAnalyzing) {
+    if (!notesColumn_) return;
+    const bool showNotes = isTagging || isAnalyzing;
+    notesColumn_->setVisible(showNotes);
+
+    if (isTagging && taggingRightCol_) {
+        if (workTagsNotesSplitter_ && workTagsNotesSplitter_->indexOf(notesColumn_) >= 0) {
+            notesColumn_->setParent(nullptr);
+        }
+        if (auto* sideLayout = qobject_cast<QVBoxLayout*>(taggingRightCol_->layout())) {
+            if (sideLayout->indexOf(notesColumn_) < 0) {
+                notesColumn_->setParent(taggingRightCol_);
+                sideLayout->addWidget(notesColumn_, 1);
             }
         }
+    } else if (isAnalyzing && workTagsNotesSplitter_) {
+        if (taggingRightCol_) {
+            if (auto* sideLayout = qobject_cast<QVBoxLayout*>(taggingRightCol_->layout())) {
+                if (sideLayout->indexOf(notesColumn_) >= 0) {
+                    sideLayout->removeWidget(notesColumn_);
+                }
+            }
+        }
+        if (workTagsNotesSplitter_->indexOf(notesColumn_) < 0) {
+            workTagsNotesSplitter_->addWidget(notesColumn_);
+            workTagsNotesSplitter_->setStretchFactor(0, 1);
+            workTagsNotesSplitter_->setStretchFactor(1, 1);
+        }
     }
-    if (tagsHeaderRow_) tagsHeaderRow_->setVisible(isAnalyzing);
+}
 
-    if (workOuterSplitter_) {
-        workOuterSplitter_->setChildrenCollapsible(isPresenting);
-    }
+void WorkWindow::showModeSidePage(bool isTagging, bool isAnalyzing, bool isPresenting) {
+    if (!workSideStack_) return;
+    // Every mode owns one page. Leaving this unset keeps the previous
+    // page, so returning to tagging still shows the analyzing panel.
+    QWidget* page = nullptr;
+    if (isTagging) page = taggingRightCol_;
+    else if (isAnalyzing) page = statsWindow_;
+    else if (isPresenting) page = presentationPanel_;
+    if (page) workSideStack_->setCurrentWidget(page);
+}
 
-    if (workSideStack_) {
-        // Every mode owns one page. Leaving this unset keeps the previous
-        // page, so returning to tagging still shows the analyzing panel.
-        QWidget* page = nullptr;
-        if (isTagging) page = taggingRightCol_;
-        else if (isAnalyzing) page = statsWindow_;
-        else if (isPresenting) page = presentationPanel_;
-        if (page) workSideStack_->setCurrentWidget(page);
-    }
-
+void WorkWindow::applyModeSizePolicies(bool isTagging, bool isAnalyzing, bool isPresenting) {
     // Preferred can shrink to the longest button word. Minimum treated each
     // button's full line as a hard floor, which locked this column near 472px.
     // Hidden stack pages are Ignored so stats and presentation cannot hold
@@ -883,28 +959,30 @@ void WorkWindow::applyModeChrome() {
             workSideStack_->setMaximumWidth(QWIDGETSIZE_MAX);
         }
     }
+}
 
+void WorkWindow::placeSidePanelForMode(bool isTagging) {
     // Tagging keeps the event column on the left, next to the hand on the keys.
     // Analyzing and presenting put their side panel back on the right.
-    if (workOuterSplitter_ && workSideStack_ && workOuterSplitter_->indexOf(workSideStack_) >= 0) {
-        const bool onLeft = isTagging;
-        const int desiredIndex = onLeft ? 0 : 1;
-        if (workOuterSplitter_->indexOf(workSideStack_) != desiredIndex) {
-            workOuterSplitter_->insertWidget(desiredIndex, workSideStack_);
-        }
-        if (onLeft) {
-            workOuterSplitter_->setStretchFactor(0, 0);
-            workOuterSplitter_->setStretchFactor(1, 4);
-        } else {
-            workOuterSplitter_->setStretchFactor(0, 4);
-            workOuterSplitter_->setStretchFactor(1, 1);
-        }
+    if (!workOuterSplitter_ || !workSideStack_ || workOuterSplitter_->indexOf(workSideStack_) < 0) return;
+    const bool onLeft = isTagging;
+    const int desiredIndex = onLeft ? 0 : 1;
+    if (workOuterSplitter_->indexOf(workSideStack_) != desiredIndex) {
+        workOuterSplitter_->insertWidget(desiredIndex, workSideStack_);
     }
-    applySidePanelCompressedWidth();
-    if (tagToast_) {
-        if (isTagging) tagToast_->resumeOpenChain();
-        else tagToast_->suspend();
+    if (onLeft) {
+        workOuterSplitter_->setStretchFactor(0, 0);
+        workOuterSplitter_->setStretchFactor(1, 4);
+    } else {
+        workOuterSplitter_->setStretchFactor(0, 4);
+        workOuterSplitter_->setStretchFactor(1, 1);
     }
+}
+
+void WorkWindow::updateTagToastForMode(bool isTagging) {
+    if (!tagToast_) return;
+    if (isTagging) tagToast_->resumeOpenChain();
+    else tagToast_->suspend();
 }
 
 void WorkWindow::applySidePanelCompressedWidth() {
@@ -954,47 +1032,61 @@ WorkWindow::TagContext WorkWindow::tagContext() const {
 void WorkWindow::buildUi() {
     setObjectName("AppRoot");
 
-    auto* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(0);
+    auto* rootLayout = new QVBoxLayout(this);
+    rootLayout->setContentsMargins(0, 0, 0, 0);
+    rootLayout->setSpacing(0);
 
     contentStack_ = new QStackedWidget(this);
     mainContentContainer_ = new QWidget(this);
     auto* mainContentLayout = new QVBoxLayout(mainContentContainer_);
     mainContentLayout->setContentsMargins(12, 12, 12, 12);
     mainContentLayout->setSpacing(4);
+    mainContentLayout->addWidget(buildTopToolbar(mainContentContainer_));
 
-    // Top row: mode toggle | settings icon
-    auto* topRow = new QWidget(mainContentContainer_);
+    auto* contentArea = new QWidget(mainContentContainer_);
+    auto* contentAreaLayout = new QVBoxLayout(contentArea);
+    contentAreaLayout->setContentsMargins(0, 0, 0, 0);
+    contentAreaLayout->setSpacing(0);
+    mainContentLayout->addWidget(contentArea, 1);
+
+    gameSetupWidget_ = new GameSetupWindow(this);
+    contentStack_->addWidget(gameSetupWidget_);
+    contentStack_->addWidget(mainContentContainer_);
+    contentStack_->setCurrentIndex(0);
+
+    rootLayout->addWidget(contentStack_);
+    buildExportJobsBar(rootLayout);
+    buildTaggingSideColumn();
+    buildTagsSection();
+    buildGameControlsAndStatsWindow();
+    buildNotesColumn();
+    buildVideoStageColumn();
+    assembleWorkSplitters(contentAreaLayout);
+    buildPresentationUi();
+    hideChromeUntilVideoOpens();
+}
+
+QWidget* WorkWindow::buildTopToolbar(QWidget* parent) {
+    auto* topRow = new QWidget(parent);
     auto* topLayout = new QHBoxLayout(topRow);
     topLayout->setContentsMargins(0, 0, 0, 0);
     topLayout->setSpacing(12);
+    buildModeToggle(topRow, topLayout);
+    buildVideoToolbar(topLayout);
+    return topRow;
+}
 
+void WorkWindow::buildModeToggle(QWidget* topRow, QHBoxLayout* topLayout) {
     modeToggleTrack_ = new ModeToggleTrack(topRow);
 
     modeTaggingBtn_ = new QToolButton(modeToggleTrack_);
-    modeTaggingBtn_->setObjectName(QStringLiteral("WorkModeTaggingButton"));
-    modeTaggingBtn_->setCheckable(true);
-    modeTaggingBtn_->setChecked(true);
-    Style::setVariant(modeTaggingBtn_, "ghost");
-    Style::setSize(modeTaggingBtn_, "sm");
-    modeTaggingBtn_->setCursor(Qt::PointingHandCursor);
+    configureModeToolButton(modeTaggingBtn_, QStringLiteral("WorkModeTaggingButton"), true);
 
     modeAnalyzingBtn_ = new QToolButton(modeToggleTrack_);
-    modeAnalyzingBtn_->setObjectName(QStringLiteral("WorkModeAnalyzingButton"));
-    modeAnalyzingBtn_->setCheckable(true);
-    modeAnalyzingBtn_->setChecked(false);
-    Style::setVariant(modeAnalyzingBtn_, "ghost");
-    Style::setSize(modeAnalyzingBtn_, "sm");
-    modeAnalyzingBtn_->setCursor(Qt::PointingHandCursor);
+    configureModeToolButton(modeAnalyzingBtn_, QStringLiteral("WorkModeAnalyzingButton"), false);
 
     modePresentingBtn_ = new QToolButton(modeToggleTrack_);
-    modePresentingBtn_->setObjectName(QStringLiteral("WorkModePresentingButton"));
-    modePresentingBtn_->setCheckable(true);
-    modePresentingBtn_->setChecked(false);
-    Style::setVariant(modePresentingBtn_, "ghost");
-    Style::setSize(modePresentingBtn_, "sm");
-    modePresentingBtn_->setCursor(Qt::PointingHandCursor);
+    configureModeToolButton(modePresentingBtn_, QStringLiteral("WorkModePresentingButton"), false);
 
     auto* modeToggleLayout = new QHBoxLayout(modeToggleTrack_);
     modeToggleLayout->setContentsMargins(3, 3, 3, 3);
@@ -1006,12 +1098,20 @@ void WorkWindow::buildUi() {
     modeToggleTrack_->syncToMode(false);
     topLayout->addWidget(modeToggleTrack_);
     topLayout->addSpacing(16);
+}
 
+void WorkWindow::buildVideoToolbar(QHBoxLayout* topLayout) {
     auto* videoControlsRow = new QWidget(this);
     auto* videoControlsLayout = new QHBoxLayout(videoControlsRow);
     videoControlsLayout->setContentsMargins(0, 0, 0, 0);
     videoControlsLayout->setSpacing(8);
     videoControlsLayout->addStretch(1);
+    buildVideoMuteButton(videoControlsLayout);
+    buildVideoSettingsMenu(videoControlsLayout);
+    topLayout->addWidget(videoControlsRow, 1);
+}
+
+void WorkWindow::buildVideoMuteButton(QHBoxLayout* videoControlsLayout) {
     videoMuteButton_ = new QToolButton(this);
     videoMuteButton_->setObjectName(QStringLiteral("VideoMuteButton"));
     videoMuteButton_->setCheckable(true);
@@ -1023,7 +1123,9 @@ void WorkWindow::buildUi() {
     videoMuteButton_->setEnabled(false);
     updateVideoMuteButton(false);
     videoControlsLayout->addWidget(videoMuteButton_, 0, Qt::AlignRight | Qt::AlignVCenter);
+}
 
+void WorkWindow::buildVideoSettingsMenu(QHBoxLayout* videoControlsLayout) {
     videoMenuButton_ = new QToolButton(this);
     QIcon settingsIcon = QIcon::fromTheme("preferences-system");
     if (!settingsIcon.isNull()) {
@@ -1051,43 +1153,35 @@ void WorkWindow::buildUi() {
     reduceMotionAction_->setChecked(Motion::reducedMotionPreferred());
     videoMenuButton_->setMenu(videoMenu);
     videoControlsLayout->addWidget(videoMenuButton_, 0, Qt::AlignRight | Qt::AlignVCenter);
+}
 
-    topLayout->addWidget(videoControlsRow, 1);
-
-    mainContentLayout->addWidget(topRow);
-
-    auto* contentArea = new QWidget(mainContentContainer_);
-    auto* contentAreaLayout = new QVBoxLayout(contentArea);
-    contentAreaLayout->setContentsMargins(0, 0, 0, 0);
-    contentAreaLayout->setSpacing(0);
-    mainContentLayout->addWidget(contentArea, 1);
-
-    gameSetupWidget_ = new GameSetupWindow(this);
-    contentStack_->addWidget(gameSetupWidget_);
-    contentStack_->addWidget(mainContentContainer_);
-    contentStack_->setCurrentIndex(0);
-
-    layout->addWidget(contentStack_);
-
+void WorkWindow::buildExportJobsBar(QVBoxLayout* rootLayout) {
     exportJobManager_ = new ExportJobManager(this);
     connect(exportJobManager_, &ExportJobManager::jobsChanged, this,
             [this]() { releaseFinishedTemporaryDirectories(); });
     exportJobsBar_ = new ExportJobsBar(exportJobManager_, this);
-    layout->addWidget(exportJobsBar_, 0);
+    rootLayout->addWidget(exportJobsBar_, 0);
+}
 
+void WorkWindow::buildTaggingSideColumn() {
     taggingRightCol_ = new QWidget(this);
     // Object name stays TaggingRightCol so the compact-button QSS keeps matching
     // after the column moves to the left of the video.
     taggingRightCol_->setObjectName(QStringLiteral("TaggingRightCol"));
     auto* taggingRightLayout = new QVBoxLayout(taggingRightCol_);
     taggingRightLayout->setContentsMargins(0, 0, 0, 0);
+}
 
-    // Tags section
+void WorkWindow::buildTagsSection() {
     tagsSection_ = new QWidget(this);
     auto* tagsSectionLayout = new QVBoxLayout(tagsSection_);
     tagsSectionLayout->setContentsMargins(0, 0, 0, 0);
     tagsSectionLayout->setSpacing(6);
+    buildTagsHeaderRow(tagsSectionLayout);
+    buildTagsTable(tagsSectionLayout);
+}
 
+void WorkWindow::buildTagsHeaderRow(QVBoxLayout* tagsSectionLayout) {
     tagsHeaderRow_ = new QWidget(tagsSection_);
     auto* tagsHeaderLayout = new QHBoxLayout(tagsHeaderRow_);
     tagsHeaderLayout->setContentsMargins(0, 0, 0, 0);
@@ -1106,23 +1200,8 @@ void WorkWindow::buildUi() {
     Style::setSize(tagsRemoveFiltersButton_, "sm");
     tagsRemoveFiltersButton_->setCursor(Qt::PointingHandCursor);
     tagsRemoveFiltersButton_->hide();
-    tagsFilterMenu_ = new QMenu(tagsFilterButton_);
-    tagsFilterMenu_->setObjectName(QStringLiteral("TagsFilterMenu"));
-    tagsFilterButton_->setMenu(tagsFilterMenu_);
-    filterSelectAllAction_ = tagsFilterMenu_->addAction(QString());
-    filterSelectNoneAction_ = tagsFilterMenu_->addAction(QString());
-    tagsFilterMenu_->addSeparator();
-    connect(filterSelectAllAction_, &QAction::triggered, this, &WorkWindow::onSelectAllFilters);
-    connect(filterSelectNoneAction_, &QAction::triggered, this, &WorkWindow::onSelectNoFilters);
-    connect(tagsFilterMenu_, &QMenu::aboutToHide, this, [this]() {
-        if (!filterMenuStructureSyncDeferred_) return;
-        QTimer::singleShot(0, this, [this]() {
-            if (!filterMenuStructureSyncDeferred_) return;
-            filterMenuForceStructureSync_ = true;
-            syncFilterMenu();
-            filterMenuForceStructureSync_ = false;
-        });
-    });
+    buildTagsFilterMenu();
+
     tagsFilterIndicator_ = new QLabel(tagsHeaderRow_);
     tagsFilterIndicator_->setWordWrap(false);
     Style::setRole(tagsFilterIndicator_, "muted");
@@ -1142,7 +1221,34 @@ void WorkWindow::buildUi() {
     tagsHeaderLayout->addWidget(undoLastTagButton_, 0);
     tagsHeaderLayout->addWidget(tagsRemoveFiltersButton_, 0);
     tagsHeaderLayout->addWidget(tagsFilterButton_, 0);
+    tagsSectionLayout->addWidget(tagsHeaderRow_);
+}
 
+void WorkWindow::buildTagsFilterMenu() {
+    tagsFilterMenu_ = new QMenu(tagsFilterButton_);
+    tagsFilterMenu_->setObjectName(QStringLiteral("TagsFilterMenu"));
+    tagsFilterButton_->setMenu(tagsFilterMenu_);
+    filterSelectAllAction_ = tagsFilterMenu_->addAction(QString());
+    filterSelectNoneAction_ = tagsFilterMenu_->addAction(QString());
+    tagsFilterMenu_->addSeparator();
+    connect(filterSelectAllAction_, &QAction::triggered, this, &WorkWindow::onSelectAllFilters);
+    connect(filterSelectNoneAction_, &QAction::triggered, this, &WorkWindow::onSelectNoFilters);
+    connect(tagsFilterMenu_, &QMenu::aboutToHide, this, &WorkWindow::onTagsFilterMenuAboutToHide);
+}
+
+void WorkWindow::onTagsFilterMenuAboutToHide() {
+    if (!filterMenuStructureSyncDeferred_) return;
+    QTimer::singleShot(0, this, [this]() { applyDeferredFilterMenuStructureSync(); });
+}
+
+void WorkWindow::applyDeferredFilterMenuStructureSync() {
+    if (!filterMenuStructureSyncDeferred_) return;
+    filterMenuForceStructureSync_ = true;
+    syncFilterMenu();
+    filterMenuForceStructureSync_ = false;
+}
+
+void WorkWindow::buildTagsTable(QVBoxLayout* tagsSectionLayout) {
     tagsModel_ = new TagsTableModel(this);
     tagsModel_->setColumnHeaders({AppLocale::trUi("tags.col_time"), AppLocale::trUi("tags.col_team"),
                                   AppLocale::trUi("tags.col_event")});
@@ -1158,17 +1264,19 @@ void WorkWindow::buildUi() {
     const int headerHeight = tagsTable_->horizontalHeader()->sizeHint().height();
     tagsTable_->setMinimumHeight(rowHeight * 2 + headerHeight);
     tagsTable_->setMaximumHeight(QWIDGETSIZE_MAX);
-
-    tagsSectionLayout->addWidget(tagsHeaderRow_);
     tagsSectionLayout->addWidget(tagsTable_, 1);
+}
 
+void WorkWindow::buildGameControlsAndStatsWindow() {
     gameControls_ = new GameControls(this);
     gameControls_->setMinimumWidth(GameControls::kMinimumPanelWidthPx);
-    taggingRightLayout->addWidget(gameControls_, 0);
+    static_cast<QVBoxLayout*>(taggingRightCol_->layout())->addWidget(gameControls_, 0);
     statsWindow_ = new StatsWindow(this);
     statsWindow_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     statsWindow_->setMinimumHeight(180);
+}
 
+void WorkWindow::buildNotesColumn() {
     notesColumn_ = new QWidget(this);
     notesColumn_->setObjectName(QStringLiteral("MatchNotesColumn"));
     auto* notesColumnLayout = new QVBoxLayout(notesColumn_);
@@ -1194,8 +1302,10 @@ void WorkWindow::buildUi() {
     notesColumnLayout->addWidget(matchNotesEditor_, 1);
     notesColumnLayout->addWidget(clipNotesLabel_);
     notesColumnLayout->addWidget(notesEdit_, 0);
-    taggingRightLayout->addWidget(notesColumn_, 1);
+    static_cast<QVBoxLayout*>(taggingRightCol_->layout())->addWidget(notesColumn_, 1);
+}
 
+void WorkWindow::buildVideoStageColumn() {
     videoColumn_ = new QWidget(this);
     videoColumn_->setObjectName(QStringLiteral("PresentationStageColumn"));
     videoColumn_->setAttribute(Qt::WA_StyledBackground, true);
@@ -1204,6 +1314,21 @@ void WorkWindow::buildUi() {
     videoColumnLayout->setContentsMargins(0, 0, 0, 0);
     videoColumnLayout->setSpacing(8);
 
+    buildPresentationBanner(videoColumnLayout);
+
+    videoPlayer_ = new VideoPlayer(videoColumn_);
+    videoColumnLayout->addWidget(videoPlayer_, 1);
+    tagToast_ = new TagToastOverlay(videoPlayer_->videoWidget());
+    tagToast_->trackVideoFrame(videoPlayer_->videoWidget());
+
+    presentationClipBar_ = new ClipTrimBar(videoColumn_);
+    videoColumnLayout->addWidget(presentationClipBar_, 0);
+
+    presentationBanner_->hide();
+    presentationClipBar_->hide();
+}
+
+void WorkWindow::buildPresentationBanner(QVBoxLayout* videoColumnLayout) {
     presentationBanner_ = new QWidget(videoColumn_);
     presentationBanner_->setObjectName(QStringLiteral("PresentationBanner"));
     presentationBanner_->setAttribute(Qt::WA_StyledBackground, true);
@@ -1228,18 +1353,19 @@ void WorkWindow::buildUi() {
     bannerLayout->addWidget(presentationNoteLabel_);
 
     videoColumnLayout->addWidget(presentationBanner_, 0);
+}
 
-    videoPlayer_ = new VideoPlayer(videoColumn_);
-    videoColumnLayout->addWidget(videoPlayer_, 1);
-    tagToast_ = new TagToastOverlay(videoPlayer_->videoWidget());
-    tagToast_->trackVideoFrame(videoPlayer_->videoWidget());
+void WorkWindow::buildWorkSideStack() {
+    workSideStack_ = new QStackedWidget(this);
+    workSideStack_->addWidget(taggingRightCol_);
+    workSideStack_->addWidget(statsWindow_);
+    presentationPanel_ = new PresentationPanel(this);
+    presentationPanel_->setMinimumWidth(260);
+    presentationPanel_->setExportEnabled(false);
+    workSideStack_->addWidget(presentationPanel_);
+}
 
-    presentationClipBar_ = new ClipTrimBar(videoColumn_);
-    videoColumnLayout->addWidget(presentationClipBar_, 0);
-
-    presentationBanner_->hide();
-    presentationClipBar_->hide();
-
+void WorkWindow::assembleWorkSplitters(QVBoxLayout* contentAreaLayout) {
     workTagsNotesSplitter_ = new QSplitter(Qt::Horizontal, this);
     workTagsNotesSplitter_->setObjectName(QStringLiteral("WorkTagsNotesSplitter"));
     workTagsNotesSplitter_->setChildrenCollapsible(false);
@@ -1257,13 +1383,7 @@ void WorkWindow::buildUi() {
     workLeftSplitter_->setStretchFactor(0, 5);
     workLeftSplitter_->setStretchFactor(1, 3);
 
-    workSideStack_ = new QStackedWidget(this);
-    workSideStack_->addWidget(taggingRightCol_);
-    workSideStack_->addWidget(statsWindow_);
-    presentationPanel_ = new PresentationPanel(this);
-    presentationPanel_->setMinimumWidth(260);
-    presentationPanel_->setExportEnabled(false);
-    workSideStack_->addWidget(presentationPanel_);
+    buildWorkSideStack();
 
     workOuterSplitter_ = new QSplitter(Qt::Horizontal, this);
     workOuterSplitter_->setObjectName(QStringLiteral("PresentationSplitter"));
@@ -1283,9 +1403,9 @@ void WorkWindow::buildUi() {
     connect(workOuterSplitter_, &QSplitter::splitterMoved, this,
             &WorkWindow::enforceTaggingSidePanelWidthCap);
     workOuterSplitter_->hide();
+}
 
-    buildPresentationUi();
-
+void WorkWindow::hideChromeUntilVideoOpens() {
     if (videoPlayer_) videoPlayer_->setControlsVisible(false);
     if (modeTaggingBtn_) modeTaggingBtn_->hide();
     if (modeAnalyzingBtn_) modeAnalyzingBtn_->hide();
@@ -1295,7 +1415,12 @@ void WorkWindow::buildUi() {
 
 void WorkWindow::buildPresentationUi() {
     presentationQueue_ = new PresentationQueue(this);
+    wirePresentationPanelSignals();
+    wirePresentationQueueSignals();
+    wirePresentationClipBarSignals();
+}
 
+void WorkWindow::wirePresentationPanelSignals() {
     connect(presentationPanel_, &PresentationPanel::selectedTagIndexesChanged, this,
             &WorkWindow::onPresentationSelectionChanged);
     connect(presentationPanel_, &PresentationPanel::clipActivated, this,
@@ -1308,37 +1433,64 @@ void WorkWindow::buildPresentationUi() {
             &WorkWindow::onPresentationShowNotesToggled);
     connect(presentationPanel_, &PresentationPanel::exportRequested, this,
             &WorkWindow::onPresentationExportRequested);
+}
 
+void WorkWindow::wirePresentationQueueSignals() {
     connect(presentationQueue_, &PresentationQueue::queueChanged, this,
             &WorkWindow::onPresentationQueueChanged);
     connect(presentationQueue_, &PresentationQueue::currentClipChanged, this,
             &WorkWindow::onPresentationCurrentClipChanged);
     connect(presentationQueue_, &PresentationQueue::clipIntervalChanged, this,
             &WorkWindow::onPresentationClipIntervalChanged);
+}
 
-    connect(presentationClipBar_, &ClipTrimBar::seekRequested, this, [this](qint64 positionMs) {
-        if (videoPlayer_) videoPlayer_->seekToMs(positionMs);
-    });
+void WorkWindow::wirePresentationClipBarSignals() {
+    connect(presentationClipBar_, &ClipTrimBar::seekRequested, this,
+            &WorkWindow::seekVideoFromPresentationClipBar);
     connect(presentationClipBar_, &ClipTrimBar::clipStartChanged, this,
-            [this](qint64) { savePresentationClipIntervalFromClipBar(); });
+            &WorkWindow::onPresentationClipBarRangeEdited);
     connect(presentationClipBar_, &ClipTrimBar::clipEndChanged, this,
-            [this](qint64) { savePresentationClipIntervalFromClipBar(); });
+            &WorkWindow::onPresentationClipBarRangeEdited);
+}
+
+void WorkWindow::seekVideoFromPresentationClipBar(qint64 positionMs) {
+    if (videoPlayer_) videoPlayer_->seekToMs(positionMs);
+}
+
+void WorkWindow::onPresentationClipBarRangeEdited(qint64 /*endpointMs*/) {
+    savePresentationClipIntervalFromClipBar();
 }
 
 void WorkWindow::wireSignals() {
+    wireGameSetupSignals();
+    wireVideoChromeSignals();
+    wireGameControlsSignals();
+    wireTagsTableSignals();
+    wireModeToggleSignals();
+    wireNotesSignals();
+    wireTagListActionSignals();
+    installModeAndStatsShortcuts();
+    wireLocaleAndNoteTimers();
+    wirePlaybackAndTemporaryDirectorySignals();
+    installTagEditShortcuts();
+    wireApplicationFocusSignals();
+}
+
+void WorkWindow::wireGameSetupSignals() {
     if (gameSetupWidget_) {
         connect(gameSetupWidget_, &GameSetupWindow::gameSetupConfirmed, this, &WorkWindow::onGameSetupConfirmed);
         connect(gameSetupWidget_, &GameSetupWindow::cancelled, this, &WorkWindow::onGameSetupCancelled);
     }
+}
+
+void WorkWindow::wireVideoChromeSignals() {
     // Video file management
     connect(replaceVideoAction_, &QAction::triggered, this, &WorkWindow::onReplaceVideo);
     connect(closeVideoAction_, &QAction::triggered, this, &WorkWindow::onCloseVideo);
 
     // Connect VideoPlayer's videoClosed signal to WorkWindow's signal
     connect(videoPlayer_, &VideoPlayer::videoClosed, this, &WorkWindow::videoClosed);
-    connect(videoMuteButton_, &QToolButton::clicked, this, [this]() {
-        if (videoPlayer_) videoPlayer_->toggleMuteWithControlFlash();
-    });
+    connect(videoMuteButton_, &QToolButton::clicked, this, &WorkWindow::toggleVideoMuteFromToolbar);
     connect(videoPlayer_, &VideoPlayer::muteStateChanged, this, &WorkWindow::updateVideoMuteButton);
     connect(videoPlayer_, &VideoPlayer::muteToolbarFlashRequested, this, &WorkWindow::flashVideoMuteButton);
 
@@ -1349,12 +1501,16 @@ void WorkWindow::wireSignals() {
     connect(reduceMotionAction_, &QAction::toggled, this, [](bool checked) {
         Motion::setReducedMotionPreferred(checked);
     });
+}
 
+void WorkWindow::toggleVideoMuteFromToolbar() {
+    if (videoPlayer_) videoPlayer_->toggleMuteWithControlFlash();
+}
+
+void WorkWindow::wireGameControlsSignals() {
     // GameControls -> capture timestamp and store tags
-    connect(gameControls_, &GameControls::mainEventTimestampCaptured, this, [this](const QString& mainEvent) {
-        if (!videoPlayer_) return;
-        capturedMainEvent_ = CapturedMainEvent{mainEvent, videoPlayer_->currentPositionMs()};
-    });
+    connect(gameControls_, &GameControls::mainEventTimestampCaptured, this,
+            &WorkWindow::rememberCapturedMainEvent);
 
     if (gameControls_) {
         connect(gameControls_, &GameControls::gameStartRequested, this,
@@ -1363,59 +1519,75 @@ void WorkWindow::wireSignals() {
                 &WorkWindow::onNextQuarterRequested);
     }
 
-    connect(gameControls_, &GameControls::tagSequenceAdvanced, this,
-            [this](const QString& shortcutKey, const QString& stepLabel, const QColor& teamColor,
-                   bool chainOpen, bool startsChain) {
-                if (!tagToast_) return;
-                const QString displayLabel = AppLocale::trEvent(stepLabel);
-                if (startsChain) {
-                    tagToast_->beginEvent(shortcutKey, displayLabel, teamColor, chainOpen);
-                } else {
-                    tagToast_->appendFollowUp(displayLabel, chainOpen);
-                }
-            });
-    connect(gameControls_, &GameControls::tagSequenceDismissed, this, [this]() {
-        if (tagToast_) tagToast_->dismissImmediately();
-    });
+    connect(gameControls_, &GameControls::tagSequenceAdvanced, this, &WorkWindow::showTagSequenceStep);
+    connect(gameControls_, &GameControls::tagSequenceDismissed, this, &WorkWindow::dismissTagSequenceToast);
+    connect(gameControls_, &GameControls::tagCommitted, this, &WorkWindow::commitTagFromGameControls);
+}
 
-    connect(gameControls_, &GameControls::tagCommitted, this, [this](const QString& mainEvent, const QString& followUpEvent) {
-        if (!videoPlayer_) return;
+void WorkWindow::rememberCapturedMainEvent(const QString& mainEvent) {
+    if (!videoPlayer_) return;
+    capturedMainEvent_ = CapturedMainEvent{mainEvent, videoPlayer_->currentPositionMs()};
+}
 
-        qint64 timestampMs = videoPlayer_->currentPositionMs();
-        if (capturedMainEvent_ && capturedMainEvent_->event == mainEvent) {
-            timestampMs = capturedMainEvent_->positionMs;
-        }
-        capturedMainEvent_.reset();
+void WorkWindow::showTagSequenceStep(const QString& shortcutKey, const QString& stepLabel,
+                                    const QColor& teamColor, bool chainOpen, bool startsChain) {
+    if (!tagToast_) return;
+    const QString displayLabel = AppLocale::trEvent(stepLabel);
+    if (startsChain) {
+        tagToast_->beginEvent(shortcutKey, displayLabel, teamColor, chainOpen);
+    } else {
+        tagToast_->appendFollowUp(displayLabel, chainOpen);
+    }
+}
 
-        if (tagSession_) {
-            const TagContext context = tagContext();
-            TagSession::GameTag tag;
-            tag.mainEvent = mainEvent;
-            tag.followUpEvent = followUpEvent;
-            tag.markMs = timestampMs;
-            tag.period = context.period;
-            tag.team = TagSession::teamSideKey(context.team);
-            // tag.startMs / tag.endMs left at 0 so TagSession::addTag seeds them from EventDefaults.
-            tagSession_->addTag(tag);
-        }
-    });
+void WorkWindow::dismissTagSequenceToast() {
+    if (tagToast_) tagToast_->dismissImmediately();
+}
 
-    connect(tagsTable_, &QTableView::doubleClicked, this, [this](const QModelIndex& index) {
-        if (index.isValid()) onTagTableSeekToRow(index.row());
-    });
-    connect(tagsTable_, &QAbstractItemView::activated, this, [this](const QModelIndex& index) {
-        if (index.isValid()) onTagTableSeekToRow(index.row());
-    });
+void WorkWindow::commitTagFromGameControls(const QString& mainEvent, const QString& followUpEvent) {
+    if (!videoPlayer_) return;
+
+    qint64 timestampMs = videoPlayer_->currentPositionMs();
+    if (capturedMainEvent_ && capturedMainEvent_->event == mainEvent) {
+        timestampMs = capturedMainEvent_->positionMs;
+    }
+    capturedMainEvent_.reset();
+
+    if (!tagSession_) return;
+    const TagContext context = tagContext();
+    TagSession::GameTag tag;
+    tag.mainEvent = mainEvent;
+    tag.followUpEvent = followUpEvent;
+    tag.markMs = timestampMs;
+    tag.period = context.period;
+    tag.team = TagSession::teamSideKey(context.team);
+    // tag.startMs / tag.endMs left at 0 so TagSession::addTag seeds them from EventDefaults.
+    tagSession_->addTag(tag);
+}
+
+void WorkWindow::wireTagsTableSignals() {
+    connect(tagsTable_, &QTableView::doubleClicked, this, &WorkWindow::seekTagsTableIndex);
+    connect(tagsTable_, &QAbstractItemView::activated, this, &WorkWindow::seekTagsTableIndex);
     connect(tagsTable_->selectionModel(), &QItemSelectionModel::currentChanged, this,
-            [this](const QModelIndex& current, const QModelIndex& previous) {
-                if (current == previous) return;
-                onTagSelectionChanged();
-            });
+            &WorkWindow::onTagsTableCurrentChanged);
+}
 
+void WorkWindow::seekTagsTableIndex(const QModelIndex& index) {
+    if (index.isValid()) onTagTableSeekToRow(index.row());
+}
+
+void WorkWindow::onTagsTableCurrentChanged(const QModelIndex& current, const QModelIndex& previous) {
+    if (current == previous) return;
+    onTagSelectionChanged();
+}
+
+void WorkWindow::wireModeToggleSignals() {
     connect(modeTaggingBtn_, &QToolButton::clicked, this, &WorkWindow::onModeToggled);
     connect(modeAnalyzingBtn_, &QToolButton::clicked, this, &WorkWindow::onModeToggled);
     connect(modePresentingBtn_, &QToolButton::clicked, this, &WorkWindow::onModeToggled);
+}
 
+void WorkWindow::wireNotesSignals() {
     if (notesEdit_) {
         notesEdit_->installEventFilter(this);
         connect(notesEdit_, &QPlainTextEdit::textChanged, this, &WorkWindow::onNoteTextChanged);
@@ -1426,17 +1598,19 @@ void WorkWindow::wireSignals() {
         connect(matchNotesEditor_, &MatchNotesEditor::tagMentionActivated, this,
                 &WorkWindow::onMatchNoteTagMentionActivated);
     }
+}
 
+void WorkWindow::wireTagListActionSignals() {
     connect(statsWindow_, &StatsWindow::filterByEventPathRequested, this, &WorkWindow::onFilterByEventPathRequested);
     connect(tagsRemoveFiltersButton_, &QToolButton::clicked, this, &WorkWindow::onRemoveFilters);
     connect(undoLastTagButton_, &QToolButton::clicked, this, &WorkWindow::onUndoLastTag);
+}
 
+void WorkWindow::installModeAndStatsShortcuts() {
     auto* modeAction = new QAction(this);
     modeAction->setShortcut(QKeySequence(Qt::Key_M));
     modeAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-    connect(modeAction, &QAction::triggered, this, [this]() {
-        setMode(nextModeInCycle(mode_));
-    });
+    connect(modeAction, &QAction::triggered, this, &WorkWindow::cycleWorkMode);
     addAction(modeAction);
 
     statsOverlayAction_ = new QAction(this);
@@ -1444,7 +1618,13 @@ void WorkWindow::wireSignals() {
     statsOverlayAction_->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     connect(statsOverlayAction_, &QAction::triggered, this, &WorkWindow::showStatsOverlay);
     addAction(statsOverlayAction_);
+}
 
+void WorkWindow::cycleWorkMode() {
+    setMode(nextModeInCycle(mode_));
+}
+
+void WorkWindow::wireLocaleAndNoteTimers() {
     connect(&LocaleNotifier::instance(), &LocaleNotifier::languageChanged, this,
             &WorkWindow::onApplicationLanguageChanged);
 
@@ -1455,17 +1635,25 @@ void WorkWindow::wireSignals() {
     matchNoteDebounceTimer_ = new QTimer(this);
     matchNoteDebounceTimer_->setSingleShot(true);
     connect(matchNoteDebounceTimer_, &QTimer::timeout, this, &WorkWindow::saveMatchNoteDebounceFired);
+}
 
-    connect(videoPlayer_, &VideoPlayer::positionChangedMs, this, [this](qint64 positionMs) {
-        onPlayheadPositionChanged(positionMs);
-        updatePresentationPlayhead(positionMs);
-    });
-    connect(videoPlayer_, &VideoPlayer::durationChangedMs, this, [this](qint64 durationMs) {
-        if (presentationQueue_) presentationQueue_->setVideoDurationMs(durationMs);
-    });
+void WorkWindow::wirePlaybackAndTemporaryDirectorySignals() {
+    connect(videoPlayer_, &VideoPlayer::positionChangedMs, this, &WorkWindow::onVideoPositionChanged);
+    connect(videoPlayer_, &VideoPlayer::durationChangedMs, this, &WorkWindow::onVideoDurationChanged);
     connect(videoPlayer_, &VideoPlayer::playbackMediaSettled, this,
             &WorkWindow::deleteTemporaryDirectoriesReleasedByPlayer);
+}
 
+void WorkWindow::onVideoPositionChanged(qint64 positionMs) {
+    onPlayheadPositionChanged(positionMs);
+    updatePresentationPlayhead(positionMs);
+}
+
+void WorkWindow::onVideoDurationChanged(qint64 durationMs) {
+    if (presentationQueue_) presentationQueue_->setVideoDurationMs(durationMs);
+}
+
+void WorkWindow::installTagEditShortcuts() {
     // Backspace to delete selected tag
     auto* deleteTagAction = new QAction(this);
     deleteTagAction->setShortcut(QKeySequence(Qt::Key_Backspace));
@@ -1479,7 +1667,9 @@ void WorkWindow::wireSignals() {
     undoTagAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     connect(undoTagAction, &QAction::triggered, this, &WorkWindow::onUndoLastTag);
     addAction(undoTagAction);
+}
 
+void WorkWindow::wireApplicationFocusSignals() {
     if (QApplication* application = qobject_cast<QApplication*>(QApplication::instance())) {
         connect(application, &QApplication::focusChanged, this, &WorkWindow::onApplicationFocusWidgetChanged);
     }
@@ -1548,47 +1738,64 @@ void WorkWindow::onGameSetupCancelled() {
 void WorkWindow::loadVideoFromFile(const QString& filePath) {
     if (filePath.isEmpty()) return;
 
+    const std::optional<QString> playbackPath = preparePlaybackPath(filePath);
+    if (!playbackPath.has_value()) return;
+
+    sourceVideoPath_ = filePath;
+    workStage_ = WorkStage::VideoOpen;
+    resetSessionForOpenedVideo();
+    showPlayerForOpenedVideo(*playbackPath);
+    showWorkChromeForOpenedVideo();
+    resetPresentationForOpenedVideo();
+    refreshSurfacesForOpenedVideo();
+}
+
+std::optional<QString> WorkWindow::preparePlaybackPath(const QString& filePath) {
     stopNoteTimers();
     QString playbackPath = filePath;
     cleanupPlaybackPrepVideo();
 
-    if (PlaybackVideoPreparer::requiresTranscodeForPlayback(filePath)) {
-        auto tempDir = std::make_unique<QTemporaryDir>();
-        if (!tempDir->isValid()) {
-            abortVideoOpen(AppLocale::trUi("playback_prep.error_failed"));
-            return;
-        }
-
-        auto preparer = std::make_unique<PlaybackVideoPreparer>();
-        preparer->startPreparation(filePath, tempDir->path());
-        const bool prepOk = preparer->waitWithProgress(this);
-        const QString errorMessage = preparer->errorMessage();
-        const QString preparedPath = preparer->outputPath();
-        preparer.reset();
-
-        if (!prepOk) {
-            abortVideoOpen(errorMessage);
-            return;
-        }
-
-        playbackPrepTempDir_ = std::move(tempDir);
-        playbackPath = preparedPath;
+    if (!PlaybackVideoPreparer::requiresTranscodeForPlayback(filePath)) {
+        return playbackPath;
     }
 
-    sourceVideoPath_ = filePath;
-    workStage_ = WorkStage::VideoOpen;
+    auto tempDir = std::make_unique<QTemporaryDir>();
+    if (!tempDir->isValid()) {
+        abortVideoOpen(AppLocale::trUi("playback_prep.error_failed"));
+        return std::nullopt;
+    }
 
+    auto preparer = std::make_unique<PlaybackVideoPreparer>();
+    preparer->startPreparation(filePath, tempDir->path());
+    const bool prepOk = preparer->waitWithProgress(this);
+    const QString errorMessage = preparer->errorMessage();
+    const QString preparedPath = preparer->outputPath();
+    preparer.reset();
+
+    if (!prepOk) {
+        abortVideoOpen(errorMessage);
+        return std::nullopt;
+    }
+
+    playbackPrepTempDir_ = std::move(tempDir);
+    return preparedPath;
+}
+
+void WorkWindow::resetSessionForOpenedVideo() {
     if (tagToast_) tagToast_->dismissImmediately();
     capturedMainEvent_.reset();
     if (tagSession_) tagSession_->clear();
     if (tagsModel_) tagsModel_->setRows({});
+}
 
-    if (videoPlayer_) {
-        videoPlayer_->loadVideoFromFile(playbackPath);
-        videoPlayer_->setControlsVisible(true);
-        setVideoMuteButtonEnabled(true);
-    }
+void WorkWindow::showPlayerForOpenedVideo(const QString& playbackPath) {
+    if (!videoPlayer_) return;
+    videoPlayer_->loadVideoFromFile(playbackPath);
+    videoPlayer_->setControlsVisible(true);
+    setVideoMuteButtonEnabled(true);
+}
 
+void WorkWindow::showWorkChromeForOpenedVideo() {
     if (gameControls_) {
         gameControls_->resetGameTimeState();
         gameControls_->setTeamSide(TagSession::TeamSide::Home);
@@ -1605,7 +1812,9 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
             if (track) track->syncToMode(false);
         });
     }
+}
 
+void WorkWindow::resetPresentationForOpenedVideo() {
     if (presentationQueue_) presentationQueue_->clear();
     resetPresentationForVideoChange();
     if (presentationPanel_) {
@@ -1613,7 +1822,9 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
         presentationPanel_->setExportEnabled(true);
     }
     updatePresentationStage();
+}
 
+void WorkWindow::refreshSurfacesForOpenedVideo() {
     applyModeChrome();
     if (statsWindow_) statsWindow_->setTagSession(tagSession_);
     syncFilterMenu();
@@ -1626,51 +1837,58 @@ bool WorkWindow::exportXmlAndNotesBeforeReplace() {
         return false;
     }
 
-    const QString baseName = ExportClipBuilder::xmlReportBaseName(tagSession_);
-    QString directoryPath = exportDefaultDirectoryPath_.trimmed();
-    if (directoryPath.isEmpty()) {
-        directoryPath = QFileInfo(sourceVideoPath_).absolutePath();
-    }
-    const QString suggestedPath = QDir(directoryPath).filePath(baseName + QStringLiteral(".xml"));
     const QString chosenPath = QFileDialog::getSaveFileName(
         this,
         AppLocale::trUi("replace_video.export_dialog_title"),
-        suggestedPath,
+        suggestedXmlReportPath(),
         AppLocale::trUi("file.xml_filter"));
     if (chosenPath.isEmpty()) {
         return false;
     }
 
-    const QFileInfo chosenInfo(chosenPath);
-    const QString xmlPath =
-        chosenInfo.suffix().compare(QStringLiteral("xml"), Qt::CaseInsensitive) == 0
-            ? chosenPath
-            : QDir(chosenInfo.absolutePath())
-                  .filePath(chosenInfo.completeBaseName() + QStringLiteral(".xml"));
+    const QString xmlPath = pathWithXmlSuffix(chosenPath);
+    if (!startXmlReportJob(xmlPath,
+                           AppLocale::trUi("export.xml_title"),
+                           AppLocale::trUi("export.xml_failed"))) {
+        return false;
+    }
+    return writeSessionNotesBesideXml(xmlPath);
+}
 
+QString WorkWindow::suggestedXmlReportPath() const {
+    const QString baseName = ExportClipBuilder::xmlReportBaseName(tagSession_);
+    QString directoryPath = exportDefaultDirectoryPath_.trimmed();
+    if (directoryPath.isEmpty()) {
+        directoryPath = QFileInfo(sourceVideoPath_).absolutePath();
+    }
+    return QDir(directoryPath).filePath(baseName + QStringLiteral(".xml"));
+}
+
+bool WorkWindow::startXmlReportJob(const QString& outputPath,
+                                   const QString& failureTitle,
+                                   const QString& emptyErrorFallback) {
     ExportJobRequest request;
     request.format = ExportOutputFormat::Xml;
-    request.outputPath = xmlPath;
+    request.outputPath = outputPath;
     request.session = captureTagSessionExportData(*tagSession_);
 
     QString errorMessage;
-    if (!exportJobManager_->startJob(request, &errorMessage)) {
-        QMessageBox::warning(this,
-                             AppLocale::trUi("export.xml_title"),
-                             errorMessage.isEmpty() ? AppLocale::trUi("export.xml_failed")
-                                                    : errorMessage);
-        return false;
-    }
+    if (exportJobManager_->startJob(request, &errorMessage)) return true;
 
+    const QString shownMessage = errorMessage.isEmpty() ? emptyErrorFallback : errorMessage;
+    QMessageBox::warning(this, failureTitle, shownMessage);
+    return false;
+}
+
+bool WorkWindow::writeSessionNotesBesideXml(const QString& xmlPath) {
     const QString notesPath = SessionNotesWriter::notesPathForXmlReport(xmlPath);
-    if (!SessionNotesWriter::writeFile(*tagSession_, notesPath, &errorMessage)) {
-        QMessageBox::warning(this,
-                             AppLocale::trUi("replace_video.title"),
-                             errorMessage.isEmpty() ? AppLocale::trUi("replace_video.notes_failed")
-                                                    : errorMessage);
-        return false;
-    }
-    return true;
+    QString errorMessage;
+    if (SessionNotesWriter::writeFile(*tagSession_, notesPath, &errorMessage)) return true;
+    QMessageBox::warning(this,
+                         AppLocale::trUi("replace_video.title"),
+                         errorMessage.isEmpty() ? AppLocale::trUi("replace_video.notes_failed")
+                                                : errorMessage);
+    return false;
 }
 
 void WorkWindow::onReplaceVideo() {
@@ -1696,12 +1914,19 @@ void WorkWindow::onReplaceVideo() {
     }
 
     if (filePaths.size() == 1) {
-        releaseTransientResources();
-        setExportDefaultDirectoryFromVideoPath(filePaths.first());
-        loadVideoFromFile(filePaths.first());
+        replaceOpenVideoWithFile(filePaths.first());
         return;
     }
+    replaceOpenVideoWithConcatenation(filePaths);
+}
 
+void WorkWindow::replaceOpenVideoWithFile(const QString& filePath) {
+    releaseTransientResources();
+    setExportDefaultDirectoryFromVideoPath(filePath);
+    loadVideoFromFile(filePath);
+}
+
+void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
     filePaths.sort(Qt::CaseInsensitive);
     if (!VideoConcatenator::showFileOrderDialog(filePaths, this)) {
         resumeNoteTimers();
@@ -1769,13 +1994,7 @@ void WorkWindow::onCloseVideo() {
 void WorkWindow::onPresentationExportRequested() {
     if (!tagSession_ || !hasOpenVideo() || !exportJobManager_) return;
 
-    QVector<PresentationQueue::Clip> queuedClips;
-    if (presentationQueue_) {
-        queuedClips.reserve(presentationQueue_->count());
-        for (int index = 0; index < presentationQueue_->count(); ++index) {
-            queuedClips.append(presentationQueue_->clipAt(index));
-        }
-    }
+    const QVector<PresentationQueue::Clip> queuedClips = copyPresentationQueueClips();
 
     ExportSettingsDialog dialog(
         tagSession_,
@@ -1788,7 +2007,37 @@ void WorkWindow::onPresentationExportRequested() {
 
     if (dialog.exec() != QDialog::Accepted) return;
 
-    const ExportSettingsDialog::Result settings = dialog.resultSettings();
+    const ExportJobRequest request = buildPresentationExportRequest(dialog.resultSettings(), queuedClips);
+    QString errorMessage;
+    if (!exportJobManager_->startJob(request, &errorMessage)) {
+        QMessageBox::warning(this, AppLocale::trUi("export.title"), errorMessage);
+    }
+}
+
+QVector<PresentationQueue::Clip> WorkWindow::copyPresentationQueueClips() const {
+    QVector<PresentationQueue::Clip> queuedClips;
+    if (!presentationQueue_) return queuedClips;
+    queuedClips.reserve(presentationQueue_->count());
+    for (int index = 0; index < presentationQueue_->count(); ++index) {
+        queuedClips.append(presentationQueue_->clipAt(index));
+    }
+    return queuedClips;
+}
+
+void WorkWindow::appendRetainedPlaybackDirectories(ExportJobRequest& request) const {
+    if (concatenatedVideoTempDir_) {
+        request.retainedInputDirectories.append(
+            QDir(concatenatedVideoTempDir_->path()).absolutePath());
+    }
+    if (playbackPrepTempDir_) {
+        request.retainedInputDirectories.append(
+            QDir(playbackPrepTempDir_->path()).absolutePath());
+    }
+}
+
+ExportJobRequest WorkWindow::buildPresentationExportRequest(
+    const ExportSettingsDialog::Result& settings,
+    const QVector<PresentationQueue::Clip>& queuedClips) const {
     const ExportClipBuilder::SortOrder sortOrder = settings.sortByTeam
         ? ExportClipBuilder::SortOrder::ByTeamThenChronological
         : ExportClipBuilder::SortOrder::Chronological;
@@ -1809,19 +2058,8 @@ void WorkWindow::onPresentationExportRequested() {
     request.includeAudioTrack = settings.includeAudioTrack;
     request.includeBrandingOverlay = settings.includeBrandingOverlay;
     request.session = captureTagSessionExportData(*tagSession_);
-    if (concatenatedVideoTempDir_) {
-        request.retainedInputDirectories.append(
-            QDir(concatenatedVideoTempDir_->path()).absolutePath());
-    }
-    if (playbackPrepTempDir_) {
-        request.retainedInputDirectories.append(
-            QDir(playbackPrepTempDir_->path()).absolutePath());
-    }
-
-    QString errorMessage;
-    if (!exportJobManager_->startJob(request, &errorMessage)) {
-        QMessageBox::warning(this, AppLocale::trUi("export.title"), errorMessage);
-    }
+    appendRetainedPlaybackDirectories(request);
+    return request;
 }
 
 void WorkWindow::onExportXml() {
@@ -1834,29 +2072,14 @@ void WorkWindow::onExportXml() {
         return;
     }
 
-    const QString baseName = ExportClipBuilder::xmlReportBaseName(tagSession_);
-    QString directoryPath = exportDefaultDirectoryPath_.trimmed();
-    if (directoryPath.isEmpty()) {
-        directoryPath = QFileInfo(sourceVideoPath_).absolutePath();
-    }
-    const QString suggestedPath = QDir(directoryPath).filePath(baseName + QStringLiteral(".xml"));
-
     const QString outputPath = QFileDialog::getSaveFileName(
         this,
         AppLocale::trUi("export.xml_save_dialog_title"),
-        suggestedPath,
+        suggestedXmlReportPath(),
         AppLocale::trUi("file.xml_filter"));
     if (outputPath.isEmpty()) return;
 
-    ExportJobRequest request;
-    request.format = ExportOutputFormat::Xml;
-    request.outputPath = outputPath;
-    request.session = captureTagSessionExportData(*tagSession_);
-
-    QString errorMessage;
-    if (!exportJobManager_->startJob(request, &errorMessage)) {
-        QMessageBox::warning(this, AppLocale::trUi("export.xml_title"), errorMessage);
-    }
+    startXmlReportJob(outputPath, AppLocale::trUi("export.xml_title"), QString());
 }
 
 void WorkWindow::onClipDurationSettings() {
@@ -1885,28 +2108,8 @@ void WorkWindow::onImportXml() {
         return;
     }
 
-    TagSession::ImportMode importMode = TagSession::ImportMode::Replace;
-    if (!tagSession_->tags().isEmpty()) {
-        QMessageBox conflictBox(this);
-        conflictBox.setWindowTitle(AppLocale::trUi("xml_import.conflict_title"));
-        conflictBox.setText(AppLocale::trUi("xml_import.conflict_message"));
-        QPushButton* replaceButton =
-            conflictBox.addButton(AppLocale::trUi("xml_import.conflict_replace"),
-                                  QMessageBox::AcceptRole);
-        QPushButton* mergeButton =
-            conflictBox.addButton(AppLocale::trUi("xml_import.conflict_merge"),
-                                  QMessageBox::AcceptRole);
-        conflictBox.addButton(AppLocale::trUi("xml_import.cancel"), QMessageBox::RejectRole);
-        conflictBox.setDefaultButton(replaceButton);
-        conflictBox.exec();
-        if (conflictBox.clickedButton() == replaceButton) {
-            importMode = TagSession::ImportMode::Replace;
-        } else if (conflictBox.clickedButton() == mergeButton) {
-            importMode = TagSession::ImportMode::Merge;
-        } else {
-            return;
-        }
-    }
+    const std::optional<TagSession::ImportMode> importMode = promptXmlImportMode();
+    if (!importMode.has_value()) return;
 
     const XmlImporter::SyncAnchorResult anchor = XmlImporter::syncAnchorInstance(instances);
     if (!anchor.found) {
@@ -1915,6 +2118,39 @@ void WorkWindow::onImportXml() {
         return;
     }
 
+    const std::optional<qint64> offsetMs = promptXmlSyncOffset(anchor, instances);
+    if (!offsetMs.has_value()) return;
+
+    const std::optional<XmlEventMappingDialog::ImportMappingResult> importResult =
+        promptXmlEventMapping(instances, *offsetMs);
+    if (!importResult.has_value()) return;
+
+    importMappedXmlTags(*importMode, *importResult);
+}
+
+std::optional<TagSession::ImportMode> WorkWindow::promptXmlImportMode() {
+    if (tagSession_->tags().isEmpty()) return TagSession::ImportMode::Replace;
+
+    QMessageBox conflictBox(this);
+    conflictBox.setWindowTitle(AppLocale::trUi("xml_import.conflict_title"));
+    conflictBox.setText(AppLocale::trUi("xml_import.conflict_message"));
+    QPushButton* replaceButton =
+        conflictBox.addButton(AppLocale::trUi("xml_import.conflict_replace"),
+                              QMessageBox::AcceptRole);
+    QPushButton* mergeButton =
+        conflictBox.addButton(AppLocale::trUi("xml_import.conflict_merge"),
+                              QMessageBox::AcceptRole);
+    conflictBox.addButton(AppLocale::trUi("xml_import.cancel"), QMessageBox::RejectRole);
+    conflictBox.setDefaultButton(replaceButton);
+    conflictBox.exec();
+    if (conflictBox.clickedButton() == replaceButton) return TagSession::ImportMode::Replace;
+    if (conflictBox.clickedButton() == mergeButton) return TagSession::ImportMode::Merge;
+    return std::nullopt;
+}
+
+std::optional<qint64> WorkWindow::promptXmlSyncOffset(
+    const XmlImporter::SyncAnchorResult& anchor,
+    const QVector<XmlImporter::ParsedInstance>& instances) {
     XmlSyncDialog syncDialog(videoPlayer_, anchor.instance, instances, anchor.usedFallback, this);
     syncDialog.setModal(true);
     if (videoPlayer_) {
@@ -1924,25 +2160,31 @@ void WorkWindow::onImportXml() {
     if (videoPlayer_) {
         videoPlayer_->setPlaybackKeyboardShortcutsEnabled(true);
     }
-    if (syncResult != QDialog::Accepted) return;
+    if (syncResult != QDialog::Accepted) return std::nullopt;
+    return syncDialog.offsetMs();
+}
 
-    const qint64 offsetMs = syncDialog.offsetMs();
-
+std::optional<XmlEventMappingDialog::ImportMappingResult> WorkWindow::promptXmlEventMapping(
+    const QVector<XmlImporter::ParsedInstance>& instances,
+    qint64 offsetMs) {
     XmlEventMappingDialog mappingDialog(instances, offsetMs, tagSession_, this);
     mappingDialog.setModal(true);
-    if (mappingDialog.exec() != QDialog::Accepted) return;
+    if (mappingDialog.exec() != QDialog::Accepted) return std::nullopt;
 
     const XmlEventMappingDialog::ImportMappingResult importResult = mappingDialog.importResult();
-    const QVector<TagSession::GameTag>& importedTags = importResult.tags;
-    if (importedTags.isEmpty()) {
+    if (importResult.tags.isEmpty()) {
         QMessageBox::information(this, AppLocale::trUi("xml_import.title"),
                                  AppLocale::trUi("xml_import.mapping_none_selected"));
-        return;
+        return std::nullopt;
     }
+    return importResult;
+}
 
+void WorkWindow::importMappedXmlTags(TagSession::ImportMode importMode,
+                                    const XmlEventMappingDialog::ImportMappingResult& importResult) {
     const qint64 videoDurationMs = videoPlayer_->durationMs();
     const TagSession::ImportResult result =
-        tagSession_->importTags(importedTags, importMode, videoDurationMs);
+        tagSession_->importTags(importResult.tags, importMode, videoDurationMs);
 
     const int dialogSkipped = importResult.skippedInstanceCount;
     QMessageBox::information(
@@ -2138,29 +2380,47 @@ void WorkWindow::updatePresentationStage() {
 
     const PresentationQueue::Clip* clip =
         presentationQueue_ ? presentationQueue_->currentClip() : nullptr;
-
     if (!clip) {
-        presentationEventLabel_->setText(AppLocale::trUi("presentation.empty_title"));
-        presentationContextLabel_->setText(AppLocale::trUi("presentation.empty_hint"));
-        presentationNoteLabel_->clear();
-        presentationNoteLabel_->hide();
-        if (presentationPanel_) presentationPanel_->clearCurrentClip();
+        showEmptyPresentationStage();
         return;
     }
+    showCurrentPresentationClip(*clip);
+}
 
-    TagSession::GameTag tagForDisplay;
-    tagForDisplay.team = clip->team;
+void WorkWindow::showEmptyPresentationStage() {
+    presentationEventLabel_->setText(AppLocale::trUi("presentation.empty_title"));
+    presentationContextLabel_->setText(AppLocale::trUi("presentation.empty_hint"));
+    presentationNoteLabel_->clear();
+    presentationNoteLabel_->hide();
+    if (presentationPanel_) presentationPanel_->clearCurrentClip();
+}
+
+void WorkWindow::showCurrentPresentationClip(const PresentationQueue::Clip& clip) {
     const QString followUpForDisplay = tagSession_
-        ? AppLocale::followUpPathWithoutTeamSegments(clip->followUpEvent,
+        ? AppLocale::followUpPathWithoutTeamSegments(clip.followUpEvent,
                                                      tagSession_->homeTeamName(),
                                                      tagSession_->awayTeamName())
-        : clip->followUpEvent;
+        : clip.followUpEvent;
 
     presentationEventLabel_->setText(
-        AppLocale::trDisplayTagLine(clip->mainEvent, followUpForDisplay));
+        AppLocale::trDisplayTagLine(clip.mainEvent, followUpForDisplay));
+    presentationContextLabel_->setText(presentationContextText(clip));
 
+    const bool showNote =
+        presentationPanel_ && presentationPanel_->showNotesEnabled() && !clip.note.isEmpty();
+    presentationNoteLabel_->setText(clip.note);
+    presentationNoteLabel_->setVisible(showNote);
+
+    if (presentationPanel_) {
+        presentationPanel_->setCurrentClip(clip.tagSessionIndex, clip.leadMs(), clip.lagMs());
+    }
+}
+
+QString WorkWindow::presentationContextText(const PresentationQueue::Clip& clip) const {
+    TagSession::GameTag tagForDisplay;
+    tagForDisplay.team = clip.team;
     const QString periodLabel =
-        tagSession_ ? tagSession_->periodLabelAtTimestampMs(clip->markMs) : QString();
+        tagSession_ ? tagSession_->periodLabelAtTimestampMs(clip.markMs) : QString();
     QStringList contextParts;
     contextParts.append(QStringLiteral("%1 / %2")
                             .arg(presentationQueue_->currentIndex() + 1)
@@ -2168,17 +2428,8 @@ void WorkWindow::updatePresentationStage() {
     const QString teamName = displayTeamForTag(tagForDisplay);
     if (!teamName.isEmpty() && teamName != QStringLiteral("—")) contextParts.append(teamName);
     if (!periodLabel.isEmpty()) contextParts.append(periodLabel);
-    contextParts.append(formatTimestampMs(clip->markMs));
-    presentationContextLabel_->setText(contextParts.join(QStringLiteral("  ·  ")));
-
-    const bool showNote =
-        presentationPanel_ && presentationPanel_->showNotesEnabled() && !clip->note.isEmpty();
-    presentationNoteLabel_->setText(clip->note);
-    presentationNoteLabel_->setVisible(showNote);
-
-    if (presentationPanel_) {
-        presentationPanel_->setCurrentClip(clip->tagSessionIndex, clip->leadMs(), clip->lagMs());
-    }
+    contextParts.append(formatTimestampMs(clip.markMs));
+    return contextParts.join(QStringLiteral("  ·  "));
 }
 
 void WorkWindow::configurePresentationClipBarForCurrentClip() {
@@ -2192,18 +2443,10 @@ void WorkWindow::configurePresentationClipBarForCurrentClip() {
     }
     presentationClipBar_->show();
 
-    // Same rule as the export reviewer: leave room on both sides of the clip so the presenter can
-    // stretch the interval or scrub past it without the bar clipping the view.
-    const qint64 halfWindowMs =
-        std::max<qint64>(25000, std::max(clip->leadMs(), clip->lagMs()) + 5000);
-    qint64 windowStartMs = clip->markMs - halfWindowMs;
-    qint64 windowEndMs = clip->markMs + halfWindowMs;
-    if (windowStartMs < 0) windowStartMs = 0;
     const qint64 videoDurationMs = videoPlayer_ ? videoPlayer_->durationMs() : 0;
-    if (videoDurationMs > 0 && windowEndMs > videoDurationMs) windowEndMs = videoDurationMs;
-
-    presentationClipBar_->configure(clip->markMs, clip->startMs, clip->endMs, windowStartMs,
-                                    windowEndMs);
+    const PresentationClipWindow window = presentationClipWindow(*clip, videoDurationMs);
+    presentationClipBar_->configure(clip->markMs, clip->startMs, clip->endMs, window.startMs,
+                                    window.endMs);
     if (videoPlayer_) {
         presentationClipBar_->setPlayheadMs(videoPlayer_->currentPositionMs());
     }
@@ -2251,24 +2494,28 @@ bool WorkWindow::eventFilter(QObject* watched, QEvent* event) {
     if (watched == notesEdit_ && event && event->type() == QEvent::FocusOut) {
         flushPendingClipNote();
     }
+    if (handlePresentationTabShortcut(watched, event)) return true;
+    return QWidget::eventFilter(watched, event);
+}
 
+bool WorkWindow::handlePresentationTabShortcut(QObject* watched, QEvent* event) {
     if (!event || !presentationKeyboardShortcutsInstalled_ || mode_ != Mode::Presenting ||
         event->type() != QEvent::KeyPress) {
-        return QWidget::eventFilter(watched, event);
+        return false;
     }
 
     auto* targetWidget = qobject_cast<QWidget*>(watched);
     if (!targetWidget || targetWidget->window() != window()) {
-        return QWidget::eventFilter(watched, event);
+        return false;
     }
 
     auto* keyEvent = static_cast<QKeyEvent*>(event);
     const bool isTabKey = keyEvent->key() == Qt::Key_Tab || keyEvent->key() == Qt::Key_Backtab;
-    if (!isTabKey) return QWidget::eventFilter(watched, event);
+    if (!isTabKey) return false;
 
     // Let Tab keep its normal meaning while the user is typing in the panel.
     if (TextInputFocus::widgetIsTextInput(QApplication::focusWidget())) {
-        return QWidget::eventFilter(watched, event);
+        return false;
     }
 
     const bool goBackwards = keyEvent->key() == Qt::Key_Backtab ||
@@ -2378,30 +2625,36 @@ void WorkWindow::loadNoteForSelectedTag() {
     const QSignalBlocker notesBlocker(notesEdit_);
     const quint64 selectedId = selectedTagId();
     if (pendingClipNote_ && pendingClipNote_->tagId == selectedId) {
-        if (notesEdit_->toPlainText() != pendingClipNote_->text) {
-            notesEdit_->setPlainText(pendingClipNote_->text);
-        }
-        notesEdit_->setEnabled(true);
-        notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
+        showPendingClipNoteInEditor();
         return;
     }
 
     if (selectedId == 0 || !tagSession_) {
-        if (!notesEdit_->toPlainText().isEmpty()) {
-            notesEdit_->clear();
-        }
-        notesEdit_->setEnabled(false);
-        notesEdit_->setPlaceholderText(AppLocale::trUi("notes.clip_placeholder_none"));
+        showDisabledClipNoteEditor();
         return;
     }
 
-    int sessionIndex = tagSession_->indexOfTagId(selectedId);
-    if (sessionIndex < 0 && tagsModel_ && tagsTable_ && tagsTable_->selectionModel()) {
-        const QModelIndex currentIndex = tagsTable_->selectionModel()->currentIndex();
-        if (currentIndex.isValid()) {
-            sessionIndex = tagsModel_->tagSessionIndexAt(currentIndex.row());
-        }
+    showStoredClipNoteInEditor(selectedId);
+}
+
+void WorkWindow::showPendingClipNoteInEditor() {
+    if (notesEdit_->toPlainText() != pendingClipNote_->text) {
+        notesEdit_->setPlainText(pendingClipNote_->text);
     }
+    notesEdit_->setEnabled(true);
+    notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
+}
+
+void WorkWindow::showDisabledClipNoteEditor() {
+    if (!notesEdit_->toPlainText().isEmpty()) {
+        notesEdit_->clear();
+    }
+    notesEdit_->setEnabled(false);
+    notesEdit_->setPlaceholderText(AppLocale::trUi("notes.clip_placeholder_none"));
+}
+
+void WorkWindow::showStoredClipNoteInEditor(quint64 selectedTagId) {
+    const int sessionIndex = sessionIndexForTagId(selectedTagId);
     if (tagSession_->isValidTagIndex(sessionIndex)) {
         const QString noteText = tagSession_->tagNote(sessionIndex);
         if (notesEdit_->toPlainText() != noteText) {
@@ -2416,6 +2669,16 @@ void WorkWindow::loadNoteForSelectedTag() {
         notesEdit_->setEnabled(true);
         notesEdit_->setPlaceholderText(AppLocale::trUi("notes.clip_placeholder_none"));
     }
+}
+
+int WorkWindow::sessionIndexForTagId(quint64 tagId) const {
+    if (!tagSession_) return -1;
+    const int sessionIndex = tagSession_->indexOfTagId(tagId);
+    if (sessionIndex >= 0) return sessionIndex;
+    if (!tagsModel_ || !tagsTable_ || !tagsTable_->selectionModel()) return sessionIndex;
+    const QModelIndex currentIndex = tagsTable_->selectionModel()->currentIndex();
+    if (!currentIndex.isValid()) return sessionIndex;
+    return tagsModel_->tagSessionIndexAt(currentIndex.row());
 }
 
 void WorkWindow::loadMatchNote() {
@@ -2519,13 +2782,7 @@ void WorkWindow::onDeleteSelectedTag() {
     const quint64 tagId = selectedTagId();
     if (tagId == 0) return;
 
-    int tagIndex = tagSession_->indexOfTagId(tagId);
-    if (tagIndex < 0 && tagsTable_->selectionModel()) {
-        const QModelIndex currentIndex = tagsTable_->selectionModel()->currentIndex();
-        if (currentIndex.isValid()) {
-            tagIndex = tagsModel_->tagSessionIndexAt(currentIndex.row());
-        }
-    }
+    const int tagIndex = sessionIndexForTagId(tagId);
     if (tagIndex < 0 || !tagSession_->isValidTagIndex(tagIndex)) return;
 
     if (pendingClipNote_ && pendingClipNote_->tagId == tagId) {
@@ -2610,38 +2867,46 @@ void WorkWindow::syncFilterMenu() {
     filterSelectAllAction_->setText(AppLocale::trUi("filter.select_all"));
     filterSelectNoneAction_->setText(AppLocale::trUi("filter.select_none"));
 
-    QSet<QString> liveMainEvents;
-    if (tagSession_) {
-        QStringList mainEvents = tagSession_->mainEventCounts().keys();
-        mainEvents.sort(Qt::CaseInsensitive);
-        for (const QString& mainEvent : mainEvents) {
-            liveMainEvents.insert(mainEvent);
-            QAction* action = filterActionByMainEvent_.value(mainEvent, nullptr);
-            if (!action) {
-                if (deferStructureChanges) continue;
-                action = tagsFilterMenu_->addAction(AppLocale::trEvent(mainEvent));
-                action->setCheckable(true);
-                action->setData(mainEvent);
-                connect(action, &QAction::toggled, this, &WorkWindow::onFilterActionToggled);
-                filterActionByMainEvent_.insert(mainEvent, action);
-            } else {
-                action->setText(AppLocale::trEvent(mainEvent));
-            }
-            const bool checked = !tagFilter_.hiddenMainEvents.contains(mainEvent);
-            if (action->isChecked() != checked) {
-                const QSignalBlocker blocker(action);
-                action->setChecked(checked);
-            }
-            if (!deferStructureChanges) action->setVisible(true);
-        }
-    }
-
+    const QSet<QString> liveMainEvents = refreshFilterMenuActions(deferStructureChanges);
     if (deferStructureChanges) return;
 
-    for (auto it = filterActionByMainEvent_.cbegin(); it != filterActionByMainEvent_.cend(); ++it) {
-        if (!liveMainEvents.contains(it.key())) it.value()->setVisible(false);
-    }
+    hideRetiredFilterMenuActions(liveMainEvents);
     filterMenuStructureSyncDeferred_ = false;
+}
+
+QSet<QString> WorkWindow::refreshFilterMenuActions(bool deferStructureChanges) {
+    QSet<QString> liveMainEvents;
+    if (!tagSession_) return liveMainEvents;
+
+    QStringList mainEvents = tagSession_->mainEventCounts().keys();
+    mainEvents.sort(Qt::CaseInsensitive);
+    for (const QString& mainEvent : mainEvents) {
+        liveMainEvents.insert(mainEvent);
+        QAction* action = filterActionByMainEvent_.value(mainEvent, nullptr);
+        if (!action) {
+            if (deferStructureChanges) continue;
+            action = tagsFilterMenu_->addAction(AppLocale::trEvent(mainEvent));
+            action->setCheckable(true);
+            action->setData(mainEvent);
+            connect(action, &QAction::toggled, this, &WorkWindow::onFilterActionToggled);
+            filterActionByMainEvent_.insert(mainEvent, action);
+        } else {
+            action->setText(AppLocale::trEvent(mainEvent));
+        }
+        const bool checked = !tagFilter_.hiddenMainEvents.contains(mainEvent);
+        if (action->isChecked() != checked) {
+            const QSignalBlocker blocker(action);
+            action->setChecked(checked);
+        }
+        if (!deferStructureChanges) action->setVisible(true);
+    }
+    return liveMainEvents;
+}
+
+void WorkWindow::hideRetiredFilterMenuActions(const QSet<QString>& liveMainEvents) {
+    for (auto iterator = filterActionByMainEvent_.cbegin(); iterator != filterActionByMainEvent_.cend(); ++iterator) {
+        if (!liveMainEvents.contains(iterator.key())) iterator.value()->setVisible(false);
+    }
 }
 
 void WorkWindow::updateFilterIndicator() const {
@@ -2689,82 +2954,102 @@ void WorkWindow::refreshTagsTableRows() {
     const ScopedReentrancyFlag rebuilding(rebuildingTagsTable_);
     do {
         tagsTableRebuildRequested_ = false;
-
-        const quint64 previouslySelectedTagId = selectedTagId();
-        const int previousVerticalScroll =
-            tagsTable_->verticalScrollBar() ? tagsTable_->verticalScrollBar()->value() : 0;
-        const QSignalBlocker tableBlocker(tagsTable_);
-        const QSignalBlocker selectionBlocker(tagsTable_->selectionModel());
-
-        if (!tagSession_) {
-            tagsModel_->setRows({});
-            refreshMatchNoteMentionCandidates();
-            updateFilterIndicator();
-            updateFilterButtonsVisibility();
-        } else {
-            struct TagEntry {
-                TagSession::GameTag tag;
-                int tagSessionIndex;
-            };
-            QVector<TagEntry> entries;
-            int tagSessionIndex = 0;
-            for (const TagSession::GameTag& tag : tagSession_->tags()) {
-                if (isTagAllowed(tag.mainEvent, tag.followUpEvent)) {
-                    entries.append({tag, tagSessionIndex});
-                }
-                tagSessionIndex++;
-            }
-
-            std::sort(entries.begin(), entries.end(), [](const TagEntry& left, const TagEntry& right) {
-                return left.tag.markMs < right.tag.markMs;
-            });
-
-            QVector<TagsTableModel::Row> rows;
-            rows.reserve(entries.size());
-            for (const TagEntry& entry : entries) {
-                const TagSession::GameTag& tag = entry.tag;
-                TagsTableModel::Row row;
-                row.tagId = tag.id;
-                row.tagSessionIndex = entry.tagSessionIndex;
-                row.markMs = tag.markMs;
-                row.teamKey = tag.team;
-                row.timeText = formatTimestampMs(tag.markMs);
-                row.teamText = displayTeamForTag(tag);
-                row.eventText =
-                    AppLocale::trDisplayTagLine(tag.mainEvent, followUpForEventColumn(tag.followUpEvent, tagSession_));
-                row.teamBackground = teamBackgroundForTag(tag, tagSession_);
-                rows.append(row);
-            }
-
-            tagsModel_->setRows(rows);
-            tagsTable_->resizeColumnToContents(0);
-            tagsTable_->resizeColumnToContents(1);
-
-            const int restoredRow = tagsModel_->rowForTagId(previouslySelectedTagId);
-            if (restoredRow >= 0) {
-                tagsTable_->selectRow(restoredRow);
-                tagsTable_->scrollTo(tagsModel_->index(restoredRow, 0), QAbstractItemView::EnsureVisible);
-                if (tagsTable_->verticalScrollBar()) {
-                    tagsTable_->verticalScrollBar()->setValue(previousVerticalScroll);
-                }
-            } else {
-                tagsTable_->scrollToBottom();
-            }
-
-            if (videoPlayer_) {
-                tagsModel_->setPlayheadMs(videoPlayer_->currentPositionMs());
-            }
-
-            updateFilterIndicator();
-            updateFilterButtonsVisibility();
-            refreshMatchNoteMentionCandidates();
-        }
-
-        if (selectedTagId() != previouslySelectedTagId) {
-            flushPendingClipNote();
-            loadNoteForSelectedTag();
-        }
+        rebuildTagsTableOnce();
     } while (tagsTableRebuildRequested_);
+}
+
+void WorkWindow::rebuildTagsTableOnce() {
+    const quint64 previouslySelectedTagId = selectedTagId();
+    const int previousVerticalScroll =
+        tagsTable_->verticalScrollBar() ? tagsTable_->verticalScrollBar()->value() : 0;
+    // Keep both blockers alive through the note reload. A selection change
+    // during the rebuild must not re-enter through the table's currentChanged.
+    const QSignalBlocker tableBlocker(tagsTable_);
+    const QSignalBlocker selectionBlocker(tagsTable_->selectionModel());
+
+    if (!tagSession_) {
+        showEmptyTagsTable();
+    } else {
+        tagsModel_->setRows(visibleTagRowsSortedByMark());
+        fitTagsTableColumns();
+        restoreTagsTableSelection(previouslySelectedTagId, previousVerticalScroll);
+        if (videoPlayer_) {
+            tagsModel_->setPlayheadMs(videoPlayer_->currentPositionMs());
+        }
+        updateFilterIndicator();
+        updateFilterButtonsVisibility();
+        refreshMatchNoteMentionCandidates();
+    }
+
+    if (selectedTagId() != previouslySelectedTagId) {
+        flushPendingClipNote();
+        loadNoteForSelectedTag();
+    }
+}
+
+void WorkWindow::showEmptyTagsTable() {
+    tagsModel_->setRows({});
+    refreshMatchNoteMentionCandidates();
+    updateFilterIndicator();
+    updateFilterButtonsVisibility();
+}
+
+QVector<TagsTableModel::Row> WorkWindow::visibleTagRowsSortedByMark() const {
+    struct VisibleTag {
+        TagSession::GameTag tag;
+        int tagSessionIndex = 0;
+    };
+    QVector<VisibleTag> visibleTags;
+    int tagSessionIndex = 0;
+    for (const TagSession::GameTag& tag : tagSession_->tags()) {
+        if (isTagAllowed(tag.mainEvent, tag.followUpEvent)) {
+            visibleTags.append({tag, tagSessionIndex});
+        }
+        tagSessionIndex++;
+    }
+
+    std::sort(visibleTags.begin(), visibleTags.end(), [](const VisibleTag& left, const VisibleTag& right) {
+        return left.tag.markMs < right.tag.markMs;
+    });
+
+    QVector<TagsTableModel::Row> rows;
+    rows.reserve(visibleTags.size());
+    for (const VisibleTag& visibleTag : visibleTags) {
+        rows.append(tagsTableRowFor(visibleTag.tag, visibleTag.tagSessionIndex));
+    }
+    return rows;
+}
+
+TagsTableModel::Row WorkWindow::tagsTableRowFor(const TagSession::GameTag& tag, int tagSessionIndex) const {
+    TagsTableModel::Row row;
+    row.tagId = tag.id;
+    row.tagSessionIndex = tagSessionIndex;
+    row.markMs = tag.markMs;
+    row.teamKey = tag.team;
+    row.timeText = formatTimestampMs(tag.markMs);
+    row.teamText = displayTeamForTag(tag);
+    row.eventText =
+        AppLocale::trDisplayTagLine(tag.mainEvent, followUpForEventColumn(tag.followUpEvent, tagSession_));
+    row.teamBackground = teamBackgroundForTag(tag, tagSession_);
+    return row;
+}
+
+void WorkWindow::fitTagsTableColumns() {
+    tagsTable_->resizeColumnToContents(0);
+    tagsTable_->resizeColumnToContents(1);
+}
+
+void WorkWindow::restoreTagsTableSelection(quint64 previouslySelectedTagId, int previousVerticalScroll) {
+    const int restoredRow = tagsModel_->rowForTagId(previouslySelectedTagId);
+    if (restoredRow >= 0) {
+        tagsTable_->selectRow(restoredRow);
+        tagsTable_->scrollTo(tagsModel_->index(restoredRow, 0), QAbstractItemView::EnsureVisible);
+        if (tagsTable_->verticalScrollBar()) {
+            tagsTable_->verticalScrollBar()->setValue(previousVerticalScroll);
+        }
+    } else {
+        tagsTable_->scrollToBottom();
+    }
 }
 
 #include "WorkWindow.moc"
