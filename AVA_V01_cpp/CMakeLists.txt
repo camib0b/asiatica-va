@@ -149,6 +149,8 @@ qt_add_executable(AVAExportTests
   tests/CompilationSidecarTests.cpp
   tests/PresentationPlaybackTests.cpp
   tests/WorkStateTests.cpp
+  tests/XmlEventMappingDialogTests.cpp
+  ui/XmlEventMappingDialog.cpp
   state/PresentationPlayback.cpp
   state/TagFilter.cpp
   i18n/AppLocale.cpp
