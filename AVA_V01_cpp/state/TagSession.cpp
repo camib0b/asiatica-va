@@ -101,15 +101,14 @@ void TagSession::clear() {
 void TagSession::clearGameMetadata() {
   const bool alreadyEmpty =
       homeTeamName_.isEmpty() && awayTeamName_.isEmpty() && homeTeamColor_.isEmpty() &&
-      awayTeamColor_.isEmpty() && competitionName_.isEmpty() && !gameDate_.isValid() &&
-      homeAbbrev_.isEmpty() && awayAbbrev_.isEmpty();
+      awayTeamColor_.isEmpty() && !gameDate_.isValid() && homeAbbrev_.isEmpty() &&
+      awayAbbrev_.isEmpty();
   if (alreadyEmpty) return;
 
   homeTeamName_.clear();
   awayTeamName_.clear();
   homeTeamColor_.clear();
   awayTeamColor_.clear();
-  competitionName_.clear();
   gameDate_ = QDate();
   homeAbbrev_.clear();
   awayAbbrev_.clear();
@@ -134,19 +133,15 @@ void TagSession::setGameTeams(const QString& homeName, const QString& awayName,
   emit gameMetadataChanged();
 }
 
-void TagSession::setGameMetadata(const QString& competitionName,
-                                 const QDate& gameDate,
+void TagSession::setGameMetadata(const QDate& gameDate,
                                  const QString& homeAbbrev,
                                  const QString& awayAbbrev) {
-  const QString nextCompetitionName = competitionName.trimmed();
   const QString nextHomeAbbrev = homeAbbrev.trimmed().toUpper();
   const QString nextAwayAbbrev = awayAbbrev.trimmed().toUpper();
-  if (competitionName_ == nextCompetitionName && gameDate_ == gameDate &&
-      homeAbbrev_ == nextHomeAbbrev && awayAbbrev_ == nextAwayAbbrev) {
+  if (gameDate_ == gameDate && homeAbbrev_ == nextHomeAbbrev && awayAbbrev_ == nextAwayAbbrev) {
     return;
   }
 
-  competitionName_ = nextCompetitionName;
   gameDate_ = gameDate;
   homeAbbrev_ = nextHomeAbbrev;
   awayAbbrev_ = nextAwayAbbrev;

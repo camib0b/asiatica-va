@@ -19,10 +19,14 @@
 #include "../export/ExportSettingsDialog.h"
 #include "../export/ExportClipBuilder.h"
 #include "../export/ExportJobManager.h"
+#include "../export/ExportOutputPath.h"
 #include "../export/ExportJobsBar.h"
 #include "../export/VideoConcatenator.h"
 #include "../export/PlaybackVideoPreparer.h"
+#include "../export/SessionNotesWriter.h"
 #include "../export/XmlImporter.h"
+#include "ReplaceVideoConfirmation.h"
+#include "TextInputFocus.h"
 #include "XmlSyncDialog.h"
 #include "XmlEventMappingDialog.h"
 
@@ -98,16 +102,6 @@ void setToolButtonFlashState(QToolButton* button, bool flashing) {
 #include <cstddef>
 
 namespace {
-
-bool isTextInteractionFocusWidget(const QWidget* widget) {
-    if (!widget) return false;
-    if (qobject_cast<const QLineEdit*>(widget)) return true;
-    if (qobject_cast<const QAbstractSpinBox*>(widget)) return true;
-    if (qobject_cast<const QPlainTextEdit*>(widget)) return true;
-    if (qobject_cast<const QTextEdit*>(widget)) return true;
-    if (qobject_cast<const QComboBox*>(widget)) return true;
-    return false;
-}
 
 QString formatTimestampMs(qint64 milliseconds) {
     const qint64 clampedMilliseconds = milliseconds < 0 ? 0 : milliseconds;
@@ -317,6 +311,9 @@ WorkWindow::~WorkWindow() {
     flushPendingClipNote();
     detachPresentationKeyboardShortcuts();
     disconnectTagSessionSignals();
+    if (exportJobManager_) {
+        exportJobManager_->cancelExportingJobs();
+    }
     tagSession_ = nullptr;
 }
 
@@ -327,7 +324,7 @@ bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(const QWidget* focus
     if (focusWidget->window() != window()) return false;
     if (!isAncestorOf(focusWidget)) return false;
     if (mode_ == Mode::Analyzing && notesEdit_ && focusWidget == notesEdit_) return false;
-    if (isTextInteractionFocusWidget(focusWidget)) return false;
+    if (TextInputFocus::widgetIsTextInput(focusWidget)) return false;
     return true;
 }
 
@@ -399,6 +396,7 @@ void WorkWindow::flashVideoMuteButton() {
 }
 
 void WorkWindow::setConcatenatedVideoTempDir(std::unique_ptr<QTemporaryDir> dir) {
+    retainOrDeleteTemporaryDirectory(concatenatedVideoTempDir_);
     concatenatedVideoTempDir_ = std::move(dir);
 }
 
@@ -415,17 +413,112 @@ void WorkWindow::setPendingConcatenation(std::unique_ptr<VideoConcatenator> conc
 }
 
 void WorkWindow::releaseTransientResources() {
+    if (exportJobManager_) {
+        exportJobManager_->cancelExportingJobs();
+    }
     cleanupPendingConcatenation();
     cleanupConcatenatedVideo();
     cleanupPlaybackPrepVideo();
+    retainedTemporaryDirectories_.clear();
 }
 
 void WorkWindow::cleanupConcatenatedVideo() {
-    concatenatedVideoTempDir_.reset();
+    retainOrDeleteTemporaryDirectory(concatenatedVideoTempDir_);
 }
 
 void WorkWindow::cleanupPlaybackPrepVideo() {
-    playbackPrepTempDir_.reset();
+    retainOrDeleteTemporaryDirectory(playbackPrepTempDir_);
+}
+
+bool WorkWindow::confirmExportAllowsVideoRelease() {
+    if (!exportJobManager_ || !exportJobManager_->hasExportingJob()) return true;
+
+    QMessageBox box(this);
+    box.setIcon(QMessageBox::Warning);
+    box.setWindowTitle(AppLocale::trUi("export.busy_title"));
+    box.setText(AppLocale::trUi("export.busy_message"));
+    auto* waitButton = box.addButton(AppLocale::trUi("export.busy_wait"), QMessageBox::AcceptRole);
+    auto* cancelExportButton =
+        box.addButton(AppLocale::trUi("export.busy_cancel"), QMessageBox::DestructiveRole);
+    box.setDefaultButton(waitButton);
+    box.setEscapeButton(waitButton);
+    const QString message = box.text();
+    const auto labels = box.findChildren<QLabel*>();
+    for (QLabel* label : labels) {
+        if (label->text() != message) continue;
+        label->setWordWrap(true);
+        label->setMaximumWidth(460);
+    }
+    box.exec();
+    if (box.clickedButton() != cancelExportButton) return false;
+    exportJobManager_->cancelExportingJobs();
+    return true;
+}
+
+void WorkWindow::retainOrDeleteTemporaryDirectory(std::unique_ptr<QTemporaryDir>& directory) {
+    if (!directory) return;
+    const QString absolutePath = QDir(directory->path()).absolutePath();
+    if (exportStillNeedsDirectory(absolutePath)) {
+        retainedTemporaryDirectories_.push_back(std::move(directory));
+        return;
+    }
+    directory.reset();
+}
+
+bool WorkWindow::exportStillNeedsDirectory(const QString& absoluteDirectoryPath) const {
+    if (!exportJobManager_) return false;
+    return ExportOutputPath::directoryIsNeededByExport(
+        absoluteDirectoryPath,
+        exportJobManager_->exportingInputDirectories(),
+        exportJobManager_->exportingSourcePaths());
+}
+
+void WorkWindow::releaseFinishedTemporaryDirectories() {
+    std::vector<std::unique_ptr<QTemporaryDir>> stillNeeded;
+    stillNeeded.reserve(retainedTemporaryDirectories_.size());
+    for (std::unique_ptr<QTemporaryDir>& directory : retainedTemporaryDirectories_) {
+        if (!directory) continue;
+        const QString absolutePath = QDir(directory->path()).absolutePath();
+        if (exportStillNeedsDirectory(absolutePath)) {
+            stillNeeded.push_back(std::move(directory));
+        }
+    }
+    retainedTemporaryDirectories_ = std::move(stillNeeded);
+}
+
+void WorkWindow::showAdjustedImportNote(int adjustedCount) {
+    if (adjustedCount <= 0 || !tagsSection_) return;
+
+    auto* label = tagsSection_->findChild<QLabel*>(QStringLiteral("ImportAdjustmentNotice"),
+                                                   Qt::FindDirectChildrenOnly);
+    if (!label) {
+        label = new QLabel(tagsSection_);
+        label->setObjectName(QStringLiteral("ImportAdjustmentNotice"));
+        label->setWordWrap(true);
+        label->setMinimumWidth(0);
+        label->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+        Style::setRole(label, "muted");
+        if (auto* layout = qobject_cast<QVBoxLayout*>(tagsSection_->layout())) {
+            layout->insertWidget(1, label);
+        }
+    }
+
+    const char* messageKey = adjustedCount == 1
+        ? "xml_import.adjusted_before_start_one"
+        : "xml_import.adjusted_before_start_many";
+    label->setText(AppLocale::trUi(messageKey).arg(adjustedCount));
+    label->show();
+
+    auto* timer = label->findChild<QTimer*>(QStringLiteral("hideTimer"), Qt::FindDirectChildrenOnly);
+    if (!timer) {
+        timer = new QTimer(label);
+        timer->setObjectName(QStringLiteral("hideTimer"));
+        timer->setSingleShot(true);
+        connect(timer, &QTimer::timeout, label, [guard = QPointer<QLabel>(label)]() {
+            if (guard) guard->hide();
+        });
+    }
+    timer->start(8000);
 }
 
 void WorkWindow::cleanupPendingConcatenation() {
@@ -838,6 +931,8 @@ void WorkWindow::buildUi() {
     layout->addWidget(contentStack_);
 
     exportJobManager_ = new ExportJobManager(this);
+    connect(exportJobManager_, &ExportJobManager::jobsChanged, this,
+            [this]() { releaseFinishedTemporaryDirectories(); });
     exportJobsBar_ = new ExportJobsBar(exportJobManager_, this);
     layout->addWidget(exportJobsBar_, 0);
 
@@ -1254,7 +1349,6 @@ void WorkWindow::showTeamSetupForVideo(const QString& filePath, const QStringLis
 void WorkWindow::onGameSetupConfirmed(const QString& filePath,
                                        const QString& homeName, const QString& awayName,
                                        const QString& homeColor, const QString& awayColor,
-                                       const QString& competitionName,
                                        const QDate& gameDate,
                                        const QString& homeAbbrev,
                                        const QString& awayAbbrev) {
@@ -1271,7 +1365,7 @@ void WorkWindow::onGameSetupConfirmed(const QString& filePath,
 
     if (tagSession_) {
         tagSession_->setGameTeams(homeName, awayName, homeColor, awayColor);
-        tagSession_->setGameMetadata(competitionName, gameDate, homeAbbrev, awayAbbrev);
+        tagSession_->setGameMetadata(gameDate, homeAbbrev, awayAbbrev);
     }
     if (contentStack_) contentStack_->setCurrentIndex(1);
     loadVideoFromFile(filePath);
@@ -1374,8 +1468,74 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     refreshPlaybackShortcutFocusGate();
 }
 
+bool WorkWindow::exportXmlAndNotesBeforeReplace() {
+    if (!tagSession_ || !exportJobManager_) {
+        return false;
+    }
+
+    const QString baseName = ExportClipBuilder::xmlReportBaseName(tagSession_);
+    QString directoryPath = exportDefaultDirectoryPath_.trimmed();
+    if (directoryPath.isEmpty()) {
+        directoryPath = QFileInfo(sourceVideoPath_).absolutePath();
+    }
+    const QString suggestedPath = QDir(directoryPath).filePath(baseName + QStringLiteral(".xml"));
+    const QString chosenPath = QFileDialog::getSaveFileName(
+        this,
+        AppLocale::trUi("replace_video.export_dialog_title"),
+        suggestedPath,
+        AppLocale::trUi("file.xml_filter"));
+    if (chosenPath.isEmpty()) {
+        return false;
+    }
+
+    const QFileInfo chosenInfo(chosenPath);
+    const QString xmlPath =
+        chosenInfo.suffix().compare(QStringLiteral("xml"), Qt::CaseInsensitive) == 0
+            ? chosenPath
+            : QDir(chosenInfo.absolutePath())
+                  .filePath(chosenInfo.completeBaseName() + QStringLiteral(".xml"));
+
+    ExportJobRequest request;
+    request.format = ExportOutputFormat::Xml;
+    request.outputPath = xmlPath;
+    request.session = captureTagSessionExportData(*tagSession_);
+
+    QString errorMessage;
+    if (!exportJobManager_->startJob(request, &errorMessage)) {
+        QMessageBox::warning(this,
+                             AppLocale::trUi("export.xml_title"),
+                             errorMessage.isEmpty() ? AppLocale::trUi("export.xml_failed")
+                                                    : errorMessage);
+        return false;
+    }
+
+    const QString notesPath = SessionNotesWriter::notesPathForXmlReport(xmlPath);
+    if (!SessionNotesWriter::writeFile(*tagSession_, notesPath, &errorMessage)) {
+        QMessageBox::warning(this,
+                             AppLocale::trUi("replace_video.title"),
+                             errorMessage.isEmpty() ? AppLocale::trUi("replace_video.notes_failed")
+                                                    : errorMessage);
+        return false;
+    }
+    return true;
+}
+
 void WorkWindow::onReplaceVideo() {
+    if (!confirmExportAllowsVideoRelease()) return;
+    flushPendingClipNote();
+    saveMatchNoteDebounceFired();
     stopNoteTimers();
+
+    const ReplaceVideoChoice choice = chooseReplaceVideoAction(tagSession_, this);
+    if (choice == ReplaceVideoChoice::Cancel) {
+        resumeNoteTimers();
+        return;
+    }
+    if (choice == ReplaceVideoChoice::ExportThenContinue && !exportXmlAndNotesBeforeReplace()) {
+        resumeNoteTimers();
+        return;
+    }
+
     QStringList filePaths = VideoConcatenator::selectVideoFiles(this);
     if (filePaths.isEmpty()) {
         resumeNoteTimers();
@@ -1425,6 +1585,7 @@ void WorkWindow::onReplaceVideo() {
 }
 
 void WorkWindow::onCloseVideo() {
+    if (!confirmExportAllowsVideoRelease()) return;
     workStage_ = WorkStage::NoVideo;
     sourceVideoPath_.clear();
     capturedMainEvent_.reset();
@@ -1494,6 +1655,14 @@ void WorkWindow::onPresentationExportRequested() {
     request.includeAudioTrack = settings.includeAudioTrack;
     request.includeBrandingOverlay = settings.includeBrandingOverlay;
     request.session = captureTagSessionExportData(*tagSession_);
+    if (concatenatedVideoTempDir_) {
+        request.retainedInputDirectories.append(
+            QDir(concatenatedVideoTempDir_->path()).absolutePath());
+    }
+    if (playbackPrepTempDir_) {
+        request.retainedInputDirectories.append(
+            QDir(playbackPrepTempDir_->path()).absolutePath());
+    }
 
     QString errorMessage;
     if (!exportJobManager_->startJob(request, &errorMessage)) {
@@ -1629,6 +1798,7 @@ void WorkWindow::onImportXml() {
             .arg(result.importedCount)
             .arg(dialogSkipped)
             .arg(result.clampedCount));
+    showAdjustedImportNote(importResult.adjustedBeforeStartCount);
 }
 
 void WorkWindow::onModeToggled() {
@@ -1944,7 +2114,7 @@ bool WorkWindow::eventFilter(QObject* watched, QEvent* event) {
     if (!isTabKey) return QWidget::eventFilter(watched, event);
 
     // Let Tab keep its normal meaning while the user is typing in the panel.
-    if (isTextInteractionFocusWidget(QApplication::focusWidget())) {
+    if (TextInputFocus::widgetIsTextInput(QApplication::focusWidget())) {
         return QWidget::eventFilter(watched, event);
     }
 

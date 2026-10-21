@@ -366,11 +366,12 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
 
 QString resultadoLabelFor(const TeamInfo& teams, const QPair<int, int>& score) {
   if (teams.homeAbbrev.isEmpty() && teams.awayAbbrev.isEmpty()) return QString();
+  // One multi-arg call so a team name that contains "%1" is not parsed again.
   return QStringLiteral("%1 %2 - %3 %4")
-      .arg(teams.homeScoreboardLabel())
-      .arg(score.first)
-      .arg(score.second)
-      .arg(teams.awayScoreboardLabel());
+      .arg(teams.homeScoreboardLabel(),
+           QString::number(score.first),
+           QString::number(score.second),
+           teams.awayScoreboardLabel());
 }
 
 /// RGB triple in 16-bit Olympia/LongoMatch format.
@@ -423,7 +424,6 @@ QVector<ExportedXmlInstance> buildExportedInstances(const TagSession* session) {
 
   const QVector<TagSession::GameTag> exportTags = tagsForExport(session->tags());
   const TeamInfo teams = teamInfoFromSession(*session);
-  const QString competitionName = session->competitionName();
   const int gameYear = session->gameYear();
 
   int nextInstanceId = 1;
@@ -449,12 +449,6 @@ QVector<ExportedXmlInstance> buildExportedInstances(const TagSession* session) {
       record.endMs = instance.endMs;
       record.code = xmlTextContent(instance.code);
       if (instance.includeMatchLabels) {
-        if (!competitionName.isEmpty()) {
-          ExportedXmlLabel label;
-          label.group = QStringLiteral("COMPETICION");
-          label.text = xmlTextContent(competitionName);
-          record.labels.append(label);
-        }
         if (!resultadoLabel.isEmpty()) {
           ExportedXmlLabel label;
           label.group = QStringLiteral("RESULTADO");

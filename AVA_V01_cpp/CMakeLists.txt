@@ -30,6 +30,7 @@ qt_add_executable(AVA
   ui/XmlSyncDialog.cpp
   ui/XmlEventMappingDialog.cpp
   ui/StatsWindow.cpp
+  ui/ReplaceVideoConfirmation.cpp
   state/EventDefaults.cpp
   state/EventCodeMap.cpp
   state/PresentationQueue.cpp
@@ -50,11 +51,14 @@ qt_add_executable(AVA
   export/ExportClipBuilder.cpp
   export/ExportJobManager.cpp
   export/ExportJobsBar.cpp
+  export/ExportOutputPath.cpp
   export/ExportSettingsDialog.cpp
   export/ConcatFileOrderDialog.cpp
+  export/VideoClipSequence.cpp
   export/VideoConcatenator.cpp
   export/PlaybackVideoPreparer.cpp
   export/XmlExporter.cpp
+  export/SessionNotesWriter.cpp
   export/XmlImporter.cpp
   export/XaiConfig.cpp
   export/GameMetadataSuggester.cpp
@@ -147,10 +151,18 @@ find_package(Qt6 REQUIRED COMPONENTS Test)
 
 qt_add_executable(AVAExportTests
   tests/CompilationSidecarTests.cpp
+  tests/InteractionGuardTests.cpp
   tests/PresentationPlaybackTests.cpp
+  tests/VideoClipSequenceTests.cpp
   tests/WorkStateTests.cpp
   tests/XmlEventMappingDialogTests.cpp
+  tests/UiPolicyTests.cpp
   ui/XmlEventMappingDialog.cpp
+  ui/GameSetupWindow.cpp
+  components/TeamColorPicker.cpp
+  export/GameMetadataSuggester.cpp
+  export/XaiConfig.cpp
+  export/ExportOutputPath.cpp
   state/PresentationPlayback.cpp
   state/TagFilter.cpp
   i18n/AppLocale.cpp
@@ -158,11 +170,18 @@ qt_add_executable(AVAExportTests
   state/EventDefaults.cpp
   state/EventCodeMap.cpp
   state/TagSession.cpp
+  components/FollowUpCatalog.cpp
+  components/GameControls.cpp
+  style/Motion.cpp
+  ui/ReplaceVideoConfirmation.cpp
   export/ClipExporter.cpp
   export/CompilationSidecar.cpp
+  export/ConcatFileOrderDialog.cpp
   export/ExportClipBuilder.cpp
   export/ExportJobManager.cpp
   export/FfmpegLocator.cpp
+  export/SessionNotesWriter.cpp
+  export/VideoClipSequence.cpp
   export/XmlExporter.cpp
 )
 
@@ -182,11 +201,13 @@ target_include_directories(AVAExportTests PRIVATE
 
 target_link_libraries(AVAExportTests PRIVATE
   Qt6::Widgets
+  Qt6::Network
   Qt6::Test
 )
 
 target_compile_definitions(AVAExportTests PRIVATE
   AVA_VERSION_STRING="${AVA_VERSION_STRING}"
+  AVA_THEME_QSS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/style/theme_light.qss"
 )
 
 add_test(NAME AVAExportTests COMMAND AVAExportTests)

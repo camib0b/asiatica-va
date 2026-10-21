@@ -29,6 +29,8 @@ public:
   struct ImportMappingResult {
     QVector<TagSession::GameTag> tags;
     int skippedInstanceCount = 0;
+    /// Instances whose start was before the video and were shifted or trimmed.
+    int adjustedBeforeStartCount = 0;
   };
 
   XmlEventMappingDialog(const QVector<XmlImporter::ParsedInstance>& instances,

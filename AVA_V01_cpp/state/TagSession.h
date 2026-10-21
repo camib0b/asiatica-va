@@ -66,15 +66,14 @@ public:
   /// Bumps when clear() or a replace import restarts tag ids at 1.
   /// Pending clip notes capture this so a reused id cannot accept a stale edit.
   quint64 tagIdEpoch() const { return tagIdEpoch_; }
-  /// Clears team names/colors plus competition, date, and abbreviations. Does not clear tags.
+  /// Clears team names/colors plus date and abbreviations. Does not clear tags.
   /// Emits gameMetadataChanged() when any field actually changes.
   void clearGameMetadata();
   void setGameTeams(const QString& homeName, const QString& awayName,
                    const QString& homeColor, const QString& awayColor);
-  /// Updates competition / date / abbreviations metadata used by the XML exporter.
+  /// Updates date / abbreviations metadata used by the XML exporter.
   /// Empty strings clear the corresponding field.
-  void setGameMetadata(const QString& competitionName,
-                       const QDate& gameDate,
+  void setGameMetadata(const QDate& gameDate,
                        const QString& homeAbbrev,
                        const QString& awayAbbrev);
 
@@ -82,7 +81,6 @@ public:
   QString awayTeamName() const { return awayTeamName_; }
   QString homeTeamColor() const { return homeTeamColor_; }
   QString awayTeamColor() const { return awayTeamColor_; }
-  QString competitionName() const { return competitionName_; }
   QDate gameDate() const { return gameDate_; }
   int gameYear() const { return gameDate_.isValid() ? gameDate_.year() : 0; }
   QString homeAbbrev() const { return homeAbbrev_; }
@@ -169,7 +167,7 @@ signals:
   /// Listeners that flash the new row must use this argument. tagAdded is emitted
   /// first, but the row model is rebuilt on this signal, so tagAdded is too early.
   void tagsChanged(quint64 addedTagId = 0);
-  /// Team names/colors, competition, date, or abbreviations changed.
+  /// Team names/colors, date, or abbreviations changed.
   void gameMetadataChanged();
 
 private:
@@ -214,7 +212,6 @@ private:
   QString awayTeamName_;
   QString homeTeamColor_;
   QString awayTeamColor_;
-  QString competitionName_;
   QDate gameDate_;
   QString homeAbbrev_;
   QString awayAbbrev_;
