@@ -980,11 +980,14 @@ QMenu::separator {
 }
 
 /* =========================
-   Table (Tags table)
+   Work lists
+   Tagging event log, analysis stats tree, and presentation clip list.
+   Tag the view with Style::configureWorkDataView (role "workList").
+   QTableWidget stays in this block for dialogs that are not work lists.
 ========================= */
 
 QTableWidget,
-QTableView#TagsTable {
+QAbstractItemView[role="workList"] {
   background: #FFFFFF;
   border: 1px solid #e4e4e7;
   border-radius: 6px;
@@ -993,24 +996,53 @@ QTableView#TagsTable {
   color: #09090b;
   selection-background-color: #f4f4f5;
   selection-color: #09090b;
+  alternate-background-color: #fafafa;
   outline: none;
 }
 
 QTableWidget::item,
-QTableView#TagsTable::item {
+QAbstractItemView[role="workList"]::item {
   border-bottom: 1px solid #f4f4f5;
   padding: 4px 8px;
+  min-height: 28px;
 }
 
 QTableWidget::item:selected,
-QTableView#TagsTable::item:selected {
+QAbstractItemView[role="workList"]::item:selected {
   background: #f4f4f5;
   color: #09090b;
 }
 
 QTableWidget::item:hover,
-QTableView#TagsTable::item:hover {
+QAbstractItemView[role="workList"]::item:hover {
   background: rgba(244, 244, 245, 0.5);
+}
+
+QTableView[role="workList"]::indicator {
+  width: 16px;
+  height: 16px;
+  border: 1px solid #18181b;
+  border-radius: 4px;
+  background: #FFFFFF;
+}
+
+QTableView[role="workList"]::indicator:hover {
+  border-color: #09090b;
+  background: #fafafa;
+}
+
+QTableView[role="workList"]::indicator:checked {
+  background: #18181b;
+  border-color: #18181b;
+}
+
+QTableView[role="workList"]::indicator:disabled {
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+}
+
+QTreeWidget[role="workList"]::branch {
+  background: transparent;
 }
 
 QHeaderView {
@@ -1033,41 +1065,6 @@ QHeaderView::section:first {
 
 QHeaderView::section:last {
   border-top-right-radius: 6px;
-}
-
-/* =========================
-   TreeWidget (Stats)
-========================= */
-
-QTreeWidget {
-  background: #FFFFFF;
-  border: 1px solid #e4e4e7;
-  border-radius: 6px;
-  font-size: 13px;
-  color: #09090b;
-  selection-background-color: #f4f4f5;
-  selection-color: #09090b;
-  alternate-background-color: #fafafa;
-  outline: none;
-}
-
-QTreeWidget::item {
-  padding: 4px 6px;
-  border-bottom: 1px solid #f4f4f5;
-  min-height: 28px;
-}
-
-QTreeWidget::item:selected {
-  background: #f4f4f5;
-  color: #09090b;
-}
-
-QTreeWidget::item:hover {
-  background: rgba(244, 244, 245, 0.5);
-}
-
-QTreeWidget::branch {
-  background: transparent;
 }
 
 /* =========================

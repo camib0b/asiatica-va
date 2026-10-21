@@ -5,6 +5,7 @@
 #include "../style/Motion.h"
 #include "../style/StyleProps.h"
 #include "../style/ThemeColors.h"
+#include "../style/WorkDataView.h"
 #include "../components/VideoPlayer.h"
 #include "../components/GameControls.h"
 #include "../components/MatchNotesEditor.h"
@@ -86,7 +87,6 @@ void setToolButtonFlashState(QToolButton* button, bool flashing) {
 #include <QSignalBlocker>
 #include <QEvent>
 #include <QDialog>
-#include <QFont>
 #include <QModelIndex>
 #include <QSplitter>
 #include <QSizePolicy>
@@ -998,34 +998,14 @@ void WorkWindow::buildUi() {
     tagsTable_ = new QTableView(tagsSection_);
     tagsTable_->setObjectName("TagsTable");
     tagsTable_->setModel(tagsModel_);
-    tagsTable_->verticalHeader()->hide();
-    tagsTable_->setShowGrid(false);
-    tagsTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
-    tagsTable_->setSelectionMode(QAbstractItemView::SingleSelection);
-    tagsTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    tagsTable_->setWordWrap(false);
+    Style::configureWorkDataView(tagsTable_);
     tagsTable_->horizontalHeader()->setStretchLastSection(true);
-    tagsTable_->horizontalHeader()->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     tagsTable_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     tagsTable_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     tagsTable_->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
-    tagsTable_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    {
-        QFont tagsFont = tagsTable_->font();
-        if (tagsFont.pointSizeF() > 0) {
-            tagsFont.setPointSizeF(qMax(6.0, tagsFont.pointSizeF() - 1.0));
-        } else if (tagsFont.pixelSize() > 0) {
-            tagsFont.setPixelSize(qMax(10, tagsFont.pixelSize() - 2));
-        }
-        tagsTable_->setFont(tagsFont);
-        tagsTable_->horizontalHeader()->setFont(tagsFont);
-        tagsTable_->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
-        const int compactRow = qMax(28, tagsTable_->fontMetrics().height() + 10);
-        tagsTable_->verticalHeader()->setDefaultSectionSize(compactRow);
-    }
-    const int rowHeight = qMax(28, tagsTable_->fontMetrics().height() + 10);
-    const int headerH = qMax(32, tagsTable_->horizontalHeader()->sizeHint().height());
-    tagsTable_->setMinimumHeight(rowHeight * 2 + headerH);
+    const int rowHeight = Style::workDataViewRowHeight(tagsTable_);
+    const int headerHeight = tagsTable_->horizontalHeader()->sizeHint().height();
+    tagsTable_->setMinimumHeight(rowHeight * 2 + headerHeight);
     tagsTable_->setMaximumHeight(QWIDGETSIZE_MAX);
 
     tagsSectionLayout->addWidget(tagsHeaderRow_);

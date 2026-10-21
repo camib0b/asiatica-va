@@ -5,15 +5,19 @@
 #include "../state/TagSession.h"
 #include "../state/TimeConvert.h"
 #include "../style/StyleProps.h"
+#include "../style/WorkDataView.h"
+#include "QtPtr.h"
 
 #include <QAbstractItemView>
 #include <QAbstractSpinBox>
 #include <QApplication>
+#include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QEvent>
 #include <QFrame>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
@@ -67,6 +71,134 @@ void releaseSpinBoxFocusSoon(QDoubleSpinBox* spinBox) {
     if (!spinBoxGuard) return;
     spinBoxGuard->clearFocus();
   });
+}
+
+struct FixtureTag {
+  qint64 markMs = 0;
+  QString teamKey;
+  QString mainEvent;
+  QString followUpEvent;
+};
+
+constexpr quint64 kFixtureTagIdBase = 0x7FFF0000ull;
+
+bool presentationListBreakUiEnabled() {
+  const QByteArray value = qgetenv("AVA_BREAK_UI");
+  return value == "1" || value == "presenting" || value == "true";
+}
+
+QVector<FixtureTag> worstCaseFixtureTags() {
+  // One failure per row, in the order a coach would scroll. Times stay small
+  // except the long duration, which has to be a real timestamp to reach the
+  // time column. Team keys other than Home/Away render as written.
+  return {
+      {0, QStringLiteral("Aleksandra Wiśniewska-Kowalczyk"), QStringLiteral("Circle Entry"),
+       QString()},
+      {1000, QStringLiteral("Jo"), QStringLiteral("Goal"), QString()},
+      {2000, QString(), QStringLiteral("Shot"), QString()},
+      {3000, QStringLiteral("Đặng Thị Ngọc Hân"), QStringLiteral("Benachrichtigungseinstellungen"),
+       QString()},
+      {4000, QStringLiteral("王秀英"), QStringLiteral("Circle Entry"),
+       QStringLiteral("customer-feedback-from-enterprise-onboarding")},
+      {5000, QStringLiteral("نور الهدى عبد الرحمن"), QStringLiteral("Goal"), QString()},
+      {6000, QStringLiteral("🦊 Fox"), QStringLiteral("<script>alert(1)</script>"), QString()},
+      {7000, QStringLiteral("  Sam   Lee "), QStringLiteral("Line one\nLine two"), QString()},
+      {8000, QStringLiteral("Seán O'Brien-Ó Súilleabháin"), QStringLiteral("&amp;"),
+       QStringLiteral("**bold**")},
+      {9000, QStringLiteral("J"), QStringLiteral("J"), QString()},
+      {10000, QStringLiteral("bartholomew.fitzgerald@northwind-industries-holdings.example.com"),
+       QStringLiteral("Circle Entry"), QString()},
+      {11000, QStringLiteral("Konstantin Oberhauser-Wettstein"),
+       QStringLiteral("Senior Product Design Engineer, Platform Infrastructure"), QString()},
+      {-5000, QStringLiteral("Jo"), QStringLiteral("Goal"), QString()},
+      {1284LL * 3600LL * 1000LL, QStringLiteral("Jo"), QStringLiteral("Goal"), QString()},
+  };
+}
+
+QVector<FixtureTag> oneFixtureTags() {
+  return {{1000, QStringLiteral("Jo"), QStringLiteral("Goal"), QString()}};
+}
+
+QVector<FixtureTag> thousandFixtureTags() {
+  QVector<FixtureTag> tags = worstCaseFixtureTags();
+  tags.reserve(1000);
+  for (int index = tags.size(); index < 1000; ++index) {
+    tags.append(FixtureTag{static_cast<qint64>(index) * 1000, QStringLiteral("Jo"),
+                           QStringLiteral("Circle Entry"), QString()});
+  }
+  return tags;
+}
+
+std::unique_ptr<QWidget, QtParentDeleter> makePresentationListDataToggle(QWidget* parent) {
+  auto toggle = makeQtPtr<QWidget>(parent);
+  toggle->setObjectName(QStringLiteral("PresentationListDataToggle"));
+  toggle->setFocusPolicy(Qt::NoFocus);
+  toggle->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  // Chrome for the stress test, not product UI. Kept off the theme roles so it
+  // stays a plain segmented control and does not pick up button variants.
+  toggle->setStyleSheet(QStringLiteral(
+      "QWidget#PresentationListDataToggle {"
+      "  background: #d4d4d8;"
+      "  border-radius: 8px;"
+      "}"
+      "QWidget#PresentationListDataToggle QToolButton {"
+      "  background: transparent;"
+      "  border: none;"
+      "  border-radius: 6px;"
+      "  color: #3f3f46;"
+      "  font-family: sans-serif;"
+      "  font-size: 11px;"
+      "  font-weight: 400;"
+      "  padding: 2px 6px;"
+      "  min-height: 18px;"
+      "  max-height: 22px;"
+      "  min-width: 0px;"
+      "}"
+      "QWidget#PresentationListDataToggle QToolButton:checked {"
+      "  background: #ffffff;"
+      "  color: #18181b;"
+      "}"));
+
+  // Two rows so every label fits the 260px side column without clipping.
+  auto* layout = new QGridLayout(toggle.get());
+  layout->setContentsMargins(3, 3, 3, 3);
+  layout->setHorizontalSpacing(2);
+  layout->setVerticalSpacing(2);
+  layout->setColumnStretch(0, 1);
+  layout->setColumnStretch(1, 1);
+  layout->setColumnStretch(2, 1);
+
+  auto group = makeQtPtr<QButtonGroup>(toggle.get());
+  group->setExclusive(true);
+
+  const struct Segment {
+    const char* objectName;
+    const char* label;
+    int id;
+  } segments[] = {
+      {"PresentationListDataDemo", "Demo data", 0},
+      {"PresentationListDataWorst", "Worst case", 1},
+      {"PresentationListDataEmpty", "Empty", 2},
+      {"PresentationListDataOne", "One", 3},
+      {"PresentationListDataThousand", "1,000 rows", 4},
+  };
+
+  for (const Segment& segment : segments) {
+    auto button = makeQtPtr<QToolButton>(toggle.get());
+    button->setObjectName(QString::fromLatin1(segment.objectName));
+    button->setText(QString::fromLatin1(segment.label));
+    button->setCheckable(true);
+    button->setFocusPolicy(Qt::NoFocus);
+    button->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    button->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    if (segment.id == 0) button->setChecked(true);
+    group->addButton(button.get(), segment.id);
+    const int row = segment.id < 3 ? 0 : 1;
+    const int column = segment.id < 3 ? segment.id : segment.id - 3;
+    layout->addWidget(button.get(), row, column);
+  }
+
+  return toggle;
 }
 
 QDoubleSpinBox* makeLeadLagSpinBox(QWidget* parent) {
@@ -164,18 +296,14 @@ void PresentationPanel::buildUi() {
   instancesTable_ = new QTableView(this);
   instancesTable_->setObjectName(QStringLiteral("PresentationInstancesTable"));
   instancesTable_->setModel(instancesModel_);
-  instancesTable_->verticalHeader()->hide();
-  instancesTable_->setShowGrid(false);
-  instancesTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
-  instancesTable_->setSelectionMode(QAbstractItemView::SingleSelection);
-  instancesTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-  instancesTable_->setWordWrap(false);
-  instancesTable_->horizontalHeader()->setStretchLastSection(true);
-  instancesTable_->horizontalHeader()->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+  Style::configureWorkDataView(instancesTable_);
+  // Time stays as wide as the timestamp and checkbox. Team and event share the
+  // remaining side-column width and elide, matching the stats tree in this pane.
+  instancesTable_->horizontalHeader()->setStretchLastSection(false);
+  instancesTable_->horizontalHeader()->setMinimumSectionSize(48);
   instancesTable_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-  instancesTable_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+  instancesTable_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
   instancesTable_->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
-  instancesTable_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
   connect(instancesModel_, &PresentationInstancesModel::checkStateChanged, this,
           &PresentationPanel::onModelCheckStateChanged);
   connect(instancesTable_, &QTableView::doubleClicked, this,
@@ -246,6 +374,15 @@ void PresentationPanel::buildUi() {
   Style::setRole(keyboardHintLabel_, "faint");
   keyboardHintLabel_->setWordWrap(true);
   rootLayout->addWidget(keyboardHintLabel_);
+
+  if (presentationListBreakUiEnabled()) {
+    auto toggle = makePresentationListDataToggle(this);
+    breakUiToggle_ = toggle.get();
+    rootLayout->addWidget(toggle.get());
+    if (auto* group = breakUiToggle_->findChild<QButtonGroup*>()) {
+      connect(group, &QButtonGroup::idClicked, this, &PresentationPanel::onListFixtureChanged);
+    }
+  }
 }
 
 void PresentationPanel::applyUiStrings() {
@@ -359,7 +496,49 @@ void PresentationPanel::rebuildEventFilterOptions() {
   teamFilterCombo_->setCurrentIndex(restoredTeamIndex >= 0 ? restoredTeamIndex : 0);
 }
 
+PresentationInstancesModel::Row PresentationPanel::makeVisibleRow(int tagSessionIndex, quint64 tagId,
+                                                                       qint64 markMs, const QString& teamKey,
+                                                                       const QString& mainEvent,
+                                                                       const QString& followUpEvent) const {
+  const QString homeName = tagSession_ ? tagSession_->homeTeamName() : QString();
+  const QString awayName = tagSession_ ? tagSession_->awayTeamName() : QString();
+  const QString followUpForDisplay =
+      AppLocale::followUpPathWithoutTeamSegments(followUpEvent, homeName, awayName);
+  return {tagSessionIndex, tagId, markMs, teamDisplayName(teamKey),
+          AppLocale::trDisplayTagLine(mainEvent, followUpForDisplay)};
+}
+
+QVector<PresentationInstancesModel::Row> PresentationPanel::buildFixtureRows() const {
+  QVector<FixtureTag> tags;
+  switch (listFixture_) {
+  case ListFixture::WorstCase:
+    tags = worstCaseFixtureTags();
+    break;
+  case ListFixture::Empty:
+    break;
+  case ListFixture::One:
+    tags = oneFixtureTags();
+    break;
+  case ListFixture::Thousand:
+    tags = thousandFixtureTags();
+    break;
+  case ListFixture::Session:
+    break;
+  }
+
+  QVector<PresentationInstancesModel::Row> rows;
+  rows.reserve(tags.size());
+  for (int index = 0; index < tags.size(); ++index) {
+    const FixtureTag& tag = tags.at(index);
+    rows.append(makeVisibleRow(-1, kFixtureTagIdBase + static_cast<quint64>(index), tag.markMs,
+                               tag.teamKey, tag.mainEvent, tag.followUpEvent));
+  }
+  return rows;
+}
+
 QVector<PresentationInstancesModel::Row> PresentationPanel::buildVisibleRows() const {
+  if (listFixture_ != ListFixture::Session) return buildFixtureRows();
+
   QVector<PresentationInstancesModel::Row> visibleRows;
   if (!tagSession_) return visibleRows;
 
@@ -370,10 +549,8 @@ QVector<PresentationInstancesModel::Row> PresentationPanel::buildVisibleRows() c
     if (EventDefaults::isTimeControlEvent(tag.mainEvent)) continue;
     if (!passesFilters(tag.mainEvent, tag.team)) continue;
 
-    const QString followUpForDisplay = AppLocale::followUpPathWithoutTeamSegments(
-        tag.followUpEvent, tagSession_->homeTeamName(), tagSession_->awayTeamName());
-    visibleRows.append({tagIndex, tag.id, tag.markMs, teamDisplayName(tag.team),
-                        AppLocale::trDisplayTagLine(tag.mainEvent, followUpForDisplay)});
+    visibleRows.append(makeVisibleRow(tagIndex, tag.id, tag.markMs, tag.team, tag.mainEvent,
+                                      tag.followUpEvent));
   }
 
   std::sort(visibleRows.begin(), visibleRows.end(),
@@ -394,7 +571,6 @@ void PresentationPanel::rebuildRows() {
   instancesModel_->setCurrentTagId(previousCurrentTagId);
 
   instancesTable_->resizeColumnToContents(0);
-  instancesTable_->resizeColumnToContents(1);
   instancesTable_->verticalScrollBar()->setValue(preservedScrollValue);
 
   const int currentRow = instancesModel_->rowForTagId(currentTagId_);
@@ -497,6 +673,7 @@ void PresentationPanel::onFilterChanged() {
 }
 
 void PresentationPanel::onModelCheckStateChanged(quint64 tagId, bool checked) {
+  if (listFixture_ != ListFixture::Session) return;
   if (tagId == 0) return;
   if (checked) {
     selectedTagIdSet_.insert(tagId);
@@ -522,6 +699,7 @@ void PresentationPanel::onTableRowDoubleClicked(const QModelIndex& index) {
 }
 
 void PresentationPanel::onSelectAllClicked() {
+  if (listFixture_ != ListFixture::Session) return;
   for (int row = 0; row < instancesModel_->rowCount(); ++row) {
     const quint64 tagId = instancesModel_->tagIdAt(row);
     if (tagId != 0) selectedTagIdSet_.insert(tagId);
@@ -531,6 +709,7 @@ void PresentationPanel::onSelectAllClicked() {
 }
 
 void PresentationPanel::onSelectNoneClicked() {
+  if (listFixture_ != ListFixture::Session) return;
   // Only clears the instances currently listed, so filtered-out picks are preserved.
   for (int row = 0; row < instancesModel_->rowCount(); ++row) {
     const quint64 tagId = instancesModel_->tagIdAt(row);
@@ -630,6 +809,18 @@ void PresentationPanel::onLeadLagSpinChanged() {
 void PresentationPanel::onApplyLeadLagToAllClicked() {
   emit applyLeadLagToAllRequested(leadLagMillisecondsFromSpin(leadSpinBox_),
                                   leadLagMillisecondsFromSpin(lagSpinBox_));
+}
+
+void PresentationPanel::onListFixtureChanged(int fixtureId) {
+  if (fixtureId < static_cast<int>(ListFixture::Session) ||
+      fixtureId > static_cast<int>(ListFixture::Thousand)) {
+    return;
+  }
+  const auto nextFixture = static_cast<ListFixture>(fixtureId);
+  if (nextFixture == listFixture_) return;
+  listFixture_ = nextFixture;
+  rebuildRows();
+  updateSelectionSummary();
 }
 
 // ---------------------------------------------------------------------------
