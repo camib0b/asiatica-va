@@ -72,5 +72,6 @@ private:
     QString concatListPath_;
     QString outputPath_;
     QString errorMessage_;
+    int sourceCount_ = 0;
     JobState state_ = JobState::Idle;
 };

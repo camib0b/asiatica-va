@@ -7,6 +7,7 @@
 #include "TagSession.h"
 #include "XmlExporter.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 
@@ -182,7 +183,10 @@ ExportJobSnapshot ExportJobManager::snapshotFor(const Job& job) const {
     }
 
     if (job.state == JobState::Exporting) {
-        if (job.currentClip <= 0 || job.totalClips <= 0) {
+        const bool clipProgressKnown = job.activity == ClipExporter::Activity::ExportingClip
+            && job.currentClip > 0
+            && job.totalClips > 0;
+        if (!clipProgressKnown) {
             snapshot.progressIndeterminate = true;
             snapshot.progressPercent = 0;
         } else {
@@ -205,11 +209,38 @@ QVector<ExportJobSnapshot> ExportJobManager::snapshots() const {
     return result;
 }
 
+QString ExportJobManager::statusTextForActivity(ClipExporter::Activity activity,
+                                                int currentClip,
+                                                int totalClips) {
+    switch (activity) {
+    case ClipExporter::Activity::JoiningClips:
+        return AppLocale::trUi("export.joining");
+    case ClipExporter::Activity::Finishing:
+        return AppLocale::trUi("export.finishing");
+    case ClipExporter::Activity::ExportingClip:
+        if (currentClip > 0 && totalClips > 0) {
+            return AppLocale::trUi("export.clip_status").arg(currentClip).arg(totalClips);
+        }
+        return AppLocale::trUi("export.preparing");
+    case ClipExporter::Activity::Preparing:
+        break;
+    }
+    return AppLocale::trUi("export.preparing");
+}
+
 void ExportJobManager::updateExportingStatus(Job& job) {
-    job.statusText = QStringLiteral("%1 %2 / %3")
-        .arg(AppLocale::trUi("export.progress_prefix"))
-        .arg(job.currentClip)
-        .arg(job.totalClips);
+    job.statusText = statusTextForActivity(job.activity, job.currentClip, job.totalClips);
+}
+
+void ExportJobManager::refreshRunningStatusText() {
+    bool changed = false;
+    for (const std::unique_ptr<Job>& job : jobs_) {
+        if (!job || job->state != JobState::Exporting) continue;
+        const QString previous = job->statusText;
+        updateExportingStatus(*job);
+        if (job->statusText != previous) changed = true;
+    }
+    if (changed) emit jobsChanged();
 }
 
 void ExportJobManager::discardExporter(Job& job) {
@@ -316,12 +347,16 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
     // cannot observe it; Job must outlive a connected exporter.
     Job* const jobPointer = job.get();
     connect(exporter, &ClipExporter::progressChanged, exporter,
-            [this, jobPointer](int currentClip, int totalClips) {
+            [this, jobPointer](int currentClip, int totalClips, ClipExporter::Activity activity) {
         if (jobPointer->state != JobState::Exporting) return;
         jobPointer->currentClip = currentClip;
         jobPointer->totalClips = totalClips;
+        jobPointer->activity = activity;
         updateExportingStatus(*jobPointer);
         emit jobsChanged();
+        if (activity == ClipExporter::Activity::Preparing) {
+            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+        }
     });
     connect(exporter, &ClipExporter::exportFinished, exporter,
             [this, jobPointer, snapshotSession](bool success, const QString& message) {

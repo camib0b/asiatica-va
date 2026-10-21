@@ -492,6 +492,8 @@ void ClipExporter::startExport() {
         return;
     }
 
+    emit progressChanged(0, static_cast<int>(clips_.size()), Activity::Preparing);
+
     const VideoProbeResult sourceProbe = probeSourceVideo(sourceVideoPath_);
     if (!sourceProbe.isValid()) {
         finishExport(false,
@@ -928,6 +930,10 @@ void ClipExporter::concatenateClips() {
     }
     listFile.close();
 
+    emit progressChanged(static_cast<int>(tempClipPaths_.size()),
+                         static_cast<int>(clips_.size()),
+                         Activity::JoiningClips);
+
     const QString stagedOutputPath = tempDir_->filePath(QStringLiteral("concat_output.mp4"));
 
     QStringList arguments;
@@ -1157,6 +1163,12 @@ void ClipExporter::finalizeCompilationSidecar() {
     if (finishExportIfCancelled()) {
         return;
     }
+    emit progressChanged(static_cast<int>(clips_.size()),
+                         static_cast<int>(clips_.size()),
+                         Activity::Finishing);
+    if (finishExportIfCancelled()) {
+        return;
+    }
     if (measuredSegmentDurationSeconds_.size() != clips_.size()) {
         finishExport(false, QStringLiteral("Measured clip durations do not match the concat list."));
         return;
@@ -1250,7 +1262,9 @@ void ClipExporter::startFfmpegJob(const QStringList& arguments, bool concatenati
                 this, &ClipExporter::onClipProcessFinished);
         connect(currentProcess_.get(), &QProcess::started, this, [this]() {
             if (cancelled_ || exportFinishedEmitted_) return;
-            emit progressChanged(currentClipIndex_ + 1, clips_.size());
+            emit progressChanged(currentClipIndex_ + 1,
+                                 static_cast<int>(clips_.size()),
+                                 Activity::ExportingClip);
         });
     }
     connect(currentProcess_.get(), &QProcess::errorOccurred, this, &ClipExporter::onProcessError);

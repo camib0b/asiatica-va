@@ -1,9 +1,13 @@
 #include "AppLocale.h"
+#include "BlockingProgressDialog.h"
+#include "ExportJobManager.h"
 #include "ExportOutputPath.h"
 #include "GameSetupWindow.h"
 #include "PresentationPanel.h"
 #include "TeamColorPicker.h"
 #include "XmlImportTimeline.h"
+
+#include <QProgressDialog>
 
 #include <QApplication>
 #include <QCheckBox>
@@ -42,6 +46,7 @@ private slots:
     void applyToSelectedLabelStaysWholeInANarrowPanel();
     void hexNormalizesWhenEditingFinishes();
     void invalidHexShowsAnInlineHint();
+    void slowStepMessagesStayOnOneLine();
 };
 
 void UiPolicyTest::spanishKeepsSweepAndTranslatesPost() {
@@ -409,6 +414,50 @@ QString toolButtonClip(const QToolButton* button) {
     return {};
 }
 
+bool slowStepCopyIsPlain(const QString& text) {
+    if (text.contains(QLatin1Char('\n'))) return false;
+    const QString lower = text.toLower();
+    return !lower.contains(QStringLiteral("ffmpeg"))
+        && !lower.contains(QStringLiteral("remux"))
+        && !lower.contains(QStringLiteral("transcode"))
+        && !lower.contains(QStringLiteral("libx264"));
+}
+
+QString blockingDialogClip(const QString& message, const QString& cancelText) {
+    QProgressDialog dialog(message, cancelText, 0, 0);
+    Style::setRole(&dialog, "blocking");
+    dialog.setWindowModality(Qt::WindowModal);
+    dialog.setMinimumDuration(0);
+    dialog.setAutoClose(false);
+    dialog.setAutoReset(false);
+    BlockingProgress::fitDialog(dialog, message);
+    dialog.show();
+    BlockingProgress::fitDialog(dialog, message);
+    QApplication::sendPostedEvents();
+    BlockingProgress::fitDialog(dialog, message);
+
+    QLabel* label = nullptr;
+    const QList<QLabel*> labels = dialog.findChildren<QLabel*>();
+    for (QLabel* candidate : labels) {
+        if (candidate->text() == message) {
+            label = candidate;
+            break;
+        }
+    }
+    if (!label) return QStringLiteral("missing label for '%1'").arg(message);
+    if (!label->isVisible()) return QStringLiteral("hidden label '%1'").arg(message);
+    const QString clipped = labelClip(label);
+    if (!clipped.isEmpty()) return clipped;
+
+    auto* cancelButton = dialog.findChild<QPushButton*>();
+    if (!cancelButton) return QStringLiteral("missing cancel");
+    if (!cancelButton->isEnabled()) return QStringLiteral("cancel disabled");
+    if (cancelButton->text() != cancelText) {
+        return QStringLiteral("cancel text '%1'").arg(cancelButton->text());
+    }
+    return nativeButtonClip(cancelButton);
+}
+
 QString checkBoxClip(const QCheckBox* box) {
     if (!box || !box->isVisible()) return {};
     QStyleOptionButton option;
@@ -688,6 +737,59 @@ void UiPolicyTest::invalidHexShowsAnInlineHint() {
     QCOMPARE(hexEdit->text(), QStringLiteral("#00FF00"));
     QVERIFY(hint->isHidden());
     QCOMPARE(picker.color(), QStringLiteral("#00FF00"));
+}
+
+void UiPolicyTest::slowStepMessagesStayOnOneLine() {
+    const QString theme = loadThemeStyleSheet();
+    QVERIFY(!theme.isEmpty());
+    PanelThemeGuard themeGuard;
+    qApp->setStyleSheet(theme);
+
+    AppLocale::setLanguage(AppLocale::Language::Spanish);
+    const QString concatSpanish = AppLocale::trUi("concat.preparing").arg(4);
+    QCOMPARE(concatSpanish,
+             QStringLiteral("Uniendo 4 videos en uno solo… puede tardar según el tamaño de los archivos."));
+    const QString playbackSpanish = AppLocale::trUi("playback_prep.preparing");
+    QCOMPARE(playbackSpanish,
+             QStringLiteral("Convirtiendo este formato para que se reproduzca bien… solo pasa una vez, y se conserva tu archivo original."));
+    QCOMPARE(ExportJobManager::statusTextForActivity(ClipExporter::Activity::Preparing, 0, 3),
+             QStringLiteral("Preparando la exportación… revisando el video antes de cortar los clips."));
+    QCOMPARE(ExportJobManager::statusTextForActivity(ClipExporter::Activity::ExportingClip, 2, 8),
+             QStringLiteral("Exportando el clip 2 de 8… cada clip se corta del partido, así que tarda."));
+    QCOMPARE(ExportJobManager::statusTextForActivity(ClipExporter::Activity::JoiningClips, 8, 8),
+             QStringLiteral("Uniendo los clips en un solo video… puede tardar un momento."));
+    QCOMPARE(ExportJobManager::statusTextForActivity(ClipExporter::Activity::Finishing, 8, 8),
+             QStringLiteral("Terminando el video… guardar la lista de clips puede tardar un momento."));
+    QVERIFY(slowStepCopyIsPlain(concatSpanish));
+    QVERIFY(slowStepCopyIsPlain(playbackSpanish));
+    QVERIFY(slowStepCopyIsPlain(
+        ExportJobManager::statusTextForActivity(ClipExporter::Activity::ExportingClip, 2, 8)));
+    QVERIFY2(blockingDialogClip(concatSpanish, AppLocale::trUi("concat.cancel")).isEmpty(),
+             qPrintable(blockingDialogClip(concatSpanish, AppLocale::trUi("concat.cancel"))));
+    QVERIFY2(blockingDialogClip(playbackSpanish, AppLocale::trUi("playback_prep.cancel")).isEmpty(),
+             qPrintable(blockingDialogClip(playbackSpanish, AppLocale::trUi("playback_prep.cancel"))));
+
+    AppLocale::setLanguage(AppLocale::Language::English);
+    const QString concatEnglish = AppLocale::trUi("concat.preparing").arg(4);
+    QCOMPARE(concatEnglish,
+             QStringLiteral("Joining 4 videos into one… this can take a while depending on file size."));
+    const QString playbackEnglish = AppLocale::trUi("playback_prep.preparing");
+    QCOMPARE(playbackEnglish,
+             QStringLiteral("Converting this format so it plays smoothly… this only happens once, and your original file is kept."));
+    QCOMPARE(ExportJobManager::statusTextForActivity(ClipExporter::Activity::Preparing, 0, 3),
+             QStringLiteral("Preparing the export… checking the video before cutting the clips."));
+    QCOMPARE(ExportJobManager::statusTextForActivity(ClipExporter::Activity::ExportingClip, 2, 8),
+             QStringLiteral("Exporting clip 2 of 8… cutting each clip from the match takes a while."));
+    QCOMPARE(ExportJobManager::statusTextForActivity(ClipExporter::Activity::JoiningClips, 8, 8),
+             QStringLiteral("Joining the clips into one video… this can take a moment."));
+    QCOMPARE(ExportJobManager::statusTextForActivity(ClipExporter::Activity::Finishing, 8, 8),
+             QStringLiteral("Finishing the video… saving the clip list can take a moment."));
+    QVERIFY(slowStepCopyIsPlain(concatEnglish));
+    QVERIFY(slowStepCopyIsPlain(playbackEnglish));
+    QVERIFY2(blockingDialogClip(concatEnglish, AppLocale::trUi("concat.cancel")).isEmpty(),
+             qPrintable(blockingDialogClip(concatEnglish, AppLocale::trUi("concat.cancel"))));
+    QVERIFY2(blockingDialogClip(playbackEnglish, AppLocale::trUi("playback_prep.cancel")).isEmpty(),
+             qPrintable(blockingDialogClip(playbackEnglish, AppLocale::trUi("playback_prep.cancel"))));
 }
 
 int runUiPolicyTests(int argc, char** argv) {

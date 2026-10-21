@@ -146,6 +146,7 @@ ExportJobsBar::ExportJobsBar(ExportJobManager* manager, QWidget* parent)
 }
 
 void ExportJobsBar::applyUiStrings() const {
+    if (manager_) manager_->refreshRunningStatusText();
     for (const JobRowWidgets& widgets : rowsByJobId_) {
         applyRowUiStrings(widgets);
     }
@@ -213,7 +214,9 @@ ExportJobsBar::JobRowWidgets ExportJobsBar::createRow(const ExportJobSnapshot& s
 
     auto statusLabel = makeQtPtr<QLabel>(snapshot.statusText, row.get());
     Style::setRole(statusLabel.get(), "muted");
+    statusLabel->setTextFormat(Qt::PlainText);
     statusLabel->setWordWrap(true);
+    statusLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     rowLayout->addWidget(statusLabel.get(), 1);
     widgets.statusLabel = statusLabel.get();
 
