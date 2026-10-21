@@ -932,6 +932,30 @@ QWidget#PresentationPanel QPushButton[variant="primary"]:disabled {
   color: #fafafa;
 }
 
+/* The apply-to-selected label wraps inside the button. The button's own
+   padding is cleared so a focus ring cannot shrink the text box and clip
+   the ends. The label padding is the text inset; C++ reads it back. */
+QWidget#PresentationPanel QPushButton#ApplyToAllButton,
+QWidget#PresentationPanel QPushButton#ApplyToAllButton:hover,
+QWidget#PresentationPanel QPushButton#ApplyToAllButton:pressed,
+QWidget#PresentationPanel QPushButton#ApplyToAllButton:focus,
+QWidget#PresentationPanel QPushButton#ApplyToAllButton:disabled {
+  padding: 0px;
+  min-height: 0px;
+}
+
+QWidget#PresentationPanel QPushButton#ApplyToAllButton QLabel#ApplyToAllButtonLabel {
+  background: transparent;
+  color: #09090b;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+QWidget#PresentationPanel QPushButton#ApplyToAllButton:disabled QLabel#ApplyToAllButtonLabel {
+  color: rgba(9, 9, 11, 0.40);
+}
+
 QDoubleSpinBox#LeadSpinBox::up-button,
 QDoubleSpinBox#LeadSpinBox::down-button {
   background-color: rgba(72, 199, 142, 0.18);
