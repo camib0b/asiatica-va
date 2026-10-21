@@ -46,7 +46,6 @@ signals:
   void gameSetupConfirmed(const QString& filePath,
                           const QString& homeName, const QString& awayName,
                           const QString& homeColor, const QString& awayColor,
-                          const QString& competitionName,
                           const QDate& gameDate,
                           const QString& homeAbbrev,
                           const QString& awayAbbrev);

@@ -79,8 +79,7 @@ PresentationQueue::Clip presentationClipFrom(const TagSession::GameTag& tag, int
 void configureMatch(TagSession& session) {
     session.setGameTeams(QStringLiteral("UC"), QStringLiteral("OR"),
                          QStringLiteral("#3c5ac8"), QStringLiteral("#c83c3c"));
-    session.setGameMetadata(QStringLiteral("Copa área"), QDate(2026, 9, 27),
-                            QStringLiteral("UC"), QStringLiteral("OR"));
+    session.setGameMetadata(QDate(2026, 9, 27), QStringLiteral("UC"), QStringLiteral("OR"));
 }
 
 ClipCompilationRecord recordWithSource(qint64 sourceStartMs,
@@ -726,8 +725,8 @@ void CompilationSidecarExportTest::exportsSidecarBesideCompilation() {
         const int resultado = jsonText.indexOf(QStringLiteral("\"RESULTADO\""));
         const int quartos = jsonText.indexOf(QStringLiteral("\"QUARTOS\""));
         const int year = jsonText.indexOf(QStringLiteral("\"ANO\""));
-        QVERIFY(competition >= 0);
-        QVERIFY(competition < resultado);
+        QCOMPARE(competition, -1);
+        QVERIFY(resultado >= 0);
         QVERIFY(resultado < quartos);
         QVERIFY(quartos < year);
     }
@@ -911,6 +910,7 @@ void CompilationSidecarExportTest::cancelBeforeOutputReplaceDoesNotWriteSidecar(
 
 int runPresentationPlaybackTests(int argc, char** argv);
 int runWorkStateTests(int argc, char** argv);
+int runInteractionGuardTests(int argc, char** argv);
 
 int main(int argc, char** argv) {
     QApplication application(argc, argv);
@@ -921,6 +921,10 @@ int main(int argc, char** argv) {
     const int workStateStatus = runWorkStateTests(argc, argv);
     if (workStateStatus != 0) {
         return workStateStatus;
+    }
+    const int interactionStatus = runInteractionGuardTests(argc, argv);
+    if (interactionStatus != 0) {
+        return interactionStatus;
     }
     int status = 0;
     {

@@ -660,7 +660,7 @@ void GameSetupWindow::onContinue() {
 
   abortMetadataSuggestion();
   emit gameSetupConfirmed(videoPath_, values.homeName, values.awayName, values.homeColor,
-                          values.awayColor, QString(), values.gameDate, values.homeAbbrev,
+                          values.awayColor, values.gameDate, values.homeAbbrev,
                           values.awayAbbrev);
 }
 
