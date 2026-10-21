@@ -4,11 +4,11 @@
 #include "../i18n/AppLocale.h"
 #include "../state/TagSession.h"
 #include "NotesController.h"
+#include "TagRowDisplay.h"
 #include "TagsTableModel.h"
 
 #include <QAbstractItemView>
 #include <QAction>
-#include <QColor>
 #include <QItemSelectionModel>
 #include <QLabel>
 #include <QMenu>
@@ -36,71 +36,6 @@ private:
   bool& flag_;
   bool previousValue_;
 };
-
-QString formatTimestampMs(qint64 milliseconds) {
-  const qint64 clampedMilliseconds = milliseconds < 0 ? 0 : milliseconds;
-  const qint64 totalSeconds = clampedMilliseconds / 1000;
-  const qint64 hours = totalSeconds / 3600;
-  const qint64 minutes = (totalSeconds / 60) % 60;
-  const qint64 seconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return QStringLiteral("%1:%2:%3")
-        .arg(hours)
-        .arg(minutes, 2, 10, QChar('0'))
-        .arg(seconds, 2, 10, QChar('0'));
-  }
-
-  const qint64 minutesTotal = totalSeconds / 60;
-  return QStringLiteral("%1:%2")
-      .arg(minutesTotal, 2, 10, QChar('0'))
-      .arg(seconds, 2, 10, QChar('0'));
-}
-
-QColor teamBackgroundForTag(const TagSession::GameTag& tag, const TagSession* session) {
-  if (!session) return {};
-  QString hex;
-  if (tag.team == QStringLiteral("Home")) {
-    hex = session->homeTeamColor();
-  } else if (tag.team == QStringLiteral("Away")) {
-    hex = session->awayTeamColor();
-  } else {
-    return {};
-  }
-  QString hexClean = hex.trimmed();
-  if (hexClean.isEmpty()) return {};
-  if (!hexClean.startsWith(QLatin1Char('#'))) {
-    hexClean.prepend(QLatin1Char('#'));
-  }
-  const QColor backgroundColor(hexClean);
-  return backgroundColor.isValid() ? backgroundColor : QColor();
-}
-
-/// Removes segments that duplicate the session team labels (embedded in follow-up strings from GameControls).
-QString followUpForEventColumn(const QString& followUpEvent, const TagSession* session) {
-  if (!session || followUpEvent.isEmpty()) {
-    return followUpEvent;
-  }
-  return AppLocale::followUpPathWithoutTeamSegments(followUpEvent, session->homeTeamName(),
-                                                    session->awayTeamName());
-}
-
-QString displayTeamForTag(const TagSession::GameTag& tag, const TagSession* tagSession) {
-  if (!tagSession) {
-    if (tag.team == QStringLiteral("Home")) return QStringLiteral("Home");
-    if (tag.team == QStringLiteral("Away")) return QStringLiteral("Away");
-    return tag.team.isEmpty() ? QStringLiteral("—") : tag.team;
-  }
-  if (tag.team == QStringLiteral("Home")) {
-    const QString n = tagSession->homeTeamName();
-    return n.isEmpty() ? QStringLiteral("Home") : n;
-  }
-  if (tag.team == QStringLiteral("Away")) {
-    const QString n = tagSession->awayTeamName();
-    return n.isEmpty() ? QStringLiteral("Away") : n;
-  }
-  return tag.team.isEmpty() ? QStringLiteral("—") : tag.team;
-}
 
 }  // namespace
 
@@ -159,7 +94,7 @@ void TagsTableController::wireFilterSignals() {
     connect(filterSelectAllAction_, &QAction::triggered, this, &TagsTableController::onSelectAllFilters);
   }
   if (filterSelectNoneAction_) {
-    connect(filterSelectNoneAction_, &QAction::triggered, this, &TagsTableController::onSelectNoFilters);
+    connect(filterSelectNoneAction_, &QAction::triggered, this, &TagsTableController::onSelectNoneFilters);
   }
   if (tagsFilterMenu_) {
     connect(tagsFilterMenu_, &QMenu::aboutToHide, this, &TagsTableController::onTagsFilterMenuAboutToHide);
@@ -220,7 +155,7 @@ void TagsTableController::onSelectAllFilters() {
   refreshTagsTableRows();
 }
 
-void TagsTableController::onSelectNoFilters() {
+void TagsTableController::onSelectNoneFilters() {
   QStringList mainEvents;
   if (tagSession_) mainEvents = tagSession_->mainEventCounts().keys();
   tagFilter_.hideAllMainEvents(mainEvents);
@@ -257,7 +192,7 @@ void TagsTableController::applyDeferredFilterMenuStructureSync() {
   filterMenuForceStructureSync_ = false;
 }
 
-bool TagsTableController::isTagAllowed(const QString& mainEvent, const QString& followUpEvent) const {
+bool TagsTableController::tagPassesEventFilter(const QString& mainEvent, const QString& followUpEvent) const {
   return tagFilter_.allows(mainEvent, followUpEvent);
 }
 
@@ -265,7 +200,7 @@ bool TagsTableController::hasAnyFilterActive() const {
   return tagFilter_.isActive();
 }
 
-void TagsTableController::updateFilterButtonsVisibility() const {
+void TagsTableController::updateRemoveFiltersButtonVisibility() const {
   if (!tagsRemoveFiltersButton_) return;
   if (hasAnyFilterActive()) {
     tagsRemoveFiltersButton_->show();
@@ -328,13 +263,13 @@ void TagsTableController::rebuildTagsTableOnce() {
       tagsModel_->setPlayheadMs(videoPlayer_->currentPositionMs());
     }
     updateFilterIndicator();
-    updateFilterButtonsVisibility();
+    updateRemoveFiltersButtonVisibility();
     notesController_->refreshMatchNoteMentionCandidates();
   }
 
   if (notesController_->selectedTagId() != previouslySelectedTagId) {
     notesController_->flushPendingClipNote();
-    notesController_->loadNoteForSelectedTag();
+    notesController_->loadClipNoteForSelectedTag();
   }
 }
 
@@ -342,7 +277,7 @@ void TagsTableController::showEmptyTagsTable() {
   tagsModel_->setRows({});
   notesController_->refreshMatchNoteMentionCandidates();
   updateFilterIndicator();
-  updateFilterButtonsVisibility();
+  updateRemoveFiltersButtonVisibility();
 }
 
 QVector<TagsTableModel::Row> TagsTableController::visibleTagRowsSortedByMark() const {
@@ -353,7 +288,7 @@ QVector<TagsTableModel::Row> TagsTableController::visibleTagRowsSortedByMark() c
   QVector<VisibleTag> visibleTags;
   int tagSessionIndex = 0;
   for (const TagSession::GameTag& tag : tagSession_->tags()) {
-    if (isTagAllowed(tag.mainEvent, tag.followUpEvent)) {
+    if (tagPassesEventFilter(tag.mainEvent, tag.followUpEvent)) {
       visibleTags.append({tag, tagSessionIndex});
     }
     tagSessionIndex++;
@@ -378,11 +313,11 @@ TagsTableModel::Row TagsTableController::tagsTableRowFor(const TagSession::GameT
   row.tagSessionIndex = tagSessionIndex;
   row.markMs = tag.markMs;
   row.teamKey = tag.team;
-  row.timeText = formatTimestampMs(tag.markMs);
-  row.teamText = displayTeamForTag(tag, tagSession_);
-  row.eventText =
-      AppLocale::trDisplayTagLine(tag.mainEvent, followUpForEventColumn(tag.followUpEvent, tagSession_));
-  row.teamBackground = teamBackgroundForTag(tag, tagSession_);
+  row.timeText = TagRowDisplay::formatTimestampMs(tag.markMs);
+  row.teamText = TagRowDisplay::displayTeamForTag(tag, tagSession_);
+  row.eventText = AppLocale::trDisplayTagLine(
+      tag.mainEvent, TagRowDisplay::followUpPathForDisplay(tag.followUpEvent, tagSession_));
+  row.teamBackground = TagRowDisplay::teamBackgroundForTag(tag, tagSession_);
   return row;
 }
 

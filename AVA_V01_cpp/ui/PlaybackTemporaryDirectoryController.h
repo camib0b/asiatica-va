@@ -29,13 +29,13 @@ public:
   void setVideoPlayer(VideoPlayer* videoPlayer);
   void setExportJobManager(ExportJobManager* exportJobManager);
 
-  void setConcatenatedVideoTempDir(std::unique_ptr<QTemporaryDir> directory);
+  void setConcatenatedVideoTemporaryDirectory(std::unique_ptr<QTemporaryDir> directory);
   /// Releases any previous prep directory, then takes \p directory.
-  void setPlaybackPrepTempDir(std::unique_ptr<QTemporaryDir> directory);
+  void setPlaybackPrepTemporaryDirectory(std::unique_ptr<QTemporaryDir> directory);
   void setPendingConcatenation(std::unique_ptr<VideoConcatenator> concatenator);
   VideoConcatenator* pendingConcatenator() const;
 
-  void cleanupPlaybackPrepVideo();
+  void releasePlaybackPrepTemporaryDirectory();
   void cleanupPendingConcatenation();
   void releaseTransientResources();
   /// Window destructor path. Disconnects the player, drops the open file, then
@@ -45,7 +45,7 @@ public:
   void appendRetainedPlaybackDirectories(ExportJobRequest& request) const;
 
 private:
-  void cleanupConcatenatedVideo();
+  void releaseConcatenatedVideoTemporaryDirectory();
   void retainOrDeleteTemporaryDirectory(std::unique_ptr<QTemporaryDir>& directory);
   /// Deletes \p directory once the player is no longer reading a file inside it.
   /// When \p releaseHoldingPlayer is true, the player drops that file first.

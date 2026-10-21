@@ -268,7 +268,7 @@ private:
 
 WorkWindow::WorkWindow(QWidget* parent)
     : QWidget(parent),
-      temporaryDirectoryController_(std::make_unique<PlaybackTemporaryDirectoryController>()),
+      playbackTemporaryDirectoryController_(std::make_unique<PlaybackTemporaryDirectoryController>()),
       notesController_(std::make_unique<NotesController>()),
       tagsTableController_(std::make_unique<TagsTableController>()),
       presentationPlaybackController_(std::make_unique<PresentationPlaybackController>()) {
@@ -292,7 +292,7 @@ WorkWindow::~WorkWindow() {
     if (exportJobManager_) {
         exportJobManager_->cancelExportingJobs();
     }
-    temporaryDirectoryController_->releaseForShutdown();
+    playbackTemporaryDirectoryController_->releaseForShutdown();
     tagSession_ = nullptr;
     notesController_->setTagSession(nullptr);
     tagsTableController_->setTagSession(nullptr);
@@ -376,8 +376,8 @@ void WorkWindow::flashVideoMuteButton() {
     timer->start(kVideoMuteFlashDurationMs);
 }
 
-void WorkWindow::setConcatenatedVideoTempDir(std::unique_ptr<QTemporaryDir> dir) {
-    temporaryDirectoryController_->setConcatenatedVideoTempDir(std::move(dir));
+void WorkWindow::setConcatenatedVideoTemporaryDirectory(std::unique_ptr<QTemporaryDir> directory) {
+    playbackTemporaryDirectoryController_->setConcatenatedVideoTemporaryDirectory(std::move(directory));
 }
 
 void WorkWindow::setExportDefaultDirectoryFromVideoPath(const QString& videoPath) {
@@ -389,11 +389,11 @@ void WorkWindow::setExportDefaultDirectoryFromVideoPath(const QString& videoPath
 }
 
 void WorkWindow::setPendingConcatenation(std::unique_ptr<VideoConcatenator> concatenator) {
-    temporaryDirectoryController_->setPendingConcatenation(std::move(concatenator));
+    playbackTemporaryDirectoryController_->setPendingConcatenation(std::move(concatenator));
 }
 
 void WorkWindow::releaseTransientResources() {
-    temporaryDirectoryController_->releaseTransientResources();
+    playbackTemporaryDirectoryController_->releaseTransientResources();
 }
 
 bool WorkWindow::confirmExportAllowsVideoRelease() {
@@ -421,7 +421,7 @@ bool WorkWindow::confirmExportAllowsVideoRelease() {
     return true;
 }
 
-void WorkWindow::showAdjustedImportNote(int adjustedCount) {
+void WorkWindow::showXmlImportAdjustmentNotice(int adjustedCount) {
     if (adjustedCount <= 0 || !tagsSection_) return;
 
     auto* label = tagsSection_->findChild<QLabel*>(QStringLiteral("ImportAdjustmentNotice"),
@@ -464,14 +464,14 @@ void WorkWindow::abortVideoOpen(const QString& errorMessage) {
 }
 
 void WorkWindow::applyUiStrings() const {
-    if (modeTaggingBtn_) {
-        modeTaggingBtn_->setText(AppLocale::trUi("mode.tagging"));
+    if (modeTaggingButton_) {
+        modeTaggingButton_->setText(AppLocale::trUi("mode.tagging"));
     }
-    if (modeAnalyzingBtn_) {
-        modeAnalyzingBtn_->setText(AppLocale::trUi("mode.analyzing"));
+    if (modeAnalyzingButton_) {
+        modeAnalyzingButton_->setText(AppLocale::trUi("mode.analyzing"));
     }
-    if (modePresentingBtn_) {
-        modePresentingBtn_->setText(AppLocale::trUi("mode.presenting"));
+    if (modePresentingButton_) {
+        modePresentingButton_->setText(AppLocale::trUi("mode.presenting"));
     }
     if (replaceVideoAction_) replaceVideoAction_->setText(AppLocale::trUi("menu.replace_video"));
     if (closeVideoAction_) closeVideoAction_->setText(AppLocale::trUi("menu.close_video"));
@@ -526,7 +526,7 @@ void WorkWindow::disconnectTagSessionSignals() {
         QObject::disconnect(connection);
     }
     tagSessionConnections_.clear();
-    notesController_->disconnectSessionSignals();
+    notesController_->disconnectTagSessionSignals();
 }
 
 void WorkWindow::applySessionTeamIdentity() {
@@ -575,7 +575,7 @@ void WorkWindow::bindTagSessionToSurfaces() {
 }
 
 void WorkWindow::connectTagSessionSignals() {
-    notesController_->connectSessionSignals();
+    notesController_->connectTagSessionSignals();
     tagSessionConnections_.append(connect(
         tagSession_, &TagSession::tagsChanged, this, &WorkWindow::onTagSessionTagsChanged));
     tagSessionConnections_.append(connect(
@@ -614,23 +614,23 @@ void WorkWindow::syncModeToggleChecks() {
 }
 
 void WorkWindow::setModeToggleButtonsChecked() {
-    if (modeTaggingBtn_) modeTaggingBtn_->setChecked(mode_ == Mode::Tagging);
-    if (modeAnalyzingBtn_) modeAnalyzingBtn_->setChecked(mode_ == Mode::Analyzing);
-    if (modePresentingBtn_) modePresentingBtn_->setChecked(mode_ == Mode::Presenting);
+    if (modeTaggingButton_) modeTaggingButton_->setChecked(mode_ == Mode::Tagging);
+    if (modeAnalyzingButton_) modeAnalyzingButton_->setChecked(mode_ == Mode::Analyzing);
+    if (modePresentingButton_) modePresentingButton_->setChecked(mode_ == Mode::Presenting);
 }
 
-void WorkWindow::setMode(Mode m) {
-    if (mode_ == m) {
+void WorkWindow::setMode(Mode mode) {
+    if (mode_ == mode) {
         syncModeToggleChecks();
         return;
     }
     notesController_->flushPendingClipNote();
-    if (mode_ == Mode::Presenting && m != Mode::Presenting) {
+    if (mode_ == Mode::Presenting && mode != Mode::Presenting) {
         presentationPlaybackController_->leavePresentationPlayback();
     }
-    mode_ = m;
+    mode_ = mode;
     applyModeChrome();
-    if (m == Mode::Presenting) {
+    if (mode == Mode::Presenting) {
         if (presentationPanel_) presentationPanel_->refreshFromSession();
         presentationPlaybackController_->enterPresentationPlayback();
     }
@@ -675,19 +675,19 @@ void WorkWindow::placeNotesColumnForMode(bool isTagging, bool isAnalyzing) {
     const bool showNotes = isTagging || isAnalyzing;
     notesColumn_->setVisible(showNotes);
 
-    if (isTagging && taggingRightCol_) {
+    if (isTagging && taggingSideColumn_) {
         if (workTagsNotesSplitter_ && workTagsNotesSplitter_->indexOf(notesColumn_) >= 0) {
             notesColumn_->setParent(nullptr);
         }
-        if (auto* sideLayout = qobject_cast<QVBoxLayout*>(taggingRightCol_->layout())) {
+        if (auto* sideLayout = qobject_cast<QVBoxLayout*>(taggingSideColumn_->layout())) {
             if (sideLayout->indexOf(notesColumn_) < 0) {
-                notesColumn_->setParent(taggingRightCol_);
+                notesColumn_->setParent(taggingSideColumn_);
                 sideLayout->addWidget(notesColumn_, 1);
             }
         }
     } else if (isAnalyzing && workTagsNotesSplitter_) {
-        if (taggingRightCol_) {
-            if (auto* sideLayout = qobject_cast<QVBoxLayout*>(taggingRightCol_->layout())) {
+        if (taggingSideColumn_) {
+            if (auto* sideLayout = qobject_cast<QVBoxLayout*>(taggingSideColumn_->layout())) {
                 if (sideLayout->indexOf(notesColumn_) >= 0) {
                     sideLayout->removeWidget(notesColumn_);
                 }
@@ -706,7 +706,7 @@ void WorkWindow::showModeSidePage(bool isTagging, bool isAnalyzing, bool isPrese
     // Every mode owns one page. Leaving this unset keeps the previous
     // page, so returning to tagging still shows the analyzing panel.
     QWidget* page = nullptr;
-    if (isTagging) page = taggingRightCol_;
+    if (isTagging) page = taggingSideColumn_;
     else if (isAnalyzing) page = statsWindow_;
     else if (isPresenting) page = presentationPanel_;
     if (page) workSideStack_->setCurrentWidget(page);
@@ -725,8 +725,8 @@ void WorkWindow::applyModeSizePolicies(bool isTagging, bool isAnalyzing, bool is
         notesColumn_->setMinimumWidth(0);
         notesColumn_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     }
-    if (taggingRightCol_) {
-        taggingRightCol_->setSizePolicy(isTagging ? QSizePolicy::Preferred : QSizePolicy::Ignored,
+    if (taggingSideColumn_) {
+        taggingSideColumn_->setSizePolicy(isTagging ? QSizePolicy::Preferred : QSizePolicy::Ignored,
                                         QSizePolicy::Preferred);
     }
     if (statsWindow_) {
@@ -808,8 +808,8 @@ void WorkWindow::enforceTaggingSidePanelWidthCap() {
     workOuterSplitter_->setSizes(sizes);
 }
 
-WorkWindow::TagContext WorkWindow::tagContext() const {
-    TagContext context;
+WorkWindow::PendingTagPeriodAndTeam WorkWindow::pendingTagPeriodAndTeam() const {
+    PendingTagPeriodAndTeam context;
     if (tagSession_) context.period = tagSession_->currentPeriodLabel();
     if (gameControls_) context.team = gameControls_->selectedTeamSide();
     return context;
@@ -865,22 +865,22 @@ QWidget* WorkWindow::buildTopToolbar(QWidget* parent) {
 void WorkWindow::buildModeToggle(QWidget* topRow, QHBoxLayout* topLayout) {
     modeToggleTrack_ = new ModeToggleTrack(topRow);
 
-    modeTaggingBtn_ = new QToolButton(modeToggleTrack_);
-    configureModeToolButton(modeTaggingBtn_, QStringLiteral("WorkModeTaggingButton"), true);
+    modeTaggingButton_ = new QToolButton(modeToggleTrack_);
+    configureModeToolButton(modeTaggingButton_, QStringLiteral("WorkModeTaggingButton"), true);
 
-    modeAnalyzingBtn_ = new QToolButton(modeToggleTrack_);
-    configureModeToolButton(modeAnalyzingBtn_, QStringLiteral("WorkModeAnalyzingButton"), false);
+    modeAnalyzingButton_ = new QToolButton(modeToggleTrack_);
+    configureModeToolButton(modeAnalyzingButton_, QStringLiteral("WorkModeAnalyzingButton"), false);
 
-    modePresentingBtn_ = new QToolButton(modeToggleTrack_);
-    configureModeToolButton(modePresentingBtn_, QStringLiteral("WorkModePresentingButton"), false);
+    modePresentingButton_ = new QToolButton(modeToggleTrack_);
+    configureModeToolButton(modePresentingButton_, QStringLiteral("WorkModePresentingButton"), false);
 
     auto* modeToggleLayout = new QHBoxLayout(modeToggleTrack_);
     modeToggleLayout->setContentsMargins(3, 3, 3, 3);
     modeToggleLayout->setSpacing(4);
-    modeToggleLayout->addWidget(modeTaggingBtn_);
-    modeToggleLayout->addWidget(modeAnalyzingBtn_);
-    modeToggleLayout->addWidget(modePresentingBtn_);
-    modeToggleTrack_->setButtons(modeTaggingBtn_, modeAnalyzingBtn_, modePresentingBtn_);
+    modeToggleLayout->addWidget(modeTaggingButton_);
+    modeToggleLayout->addWidget(modeAnalyzingButton_);
+    modeToggleLayout->addWidget(modePresentingButton_);
+    modeToggleTrack_->setButtons(modeTaggingButton_, modeAnalyzingButton_, modePresentingButton_);
     modeToggleTrack_->syncToMode(false);
     topLayout->addWidget(modeToggleTrack_);
     topLayout->addSpacing(16);
@@ -943,18 +943,18 @@ void WorkWindow::buildVideoSettingsMenu(QHBoxLayout* videoControlsLayout) {
 
 void WorkWindow::buildExportJobsBar(QVBoxLayout* rootLayout) {
     exportJobManager_ = new ExportJobManager(this);
-    temporaryDirectoryController_->setExportJobManager(exportJobManager_);
+    playbackTemporaryDirectoryController_->setExportJobManager(exportJobManager_);
     exportJobsBar_ = new ExportJobsBar(exportJobManager_, this);
     rootLayout->addWidget(exportJobsBar_, 0);
 }
 
 void WorkWindow::buildTaggingSideColumn() {
-    taggingRightCol_ = new QWidget(this);
+    taggingSideColumn_ = new QWidget(this);
     // Object name stays TaggingRightCol so the compact-button QSS keeps matching
     // after the column moves to the left of the video.
-    taggingRightCol_->setObjectName(QStringLiteral("TaggingRightCol"));
-    auto* taggingRightLayout = new QVBoxLayout(taggingRightCol_);
-    taggingRightLayout->setContentsMargins(0, 0, 0, 0);
+    taggingSideColumn_->setObjectName(QStringLiteral("TaggingRightCol"));
+    auto* taggingSideColumnLayout = new QVBoxLayout(taggingSideColumn_);
+    taggingSideColumnLayout->setContentsMargins(0, 0, 0, 0);
 }
 
 void WorkWindow::buildTagsSection() {
@@ -1047,7 +1047,7 @@ void WorkWindow::buildTagsTable(QVBoxLayout* tagsSectionLayout) {
 void WorkWindow::buildGameControlsAndStatsWindow() {
     gameControls_ = new GameControls(this);
     gameControls_->setMinimumWidth(GameControls::kMinimumPanelWidthPx);
-    static_cast<QVBoxLayout*>(taggingRightCol_->layout())->addWidget(gameControls_, 0);
+    static_cast<QVBoxLayout*>(taggingSideColumn_->layout())->addWidget(gameControls_, 0);
     statsWindow_ = new StatsWindow(this);
     statsWindow_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     statsWindow_->setMinimumHeight(180);
@@ -1068,19 +1068,19 @@ void WorkWindow::buildNotesColumn() {
 
     auto* clipNotesLabel = new QLabel(notesColumn_);
     Style::setRole(clipNotesLabel, "muted");
-    auto* notesEdit = new QPlainTextEdit(notesColumn_);
-    notesEdit->setMaximumHeight(88);
-    notesEdit->setMinimumHeight(64);
-    notesEdit->setMinimumWidth(0);
-    notesEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    Style::setRole(notesEdit, "muted");
+    auto* clipNotesEditor = new QPlainTextEdit(notesColumn_);
+    clipNotesEditor->setMaximumHeight(88);
+    clipNotesEditor->setMinimumHeight(64);
+    clipNotesEditor->setMinimumWidth(0);
+    clipNotesEditor->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    Style::setRole(clipNotesEditor, "muted");
 
     notesColumnLayout->addWidget(matchNotesLabel);
     notesColumnLayout->addWidget(matchNotesEditor, 1);
     notesColumnLayout->addWidget(clipNotesLabel);
-    notesColumnLayout->addWidget(notesEdit, 0);
-    notesController_->setColumnWidgets(matchNotesLabel, matchNotesEditor, clipNotesLabel, notesEdit);
-    static_cast<QVBoxLayout*>(taggingRightCol_->layout())->addWidget(notesColumn_, 1);
+    notesColumnLayout->addWidget(clipNotesEditor, 0);
+    notesController_->setNotesColumnWidgets(matchNotesLabel, matchNotesEditor, clipNotesLabel, clipNotesEditor);
+    static_cast<QVBoxLayout*>(taggingSideColumn_->layout())->addWidget(notesColumn_, 1);
 }
 
 void WorkWindow::buildVideoStageColumn() {
@@ -1135,7 +1135,7 @@ void WorkWindow::buildPresentationBanner(QVBoxLayout* videoColumnLayout) {
 
 void WorkWindow::buildWorkSideStack() {
     workSideStack_ = new QStackedWidget(this);
-    workSideStack_->addWidget(taggingRightCol_);
+    workSideStack_->addWidget(taggingSideColumn_);
     workSideStack_->addWidget(statsWindow_);
     presentationPanel_ = new PresentationPanel(this);
     presentationPanel_->setMinimumWidth(260);
@@ -1152,14 +1152,15 @@ void WorkWindow::assembleWorkSplitters(QVBoxLayout* contentAreaLayout) {
     workTagsNotesSplitter_->setStretchFactor(0, 1);
     tagsSection_->setMinimumWidth(160);
 
-    workLeftSplitter_ = new QSplitter(Qt::Vertical, this);
-    workLeftSplitter_->setObjectName(QStringLiteral("WorkLeftSplitter"));
-    workLeftSplitter_->setChildrenCollapsible(false);
-    workLeftSplitter_->setHandleWidth(6);
-    workLeftSplitter_->addWidget(videoColumn_);
-    workLeftSplitter_->addWidget(workTagsNotesSplitter_);
-    workLeftSplitter_->setStretchFactor(0, 5);
-    workLeftSplitter_->setStretchFactor(1, 3);
+    videoAndTagsSplitter_ = new QSplitter(Qt::Vertical, this);
+    // Object name stays WorkLeftSplitter so the splitter QSS keeps matching.
+    videoAndTagsSplitter_->setObjectName(QStringLiteral("WorkLeftSplitter"));
+    videoAndTagsSplitter_->setChildrenCollapsible(false);
+    videoAndTagsSplitter_->setHandleWidth(6);
+    videoAndTagsSplitter_->addWidget(videoColumn_);
+    videoAndTagsSplitter_->addWidget(workTagsNotesSplitter_);
+    videoAndTagsSplitter_->setStretchFactor(0, 5);
+    videoAndTagsSplitter_->setStretchFactor(1, 3);
 
     buildWorkSideStack();
 
@@ -1169,11 +1170,11 @@ void WorkWindow::assembleWorkSplitters(QVBoxLayout* contentAreaLayout) {
     workOuterSplitter_->setHandleWidth(6);
     workOuterSplitter_->setAttribute(Qt::WA_StyledBackground, true);
     workOuterSplitter_->addWidget(workSideStack_);
-    workOuterSplitter_->addWidget(workLeftSplitter_);
+    workOuterSplitter_->addWidget(videoAndTagsSplitter_);
     workOuterSplitter_->setStretchFactor(0, 0);
     workOuterSplitter_->setStretchFactor(1, 4);
 
-    for (QSplitter* splitter : {workOuterSplitter_, workLeftSplitter_, workTagsNotesSplitter_}) {
+    for (QSplitter* splitter : {workOuterSplitter_, videoAndTagsSplitter_, workTagsNotesSplitter_}) {
         splitter->setAttribute(Qt::WA_StyledBackground, true);
     }
 
@@ -1185,16 +1186,16 @@ void WorkWindow::assembleWorkSplitters(QVBoxLayout* contentAreaLayout) {
 
 void WorkWindow::hideChromeUntilVideoOpens() {
     if (videoPlayer_) videoPlayer_->setControlsVisible(false);
-    if (modeTaggingBtn_) modeTaggingBtn_->hide();
-    if (modeAnalyzingBtn_) modeAnalyzingBtn_->hide();
-    if (modePresentingBtn_) modePresentingBtn_->hide();
+    if (modeTaggingButton_) modeTaggingButton_->hide();
+    if (modeAnalyzingButton_) modeAnalyzingButton_->hide();
+    if (modePresentingButton_) modePresentingButton_->hide();
     if (modeToggleTrack_) modeToggleTrack_->syncToMode(false);
 }
 
 void WorkWindow::buildPresentationUi() {
     presentationQueue_ = new PresentationQueue(this);
-    presentationPlaybackController_->setQueue(presentationQueue_);
-    presentationPlaybackController_->setClipBar(presentationClipBar_);
+    presentationPlaybackController_->setPresentationQueue(presentationQueue_);
+    presentationPlaybackController_->setPresentationClipBar(presentationClipBar_);
     presentationPlaybackController_->setPresentationPanel(presentationPanel_);
     presentationPlaybackController_->setStageLabels(presentationEventLabel_,
                                                     presentationContextLabel_,
@@ -1226,9 +1227,9 @@ void WorkWindow::wireSignals() {
     wireTagsTableSignals();
     wireModeToggleSignals();
     wireNotesSignals();
-    wireTagListActionSignals();
+    wireTagsTableActionSignals();
     installModeAndStatsShortcuts();
-    wireLocaleAndNoteTimers();
+    wireApplicationLanguageSignals();
     wirePlaybackAndTemporaryDirectorySignals();
     installTagEditShortcuts();
     wireApplicationFocusSignals();
@@ -1305,18 +1306,18 @@ void WorkWindow::dismissTagSequenceToast() {
 void WorkWindow::commitTagFromGameControls(const QString& mainEvent, const QString& followUpEvent) {
     if (!videoPlayer_) return;
 
-    qint64 timestampMs = videoPlayer_->currentPositionMs();
+    qint64 markMs = videoPlayer_->currentPositionMs();
     if (capturedMainEvent_ && capturedMainEvent_->event == mainEvent) {
-        timestampMs = capturedMainEvent_->positionMs;
+        markMs = capturedMainEvent_->markMs;
     }
     capturedMainEvent_.reset();
 
     if (!tagSession_) return;
-    const TagContext context = tagContext();
+    const PendingTagPeriodAndTeam context = pendingTagPeriodAndTeam();
     TagSession::GameTag tag;
     tag.mainEvent = mainEvent;
     tag.followUpEvent = followUpEvent;
-    tag.markMs = timestampMs;
+    tag.markMs = markMs;
     tag.period = context.period;
     tag.team = TagSession::teamSideKey(context.team);
     // tag.startMs / tag.endMs left at 0 so TagSession::addTag seeds them from EventDefaults.
@@ -1324,14 +1325,14 @@ void WorkWindow::commitTagFromGameControls(const QString& mainEvent, const QStri
 }
 
 void WorkWindow::wireTagsTableSignals() {
-    connect(tagsTable_, &QTableView::doubleClicked, this, &WorkWindow::seekTagsTableIndex);
-    connect(tagsTable_, &QAbstractItemView::activated, this, &WorkWindow::seekTagsTableIndex);
+    connect(tagsTable_, &QTableView::doubleClicked, this, &WorkWindow::seekVideoFromTagsTableIndex);
+    connect(tagsTable_, &QAbstractItemView::activated, this, &WorkWindow::seekVideoFromTagsTableIndex);
     connect(tagsTable_->selectionModel(), &QItemSelectionModel::currentChanged, this,
             &WorkWindow::onTagsTableCurrentChanged);
 }
 
-void WorkWindow::seekTagsTableIndex(const QModelIndex& index) {
-    if (index.isValid()) onTagTableSeekToRow(index.row());
+void WorkWindow::seekVideoFromTagsTableIndex(const QModelIndex& index) {
+    if (index.isValid()) seekVideoToTagsTableRow(index.row());
 }
 
 void WorkWindow::onTagsTableCurrentChanged(const QModelIndex& current, const QModelIndex& previous) {
@@ -1340,16 +1341,16 @@ void WorkWindow::onTagsTableCurrentChanged(const QModelIndex& current, const QMo
 }
 
 void WorkWindow::wireModeToggleSignals() {
-    connect(modeTaggingBtn_, &QToolButton::clicked, this, &WorkWindow::onModeToggled);
-    connect(modeAnalyzingBtn_, &QToolButton::clicked, this, &WorkWindow::onModeToggled);
-    connect(modePresentingBtn_, &QToolButton::clicked, this, &WorkWindow::onModeToggled);
+    connect(modeTaggingButton_, &QToolButton::clicked, this, &WorkWindow::onModeToggled);
+    connect(modeAnalyzingButton_, &QToolButton::clicked, this, &WorkWindow::onModeToggled);
+    connect(modePresentingButton_, &QToolButton::clicked, this, &WorkWindow::onModeToggled);
 }
 
 void WorkWindow::wireNotesSignals() {
     notesController_->wireEditorSignals();
 }
 
-void WorkWindow::wireTagListActionSignals() {
+void WorkWindow::wireTagsTableActionSignals() {
     tagsTableController_->wireFilterSignals();
     connect(statsWindow_, &StatsWindow::filterByEventPathRequested, tagsTableController_.get(),
             &TagsTableController::onFilterByEventPathRequested);
@@ -1374,7 +1375,7 @@ void WorkWindow::cycleWorkMode() {
     setMode(nextModeInCycle(mode_));
 }
 
-void WorkWindow::wireLocaleAndNoteTimers() {
+void WorkWindow::wireApplicationLanguageSignals() {
     connect(&LocaleNotifier::instance(), &LocaleNotifier::languageChanged, this,
             &WorkWindow::onApplicationLanguageChanged);
 }
@@ -1382,7 +1383,7 @@ void WorkWindow::wireLocaleAndNoteTimers() {
 void WorkWindow::wirePlaybackAndTemporaryDirectorySignals() {
     connect(videoPlayer_, &VideoPlayer::positionChangedMs, this, &WorkWindow::onVideoPositionChanged);
     connect(videoPlayer_, &VideoPlayer::durationChangedMs, this, &WorkWindow::onVideoDurationChanged);
-    temporaryDirectoryController_->setVideoPlayer(videoPlayer_);
+    playbackTemporaryDirectoryController_->setVideoPlayer(videoPlayer_);
     notesController_->setVideoPlayer(videoPlayer_);
     tagsTableController_->setVideoPlayer(videoPlayer_);
     presentationPlaybackController_->setVideoPlayer(videoPlayer_);
@@ -1438,15 +1439,15 @@ void WorkWindow::onGameSetupConfirmed(const QString& filePath,
                                        const QDate& gameDate,
                                        const QString& homeAbbrev,
                                        const QString& awayAbbrev) {
-    if (VideoConcatenator* pendingConcatenator = temporaryDirectoryController_->pendingConcatenator()) {
-        notesController_->stopNoteTimers();
+    if (VideoConcatenator* pendingConcatenator = playbackTemporaryDirectoryController_->pendingConcatenator()) {
+        notesController_->suspendNoteDebounceTimers();
         const bool concatOk = pendingConcatenator->waitWithProgress(this);
         const QString errorMessage = pendingConcatenator->errorMessage();
         if (!concatOk) {
             abortVideoOpen(errorMessage);
             return;
         }
-        temporaryDirectoryController_->cleanupPendingConcatenation();
+        playbackTemporaryDirectoryController_->cleanupPendingConcatenation();
     }
 
     if (tagSession_) {
@@ -1495,9 +1496,9 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
 }
 
 std::optional<QString> WorkWindow::preparePlaybackPath(const QString& filePath) {
-    notesController_->stopNoteTimers();
+    notesController_->suspendNoteDebounceTimers();
     QString playbackPath = filePath;
-    temporaryDirectoryController_->cleanupPlaybackPrepVideo();
+    playbackTemporaryDirectoryController_->releasePlaybackPrepTemporaryDirectory();
 
     if (!PlaybackVideoPreparer::requiresTranscodeForPlayback(filePath)) {
         return playbackPath;
@@ -1521,7 +1522,7 @@ std::optional<QString> WorkWindow::preparePlaybackPath(const QString& filePath) 
         return std::nullopt;
     }
 
-    temporaryDirectoryController_->setPlaybackPrepTempDir(std::move(tempDir));
+    playbackTemporaryDirectoryController_->setPlaybackPrepTemporaryDirectory(std::move(tempDir));
     return preparedPath;
 }
 
@@ -1548,9 +1549,9 @@ void WorkWindow::showWorkChromeForOpenedVideo() {
         workOuterSplitter_->show();
         QTimer::singleShot(0, this, &WorkWindow::applySidePanelCompressedWidth);
     }
-    if (modeTaggingBtn_) modeTaggingBtn_->show();
-    if (modeAnalyzingBtn_) modeAnalyzingBtn_->show();
-    if (modePresentingBtn_) modePresentingBtn_->show();
+    if (modeTaggingButton_) modeTaggingButton_->show();
+    if (modeAnalyzingButton_) modeAnalyzingButton_->show();
+    if (modePresentingButton_) modePresentingButton_->show();
     if (modeToggleTrack_) {
         QTimer::singleShot(0, modeToggleTrack_, [track = QPointer<ModeToggleTrack>(modeToggleTrack_)]() {
             if (track) track->syncToMode(false);
@@ -1639,21 +1640,21 @@ void WorkWindow::onReplaceVideo() {
     if (!confirmExportAllowsVideoRelease()) return;
     notesController_->flushPendingClipNote();
     notesController_->saveMatchNoteDebounceFired();
-    notesController_->stopNoteTimers();
+    notesController_->suspendNoteDebounceTimers();
 
     const ReplaceVideoChoice choice = chooseReplaceVideoAction(tagSession_, this);
     if (choice == ReplaceVideoChoice::Cancel) {
-        notesController_->resumeNoteTimers();
+        notesController_->resumeNoteDebounceTimers();
         return;
     }
     if (choice == ReplaceVideoChoice::ExportThenContinue && !exportXmlAndNotesBeforeReplace()) {
-        notesController_->resumeNoteTimers();
+        notesController_->resumeNoteDebounceTimers();
         return;
     }
 
     QStringList filePaths = VideoConcatenator::selectVideoFiles(this);
     if (filePaths.isEmpty()) {
-        notesController_->resumeNoteTimers();
+        notesController_->resumeNoteDebounceTimers();
         return;
     }
 
@@ -1673,7 +1674,7 @@ void WorkWindow::replaceOpenVideoWithFile(const QString& filePath) {
 void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
     filePaths.sort(Qt::CaseInsensitive);
     if (!VideoConcatenator::showFileOrderDialog(filePaths, this)) {
-        notesController_->resumeNoteTimers();
+        notesController_->resumeNoteDebounceTimers();
         return;
     }
     setExportDefaultDirectoryFromVideoPath(filePaths.first());
@@ -1683,7 +1684,7 @@ void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
         QMessageBox::warning(this,
                              AppLocale::trUi("app.title"),
                              AppLocale::trUi("concat.error_failed"));
-        notesController_->resumeNoteTimers();
+        notesController_->resumeNoteDebounceTimers();
         return;
     }
 
@@ -1695,14 +1696,14 @@ void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
         if (!result.errorMessage.isEmpty()) {
             QMessageBox::warning(this, AppLocale::trUi("app.title"), result.errorMessage);
         }
-        notesController_->resumeNoteTimers();
+        notesController_->resumeNoteDebounceTimers();
         return;
     }
 
     const QString outputPath = result.outputPath;
 
     releaseTransientResources();
-    setConcatenatedVideoTempDir(std::move(tempDir));
+    setConcatenatedVideoTemporaryDirectory(std::move(tempDir));
     loadVideoFromFile(outputPath);
 }
 
@@ -1718,9 +1719,9 @@ void WorkWindow::onCloseVideo() {
     updateVideoMuteButton(false);
     if (gameControls_) gameControls_->resetGameTimeState();
     if (workOuterSplitter_) workOuterSplitter_->hide();
-    if (modeTaggingBtn_) modeTaggingBtn_->hide();
-    if (modeAnalyzingBtn_) modeAnalyzingBtn_->hide();
-    if (modePresentingBtn_) modePresentingBtn_->hide();
+    if (modeTaggingButton_) modeTaggingButton_->hide();
+    if (modeAnalyzingButton_) modeAnalyzingButton_->hide();
+    if (modePresentingButton_) modePresentingButton_->hide();
     if (modeToggleTrack_) modeToggleTrack_->syncToMode(false);
     if (presentationQueue_) presentationQueue_->clear();
     if (presentationPanel_) presentationPanel_->setExportEnabled(false);
@@ -1769,7 +1770,7 @@ QVector<PresentationQueue::Clip> WorkWindow::copyPresentationQueueClips() const 
 }
 
 void WorkWindow::appendRetainedPlaybackDirectories(ExportJobRequest& request) const {
-    temporaryDirectoryController_->appendRetainedPlaybackDirectories(request);
+    playbackTemporaryDirectoryController_->appendRetainedPlaybackDirectories(request);
 }
 
 ExportJobRequest WorkWindow::buildPresentationExportRequest(
@@ -1931,17 +1932,17 @@ void WorkWindow::importMappedXmlTags(TagSession::ImportMode importMode,
             .arg(result.importedCount)
             .arg(dialogSkipped)
             .arg(result.clampedCount));
-    showAdjustedImportNote(importResult.adjustedBeforeStartCount);
+    showXmlImportAdjustmentNotice(importResult.adjustedBeforeStartCount);
 }
 
 void WorkWindow::onModeToggled() {
-    auto* btn = qobject_cast<QToolButton*>(sender());
-    if (!btn) return;
-    if (btn == modeTaggingBtn_) {
+    auto* modeButton = qobject_cast<QToolButton*>(sender());
+    if (!modeButton) return;
+    if (modeButton == modeTaggingButton_) {
         setMode(Mode::Tagging);
-    } else if (btn == modeAnalyzingBtn_) {
+    } else if (modeButton == modeAnalyzingButton_) {
         setMode(Mode::Analyzing);
-    } else if (btn == modePresentingBtn_) {
+    } else if (modeButton == modePresentingButton_) {
         setMode(Mode::Presenting);
     }
 }
@@ -1979,7 +1980,7 @@ void WorkWindow::onPresentationShowNotesToggled() {
 
 void WorkWindow::onTagSelectionChanged() {
     notesController_->flushPendingClipNote();
-    notesController_->loadNoteForSelectedTag();
+    notesController_->loadClipNoteForSelectedTag();
 }
 
 void WorkWindow::showStatsOverlay() {
@@ -2001,7 +2002,7 @@ void WorkWindow::showStatsOverlay() {
     statsOverlayDialog_->show();
 }
 
-void WorkWindow::onTagTableSeekToRow(int row) {
+void WorkWindow::seekVideoToTagsTableRow(int row) {
     if (row < 0 || !videoPlayer_ || !tagsModel_) return;
     videoPlayer_->seekToMs(tagsModel_->markMsAt(row));
 }
@@ -2043,9 +2044,9 @@ void WorkWindow::onDeleteSelectedTag() {
 
 void WorkWindow::onUndoLastTag() {
     if (!tagSession_) return;
-    const int n = tagSession_->tags().size();
-    if (n == 0) return;
-    tagSession_->removeTag(n - 1);
+    const int tagCount = tagSession_->tags().size();
+    if (tagCount == 0) return;
+    tagSession_->removeTag(tagCount - 1);
 }
 
 #include "WorkWindow.moc"

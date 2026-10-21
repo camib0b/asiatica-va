@@ -23,7 +23,7 @@ class VideoPlayer;
 /// Owns the clip-note and match-note editors: wiring, debounce timers, the
 /// unsaved clip draft, and @-mention candidates.
 ///
-/// Callers use flush, discard, load, and stop/resume. The tags-table rebuild
+/// Callers use flush, discard, load, and suspend/resume. The tags-table rebuild
 /// still wraps load in its own signal blockers; those stay on TagsTableController.
 /// aboutToClear and aboutToReplaceTags are direct connections so a session
 /// clear cannot drop or mis-apply the open draft.
@@ -37,7 +37,7 @@ public:
   void setTagSession(TagSession* tagSession);
   void setTagsTable(QTableView* tagsTable, TagsTableModel* tagsModel);
   void setVideoPlayer(VideoPlayer* videoPlayer);
-  void setColumnWidgets(QLabel* matchNotesLabel,
+  void setNotesColumnWidgets(QLabel* matchNotesLabel,
                         MatchNotesEditor* matchNotesEditor,
                         QLabel* clipNotesLabel,
                         QPlainTextEdit* clipNotesEditor);
@@ -45,8 +45,8 @@ public:
   void wireEditorSignals();
 
   /// Direct connections for aboutToClear and aboutToReplaceTags.
-  void connectSessionSignals();
-  void disconnectSessionSignals();
+  void connectTagSessionSignals();
+  void disconnectTagSessionSignals();
 
   void applyUiStrings() const;
 
@@ -56,11 +56,11 @@ public:
   bool isClipNotesEditor(const QWidget* widget) const;
 
   void flushPendingClipNote();
-  void loadNoteForSelectedTag();
+  void loadClipNoteForSelectedTag();
   void loadMatchNote();
   void refreshMatchNoteMentionCandidates();
-  void stopNoteTimers();
-  void resumeNoteTimers();
+  void suspendNoteDebounceTimers();
+  void resumeNoteDebounceTimers();
   void saveMatchNoteDebounceFired();
   /// Drops the draft when it belongs to \p tagId. Any other open clip draft is written first.
   void discardPendingClipNoteForRemovedTag(quint64 tagId);
@@ -69,17 +69,16 @@ protected:
   bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
-  void onNoteTextChanged();
+  void onClipNoteTextChanged();
   void onMatchNoteTextChanged();
   void onMatchNoteTagMentionActivated(quint64 tagId);
-  void saveNoteDebounceFired();
+  void saveClipNoteDebounceFired();
   void discardPendingClipNote();
   void onTagSessionTagNoteChanged(int changedIndex);
   void onTagSessionMatchNoteChanged();
   void showPendingClipNoteInEditor();
   void showDisabledClipNoteEditor();
   void showStoredClipNoteInEditor(quint64 selectedTagId);
-  QString displayTeamForTag(const TagSession::GameTag& tag) const;
 
   TagSession* tagSession_ = nullptr;
   QPointer<QTableView> tagsTable_;
@@ -87,12 +86,12 @@ private:
   QPointer<QLabel> matchNotesLabel_;
   QPointer<MatchNotesEditor> matchNotesEditor_;
   QPointer<QLabel> clipNotesLabel_;
-  QPointer<QPlainTextEdit> notesEdit_;
+  QPointer<QPlainTextEdit> clipNotesEditor_;
   QPointer<VideoPlayer> videoPlayer_;
-  QTimer* noteDebounceTimer_ = nullptr;
+  QTimer* clipNoteDebounceTimer_ = nullptr;
   QTimer* matchNoteDebounceTimer_ = nullptr;
-  bool resumeClipNoteTimer_ = false;
-  bool resumeMatchNoteTimer_ = false;
+  bool clipNoteDebounceShouldResume_ = false;
+  bool matchNoteDebounceShouldResume_ = false;
   std::optional<PendingClipNote> pendingClipNote_;
-  QVector<QMetaObject::Connection> sessionConnections_;
+  QVector<QMetaObject::Connection> tagSessionConnections_;
 };

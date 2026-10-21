@@ -73,7 +73,7 @@ void MainWindow::onVideoImportRequested() {
     if (filePaths.isEmpty()) return;
 
     if (filePaths.size() == 1) {
-        workWindow_->setConcatenatedVideoTempDir(nullptr);
+        workWindow_->setConcatenatedVideoTemporaryDirectory(nullptr);
         workWindow_->setPendingConcatenation(nullptr);
         workWindow_->setExportDefaultDirectoryFromVideoPath(filePaths.first());
         showWorkWindowWithSetup(filePaths.first(), filePaths);
@@ -112,7 +112,7 @@ void MainWindow::onVideoImportRequested() {
 
     const QString concatenatedPath = result.outputPath;
 
-    workWindow_->setConcatenatedVideoTempDir(std::move(tempDir));
+    workWindow_->setConcatenatedVideoTemporaryDirectory(std::move(tempDir));
     workWindow_->setPendingConcatenation(nullptr);
     showWorkWindowWithSetup(concatenatedPath, filePaths);
 }

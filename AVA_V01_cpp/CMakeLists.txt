@@ -27,6 +27,7 @@ qt_add_executable(AVA
   ui/NotesController.cpp
   ui/PresentationPlaybackController.cpp
   ui/TagsTableController.cpp
+  ui/TagRowDisplay.cpp
   components/TeamColorPicker.cpp
   ui/PresentationPanel.cpp
   ui/PresentationInstancesModel.cpp
@@ -180,6 +181,7 @@ qt_add_executable(AVAExportTests
   ui/NotesController.cpp
   ui/PresentationPlaybackController.cpp
   ui/TagsTableController.cpp
+  ui/TagRowDisplay.cpp
   ui/StatsWindow.cpp
   ui/PresentationPanel.cpp
   ui/PresentationInstancesModel.cpp

@@ -67,7 +67,7 @@ void WorkWindowCorrectnessTest::closingVideoReleasesTheFileBeforeTheTempDirector
   QVERIFY(!videoPath.isEmpty());
 
   WorkWindow window;
-  window.setConcatenatedVideoTempDir(std::move(directory));
+  window.setConcatenatedVideoTemporaryDirectory(std::move(directory));
   window.loadVideoFromFile(videoPath);
 
   auto* player = window.findChild<QMediaPlayer*>();
@@ -95,7 +95,7 @@ void WorkWindowCorrectnessTest::replacingTheTempDirectoryReleasesTheOpenFileFirs
   QVERIFY(!videoPath.isEmpty());
 
   WorkWindow window;
-  window.setConcatenatedVideoTempDir(std::move(directory));
+  window.setConcatenatedVideoTemporaryDirectory(std::move(directory));
   window.loadVideoFromFile(videoPath);
 
   auto* player = window.findChild<QMediaPlayer*>();
@@ -111,7 +111,7 @@ void WorkWindowCorrectnessTest::replacingTheTempDirectoryReleasesTheOpenFileFirs
 
   auto replacement = std::make_unique<QTemporaryDir>();
   QVERIFY(replacement->isValid());
-  window.setConcatenatedVideoTempDir(std::move(replacement));
+  window.setConcatenatedVideoTemporaryDirectory(std::move(replacement));
 
   QVERIFY(sourceClearedWhileFileExisted);
   QTRY_VERIFY(!QFileInfo::exists(videoPath));

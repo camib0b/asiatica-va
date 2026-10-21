@@ -31,13 +31,13 @@ void PlaybackTemporaryDirectoryController::setExportJobManager(ExportJobManager*
           [this]() { releaseFinishedTemporaryDirectories(); });
 }
 
-void PlaybackTemporaryDirectoryController::setConcatenatedVideoTempDir(
+void PlaybackTemporaryDirectoryController::setConcatenatedVideoTemporaryDirectory(
     std::unique_ptr<QTemporaryDir> directory) {
   retainOrDeleteTemporaryDirectory(concatenatedVideoTempDir_);
   concatenatedVideoTempDir_ = std::move(directory);
 }
 
-void PlaybackTemporaryDirectoryController::setPlaybackPrepTempDir(
+void PlaybackTemporaryDirectoryController::setPlaybackPrepTemporaryDirectory(
     std::unique_ptr<QTemporaryDir> directory) {
   retainOrDeleteTemporaryDirectory(playbackPrepTempDir_);
   playbackPrepTempDir_ = std::move(directory);
@@ -57,8 +57,8 @@ void PlaybackTemporaryDirectoryController::releaseTransientResources() {
     exportJobManager_->cancelExportingJobs();
   }
   cleanupPendingConcatenation();
-  cleanupConcatenatedVideo();
-  cleanupPlaybackPrepVideo();
+  releaseConcatenatedVideoTemporaryDirectory();
+  releasePlaybackPrepTemporaryDirectory();
   std::vector<std::unique_ptr<QTemporaryDir>> retained = std::move(retainedTemporaryDirectories_);
   for (std::unique_ptr<QTemporaryDir>& directory : retained) {
     queueTemporaryDirectoryForDeletion(std::move(directory), true);
@@ -82,11 +82,11 @@ void PlaybackTemporaryDirectoryController::releaseForShutdown() {
   deleteTemporaryDirectoriesReleasedByPlayer();
 }
 
-void PlaybackTemporaryDirectoryController::cleanupConcatenatedVideo() {
+void PlaybackTemporaryDirectoryController::releaseConcatenatedVideoTemporaryDirectory() {
   retainOrDeleteTemporaryDirectory(concatenatedVideoTempDir_);
 }
 
-void PlaybackTemporaryDirectoryController::cleanupPlaybackPrepVideo() {
+void PlaybackTemporaryDirectoryController::releasePlaybackPrepTemporaryDirectory() {
   retainOrDeleteTemporaryDirectory(playbackPrepTempDir_);
 }
 
