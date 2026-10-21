@@ -15,6 +15,7 @@
 
 #include <memory>
 #include <optional>
+#include <vector>
 
 class QLabel;
 class QAction;
@@ -189,6 +190,12 @@ private:
   void cleanupConcatenatedVideo();
   void cleanupPlaybackPrepVideo();
   void cleanupPendingConcatenation();
+  /// Wait keeps the video open. Cancel stops the export and drops partial files.
+  bool confirmExportAllowsVideoRelease();
+  void retainOrDeleteTemporaryDirectory(std::unique_ptr<QTemporaryDir>& directory);
+  bool exportStillNeedsDirectory(const QString& absoluteDirectoryPath) const;
+  void releaseFinishedTemporaryDirectories();
+  void showAdjustedImportNote(int adjustedCount);
   /// Drops concat/prep temps, resets session UI, and emits videoClosed().
   void abortVideoOpen(const QString& errorMessage);
 
@@ -284,5 +291,7 @@ private:
   QString exportDefaultDirectoryPath_;
   std::unique_ptr<QTemporaryDir> concatenatedVideoTempDir_;
   std::unique_ptr<QTemporaryDir> playbackPrepTempDir_;
+  /// Temps an in-progress export still reads after the video was closed or replaced.
+  std::vector<std::unique_ptr<QTemporaryDir>> retainedTemporaryDirectories_;
   std::unique_ptr<VideoConcatenator> pendingConcatenator_;
 };

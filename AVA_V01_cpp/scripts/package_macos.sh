@@ -99,13 +99,23 @@ FFMPEG_SRC="$(resolve_vendored_helper ffmpeg)" || true
 FFPROBE_SRC="$(resolve_vendored_helper ffprobe)" || true
 if [[ -z "$FFMPEG_SRC" || -z "$FFPROBE_SRC" ]]; then
   echo "Vendored FFmpeg not found for $HOST_ARCH. Running vendor_ffmpeg_macos.sh..."
-  "$ROOT/scripts/vendor_ffmpeg_macos.sh"
-  FFMPEG_SRC="$(resolve_vendored_helper ffmpeg)"
-  FFPROBE_SRC="$(resolve_vendored_helper ffprobe)"
+  if ! "$ROOT/scripts/vendor_ffmpeg_macos.sh"; then
+    echo "FFmpeg download failed, so packaging cannot bundle ffmpeg and ffprobe." >&2
+    echo "Check the error above (network, disk space, or the download itself). Then retry:" >&2
+    echo "  $ROOT/scripts/vendor_ffmpeg_macos.sh" >&2
+    echo "  $ROOT/scripts/package_macos.sh" >&2
+    exit 1
+  fi
+  FFMPEG_SRC="$(resolve_vendored_helper ffmpeg)" || true
+  FFPROBE_SRC="$(resolve_vendored_helper ffprobe)" || true
 fi
 if [[ -z "$FFMPEG_SRC" || -z "$FFPROBE_SRC" ]]; then
-  echo "Missing third_party/ffmpeg/macos/$HOST_ARCH/ffmpeg and ffprobe after vendoring." >&2
-  echo "Run: $ROOT/scripts/vendor_ffmpeg_macos.sh" >&2
+  echo "FFmpeg download finished, but ffmpeg and ffprobe are still missing for $HOST_ARCH." >&2
+  echo "Expected them under third_party/ffmpeg/macos/$HOST_ARCH/ (or universal/)." >&2
+  echo "The app would ship without the tools it needs to export and play some videos." >&2
+  echo "Re-run the vendor script and read its output, then package again:" >&2
+  echo "  $ROOT/scripts/vendor_ffmpeg_macos.sh" >&2
+  echo "  $ROOT/scripts/package_macos.sh" >&2
   exit 1
 fi
 

@@ -51,6 +51,7 @@ qt_add_executable(AVA
   export/ExportClipBuilder.cpp
   export/ExportJobManager.cpp
   export/ExportJobsBar.cpp
+  export/ExportOutputPath.cpp
   export/ExportSettingsDialog.cpp
   export/ConcatFileOrderDialog.cpp
   export/VideoClipSequence.cpp
@@ -154,6 +155,12 @@ qt_add_executable(AVAExportTests
   tests/PresentationPlaybackTests.cpp
   tests/VideoClipSequenceTests.cpp
   tests/WorkStateTests.cpp
+  tests/UiPolicyTests.cpp
+  ui/GameSetupWindow.cpp
+  components/TeamColorPicker.cpp
+  export/GameMetadataSuggester.cpp
+  export/XaiConfig.cpp
+  export/ExportOutputPath.cpp
   state/PresentationPlayback.cpp
   state/TagFilter.cpp
   i18n/AppLocale.cpp
@@ -192,6 +199,7 @@ target_include_directories(AVAExportTests PRIVATE
 
 target_link_libraries(AVAExportTests PRIVATE
   Qt6::Widgets
+  Qt6::Network
   Qt6::Test
 )
 

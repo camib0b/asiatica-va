@@ -1,6 +1,7 @@
 #include "ExportSettingsDialog.h"
 
 #include "ExportClipBuilder.h"
+#include "ExportOutputPath.h"
 #include "FfmpegLocator.h"
 #include "TagSession.h"
 #include "AppLocale.h"
@@ -8,6 +9,7 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDialog>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -23,6 +25,120 @@
 namespace {
 
 constexpr auto kMp4Extension = ".mp4";
+
+enum class ExistingOutputChoice {
+    Rename,
+    Overwrite,
+    Cancel,
+};
+
+QString displayFileNameWithWrapOpportunities(const QString& path) {
+    const QString fileName = QFileInfo(path).fileName();
+    QString wrapped;
+    wrapped.reserve(fileName.size() + fileName.size() / 12);
+    int charactersSinceBreak = 0;
+    int index = 0;
+    while (index < fileName.size()) {
+        int nextIndex = index + 1;
+        if (fileName.at(index).isHighSurrogate()
+            && nextIndex < fileName.size()
+            && fileName.at(nextIndex).isLowSurrogate()) {
+            ++nextIndex;
+        }
+        while (nextIndex < fileName.size() && fileName.at(nextIndex).isMark()) {
+            ++nextIndex;
+        }
+        wrapped.append(fileName.mid(index, nextIndex - index));
+        index = nextIndex;
+        ++charactersSinceBreak;
+        const QChar last = wrapped.isEmpty() ? QChar() : wrapped.at(wrapped.size() - 1);
+        if (last.isSpace()) {
+            charactersSinceBreak = 0;
+            continue;
+        }
+        if (charactersSinceBreak >= 18) {
+            wrapped.append(QChar(0x200B));
+            charactersSinceBreak = 0;
+        }
+    }
+    return wrapped;
+}
+
+ExistingOutputChoice askExistingOutputChoice(QWidget* parent, const QString& outputPath) {
+    QDialog dialog(parent);
+    dialog.setObjectName(QStringLiteral("ExportExistsDialog"));
+    dialog.setWindowTitle(AppLocale::trUi("export.output_exists_title"));
+    dialog.setModal(true);
+
+    auto* layout = new QVBoxLayout(&dialog);
+    layout->setContentsMargins(24, 24, 24, 24);
+    layout->setSpacing(12);
+
+    auto* messageLabel = new QLabel(AppLocale::trUi("export.output_exists"), &dialog);
+    messageLabel->setWordWrap(true);
+    messageLabel->setMaximumWidth(440);
+    layout->addWidget(messageLabel);
+
+    auto* pathLabel = new QLabel(displayFileNameWithWrapOpportunities(outputPath), &dialog);
+    pathLabel->setObjectName(QStringLiteral("ExportExistsPath"));
+    pathLabel->setWordWrap(true);
+    pathLabel->setTextFormat(Qt::PlainText);
+    pathLabel->setMaximumWidth(440);
+    pathLabel->setToolTip(QFileInfo(outputPath).fileName());
+    Style::setRole(pathLabel, "muted");
+    layout->addWidget(pathLabel);
+
+    auto* buttonRow = new QHBoxLayout();
+    buttonRow->setSpacing(8);
+    buttonRow->addStretch(1);
+
+    auto* cancelButton = new QPushButton(AppLocale::trUi("export.output_cancel"), &dialog);
+    auto* overwriteButton = new QPushButton(AppLocale::trUi("export.output_overwrite"), &dialog);
+    auto* renameButton = new QPushButton(AppLocale::trUi("export.output_rename"), &dialog);
+    cancelButton->setObjectName(QStringLiteral("ExportExistsCancel"));
+    overwriteButton->setObjectName(QStringLiteral("ExportExistsOverwrite"));
+    renameButton->setObjectName(QStringLiteral("ExportExistsRename"));
+    cancelButton->setCursor(Qt::PointingHandCursor);
+    overwriteButton->setCursor(Qt::PointingHandCursor);
+    renameButton->setCursor(Qt::PointingHandCursor);
+    cancelButton->setAutoDefault(false);
+    overwriteButton->setAutoDefault(false);
+    renameButton->setDefault(true);
+    renameButton->setAutoDefault(true);
+    Style::setVariant(cancelButton, "outline");
+    Style::setVariant(overwriteButton, "secondary");
+    Style::setVariant(renameButton, "primary");
+
+    buttonRow->addWidget(cancelButton);
+    buttonRow->addWidget(overwriteButton);
+    buttonRow->addWidget(renameButton);
+    layout->addLayout(buttonRow);
+
+    ExistingOutputChoice choice = ExistingOutputChoice::Cancel;
+    QObject::connect(renameButton, &QPushButton::clicked, &dialog, [&dialog, &choice]() {
+        choice = ExistingOutputChoice::Rename;
+        dialog.accept();
+    });
+    QObject::connect(overwriteButton, &QPushButton::clicked, &dialog, [&dialog, &choice]() {
+        choice = ExistingOutputChoice::Overwrite;
+        dialog.accept();
+    });
+    QObject::connect(cancelButton, &QPushButton::clicked, &dialog, [&dialog, &choice]() {
+        choice = ExistingOutputChoice::Cancel;
+        dialog.reject();
+    });
+
+    cancelButton->ensurePolished();
+    overwriteButton->ensurePolished();
+    renameButton->ensurePolished();
+    const int buttonWidth = cancelButton->sizeHint().width()
+        + overwriteButton->sizeHint().width()
+        + renameButton->sizeHint().width()
+        + 64;
+    dialog.setMinimumWidth(qMax(440, buttonWidth));
+    dialog.exec();
+    return choice;
+}
 
 }  // namespace
 
@@ -302,6 +418,52 @@ void ExportSettingsDialog::onExportClicked() {
             QMessageBox::warning(this,
                 AppLocale::trUi("export.title"),
                 AppLocale::trUi("export.job_path_in_use"));
+            return;
+        }
+    }
+
+    if (ExportOutputPath::pathsReferToSameFile(outputPath, sourceVideoPath_)) {
+        QMessageBox sameFileBox(this);
+        sameFileBox.setIcon(QMessageBox::Warning);
+        sameFileBox.setWindowTitle(AppLocale::trUi("export.title"));
+        sameFileBox.setText(AppLocale::trUi("export.output_same_as_source"));
+        const QString sameFileMessage = sameFileBox.text();
+        const auto sameFileLabels = sameFileBox.findChildren<QLabel*>();
+        for (QLabel* label : sameFileLabels) {
+            if (label->text() != sameFileMessage) continue;
+            label->setWordWrap(true);
+            label->setMaximumWidth(440);
+        }
+        sameFileBox.exec();
+        return;
+    }
+
+    const auto outputPathIsTaken = [this](const QString& candidate) {
+        if (ExportOutputPath::pathsReferToSameFile(candidate, sourceVideoPath_)) return true;
+        if (QFileInfo::exists(candidate)) return true;
+        for (const QString& occupied : occupiedOutputPaths_) {
+            if (ExportOutputPath::pathsReferToSameFile(candidate, occupied)) return true;
+        }
+        return false;
+    };
+
+    if (QFileInfo::exists(outputPath)) {
+        const ExistingOutputChoice choice = askExistingOutputChoice(this, outputPath);
+        if (choice == ExistingOutputChoice::Cancel) return;
+        if (choice == ExistingOutputChoice::Rename) {
+            const QString renamedPath = ExportOutputPath::nonCollidingFilePath(outputPath, outputPathIsTaken);
+            if (renamedPath.isEmpty()) {
+                QMessageBox::warning(this,
+                    AppLocale::trUi("export.output_exists_title"),
+                    AppLocale::trUi("export.output_rename_failed"));
+                return;
+            }
+            if (outputPathEdit_) {
+                QSignalBlocker blocker(outputPathEdit_);
+                outputPathEdit_->setText(renamedPath);
+            }
+            lastAutoOutputPathSuggestion_.clear();
+            outputPathFollowsSuggestion_ = false;
             return;
         }
     }

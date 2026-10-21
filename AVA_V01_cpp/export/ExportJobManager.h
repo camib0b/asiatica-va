@@ -43,6 +43,9 @@ struct ExportJobRequest {
     bool includeAudioTrack = true;
     bool includeBrandingOverlay = true;
     TagSessionExportData session;
+    /// Concat or playback-transcode directories this job reads. They must
+    /// outlive the job.
+    QStringList retainedInputDirectories;
 };
 
 struct ExportJobSnapshot {
@@ -77,6 +80,13 @@ public:
 
     QVector<ExportJobSnapshot> snapshots() const;
     bool hasJobs() const;
+    bool hasExportingJob() const;
+    /// Source videos still being read by a running export.
+    QStringList exportingSourcePaths() const;
+    /// Temp directories a running export listed as inputs.
+    QStringList exportingInputDirectories() const;
+    /// Cancels every running export. Partial destination files are not committed.
+    void cancelExportingJobs();
     /// Absolute output paths (and companion XML paths) currently being written by a running job.
     QStringList activeOutputPaths() const;
 
@@ -97,6 +107,8 @@ private:
         ExportOutputFormat format = ExportOutputFormat::Mp4;
         QString outputPath;
         QString xmlPath;
+        QString sourceVideoPath;
+        QStringList retainedInputDirectories;
         QString displayName;
         QString statusText;
         QString errorMessage;

@@ -131,6 +131,41 @@ bool ExportJobManager::hasJobs() const {
     return !jobs_.empty();
 }
 
+bool ExportJobManager::hasExportingJob() const {
+    for (const std::unique_ptr<Job>& job : jobs_) {
+        if (job && job->state == JobState::Exporting) return true;
+    }
+    return false;
+}
+
+QStringList ExportJobManager::exportingSourcePaths() const {
+    QStringList paths;
+    for (const std::unique_ptr<Job>& job : jobs_) {
+        if (!job || job->state != JobState::Exporting) continue;
+        if (!job->sourceVideoPath.isEmpty()) paths.append(job->sourceVideoPath);
+    }
+    return paths;
+}
+
+QStringList ExportJobManager::exportingInputDirectories() const {
+    QStringList directories;
+    for (const std::unique_ptr<Job>& job : jobs_) {
+        if (!job || job->state != JobState::Exporting) continue;
+        directories.append(job->retainedInputDirectories);
+    }
+    return directories;
+}
+
+void ExportJobManager::cancelExportingJobs() {
+    QVector<int> jobIds;
+    for (const std::unique_ptr<Job>& job : jobs_) {
+        if (job && job->state == JobState::Exporting) jobIds.append(job->id);
+    }
+    for (const int jobId : jobIds) {
+        cancelJob(jobId);
+    }
+}
+
 ExportJobSnapshot ExportJobManager::snapshotFor(const Job& job) const {
     ExportJobSnapshot snapshot;
     snapshot.id = job.id;
@@ -245,6 +280,8 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
     job->format = request.format;
     job->outputPath = mp4Path.isEmpty() ? xmlPath : mp4Path;
     job->xmlPath = xmlPath;
+    job->sourceVideoPath = request.sourceVideoPath;
+    job->retainedInputDirectories = request.retainedInputDirectories;
     job->displayName = QFileInfo(job->outputPath).fileName();
     job->totalClips = request.clips.size();
 
