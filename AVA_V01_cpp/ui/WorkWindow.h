@@ -152,8 +152,8 @@ private:
   void stepPresentationQueue(bool forward);
   void commitPresentationPlayback(const PresentationPlayback::Result& result);
   void resetPresentationForVideoChange();
-  void updatePresentationStage() const;
-  void configurePresentationClipBarForCurrentClip() const;
+  void updatePresentationStage();
+  void configurePresentationClipBarForCurrentClip();
   void savePresentationClipIntervalFromClipBar();
   void updatePresentationPlayhead(qint64 positionMs);
   void attachPresentationKeyboardShortcuts();
@@ -169,9 +169,9 @@ private:
   void stopNoteTimers();
   void resumeNoteTimers();
   quint64 selectedTagId() const;
-  void loadNoteForSelectedTag() const;
-  void loadMatchNote() const;
-  void refreshMatchNoteMentionCandidates() const;
+  void loadNoteForSelectedTag();
+  void loadMatchNote();
+  void refreshMatchNoteMentionCandidates();
   void flashNewTagRow(quint64 tagId);
   void fadeNewTagFlash();
   void syncModeToggleChecks();
@@ -198,6 +198,13 @@ private:
   /// Wait keeps the video open. Cancel stops the export and drops partial files.
   bool confirmExportAllowsVideoRelease();
   void retainOrDeleteTemporaryDirectory(std::unique_ptr<QTemporaryDir>& directory);
+  /// Deletes \p directory once the player is no longer reading a file inside it.
+  /// When \p releaseHoldingPlayer is true, the player drops that file first.
+  void queueTemporaryDirectoryForDeletion(std::unique_ptr<QTemporaryDir> directory,
+                                         bool releaseHoldingPlayer);
+  void deleteTemporaryDirectoriesReleasedByPlayer();
+  void scheduleTemporaryDirectoryDeletion();
+  bool playerMediaSourceIsInsideDirectory(const QString& directoryPath) const;
   bool exportStillNeedsDirectory(const QString& absoluteDirectoryPath) const;
   void releaseFinishedTemporaryDirectories();
   void showAdjustedImportNote(int adjustedCount);
@@ -206,10 +213,10 @@ private:
 
   /// Whether Space and playback-speed keys should control the main video player (same rules for all).
   bool shouldDeliverPlaybackKeyboardToVideoPlayer(const QWidget* focusWidget) const;
-  void onApplicationFocusWidgetChanged(QWidget* oldFocus, QWidget* newFocus) const;
-  void refreshPlaybackShortcutFocusGate() const;
+  void onApplicationFocusWidgetChanged(QWidget* oldFocus, QWidget* newFocus);
+  void refreshPlaybackShortcutFocusGate();
   void updateVideoMuteButton(bool muted) const;
-  void setVideoMuteButtonEnabled(bool enabled) const;
+  void setVideoMuteButtonEnabled(bool enabled);
   void flashVideoMuteButton();
 
   // Mode and layout
@@ -243,6 +250,10 @@ private:
   ExportJobsBar* exportJobsBar_ = nullptr;
   bool presentationKeyboardShortcutsInstalled_ = false;
   bool updatingPresentationClipBar_ = false;
+  bool rebuildingTagsTable_ = false;
+  bool tagsTableRebuildRequested_ = false;
+  bool filterMenuStructureSyncDeferred_ = false;
+  bool filterMenuForceStructureSync_ = false;
   PresentationPlayback::State presentationPlayback_{};
 
   // close or swap video files:
@@ -299,5 +310,8 @@ private:
   std::unique_ptr<QTemporaryDir> playbackPrepTempDir_;
   /// Temps an in-progress export still reads after the video was closed or replaced.
   std::vector<std::unique_ptr<QTemporaryDir>> retainedTemporaryDirectories_;
+  /// Temps waiting until the player has dropped the file they contain.
+  std::vector<std::unique_ptr<QTemporaryDir>> temporaryDirectoriesPendingDeletion_;
+  bool temporaryDirectoryDeletionScheduled_ = false;
   std::unique_ptr<VideoConcatenator> pendingConcatenator_;
 };

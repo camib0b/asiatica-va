@@ -3,6 +3,7 @@
 #include "../ui/QtPtr.h"
 
 #include <QMediaPlayer>
+#include <QString>
 #include <QWidget>
 
 #include <memory>
@@ -27,6 +28,10 @@ public:
   ~VideoPlayer() override;
 
   void loadVideoFromFile(const QString& filePath);
+  /// Stop playback and drop the open file so its directory can be deleted.
+  void releaseLoadedMedia();
+  /// Local path currently assigned to the player. Empty when nothing is loaded.
+  QString activeMediaFilePath() const;
   QVideoWidget* videoWidget() const { return videoWidget_; }
   VideoControlsBar* controlsBar() const { return videoControlsBar_; }
   TimelineBar* timelineBar() const { return videoTimelineBar_; }
@@ -64,6 +69,8 @@ signals:
   void durationChangedMs(qint64 durationMs);
   void muteStateChanged(bool muted);
   void muteToolbarFlashRequested();
+  /// Backend reached a settled status after a load, a clear, or a failure.
+  void playbackMediaSettled();
 
 private slots:
   void onPlayClicked();

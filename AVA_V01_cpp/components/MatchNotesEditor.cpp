@@ -9,6 +9,7 @@
 #include <QListWidget>
 #include <QMouseEvent>
 #include <QScrollBar>
+#include <QSignalBlocker>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -86,13 +87,14 @@ void MatchNotesEditor::setMentionCandidates(const QVector<MentionCandidate>& can
 
 void MatchNotesEditor::setSerializedHtml(const QString& html) {
   const int previousScroll = verticalScrollBar() ? verticalScrollBar()->value() : 0;
-  blockSignals(true);
-  if (html.trimmed().isEmpty()) {
-    clear();
-  } else {
-    setHtml(html);
+  {
+    const QSignalBlocker signalBlocker(this);
+    if (html.trimmed().isEmpty()) {
+      clear();
+    } else {
+      setHtml(html);
+    }
   }
-  blockSignals(false);
   if (verticalScrollBar()) verticalScrollBar()->setValue(previousScroll);
 }
 

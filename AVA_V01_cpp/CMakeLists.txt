@@ -164,6 +164,7 @@ qt_add_executable(AVAExportTests
   tests/PresentationFilterTests.cpp
   tests/XmlEventMappingDialogTests.cpp
   tests/UiPolicyTests.cpp
+  tests/WorkWindowCorrectnessTests.cpp
   ui/XmlEventMappingDialog.cpp
   ui/GameSetupWindow.cpp
   ui/WorkWindow.cpp
