@@ -1,4 +1,5 @@
 #include "WorkWindow.h"
+#include "PlaybackTemporaryDirectoryController.h"
 #include "TagsTableModel.h"
 #include "ClipDurationSettingsDialog.h"
 #include "PresentationPanel.h"
@@ -21,7 +22,6 @@
 #include "../export/ExportSettingsDialog.h"
 #include "../export/ExportClipBuilder.h"
 #include "../export/ExportJobManager.h"
-#include "../export/ExportOutputPath.h"
 #include "../export/ExportJobsBar.h"
 #include "../export/VideoConcatenator.h"
 #include "../export/PlaybackVideoPreparer.h"
@@ -349,7 +349,9 @@ private:
     bool pillPlaced_ = false;
 };
 
-WorkWindow::WorkWindow(QWidget* parent) : QWidget(parent) {
+WorkWindow::WorkWindow(QWidget* parent)
+    : QWidget(parent),
+      temporaryDirectoryController_(std::make_unique<PlaybackTemporaryDirectoryController>()) {
     setAttribute(Qt::WA_StyledBackground, true);
     buildUi();
     wireSignals();
@@ -364,20 +366,7 @@ WorkWindow::~WorkWindow() {
     if (exportJobManager_) {
         exportJobManager_->cancelExportingJobs();
     }
-    if (videoPlayer_) {
-        disconnect(videoPlayer_, &VideoPlayer::playbackMediaSettled, this,
-                   &WorkWindow::deleteTemporaryDirectoriesReleasedByPlayer);
-        videoPlayer_->releaseLoadedMedia();
-    }
-    // The window is going away, so do not arm a retry timer on this object.
-    temporaryDirectoryDeletionScheduled_ = true;
-    queueTemporaryDirectoryForDeletion(std::move(concatenatedVideoTempDir_), true);
-    queueTemporaryDirectoryForDeletion(std::move(playbackPrepTempDir_), true);
-    std::vector<std::unique_ptr<QTemporaryDir>> retained = std::move(retainedTemporaryDirectories_);
-    for (std::unique_ptr<QTemporaryDir>& directory : retained) {
-        queueTemporaryDirectoryForDeletion(std::move(directory), true);
-    }
-    deleteTemporaryDirectoriesReleasedByPlayer();
+    temporaryDirectoryController_->releaseForShutdown();
     tagSession_ = nullptr;
 }
 
@@ -460,8 +449,7 @@ void WorkWindow::flashVideoMuteButton() {
 }
 
 void WorkWindow::setConcatenatedVideoTempDir(std::unique_ptr<QTemporaryDir> dir) {
-    retainOrDeleteTemporaryDirectory(concatenatedVideoTempDir_);
-    concatenatedVideoTempDir_ = std::move(dir);
+    temporaryDirectoryController_->setConcatenatedVideoTempDir(std::move(dir));
 }
 
 void WorkWindow::setExportDefaultDirectoryFromVideoPath(const QString& videoPath) {
@@ -473,28 +461,11 @@ void WorkWindow::setExportDefaultDirectoryFromVideoPath(const QString& videoPath
 }
 
 void WorkWindow::setPendingConcatenation(std::unique_ptr<VideoConcatenator> concatenator) {
-    pendingConcatenator_ = std::move(concatenator);
+    temporaryDirectoryController_->setPendingConcatenation(std::move(concatenator));
 }
 
 void WorkWindow::releaseTransientResources() {
-    if (exportJobManager_) {
-        exportJobManager_->cancelExportingJobs();
-    }
-    cleanupPendingConcatenation();
-    cleanupConcatenatedVideo();
-    cleanupPlaybackPrepVideo();
-    std::vector<std::unique_ptr<QTemporaryDir>> retained = std::move(retainedTemporaryDirectories_);
-    for (std::unique_ptr<QTemporaryDir>& directory : retained) {
-        queueTemporaryDirectoryForDeletion(std::move(directory), true);
-    }
-}
-
-void WorkWindow::cleanupConcatenatedVideo() {
-    retainOrDeleteTemporaryDirectory(concatenatedVideoTempDir_);
-}
-
-void WorkWindow::cleanupPlaybackPrepVideo() {
-    retainOrDeleteTemporaryDirectory(playbackPrepTempDir_);
+    temporaryDirectoryController_->releaseTransientResources();
 }
 
 bool WorkWindow::confirmExportAllowsVideoRelease() {
@@ -520,90 +491,6 @@ bool WorkWindow::confirmExportAllowsVideoRelease() {
     if (box.clickedButton() != cancelExportButton) return false;
     exportJobManager_->cancelExportingJobs();
     return true;
-}
-
-void WorkWindow::retainOrDeleteTemporaryDirectory(std::unique_ptr<QTemporaryDir>& directory) {
-    if (!directory) return;
-    const QString absolutePath = QDir(directory->path()).absolutePath();
-    if (exportStillNeedsDirectory(absolutePath)) {
-        retainedTemporaryDirectories_.push_back(std::move(directory));
-        return;
-    }
-    queueTemporaryDirectoryForDeletion(std::move(directory), true);
-}
-
-void WorkWindow::queueTemporaryDirectoryForDeletion(std::unique_ptr<QTemporaryDir> directory,
-                                                   bool releaseHoldingPlayer) {
-    if (!directory) return;
-
-    const QString absolutePath = QDir(directory->path()).absolutePath();
-    if (releaseHoldingPlayer && playerMediaSourceIsInsideDirectory(absolutePath) && videoPlayer_) {
-        videoPlayer_->releaseLoadedMedia();
-    }
-
-    temporaryDirectoriesPendingDeletion_.push_back(std::move(directory));
-    deleteTemporaryDirectoriesReleasedByPlayer();
-    scheduleTemporaryDirectoryDeletion();
-}
-
-void WorkWindow::deleteTemporaryDirectoriesReleasedByPlayer() {
-    std::vector<std::unique_ptr<QTemporaryDir>> stillPending;
-    stillPending.reserve(temporaryDirectoriesPendingDeletion_.size());
-    for (std::unique_ptr<QTemporaryDir>& directory : temporaryDirectoriesPendingDeletion_) {
-        if (!directory) continue;
-        const QString absolutePath = QDir(directory->path()).absolutePath();
-        if (playerMediaSourceIsInsideDirectory(absolutePath)) {
-            stillPending.push_back(std::move(directory));
-            continue;
-        }
-        if (!directory->remove()) {
-            stillPending.push_back(std::move(directory));
-            continue;
-        }
-        directory->setAutoRemove(false);
-    }
-    temporaryDirectoriesPendingDeletion_ = std::move(stillPending);
-}
-
-void WorkWindow::scheduleTemporaryDirectoryDeletion() {
-    if (temporaryDirectoryDeletionScheduled_ || temporaryDirectoriesPendingDeletion_.empty()) return;
-    temporaryDirectoryDeletionScheduled_ = true;
-    QTimer::singleShot(0, this, [this]() {
-        temporaryDirectoryDeletionScheduled_ = false;
-        deleteTemporaryDirectoriesReleasedByPlayer();
-    });
-}
-
-bool WorkWindow::playerMediaSourceIsInsideDirectory(const QString& directoryPath) const {
-    if (!videoPlayer_) return false;
-    return ExportOutputPath::pathIsInsideDirectory(videoPlayer_->activeMediaFilePath(), directoryPath);
-}
-
-bool WorkWindow::exportStillNeedsDirectory(const QString& absoluteDirectoryPath) const {
-    if (!exportJobManager_) return false;
-    return ExportOutputPath::directoryIsNeededByExport(
-        absoluteDirectoryPath,
-        exportJobManager_->exportingInputDirectories(),
-        exportJobManager_->exportingSourcePaths());
-}
-
-void WorkWindow::releaseFinishedTemporaryDirectories() {
-    std::vector<std::unique_ptr<QTemporaryDir>> stillNeeded;
-    std::vector<std::unique_ptr<QTemporaryDir>> finished;
-    stillNeeded.reserve(retainedTemporaryDirectories_.size());
-    for (std::unique_ptr<QTemporaryDir>& directory : retainedTemporaryDirectories_) {
-        if (!directory) continue;
-        const QString absolutePath = QDir(directory->path()).absolutePath();
-        if (exportStillNeedsDirectory(absolutePath)) {
-            stillNeeded.push_back(std::move(directory));
-        } else {
-            finished.push_back(std::move(directory));
-        }
-    }
-    retainedTemporaryDirectories_ = std::move(stillNeeded);
-    for (std::unique_ptr<QTemporaryDir>& directory : finished) {
-        queueTemporaryDirectoryForDeletion(std::move(directory), false);
-    }
 }
 
 void WorkWindow::showAdjustedImportNote(int adjustedCount) {
@@ -639,10 +526,6 @@ void WorkWindow::showAdjustedImportNote(int adjustedCount) {
         });
     }
     timer->start(8000);
-}
-
-void WorkWindow::cleanupPendingConcatenation() {
-    pendingConcatenator_.reset();
 }
 
 void WorkWindow::abortVideoOpen(const QString& errorMessage) {
@@ -1157,8 +1040,7 @@ void WorkWindow::buildVideoSettingsMenu(QHBoxLayout* videoControlsLayout) {
 
 void WorkWindow::buildExportJobsBar(QVBoxLayout* rootLayout) {
     exportJobManager_ = new ExportJobManager(this);
-    connect(exportJobManager_, &ExportJobManager::jobsChanged, this,
-            [this]() { releaseFinishedTemporaryDirectories(); });
+    temporaryDirectoryController_->setExportJobManager(exportJobManager_);
     exportJobsBar_ = new ExportJobsBar(exportJobManager_, this);
     rootLayout->addWidget(exportJobsBar_, 0);
 }
@@ -1640,8 +1522,7 @@ void WorkWindow::wireLocaleAndNoteTimers() {
 void WorkWindow::wirePlaybackAndTemporaryDirectorySignals() {
     connect(videoPlayer_, &VideoPlayer::positionChangedMs, this, &WorkWindow::onVideoPositionChanged);
     connect(videoPlayer_, &VideoPlayer::durationChangedMs, this, &WorkWindow::onVideoDurationChanged);
-    connect(videoPlayer_, &VideoPlayer::playbackMediaSettled, this,
-            &WorkWindow::deleteTemporaryDirectoriesReleasedByPlayer);
+    temporaryDirectoryController_->setVideoPlayer(videoPlayer_);
 }
 
 void WorkWindow::onVideoPositionChanged(qint64 positionMs) {
@@ -1694,15 +1575,15 @@ void WorkWindow::onGameSetupConfirmed(const QString& filePath,
                                        const QDate& gameDate,
                                        const QString& homeAbbrev,
                                        const QString& awayAbbrev) {
-    if (pendingConcatenator_) {
+    if (VideoConcatenator* pendingConcatenator = temporaryDirectoryController_->pendingConcatenator()) {
         stopNoteTimers();
-        const bool concatOk = pendingConcatenator_->waitWithProgress(this);
-        const QString errorMessage = pendingConcatenator_->errorMessage();
+        const bool concatOk = pendingConcatenator->waitWithProgress(this);
+        const QString errorMessage = pendingConcatenator->errorMessage();
         if (!concatOk) {
             abortVideoOpen(errorMessage);
             return;
         }
-        cleanupPendingConcatenation();
+        temporaryDirectoryController_->cleanupPendingConcatenation();
     }
 
     if (tagSession_) {
@@ -1753,7 +1634,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
 std::optional<QString> WorkWindow::preparePlaybackPath(const QString& filePath) {
     stopNoteTimers();
     QString playbackPath = filePath;
-    cleanupPlaybackPrepVideo();
+    temporaryDirectoryController_->cleanupPlaybackPrepVideo();
 
     if (!PlaybackVideoPreparer::requiresTranscodeForPlayback(filePath)) {
         return playbackPath;
@@ -1777,7 +1658,7 @@ std::optional<QString> WorkWindow::preparePlaybackPath(const QString& filePath) 
         return std::nullopt;
     }
 
-    playbackPrepTempDir_ = std::move(tempDir);
+    temporaryDirectoryController_->setPlaybackPrepTempDir(std::move(tempDir));
     return preparedPath;
 }
 
@@ -1958,7 +1839,7 @@ void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
     const QString outputPath = result.outputPath;
 
     releaseTransientResources();
-    concatenatedVideoTempDir_ = std::move(tempDir);
+    setConcatenatedVideoTempDir(std::move(tempDir));
     loadVideoFromFile(outputPath);
 }
 
@@ -2025,14 +1906,7 @@ QVector<PresentationQueue::Clip> WorkWindow::copyPresentationQueueClips() const 
 }
 
 void WorkWindow::appendRetainedPlaybackDirectories(ExportJobRequest& request) const {
-    if (concatenatedVideoTempDir_) {
-        request.retainedInputDirectories.append(
-            QDir(concatenatedVideoTempDir_->path()).absolutePath());
-    }
-    if (playbackPrepTempDir_) {
-        request.retainedInputDirectories.append(
-            QDir(playbackPrepTempDir_->path()).absolutePath());
-    }
+    temporaryDirectoryController_->appendRetainedPlaybackDirectories(request);
 }
 
 ExportJobRequest WorkWindow::buildPresentationExportRequest(
