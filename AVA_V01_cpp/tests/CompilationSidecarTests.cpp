@@ -915,6 +915,7 @@ void CompilationSidecarExportTest::cancelBeforeOutputReplaceDoesNotWriteSidecar(
 int runPresentationPlaybackTests(int argc, char** argv);
 int runWorkStateTests(int argc, char** argv);
 int runInteractionGuardTests(int argc, char** argv);
+int runVideoClipSequenceTests(int argc, char** argv);
 
 int main(int argc, char** argv) {
     QApplication application(argc, argv);
@@ -929,6 +930,10 @@ int main(int argc, char** argv) {
     const int interactionStatus = runInteractionGuardTests(argc, argv);
     if (interactionStatus != 0) {
         return interactionStatus;
+    }
+    const int clipStatus = runVideoClipSequenceTests(argc, argv);
+    if (clipStatus != 0) {
+        return clipStatus;
     }
     int status = 0;
     {

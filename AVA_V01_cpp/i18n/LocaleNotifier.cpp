@@ -5,9 +5,10 @@
 LocaleNotifier::LocaleNotifier(QObject* parent) : QObject(parent) {}
 
 LocaleNotifier& LocaleNotifier::instance() {
-  // QCoreApplication is the only owner. A function-local unique_ptr would
-  // delete this object again after ~QCoreApplication has already destroyed
-  // its children.
+  // QCoreApplication (the QApplication) is the only owner. A second static
+  // owner would delete this object again after that parent had already
+  // destroyed its children on shutdown. qApp in this file is
+  // QCoreApplication::instance().
   static LocaleNotifier* const notifier = new LocaleNotifier(QCoreApplication::instance());
   return *notifier;
 }

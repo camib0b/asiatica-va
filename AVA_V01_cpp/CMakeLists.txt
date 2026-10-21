@@ -53,6 +53,7 @@ qt_add_executable(AVA
   export/ExportJobsBar.cpp
   export/ExportSettingsDialog.cpp
   export/ConcatFileOrderDialog.cpp
+  export/VideoClipSequence.cpp
   export/VideoConcatenator.cpp
   export/PlaybackVideoPreparer.cpp
   export/XmlExporter.cpp
@@ -151,6 +152,7 @@ qt_add_executable(AVAExportTests
   tests/CompilationSidecarTests.cpp
   tests/InteractionGuardTests.cpp
   tests/PresentationPlaybackTests.cpp
+  tests/VideoClipSequenceTests.cpp
   tests/WorkStateTests.cpp
   state/PresentationPlayback.cpp
   state/TagFilter.cpp
@@ -165,10 +167,12 @@ qt_add_executable(AVAExportTests
   ui/ReplaceVideoConfirmation.cpp
   export/ClipExporter.cpp
   export/CompilationSidecar.cpp
+  export/ConcatFileOrderDialog.cpp
   export/ExportClipBuilder.cpp
   export/ExportJobManager.cpp
   export/FfmpegLocator.cpp
   export/SessionNotesWriter.cpp
+  export/VideoClipSequence.cpp
   export/XmlExporter.cpp
 )
 
@@ -193,6 +197,7 @@ target_link_libraries(AVAExportTests PRIVATE
 
 target_compile_definitions(AVAExportTests PRIVATE
   AVA_VERSION_STRING="${AVA_VERSION_STRING}"
+  AVA_THEME_QSS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/style/theme_light.qss"
 )
 
 add_test(NAME AVAExportTests COMMAND AVAExportTests)
