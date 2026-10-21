@@ -20,10 +20,13 @@
 #include <QMouseEvent>
 #include <QPointer>
 #include <QPushButton>
+#include <QResizeEvent>
 #include <QScrollBar>
 #include <QSignalBlocker>
 #include <QStyle>
+#include <QStyleOptionComboBox>
 #include <QStyleOptionSpinBox>
+#include <QStylePainter>
 #include <QTableView>
 #include <QTimer>
 #include <QToolButton>
@@ -68,6 +71,82 @@ void releaseSpinBoxFocusSoon(QDoubleSpinBox* spinBox) {
     spinBoxGuard->clearFocus();
   });
 }
+
+/// Closed filter box hugs the selected value. The popup still lists the full strings.
+class PresentationFilterCombo final : public QComboBox {
+ public:
+  static constexpr int kMinimumWidthPx = 88;
+  static constexpr int kMaximumWidthPx = 220;
+  static constexpr int kArrowLanePx = 16;
+  static constexpr int kTextInsetPx = 8;
+
+  explicit PresentationFilterCombo(QWidget* parent) : QComboBox(parent) {
+    setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    setMinimumContentsLength(0);
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    setMinimumWidth(kMinimumWidthPx);
+    setMaximumWidth(kMaximumWidthPx);
+    if (view()) view()->setTextElideMode(Qt::ElideNone);
+    connect(this, &QComboBox::currentTextChanged, this, [this](const QString&) {
+      updateGeometry();
+      syncTooltip();
+      update();
+    });
+  }
+
+  QSize sizeHint() const override {
+    const int width = qBound(kMinimumWidthPx, fontMetrics().horizontalAdvance(currentText()) + chromePx(),
+                             kMaximumWidthPx);
+    return QSize(width, qMax(32, fontMetrics().height() + 12));
+  }
+
+  QSize minimumSizeHint() const override { return QSize(kMinimumWidthPx, sizeHint().height()); }
+
+  void showPopup() override {
+    int widest = width();
+    for (int index = 0; index < count(); ++index) {
+      widest = qMax(widest, fontMetrics().horizontalAdvance(itemText(index)) + chromePx());
+    }
+    if (QAbstractItemView* popup = view()) popup->setMinimumWidth(widest);
+    QComboBox::showPopup();
+  }
+
+ protected:
+  void resizeEvent(QResizeEvent* event) override {
+    QComboBox::resizeEvent(event);
+    syncTooltip();
+  }
+
+  void paintEvent(QPaintEvent* event) override {
+    Q_UNUSED(event);
+    QStylePainter painter(this);
+    QStyleOptionComboBox option;
+    initStyleOption(&option);
+    painter.drawComplexControl(QStyle::CC_ComboBox, option);
+    const QRect editRect = style()->subControlRect(QStyle::CC_ComboBox, &option,
+                                                   QStyle::SC_ComboBoxEditField, this);
+    option.currentText =
+        fontMetrics().elidedText(currentText(), Qt::ElideRight, qMax(1, editRect.width()));
+    painter.drawControl(QStyle::CE_ComboBoxLabel, option);
+  }
+
+ private:
+  static int chromePx() { return kTextInsetPx + kArrowLanePx + 6; }
+
+  int editFieldWidth() const {
+    QStyleOptionComboBox option;
+    initStyleOption(&option);
+    return style()->subControlRect(QStyle::CC_ComboBox, &option, QStyle::SC_ComboBoxEditField, this)
+        .width();
+  }
+
+  void syncTooltip() {
+    const QString fullText = currentText();
+    const bool clipped = fontMetrics().horizontalAdvance(fullText) > editFieldWidth();
+    const QString tip = clipped ? fullText : QString();
+    if (toolTip() != tip) setToolTip(tip);
+  }
+};
 
 QDoubleSpinBox* makeLeadLagSpinBox(QWidget* parent) {
   auto* spinBox = new QDoubleSpinBox(parent);
@@ -117,22 +196,23 @@ void PresentationPanel::buildUi() {
 
   eventFilterLabel_ = new QLabel(this);
   Style::setRole(eventFilterLabel_, "muted");
-  eventFilterCombo_ = new QComboBox(this);
-  eventFilterCombo_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  eventFilterCombo_ = new PresentationFilterCombo(this);
+  eventFilterCombo_->setObjectName(QStringLiteral("PresentationEventFilter"));
   connect(eventFilterCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
           &PresentationPanel::onFilterChanged);
 
   teamFilterLabel_ = new QLabel(this);
   Style::setRole(teamFilterLabel_, "muted");
-  teamFilterCombo_ = new QComboBox(this);
-  teamFilterCombo_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  teamFilterCombo_ = new PresentationFilterCombo(this);
+  teamFilterCombo_->setObjectName(QStringLiteral("PresentationTeamFilter"));
   connect(teamFilterCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
           &PresentationPanel::onFilterChanged);
 
   filterRow->addWidget(eventFilterLabel_);
-  filterRow->addWidget(eventFilterCombo_, 1);
+  filterRow->addWidget(eventFilterCombo_, 0);
   filterRow->addWidget(teamFilterLabel_);
-  filterRow->addWidget(teamFilterCombo_, 1);
+  filterRow->addWidget(teamFilterCombo_, 0);
+  filterRow->addStretch(1);
   rootLayout->addLayout(filterRow);
 
   auto* selectionRow = new QHBoxLayout();

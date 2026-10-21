@@ -161,6 +161,7 @@ qt_add_executable(AVAExportTests
   tests/WorkStateTests.cpp
   tests/TaggingToastTests.cpp
   tests/ModeChromeTests.cpp
+  tests/PresentationFilterTests.cpp
   tests/XmlEventMappingDialogTests.cpp
   tests/UiPolicyTests.cpp
   ui/XmlEventMappingDialog.cpp

@@ -617,6 +617,23 @@ QComboBox::down-arrow {
   height: 10px;
 }
 
+/* Presentation filters. The shared combo rule reserves a wide arrow lane on
+   top of the padding, so a short value such as "Ambos" was clipped while the
+   box still showed empty white space. These two boxes keep a 16px arrow. */
+QComboBox#PresentationEventFilter,
+QComboBox#PresentationTeamFilter {
+  padding: 4px 2px 4px 8px;
+  min-width: 0px;
+}
+QComboBox#PresentationEventFilter::drop-down,
+QComboBox#PresentationTeamFilter::drop-down {
+  width: 16px;
+  padding: 0px;
+  border: none;
+  subcontrol-origin: border;
+  subcontrol-position: center right;
+}
+
 QComboBox QAbstractItemView {
   background: #FFFFFF;
   border: 1px solid #e4e4e7;
