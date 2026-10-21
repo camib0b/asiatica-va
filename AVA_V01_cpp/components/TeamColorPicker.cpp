@@ -109,9 +109,9 @@ QString colorToHex(const QColor& color) {
   return color.name(QColor::HexRgb).toUpper();
 }
 
-// Exactly 6 hex digits, optional leading '#', stored as #RRGGBB. Regex rejects
-// shorthand (#rgb), names, and #rgba before QColor runs; partial typing still
-// no-ops because the pattern requires all six digits.
+// Exactly 6 hex digits, optional leading '#', stored as #RRGGBB. Shorthand
+// (#rgb), names, and #rgba stay invalid. The field is normalized only when
+// editing finishes; this helper does not rewrite in-progress text.
 QString normalizeHex(const QString& text) {
   const QString trimmed = text.trimmed();
   static const QRegularExpression hexPattern(QStringLiteral("^#?[0-9a-fA-F]{6}$"));
@@ -125,6 +125,11 @@ QString normalizeHex(const QString& text) {
     return {};
   }
   return colorToHex(color);
+}
+
+bool isIncompleteHexTyping(const QString& text) {
+  static const QRegularExpression pattern(QStringLiteral("^#?[0-9a-fA-F]{0,5}$"));
+  return pattern.match(text.trimmed()).hasMatch();
 }
 
 class ColorCircleButton final : public QAbstractButton {
@@ -243,9 +248,12 @@ TeamColorPicker::TeamColorPicker(QWidget* parent)
       colorDialogTitle_(),
       fallbackPreviewColor_(Qt::gray),
       syncingHexEdit_(false),
+      previewHex_(),
       wellButton_(nullptr),
       popup_(nullptr),
       hexEdit_(nullptr),
+      hexHintLabel_(nullptr),
+      hexPreviewButton_(nullptr),
       moreColorsButton_(nullptr),
       swatchButtons_() {
   setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -274,6 +282,9 @@ void TeamColorPicker::applyUiStrings() const {
   }
   if (moreColorsButton_) {
     moreColorsButton_->setText(AppLocale::trUi("setup.color_more"));
+  }
+  if (hexHintLabel_ && !hexHintLabel_->isHidden()) {
+    hexHintLabel_->setText(AppLocale::trUi("setup.color_hex_hint"));
   }
   if (popup_) {
     if (auto* codeLabel = popup_->findChild<QLabel*>(QStringLiteral("TeamColorCodeLabel"))) {
@@ -347,10 +358,27 @@ void TeamColorPicker::buildUi() {
   Style::setRole(codeLabel, "faint");
   hexEdit_ = new QLineEdit(popup_);
   hexEdit_->setObjectName(QStringLiteral("TeamColorHexEdit"));
-  hexEdit_->setMaxLength(7);
+  hexEdit_->setMaxLength(32);
+  auto* hexPreview = new ColorCircleButton(popup_);
+  hexPreview->setObjectName(QStringLiteral("TeamColorHexPreview"));
+  hexPreview->setFixedSize(22, 22);
+  hexPreview->setFocusPolicy(Qt::NoFocus);
+  hexPreview->setCursor(Qt::ArrowCursor);
+  hexPreview->setAttribute(Qt::WA_TransparentForMouseEvents);
+  hexPreview->setEmpty(true);
+  hexPreviewButton_ = hexPreview;
   hexRow->addWidget(codeLabel, 0);
   hexRow->addWidget(hexEdit_, 1);
+  hexRow->addWidget(hexPreview, 0, Qt::AlignVCenter);
   popupLayout->addLayout(hexRow);
+
+  hexHintLabel_ = new QLabel(popup_);
+  hexHintLabel_->setObjectName(QStringLiteral("TeamColorHexHint"));
+  hexHintLabel_->setWordWrap(true);
+  hexHintLabel_->setMaximumWidth(220);
+  Style::setRole(hexHintLabel_, "faint");
+  hexHintLabel_->hide();
+  popupLayout->addWidget(hexHintLabel_);
 
   moreColorsButton_ = new QPushButton(popup_);
   moreColorsButton_->setCursor(Qt::PointingHandCursor);
@@ -493,16 +521,39 @@ bool TeamColorPicker::eventFilter(QObject* watched, QEvent* event) {
 
 void TeamColorPicker::onHexTextChanged(const QString& text) {
   if (syncingHexEdit_) return;
+  const QString trimmed = text.trimmed();
+  if (trimmed.isEmpty()) {
+    previewHex_.clear();
+    setHexHint(QString());
+    refreshWell();
+    return;
+  }
+
   const QString normalized = normalizeHex(text);
-  if (normalized.isEmpty()) return;
-  applyNormalizedColor(normalized, true);
+  if (!normalized.isEmpty()) {
+    previewHex_ = normalized;
+    setHexHint(QString());
+    refreshWell();
+    return;
+  }
+
+  previewHex_.clear();
+  refreshWell();
+  if (isIncompleteHexTyping(text)) {
+    setHexHint(QString());
+    return;
+  }
+  setHexHint(AppLocale::trUi("setup.color_hex_hint"));
 }
 
 void TeamColorPicker::onHexEditingFinished() {
-  if (!hexEdit_) return;
+  if (!hexEdit_ || syncingHexEdit_) return;
   const QString normalized = normalizeHex(hexEdit_->text());
+  previewHex_.clear();
+  setHexHint(QString());
   if (normalized.isEmpty()) {
     syncHexEditFromColor();
+    refreshWell();
     return;
   }
   applyNormalizedColor(normalized, true);
@@ -518,6 +569,7 @@ void TeamColorPicker::onMoreColorsClicked() {
 void TeamColorPicker::applyNormalizedColor(const QString& normalizedHex, bool emitChange) {
   const bool colorValueChanged =
       colorHex_.compare(normalizedHex, Qt::CaseInsensitive) != 0;
+  previewHex_.clear();
   colorHex_ = normalizedHex;
   refreshWell();
   refreshSwatchSelection();
@@ -531,27 +583,55 @@ void TeamColorPicker::refreshWell() const {
   auto* well = static_cast<ColorCircleButton*>(wellButton_);
   if (!well) return;
 
-  if (colorHex_.isEmpty()) {
+  const QString shownHex = displayedHex();
+  if (shownHex.isEmpty()) {
     well->setEmpty(true);
     well->setSwatchColor(QColor());
     well->setToolTip(AppLocale::trUi("setup.color_choose"));
+    updateHexPreviewSwatch();
     return;
   }
 
-  const QColor fill(colorHex_);
+  const QColor fill(shownHex);
   well->setEmpty(false);
   well->setSwatchColor(fill.isValid() ? fill : QColor());
 
-  QString tooltip = colorHex_;
-  for (QAbstractButton* swatch : swatchButtons_) {
-    const QString paletteHex = swatch->property("paletteHex").toString();
-    if (paletteHex.compare(colorHex_, Qt::CaseInsensitive) == 0) {
-      const QByteArray nameKey = swatch->property("nameKey").toString().toUtf8();
-      tooltip = AppLocale::trUi(nameKey.constData());
-      break;
+  QString tooltip = shownHex;
+  if (previewHex_.isEmpty()) {
+    for (QAbstractButton* swatch : swatchButtons_) {
+      const QString paletteHex = swatch->property("paletteHex").toString();
+      if (paletteHex.compare(colorHex_, Qt::CaseInsensitive) == 0) {
+        const QByteArray nameKey = swatch->property("nameKey").toString().toUtf8();
+        tooltip = AppLocale::trUi(nameKey.constData());
+        break;
+      }
     }
   }
   well->setToolTip(tooltip);
+  updateHexPreviewSwatch();
+}
+
+void TeamColorPicker::updateHexPreviewSwatch() const {
+  auto* preview = static_cast<ColorCircleButton*>(hexPreviewButton_);
+  if (!preview) return;
+  const QString hex = displayedHex();
+  if (hex.isEmpty()) {
+    preview->setEmpty(true);
+    preview->setSwatchColor(QColor());
+    return;
+  }
+  const QColor fill(hex);
+  preview->setEmpty(!fill.isValid());
+  preview->setSwatchColor(fill.isValid() ? fill : QColor());
+}
+
+void TeamColorPicker::setHexHint(const QString& text) const {
+  if (!hexHintLabel_) return;
+  hexHintLabel_->setText(text);
+  hexHintLabel_->setVisible(!text.isEmpty());
+  if (popup_ && popup_->isVisible()) {
+    popup_->adjustSize();
+  }
 }
 
 void TeamColorPicker::refreshSwatchSelection() const {

@@ -109,6 +109,8 @@ GameSetupWindow::GameSetupWindow(QWidget* parent)
       gameDate_(QDate::currentDate()),
       suggestionSignalsArmed_(false),
       suggestionStatusKey_(nullptr),
+      homeAbbrevFollowsName_(true),
+      awayAbbrevFollowsName_(true),
       metadataSuggester_(std::make_unique<GameMetadataSuggester>()),
       metadataSuggesterConnections_(),
       titleLabel_(nullptr),
@@ -156,6 +158,8 @@ void GameSetupWindow::setMetadataDefaults(const QDate& gameDate,
   gameDate_ = gameDate.isValid() ? gameDate : QDate::currentDate();
   if (homeAbbrevEdit_) homeAbbrevEdit_->setText(homeAbbrev);
   if (awayAbbrevEdit_) awayAbbrevEdit_->setText(awayAbbrev);
+  homeAbbrevFollowsName_ = homeAbbrev.trimmed().isEmpty();
+  awayAbbrevFollowsName_ = awayAbbrev.trimmed().isEmpty();
   updateContinueButtonEnabled();
 }
 
@@ -256,10 +260,9 @@ void GameSetupWindow::onLanguageComboChanged(int index) {
 }
 
 void GameSetupWindow::onHomeNameEditingFinished() {
-  if (!homeAbbrevEdit_ || !homeNameEdit_) return;
-  if (!homeAbbrevEdit_->text().trimmed().isEmpty()) return;
+  if (!homeAbbrevEdit_ || !homeNameEdit_ || !homeAbbrevFollowsName_) return;
   const QString derived = deriveAbbreviationFromTeamName(homeNameEdit_->text());
-  if (!derived.isEmpty()) {
+  if (homeAbbrevEdit_->text() != derived) {
     QSignalBlocker blocker(homeAbbrevEdit_);
     homeAbbrevEdit_->setText(derived);
   }
@@ -267,10 +270,9 @@ void GameSetupWindow::onHomeNameEditingFinished() {
 }
 
 void GameSetupWindow::onAwayNameEditingFinished() {
-  if (!awayAbbrevEdit_ || !awayNameEdit_) return;
-  if (!awayAbbrevEdit_->text().trimmed().isEmpty()) return;
+  if (!awayAbbrevEdit_ || !awayNameEdit_ || !awayAbbrevFollowsName_) return;
   const QString derived = deriveAbbreviationFromTeamName(awayNameEdit_->text());
-  if (!derived.isEmpty()) {
+  if (awayAbbrevEdit_->text() != derived) {
     QSignalBlocker blocker(awayAbbrevEdit_);
     awayAbbrevEdit_->setText(derived);
   }
@@ -340,6 +342,10 @@ void GameSetupWindow::buildUi() {
 
     auto groupNameEdit = makeQtPtr<QLineEdit>(group.get());
     auto groupAbbrevEdit = makeQtPtr<QLineEdit>(group.get());
+    groupNameEdit->setObjectName(homeSide ? QStringLiteral("HomeTeamNameEdit")
+                                          : QStringLiteral("AwayTeamNameEdit"));
+    groupAbbrevEdit->setObjectName(homeSide ? QStringLiteral("HomeTeamAbbrevEdit")
+                                            : QStringLiteral("AwayTeamAbbrevEdit"));
     groupAbbrevEdit->setMaxLength(3);
     groupAbbrevEdit->setMaximumWidth(80);
     groupAbbrevEdit->setMinimumWidth(64);
@@ -407,6 +413,14 @@ void GameSetupWindow::wireSignals() {
           &GameSetupWindow::onHomeNameEditingFinished);
   connect(awayNameEdit_, &QLineEdit::editingFinished, this,
           &GameSetupWindow::onAwayNameEditingFinished);
+  connect(homeAbbrevEdit_, &QLineEdit::textEdited, this, [this](const QString& text) {
+    homeAbbrevFollowsName_ = text.trimmed().isEmpty();
+    if (homeAbbrevFollowsName_) onHomeNameEditingFinished();
+  });
+  connect(awayAbbrevEdit_, &QLineEdit::textEdited, this, [this](const QString& text) {
+    awayAbbrevFollowsName_ = text.trimmed().isEmpty();
+    if (awayAbbrevFollowsName_) onAwayNameEditingFinished();
+  });
 
   const QVector<QWidget*> tabFilterTargets = {languageCombo_,   homeNameEdit_,   homeAbbrevEdit_,
                                               homeColorPicker_, awayNameEdit_,   awayAbbrevEdit_,
@@ -660,7 +674,7 @@ void GameSetupWindow::onContinue() {
 
   abortMetadataSuggestion();
   emit gameSetupConfirmed(videoPath_, values.homeName, values.awayName, values.homeColor,
-                          values.awayColor, QString(), values.gameDate, values.homeAbbrev,
+                          values.awayColor, values.gameDate, values.homeAbbrev,
                           values.awayAbbrev);
 }
 

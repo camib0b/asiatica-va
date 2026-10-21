@@ -44,7 +44,7 @@ ResolvedOutputPaths resolveOutputPaths(const ExportJobRequest& request,
 std::unique_ptr<TagSession> materializeExportSession(const TagSessionExportData& data) {
     auto session = std::make_unique<TagSession>();
     session->setGameTeams(data.homeTeamName, data.awayTeamName, data.homeTeamColor, data.awayTeamColor);
-    session->setGameMetadata(data.competitionName, data.gameDate, data.homeAbbrev, data.awayAbbrev);
+    session->setGameMetadata(data.gameDate, data.homeAbbrev, data.awayAbbrev);
     if (!data.tags.isEmpty()) {
         session->importTags(data.tags, TagSession::ImportMode::Replace, -1);
     }
@@ -60,7 +60,6 @@ TagSessionExportData captureTagSessionExportData(const TagSession& session) {
     data.awayTeamName = session.awayTeamName();
     data.homeTeamColor = session.homeTeamColor();
     data.awayTeamColor = session.awayTeamColor();
-    data.competitionName = session.competitionName();
     data.gameDate = session.gameDate();
     data.homeAbbrev = session.homeAbbrev();
     data.awayAbbrev = session.awayAbbrev();
@@ -130,6 +129,41 @@ const ExportJobManager::Job* ExportJobManager::jobById(int jobId) const {
 
 bool ExportJobManager::hasJobs() const {
     return !jobs_.empty();
+}
+
+bool ExportJobManager::hasExportingJob() const {
+    for (const std::unique_ptr<Job>& job : jobs_) {
+        if (job && job->state == JobState::Exporting) return true;
+    }
+    return false;
+}
+
+QStringList ExportJobManager::exportingSourcePaths() const {
+    QStringList paths;
+    for (const std::unique_ptr<Job>& job : jobs_) {
+        if (!job || job->state != JobState::Exporting) continue;
+        if (!job->sourceVideoPath.isEmpty()) paths.append(job->sourceVideoPath);
+    }
+    return paths;
+}
+
+QStringList ExportJobManager::exportingInputDirectories() const {
+    QStringList directories;
+    for (const std::unique_ptr<Job>& job : jobs_) {
+        if (!job || job->state != JobState::Exporting) continue;
+        directories.append(job->retainedInputDirectories);
+    }
+    return directories;
+}
+
+void ExportJobManager::cancelExportingJobs() {
+    QVector<int> jobIds;
+    for (const std::unique_ptr<Job>& job : jobs_) {
+        if (job && job->state == JobState::Exporting) jobIds.append(job->id);
+    }
+    for (const int jobId : jobIds) {
+        cancelJob(jobId);
+    }
 }
 
 ExportJobSnapshot ExportJobManager::snapshotFor(const Job& job) const {
@@ -246,6 +280,8 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
     job->format = request.format;
     job->outputPath = mp4Path.isEmpty() ? xmlPath : mp4Path;
     job->xmlPath = xmlPath;
+    job->sourceVideoPath = request.sourceVideoPath;
+    job->retainedInputDirectories = request.retainedInputDirectories;
     job->displayName = QFileInfo(job->outputPath).fileName();
     job->totalClips = request.clips.size();
 

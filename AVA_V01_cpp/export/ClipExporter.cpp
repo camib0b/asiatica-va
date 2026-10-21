@@ -828,19 +828,7 @@ void ClipExporter::concatenateClips() {
     }
 
     if (tempClipPaths_.size() == 1) {
-        outputWriteStarted_ = true;
-        discardPartialSidecar();
-        if (QFile::exists(outputPath_) && !QFile::remove(outputPath_)) {
-            finishExport(false,
-                QStringLiteral("Could not replace existing output file:\n%1").arg(outputPath_));
-            return;
-        }
-        if (QFile::copy(tempClipPaths_.first(), outputPath_)) {
-            finalizeCompilationSidecar();
-        } else {
-            finishExport(false,
-                QStringLiteral("Failed to copy clip to output path:\n%1").arg(outputPath_));
-        }
+        commitStagedOutput(tempClipPaths_.first());
         return;
     }
 
@@ -871,8 +859,7 @@ void ClipExporter::concatenateClips() {
     }
     listFile.close();
 
-    outputWriteStarted_ = true;
-    discardPartialSidecar();
+    const QString stagedOutputPath = tempDir_->filePath(QStringLiteral("concat_output.mp4"));
 
     QStringList arguments;
     arguments << QStringLiteral("-y")
@@ -880,7 +867,7 @@ void ClipExporter::concatenateClips() {
               << QStringLiteral("-safe") << QStringLiteral("0")
               << QStringLiteral("-i") << concatListPath
               << QStringLiteral("-c") << QStringLiteral("copy")
-              << outputPath_;
+              << stagedOutputPath;
 
     startFfmpegJob(arguments, true);
 }
@@ -905,7 +892,11 @@ void ClipExporter::onConcatProcessFinished(int exitCode, QProcess::ExitStatus ex
         return;
     }
 
-    finalizeCompilationSidecar();
+    if (!tempDir_) {
+        finishExport(false, QStringLiteral("Temporary directory was removed before concatenation."));
+        return;
+    }
+    commitStagedOutput(tempDir_->filePath(QStringLiteral("concat_output.mp4")));
 }
 
 void ClipExporter::cleanup() {
@@ -960,6 +951,25 @@ bool replaceDestinationFile(const QString& replacementPath, const QString& desti
 }
 
 }  // namespace
+
+void ClipExporter::commitStagedOutput(const QString& stagedPath) {
+    if (cancelled_) {
+        finishExport(false, QStringLiteral("Export cancelled."));
+        return;
+    }
+    if (!QFile::exists(stagedPath)) {
+        finishExport(false, QStringLiteral("The exported video was not written."));
+        return;
+    }
+    if (!replaceDestinationFile(stagedPath, outputPath_)) {
+        finishExport(false,
+            QStringLiteral("Could not replace existing output file:\n%1").arg(outputPath_));
+        return;
+    }
+    outputWriteStarted_ = true;
+    discardPartialSidecar();
+    finalizeCompilationSidecar();
+}
 
 void ClipExporter::embedChapterMetadata(const QVector<qint64>& offsetMilliseconds,
                                         const QVector<qint64>& durationMilliseconds) {

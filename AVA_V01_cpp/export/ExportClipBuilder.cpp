@@ -174,10 +174,12 @@ QVector<ClipSegment> buildClipSegments(const TagSession* session,
             overlayLabel = QStringLiteral("%1 - %2")
                 .arg(teamDisplayName(session, clip.team), translatedEvent);
             // Two spaces before the counter: "{label}  {n} / {N}".
+            // One multi-arg call so a team or event name that contains "%1"
+            // is not parsed as another placeholder.
             primary = QStringLiteral("%1  %2 / %3")
-                .arg(overlayLabel)
-                .arg(index + 1)
-                .arg(totalClips);
+                .arg(overlayLabel,
+                     QString::number(index + 1),
+                     QString::number(totalClips));
             if (options.includeNotesOverlay && !clip.note.trimmed().isEmpty()) {
                 secondary = clip.note.trimmed();
             }

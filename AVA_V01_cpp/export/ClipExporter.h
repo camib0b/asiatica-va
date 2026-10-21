@@ -78,6 +78,9 @@ private slots:
 private:
     void processNextClip();
     void concatenateClips();
+    /// Moves a finished temp video onto the destination. Failure leaves the
+    /// previous destination in place.
+    void commitStagedOutput(const QString& stagedPath);
     void finalizeCompilationSidecar();
     void embedChapterMetadata(const QVector<qint64>& offsetMilliseconds,
                               const QVector<qint64>& durationMilliseconds);
