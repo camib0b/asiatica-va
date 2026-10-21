@@ -743,6 +743,10 @@ const QHash<QString, UiTranslation>& uiTranslationTable() {
       {QStringLiteral("xml_import.no_sync_anchor"),
        {QStringLiteral("No usable instance was found to align the XML with the video."),
         QStringLiteral("No se encontró una instancia usable para alinear el XML con el video.")}},
+      {QStringLiteral("shootout.round"),
+       {QStringLiteral("Round %1"), QStringLiteral("Ronda %1")}},
+      {QStringLiteral("shootout.sudden_death"),
+       {QStringLiteral("Sudden death %1"), QStringLiteral("Muerte súbita %1")}},
   };
   return table;
 }
@@ -869,13 +873,17 @@ QString trDisplayTagLine(const QString& mainEvent, const QString& followUpEvent)
   return line;
 }
 
-QString trUi(const char* key) {
+QString trUiForLanguage(const char* key, Language language) {
   if (!key) return QString();
   const QLatin1String latinKey(key);
-  const QHash<QString, QString>& strings = uiStringsForLanguage(currentLanguage());
+  const QHash<QString, QString>& strings = uiStringsForLanguage(language);
   const auto iterator = strings.constFind(latinKey);
   if (iterator == strings.cend()) return QString::fromLatin1(key);
   return iterator.value();
+}
+
+QString trUi(const char* key) {
+  return trUiForLanguage(key, currentLanguage());
 }
 
 } // namespace AppLocale

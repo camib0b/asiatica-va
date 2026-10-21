@@ -1,0 +1,364 @@
+#include "ShootoutState.h"
+
+#include <algorithm>
+#include <optional>
+
+namespace {
+
+bool equalsIgnoreCase(const QString& lhs, const QString& rhs) {
+    return lhs.compare(rhs, Qt::CaseInsensitive) == 0;
+}
+
+std::optional<ShootoutState::Outcome> outcomeFromToken(const QString& token) {
+    const QString trimmed = token.trimmed();
+    if (trimmed.isEmpty()) return std::nullopt;
+    if (equalsIgnoreCase(trimmed, QStringLiteral("Converted"))
+        || equalsIgnoreCase(trimmed, QStringLiteral("Convertido"))) {
+        return ShootoutState::Outcome::Converted;
+    }
+    if (equalsIgnoreCase(trimmed, QStringLiteral("Missed"))
+        || equalsIgnoreCase(trimmed, QStringLiteral("No convertido"))) {
+        return ShootoutState::Outcome::Missed;
+    }
+    if (equalsIgnoreCase(trimmed, QStringLiteral("Replay"))
+        || equalsIgnoreCase(trimmed, QStringLiteral("Repite"))) {
+        return ShootoutState::Outcome::Replay;
+    }
+    return std::nullopt;
+}
+
+ShootoutState::Outcome outcomeFromFollowUp(const QString& followUpEvent) {
+    const QString trimmed = followUpEvent.trimmed();
+    if (trimmed.isEmpty()) return ShootoutState::Outcome::Unknown;
+
+    QStringList segments =
+        trimmed.split(AppLocale::kCompoundPathSeparator, Qt::SkipEmptyParts);
+    if (segments.size() == 1 && segments.first().contains(QStringLiteral("\u2192"))) {
+        segments = segments.first().split(QStringLiteral("\u2192"), Qt::SkipEmptyParts);
+    }
+    if (segments.isEmpty()) segments.append(trimmed);
+
+    std::optional<ShootoutState::Outcome> matched;
+    for (const QString& segment : segments) {
+        const std::optional<ShootoutState::Outcome> parsed = outcomeFromToken(segment);
+        if (parsed.has_value()) matched = parsed;
+    }
+    return matched.value_or(ShootoutState::Outcome::Unknown);
+}
+
+bool isKnownResult(ShootoutState::Outcome outcome) {
+    return outcome == ShootoutState::Outcome::Converted
+        || outcome == ShootoutState::Outcome::Missed;
+}
+
+int convertedCount(const QVector<ShootoutState::Outcome>& outcomes) {
+    int converted = 0;
+    for (const ShootoutState::Outcome outcome : outcomes) {
+        if (outcome == ShootoutState::Outcome::Converted) ++converted;
+    }
+    return converted;
+}
+
+int unknownCount(const QVector<ShootoutState::Outcome>& outcomes) {
+    int unknown = 0;
+    for (const ShootoutState::Outcome outcome : outcomes) {
+        if (outcome == ShootoutState::Outcome::Unknown) ++unknown;
+    }
+    return unknown;
+}
+
+bool regulationKnownAndTied(const QVector<ShootoutState::Outcome>& homeSlots,
+                            const QVector<ShootoutState::Outcome>& awaySlots) {
+    if (homeSlots.size() < ShootoutState::kRegulationRounds
+        || awaySlots.size() < ShootoutState::kRegulationRounds) {
+        return false;
+    }
+    int homeGoals = 0;
+    int awayGoals = 0;
+    for (int index = 0; index < ShootoutState::kRegulationRounds; ++index) {
+        const ShootoutState::Outcome homeOutcome = homeSlots.at(index);
+        const ShootoutState::Outcome awayOutcome = awaySlots.at(index);
+        if (!isKnownResult(homeOutcome) || !isKnownResult(awayOutcome)) return false;
+        if (homeOutcome == ShootoutState::Outcome::Converted) ++homeGoals;
+        if (awayOutcome == ShootoutState::Outcome::Converted) ++awayGoals;
+    }
+    return homeGoals == awayGoals;
+}
+
+struct ContestStatus {
+    int homeConverted = 0;
+    int awayConverted = 0;
+    bool decided = false;
+    TagSession::TeamSide winner = TagSession::TeamSide::Unspecified;
+};
+
+ContestStatus contestFromSlots(const QVector<ShootoutState::Outcome>& homeSlots,
+                               const QVector<ShootoutState::Outcome>& awaySlots) {
+    ContestStatus status;
+    status.homeConverted = convertedCount(homeSlots);
+    status.awayConverted = convertedCount(awaySlots);
+
+    if (regulationKnownAndTied(homeSlots, awaySlots)) {
+        const int homeExtra = homeSlots.size() - ShootoutState::kRegulationRounds;
+        const int awayExtra = awaySlots.size() - ShootoutState::kRegulationRounds;
+        if (homeExtra == awayExtra && homeExtra > 0
+            && status.homeConverted != status.awayConverted) {
+            status.decided = true;
+            status.winner = status.homeConverted > status.awayConverted
+                ? TagSession::TeamSide::Home
+                : TagSession::TeamSide::Away;
+        }
+        return status;
+    }
+
+    const int homeRemaining = qMax(
+        0, ShootoutState::kRegulationRounds - static_cast<int>(homeSlots.size()));
+    const int awayRemaining = qMax(
+        0, ShootoutState::kRegulationRounds - static_cast<int>(awaySlots.size()));
+    const int homeMaximum = status.homeConverted + unknownCount(homeSlots) + homeRemaining;
+    const int awayMaximum = status.awayConverted + unknownCount(awaySlots) + awayRemaining;
+    if (status.homeConverted > awayMaximum) {
+        status.decided = true;
+        status.winner = TagSession::TeamSide::Home;
+    } else if (status.awayConverted > homeMaximum) {
+        status.decided = true;
+        status.winner = TagSession::TeamSide::Away;
+    }
+    return status;
+}
+
+QVector<ShootoutState::Outcome> compactPrefix(
+    const QVector<QPair<int, ShootoutState::Outcome>>& placed) {
+    QVector<ShootoutState::Outcome> prefix;
+    prefix.reserve(placed.size());
+    for (int expectedIndex = 0; expectedIndex < placed.size(); ++expectedIndex) {
+        const auto match = std::find_if(
+            placed.cbegin(), placed.cend(),
+            [expectedIndex](const QPair<int, ShootoutState::Outcome>& item) {
+                return item.first == expectedIndex;
+            });
+        if (match == placed.cend()) break;
+        prefix.append(match->second);
+    }
+    return prefix;
+}
+
+ShootoutState::MarkerKind markerForOutcome(ShootoutState::Outcome outcome) {
+    switch (outcome) {
+    case ShootoutState::Outcome::Converted:
+        return ShootoutState::MarkerKind::Converted;
+    case ShootoutState::Outcome::Missed:
+        return ShootoutState::MarkerKind::Missed;
+    case ShootoutState::Outcome::Unknown:
+        return ShootoutState::MarkerKind::Unknown;
+    case ShootoutState::Outcome::Replay:
+        return ShootoutState::MarkerKind::NotTaken;
+    }
+    return ShootoutState::MarkerKind::Unknown;
+}
+
+QVector<ShootoutState::MarkerKind> markersForSide(
+    const QVector<QPair<int, ShootoutState::Outcome>>& revealed,
+    int inProgressSlot) {
+    int highestIndex = -1;
+    for (const QPair<int, ShootoutState::Outcome>& placed : revealed) {
+        highestIndex = qMax(highestIndex, placed.first);
+    }
+    if (inProgressSlot >= 0) highestIndex = qMax(highestIndex, inProgressSlot);
+
+    const int count = qMax(ShootoutState::kRegulationRounds, highestIndex + 1);
+    QVector<ShootoutState::MarkerKind> markers(count, ShootoutState::MarkerKind::NotTaken);
+    for (const QPair<int, ShootoutState::Outcome>& placed : revealed) {
+        if (placed.first >= 0 && placed.first < markers.size()) {
+            markers[placed.first] = markerForOutcome(placed.second);
+        }
+    }
+    if (inProgressSlot >= 0 && inProgressSlot < markers.size()
+        && markers.at(inProgressSlot) == ShootoutState::MarkerKind::NotTaken) {
+        markers[inProgressSlot] = ShootoutState::MarkerKind::InProgress;
+    }
+    return markers;
+}
+
+}  // namespace
+
+QVector<ShootoutState::AnnotatedAttempt> ShootoutState::annotate(
+    QVector<SourceEvent> events) {
+    std::stable_sort(events.begin(), events.end(),
+                     [](const ShootoutState::SourceEvent& first,
+                        const ShootoutState::SourceEvent& second) {
+        if (first.markMs != second.markMs) return first.markMs < second.markMs;
+        return first.sourceOrder < second.sourceOrder;
+    });
+
+    QVector<ShootoutState::Outcome> homeSlots;
+    QVector<ShootoutState::Outcome> awaySlots;
+    QVector<AnnotatedAttempt> annotated;
+    annotated.reserve(events.size());
+
+    for (const ShootoutState::SourceEvent& event : events) {
+        const TagSession::TeamSide team = TagSession::teamSideFromKey(event.teamKey);
+        if (team == TagSession::TeamSide::Unspecified) continue;
+
+        const ShootoutState::Outcome outcome = outcomeFromFollowUp(event.followUpEvent);
+        QVector<ShootoutState::Outcome>& ownSlots =
+            team == TagSession::TeamSide::Home ? homeSlots : awaySlots;
+        const int openSlot = ownSlots.size();
+
+        AnnotatedAttempt attempt;
+        attempt.tagId = event.tagId;
+        attempt.markMs = event.markMs;
+        attempt.team = team;
+        attempt.outcome = outcome;
+        attempt.displaySlotIndex = openSlot;
+        attempt.roundKind = ShootoutState::RoundKind::Regulation;
+        attempt.roundNumber = openSlot + 1;
+        if (openSlot >= ShootoutState::kRegulationRounds
+            && regulationKnownAndTied(homeSlots, awaySlots)) {
+            attempt.roundKind = ShootoutState::RoundKind::SuddenDeath;
+            attempt.roundNumber = openSlot - ShootoutState::kRegulationRounds + 1;
+        }
+
+        if (outcome == ShootoutState::Outcome::Replay) {
+            attempt.occupiesSlot = false;
+        } else {
+            attempt.occupiesSlot = true;
+            ownSlots.append(outcome);
+        }
+        annotated.append(attempt);
+    }
+    return annotated;
+}
+
+ShootoutState::ShootoutState(QVector<SourceEvent> events)
+    : attempts_(annotate(std::move(events))) {}
+
+ShootoutState ShootoutState::fromGameTags(const QVector<TagSession::GameTag>& tags) {
+    QVector<SourceEvent> events;
+    events.reserve(tags.size());
+    int sourceOrder = 0;
+    for (const TagSession::GameTag& tag : tags) {
+        if (tag.mainEvent != QStringLiteral("S.O.")) continue;
+        SourceEvent event;
+        event.tagId = tag.id;
+        event.markMs = tag.markMs;
+        event.teamKey = tag.team;
+        event.followUpEvent = tag.followUpEvent;
+        event.sourceOrder = sourceOrder;
+        ++sourceOrder;
+        events.append(event);
+    }
+    return ShootoutState(std::move(events));
+}
+
+qint64 ShootoutState::firstAttemptMarkMs() const {
+    if (attempts_.isEmpty()) return -1;
+    return attempts_.first().markMs;
+}
+
+QString ShootoutState::roundLabel(RoundKind kind,
+                                  int roundNumber,
+                                  AppLocale::Language language) {
+    const char* key = kind == RoundKind::SuddenDeath
+        ? "shootout.sudden_death"
+        : "shootout.round";
+    return AppLocale::trUiForLanguage(key, language).arg(roundNumber);
+}
+
+ShootoutState::Snapshot ShootoutState::snapshotRevealedThrough(
+    qint64 revealThroughMs,
+    AppLocale::Language language,
+    quint64 highlightTagId,
+    qint64 highlightThroughMs) const {
+    Snapshot snapshot;
+    if (attempts_.isEmpty()) return snapshot;
+
+    QVector<QPair<int, Outcome>> revealedHome;
+    QVector<QPair<int, Outcome>> revealedAway;
+    const AnnotatedAttempt* latestRevealed = nullptr;
+    const AnnotatedAttempt* inProgress = nullptr;
+
+    for (const AnnotatedAttempt& attempt : attempts_) {
+        if (attempt.markMs <= revealThroughMs) {
+            latestRevealed = &attempt;
+            if (!attempt.occupiesSlot) continue;
+            QVector<QPair<int, Outcome>>& revealed =
+                attempt.team == TagSession::TeamSide::Home ? revealedHome : revealedAway;
+            revealed.append(qMakePair(attempt.displaySlotIndex, attempt.outcome));
+            continue;
+        }
+        const bool matchesClip = highlightTagId != 0 && attempt.tagId == highlightTagId;
+        const bool markFallsInWindow = attempt.markMs <= highlightThroughMs;
+        if (inProgress == nullptr && (matchesClip || markFallsInWindow)) {
+            inProgress = &attempt;
+        }
+    }
+
+    const QVector<Outcome> homePrefix = compactPrefix(revealedHome);
+    const QVector<Outcome> awayPrefix = compactPrefix(revealedAway);
+    const ContestStatus contest = contestFromSlots(homePrefix, awayPrefix);
+    snapshot.homeConverted = contest.homeConverted;
+    snapshot.awayConverted = contest.awayConverted;
+    snapshot.decided = contest.decided;
+    snapshot.winner = contest.winner;
+
+    const int homeInProgress = (inProgress != nullptr
+                                && inProgress->team == TagSession::TeamSide::Home)
+        ? inProgress->displaySlotIndex
+        : -1;
+    const int awayInProgress = (inProgress != nullptr
+                                && inProgress->team == TagSession::TeamSide::Away)
+        ? inProgress->displaySlotIndex
+        : -1;
+    snapshot.homeMarkers = markersForSide(revealedHome, homeInProgress);
+    snapshot.awayMarkers = markersForSide(revealedAway, awayInProgress);
+
+    const AnnotatedAttempt* labeled = inProgress != nullptr ? inProgress : latestRevealed;
+    if (labeled == nullptr) return snapshot;
+
+    snapshot.visible = true;
+    snapshot.roundKind = labeled->roundKind;
+    snapshot.roundNumber = labeled->roundNumber;
+    snapshot.roundLabel = roundLabel(labeled->roundKind, labeled->roundNumber, language);
+    snapshot.attemptTeam = labeled->team;
+    return snapshot;
+}
+
+QVector<ShootoutState::TimedSnapshot> ShootoutState::phasesForClip(
+    const ClipWindow& clip,
+    AppLocale::Language language) const {
+    QVector<TimedSnapshot> phases;
+    if (attempts_.isEmpty()) return phases;
+    if (clip.endMs < clip.startMs) return phases;
+
+    const qint64 firstMark = attempts_.first().markMs;
+    const bool clipReachesShootout = clip.endMs >= firstMark || clip.isShootoutClip;
+    if (!clipReachesShootout) return phases;
+
+    const bool showFromClipStart = clip.isShootoutClip || clip.startMs >= firstMark;
+    QVector<qint64> boundaries;
+    if (showFromClipStart) boundaries.append(clip.startMs);
+    for (const AnnotatedAttempt& attempt : attempts_) {
+        if (attempt.markMs > clip.startMs && attempt.markMs <= clip.endMs) {
+            boundaries.append(attempt.markMs);
+        }
+    }
+    if (boundaries.isEmpty()) return phases;
+
+    bool haveBoundary = false;
+    qint64 previousBoundary = 0;
+    for (const qint64 boundary : boundaries) {
+        if (haveBoundary && boundary == previousBoundary) continue;
+        haveBoundary = true;
+        previousBoundary = boundary;
+
+        TimedSnapshot phase;
+        const qint64 offsetMs = boundary - clip.startMs;
+        phase.activationOffsetSeconds = offsetMs <= 0 ? 0.0 : offsetMs / 1000.0;
+        phase.snapshot = snapshotRevealedThrough(
+            boundary, language, clip.tagId, clip.endMs);
+        if (!phase.snapshot.visible) continue;
+        phases.append(phase);
+    }
+    return phases;
+}
