@@ -571,6 +571,10 @@ void CompilationSidecarExportTest::exportsSidecarBesideCompilation() {
 
     TagSession session;
     configureMatch(session);
+    // The removed competition name used to carry this non-ASCII text into the
+    // sidecar. The home display name still lands in matchXml.
+    session.setGameTeams(QStringLiteral("Copa área"), QStringLiteral("OR"),
+                         QStringLiteral("#3c5ac8"), QStringLiteral("#c83c3c"));
     appendTag(session, makeTag(QStringLiteral("Q1"), QString(), 0, 4500, 0, QStringLiteral("Q1")));
     appendTag(session, makeTag(QStringLiteral("Q2"), QString(), 4500, 8000, 4500,
                                QStringLiteral("Q2")));

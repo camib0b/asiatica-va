@@ -223,12 +223,10 @@ void InteractionGuardTest::percentPlaceholdersInNamesStayLiteral() {
     QVERIFY(session.setTagNote(session.indexOfTagId(goal.id), QStringLiteral("note %1")));
 
     goal = session.tags().at(session.indexOfTagId(goal.id));
-    literalEvent = session.tags().at(session.indexOfTagId(literalEvent.id));
+    TagSession::GameTag literalEvent = session.tags().at(1);
     literalEvent.team = QStringLiteral("Away");
 
     PresentationQueue::Clip literalClip = clipFrom(literalEvent);
-    literalClip.team = QStringLiteral("Away");
-    literalClip.mainEvent = QStringLiteral("%1");
 
     ExportClipBuilder::OverlayOptions options;
     options.language = AppLocale::Language::English;
