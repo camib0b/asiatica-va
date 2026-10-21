@@ -21,13 +21,25 @@
 
 namespace {
 
-QWidget* mountEntrance(QWidget* parent, QWidget* child, QVBoxLayout* column) {
+constexpr int kMinimumWindowWidth = 320;
+constexpr int kMinimumWindowHeight = 250;
+
+// fillWidth lets a wrapping label use the window. A hugged child stays as wide
+// as its text and stays centered (the import button).
+QWidget* mountEntrance(QWidget* parent, QWidget* child, QVBoxLayout* column, bool fillWidth) {
     auto frame = makeQtPtr<QWidget>(parent);
-    auto layout = makeQtPtr<QVBoxLayout>(frame.get());
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(0);
-    layout->addWidget(child, 0, Qt::AlignHCenter);
-    column->addWidget(frame.get(), 0, Qt::AlignHCenter);
+    auto frameLayout = makeQtPtr<QVBoxLayout>(frame.get());
+    frameLayout->setContentsMargins(0, 0, 0, 0);
+    frameLayout->setSpacing(0);
+    if (fillWidth) {
+        frame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        child->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        frameLayout->addWidget(child);
+        column->addWidget(frame.get());
+    } else {
+        frameLayout->addWidget(child, 0, Qt::AlignHCenter);
+        column->addWidget(frame.get(), 0, Qt::AlignHCenter);
+    }
     return frame.release();
 }
 
@@ -36,7 +48,9 @@ bool fixturePreviewEnabled() {
     return !value.isEmpty() && value != "0";
 }
 
-// "&Select" is a shortcut letter. A doubled "&&" is a literal ampersand.
+// "&Select" is a shortcut letter and is omitted here. A literal ampersand is
+// written "&&" and must stay escaped: QPushButton would underline the next
+// letter if the button text contained a single "&".
 QString textWithoutMnemonic(const QString& text) {
     QString display;
     display.reserve(text.size());
@@ -47,7 +61,7 @@ QString textWithoutMnemonic(const QString& text) {
             continue;
         }
         if (index + 1 < text.size() && text.at(index + 1) == QLatin1Char('&')) {
-            display.append(QLatin1Char('&'));
+            display.append(QLatin1String("&&"));
             ++index;
         }
     }
@@ -67,11 +81,11 @@ WelcomeWindow::WelcomeWindow(QWidget* parent)
       entrancePlayed_(false) {
     setObjectName("AppRoot");
     setAttribute(Qt::WA_StyledBackground, true);
+    setMinimumSize(kMinimumWindowWidth, kMinimumWindowHeight);
     buildUi();
     wireSignals();
     buildKeyboardShortcuts();
     applyUiStrings();
-    setMinimumSize(320, 250);
 }
 
 void WelcomeWindow::applyUiStrings() {
@@ -105,7 +119,7 @@ QString WelcomeWindow::importLabelForFixture() const {
     switch (copyFixture_) {
         case CopyFixture::WorstCase:
             return QString::fromUtf8(
-                "Benachrichtigungseinstellungen bartholomew.fitzgerald@northwind-industries-holdings.example.com &amp;");
+                "Benachrichtigungseinstellungen bartholomew.fitzgerald@northwind-industries-holdings.example.com &&amp;");
         case CopyFixture::Empty:
             return QString();
         case CopyFixture::One:
@@ -127,7 +141,7 @@ void WelcomeWindow::buildUi() {
     layout->setSpacing(12);
 
     auto titleLabel = makeQtPtr<QLabel>(contentContainer.get());
-    titleLabel->setWordWrap(false);
+    titleLabel->setWordWrap(true);
     titleLabel->setAlignment(Qt::AlignCenter);
     Style::setRole(titleLabel.get(), "h1");
     titleLabel_ = titleLabel.get();
@@ -140,11 +154,12 @@ void WelcomeWindow::buildUi() {
     importButton->setFocusPolicy(Qt::TabFocus); // Allow keyboard focus but don't auto-focus on window open
     importButton_ = importButton.get();
 
-    titleEntrance_ = mountEntrance(contentContainer.get(), titleLabel.get(), layout.get());
-    importEntrance_ = mountEntrance(contentContainer.get(), importButton.get(), layout.get());
+    contentContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    titleEntrance_ = mountEntrance(contentContainer.get(), titleLabel.get(), layout.get(), true);
+    importEntrance_ = mountEntrance(contentContainer.get(), importButton.get(), layout.get(), false);
     Motion::installAmbientPulse(importButton_);
 
-    outerLayout->addWidget(contentContainer.get(), 0, Qt::AlignCenter);
+    outerLayout->addWidget(contentContainer.get());
     outerLayout->addStretch(1);
     if (fixturePreviewEnabled()) buildFixtureToggle(outerLayout.get());
 }
@@ -244,7 +259,19 @@ void WelcomeWindow::changeEvent(QEvent* event) {
 
 void WelcomeWindow::syncImportButtonMinimumWidth() {
     if (!importButton_) return;
-    importButton_->setMinimumWidth(Style::pushButtonMinimumWidth(importButton_));
+    const int buttonWidth = Style::pushButtonMinimumWidth(importButton_);
+    importButton_->setMinimumWidth(buttonWidth);
+
+    int horizontalChrome = 0;
+    if (QLayout* outerLayout = layout()) {
+        const QMargins outerMargins = outerLayout->contentsMargins();
+        horizontalChrome += outerMargins.left() + outerMargins.right();
+    }
+    if (importEntrance_ && importEntrance_->layout()) {
+        const QMargins entranceMargins = importEntrance_->layout()->contentsMargins();
+        horizontalChrome += entranceMargins.left() + entranceMargins.right();
+    }
+    setMinimumWidth(qMax(kMinimumWindowWidth, buttonWidth + horizontalChrome));
 }
 
 void WelcomeWindow::wireSignals() {
