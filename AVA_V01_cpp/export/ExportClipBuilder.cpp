@@ -25,17 +25,6 @@ QString teamAbbrevForClip(const TagSession* session, const QString& teamKey) {
     return {};
 }
 
-QString periodLabelFromTag(const TagSession* session, quint64 tagId) {
-    if (!session) {
-        return {};
-    }
-    const int tagIndex = session->indexOfTagId(tagId);
-    if (!session->isValidTagIndex(tagIndex)) {
-        return {};
-    }
-    return session->tags().at(tagIndex).period;
-}
-
 }  // namespace
 
 QString teamDisplayName(const TagSession* session, const QString& teamKey) {
@@ -188,7 +177,6 @@ QVector<ClipSegment> buildClipSegments(const TagSession* session,
         ClipCompilationRecord compilation;
         compilation.teamAbbrev = teamAbbrevForClip(session, clip.team);
         compilation.overlayLabel = overlayLabel;
-        compilation.periodLabel = periodLabelFromTag(session, clip.tagId);
         compilation.sourceStartMs = clip.startMs;
         compilation.sourceEndMs = clip.endMs;
         const std::optional<XmlExporter::ExportedXmlInstance> matchedInstance =
@@ -204,9 +192,6 @@ QVector<ClipSegment> buildClipSegments(const TagSession* session,
                 sidecarLabel.group = label.group;
                 sidecarLabel.text = label.text;
                 compilation.labels.append(sidecarLabel);
-                if (label.group == QStringLiteral("QUARTOS") && !label.text.isEmpty()) {
-                    compilation.periodLabel = label.text;
-                }
             }
         }
 

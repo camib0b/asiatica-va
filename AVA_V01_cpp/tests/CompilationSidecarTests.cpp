@@ -1,4 +1,5 @@
 #include "AvaVersion.h"
+#include "ClipExporter.h"
 #include "CompilationSidecar.h"
 #include "ExportClipBuilder.h"
 #include "ExportJobManager.h"
@@ -93,7 +94,6 @@ ClipCompilationRecord recordWithSource(qint64 sourceStartMs,
     record.sourceStartMs = sourceStartMs;
     record.sourceEndMs = sourceStartMs + 1000;
     record.xmlInstanceId = 3;
-    record.periodLabel = QStringLiteral("Q1");
     ClipSidecarLabel quarter;
     quarter.group = QStringLiteral("QUARTOS");
     quarter.text = QStringLiteral("Q1");
@@ -138,6 +138,45 @@ bool runProgram(const QString& program,
     return true;
 }
 
+bool outputIsCommittedMp4(const QString& outputPath, const QByteArray& previousBytes) {
+    QFile file(outputPath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return false;
+    }
+    const QByteArray leading = file.read(64);
+    if (!leading.contains("ftyp")) {
+        return false;
+    }
+    if (previousBytes.isEmpty()) {
+        return file.size() > leading.size();
+    }
+    if (file.size() == previousBytes.size()) {
+        file.seek(0);
+        return file.readAll() != previousBytes;
+    }
+    return true;
+}
+
+struct JoinedOutputCancelState {
+    ExportJobManager* manager = nullptr;
+    int jobId = 0;
+    QString outputPath;
+    QByteArray previousBytes;
+    bool sawCommittedOutput = false;
+};
+
+void cancelWhenJoinedOutputIsCommitted(void* context) {
+    auto* state = static_cast<JoinedOutputCancelState*>(context);
+    if (!state || state->sawCommittedOutput || !state->manager) {
+        return;
+    }
+    if (!outputIsCommittedMp4(state->outputPath, state->previousBytes)) {
+        return;
+    }
+    state->sawCommittedOutput = true;
+    state->manager->cancelJob(state->jobId);
+}
+
 bool waitUntilJobFinishes(ExportJobManager& manager, int timeoutMilliseconds) {
     QElapsedTimer timer;
     timer.start();
@@ -161,7 +200,6 @@ private slots:
     void durationCheckUsesTwoFrames();
     void rendersSchemaWithUtf8AndCLocale();
     void writesJsonAtomically();
-    void chapterMetadataUsesMillisecondTimebase();
     void mixedTeamsStayInConcatOrder();
     void xmlInstanceIdMatchesCatalogNotCompilationIndex();
     void quartosLabelUsesQuarterSpanContainingMark();
@@ -320,24 +358,6 @@ void CompilationSidecarOffsetTest::writesJsonAtomically() {
     const QString sidecarPath = CompilationSidecar::clipsJsonPathForVideo(videoPath);
     QCOMPARE(QFileInfo(sidecarPath).fileName(), QStringLiteral("UC B vs OR - 16-yd OR.clips.json"));
     QCOMPARE(QFileInfo(sidecarPath).absolutePath(), QFileInfo(videoPath).absolutePath());
-}
-
-void CompilationSidecarOffsetTest::chapterMetadataUsesMillisecondTimebase() {
-    const QString metadata = CompilationSidecar::renderChapterMetadata(
-        {0, 500},
-        {500, 1000},
-        {QStringLiteral("1/2 · Q1"), QStringLiteral("2/2 · Q=2")});
-    QVERIFY(metadata.startsWith(QStringLiteral(";FFMETADATA1\n")));
-    QVERIFY(metadata.contains(QStringLiteral("TIMEBASE=1/1000\n")));
-    QVERIFY(metadata.contains(QStringLiteral("START=0\n")));
-    QVERIFY(metadata.contains(QStringLiteral("END=500\n")));
-    QVERIFY(metadata.contains(QStringLiteral("title=1/2 · Q1\n")));
-    QVERIFY(metadata.contains(QStringLiteral("START=500\n")));
-    QVERIFY(metadata.contains(QStringLiteral("END=1500\n")));
-    QVERIFY(metadata.contains(QStringLiteral("title=2/2 · Q\\=2\n")));
-    QCOMPARE(CompilationSidecar::chapterTitle(2, 14, QStringLiteral("Q3")),
-             QStringLiteral("2/14 · Q3"));
-    QCOMPARE(CompilationSidecar::chapterTitle(2, 14, QString()), QStringLiteral("2/14"));
 }
 
 void CompilationSidecarOffsetTest::mixedTeamsStayInConcatOrder() {
@@ -542,6 +562,14 @@ private slots:
     void initTestCase();
     void exportsSidecarBesideCompilation();
     void cancelBeforeOutputReplaceDoesNotWriteSidecar();
+    void cancelAfterJoinedOutputCommittedRemovesIt();
+
+private:
+    void cancelJoinedExportAfterCommit(const QString& sourcePath,
+                                       const QVector<ClipSegment>& segments,
+                                       const QString& outputPath,
+                                       const QByteArray& previousOutput,
+                                       const QByteArray& previousSidecar);
 };
 
 void CompilationSidecarExportTest::initTestCase() {
@@ -762,25 +790,15 @@ void CompilationSidecarExportTest::exportsSidecarBesideCompilation() {
              qPrintable(commandError));
     const QJsonArray chapters =
         QJsonDocument::fromJson(chaptersOutput).object().value(QStringLiteral("chapters")).toArray();
-    QCOMPARE(chapters.size(), clips.size());
-    const QStringList expectedTitles{
-        QStringLiteral("1/3 · Q2"),
-        QStringLiteral("2/3 · Q1"),
-        QStringLiteral("3/3 · Q1"),
-    };
-    for (int index = 0; index < chapters.size(); ++index) {
-        const QJsonObject chapter = chapters.at(index).toObject();
-        QCOMPARE(chapter.value(QStringLiteral("tags")).toObject().value(QStringLiteral("title")).toString(),
-                 expectedTitles.at(index));
-        const double chapterStart = chapter.value(QStringLiteral("start_time")).toString().toDouble();
-        const double clipOffset = clips.at(index).toObject().value(QStringLiteral("offsetS")).toDouble();
-        QVERIFY(std::abs(chapterStart - clipOffset) < 0.02);
-    }
+    QCOMPARE(chapters.size(), 0);
+    QVERIFY(QDir(directory.path())
+                .entryList({QStringLiteral("*.ava-replace-backup")}, QDir::Files)
+                .isEmpty());
 
-    // Burned overlay spot-check. Chapter titles already lock k/N. These PNGs are
-    // the frames at each offset so a reviewer can see "k / N" in the picture.
-    // The test also checks that a frame just before clip 2 differs from a frame
-    // inside clip 2, which is the seek landing on the next segment.
+    // Burned overlay spot-check. The sidecar offsets are the segment boundaries.
+    // These PNGs are the frames at each offset so a reviewer can see "k / N" in
+    // the picture. The test also checks that a frame just before clip 2 differs
+    // from a frame inside clip 2, which is the seek landing on the next segment.
     const QString spotDirectory = QDir::temp().filePath(QStringLiteral("ava-sidecar-spotcheck"));
     QDir().mkpath(spotDirectory);
     QString previousFrameHash;
@@ -916,6 +934,120 @@ void CompilationSidecarExportTest::cancelBeforeOutputReplaceDoesNotWriteSidecar(
     QFile keptOutput(outputPath);
     QVERIFY(keptOutput.open(QIODevice::ReadOnly));
     QCOMPARE(keptOutput.readAll(), QByteArray("not-a-video"));
+}
+
+void CompilationSidecarExportTest::cancelJoinedExportAfterCommit(
+    const QString& sourcePath,
+    const QVector<ClipSegment>& segments,
+    const QString& outputPath,
+    const QByteArray& previousOutput,
+    const QByteArray& previousSidecar) {
+    const QString sidecarPath = CompilationSidecar::clipsJsonPathForVideo(outputPath);
+    if (!previousOutput.isEmpty()) {
+        QFile existingOutput(outputPath);
+        QVERIFY(existingOutput.open(QIODevice::WriteOnly));
+        QCOMPARE(existingOutput.write(previousOutput), previousOutput.size());
+        existingOutput.close();
+    }
+    if (!previousSidecar.isEmpty()) {
+        QFile existingSidecar(sidecarPath);
+        QVERIFY(existingSidecar.open(QIODevice::WriteOnly));
+        QCOMPARE(existingSidecar.write(previousSidecar), previousSidecar.size());
+        existingSidecar.close();
+    }
+
+    ExportJobRequest request;
+    request.format = ExportOutputFormat::Mp4;
+    request.sourceVideoPath = sourcePath;
+    request.outputPath = outputPath;
+    request.clips = segments;
+    request.includeAudioTrack = false;
+    request.includeBrandingOverlay = false;
+
+    ExportJobManager manager;
+    JoinedOutputCancelState cancelState;
+    cancelState.manager = &manager;
+    cancelState.outputPath = outputPath;
+    cancelState.previousBytes = previousOutput;
+
+    QString startError;
+    QVERIFY2(manager.startJob(request, &startError), qPrintable(startError));
+    cancelState.jobId = manager.snapshots().constFirst().id;
+    struct ObserverReset {
+        ~ObserverReset() { ClipExporter::setExportStepObserverForTests(nullptr, nullptr); }
+    } observerReset;
+    ClipExporter::setExportStepObserverForTests(&cancelWhenJoinedOutputIsCommitted, &cancelState);
+    QVERIFY2(waitUntilJobFinishes(manager, 120000), "joined export timed out");
+    QVERIFY2(cancelState.sawCommittedOutput,
+             "cancel did not run after the joined mp4 was committed");
+    const ExportJobSnapshot snapshot = manager.snapshots().constFirst();
+    QVERIFY(snapshot.cancelled);
+    QVERIFY(snapshot.statusText.contains(QStringLiteral("cancel"), Qt::CaseInsensitive));
+
+    if (previousOutput.isEmpty()) {
+        QVERIFY2(!QFile::exists(outputPath), "cancelled joined export left the mp4 in place");
+    } else {
+        QFile restoredOutput(outputPath);
+        QVERIFY(restoredOutput.open(QIODevice::ReadOnly));
+        QCOMPARE(restoredOutput.readAll(), previousOutput);
+    }
+    if (previousSidecar.isEmpty()) {
+        QVERIFY2(!QFile::exists(sidecarPath), "cancelled joined export left a clips sidecar");
+    } else {
+        QFile restoredSidecar(sidecarPath);
+        QVERIFY(restoredSidecar.open(QIODevice::ReadOnly));
+        QCOMPARE(restoredSidecar.readAll(), previousSidecar);
+    }
+    QVERIFY(QDir(QFileInfo(outputPath).absolutePath())
+                .entryList({QStringLiteral("*.ava-replace-backup")}, QDir::Files)
+                .isEmpty());
+}
+
+void CompilationSidecarExportTest::cancelAfterJoinedOutputCommittedRemovesIt() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("full-match.mp4"));
+    QString commandError;
+    QVERIFY2(runProgram(FfmpegLocator::findFfmpeg(),
+                        {QStringLiteral("-y"),
+                         QStringLiteral("-f"), QStringLiteral("lavfi"),
+                         QStringLiteral("-i"), QStringLiteral("testsrc=duration=4:size=320x180:rate=30"),
+                         QStringLiteral("-pix_fmt"), QStringLiteral("yuv420p"),
+                         QStringLiteral("-c:v"), QStringLiteral("libx264"),
+                         QStringLiteral("-preset"), QStringLiteral("ultrafast"),
+                         sourcePath},
+                        60000,
+                        &commandError),
+             qPrintable(commandError));
+
+    TagSession session;
+    configureMatch(session);
+    const TagSession::GameTag first = appendTag(
+        session, makeTag(QStringLiteral("16-yd"), QStringLiteral("Away"), 0, 1500, 800,
+                         QStringLiteral("Q1")));
+    const TagSession::GameTag second = appendTag(
+        session, makeTag(QStringLiteral("16-yd"), QStringLiteral("Away"), 1500, 3000, 2200,
+                         QStringLiteral("Q2")));
+    ExportClipBuilder::OverlayOptions options;
+    options.includeBottomOverlay = false;
+    options.includeScoreboardOverlay = false;
+    options.includeNotesOverlay = false;
+    const QVector<ClipSegment> segments = ExportClipBuilder::buildClipSegments(
+        &session,
+        {presentationClipFrom(first, 0), presentationClipFrom(second, 1)},
+        options);
+    QCOMPARE(segments.size(), 2);
+
+    cancelJoinedExportAfterCommit(sourcePath, segments,
+                                  directory.filePath(QStringLiteral("joined.mp4")),
+                                  {}, {});
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    cancelJoinedExportAfterCommit(sourcePath, segments,
+                                  directory.filePath(QStringLiteral("replaced.mp4")),
+                                  QByteArray("not-a-video"),
+                                  QByteArray("{}\n"));
 }
 
 #include "CompilationSidecarTests.moc"

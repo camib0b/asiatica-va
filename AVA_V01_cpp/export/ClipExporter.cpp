@@ -4,6 +4,7 @@
 #include "AvaVersion.h"
 #include "FfmpegLocator.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -21,6 +22,7 @@
 #include <QtGlobal>
 
 #include <algorithm>
+#include <mutex>
 #include <utility>
 
 namespace {
@@ -356,11 +358,73 @@ QString timedPhaseEnableExpression(double activationOffsetSeconds,
 
 }  // namespace
 
+namespace {
+
+struct ExportStepObserverState {
+    std::mutex mutex;
+    void (*observer)(void* context) = nullptr;
+    void* context = nullptr;
+};
+
+ExportStepObserverState& exportStepObserverState() {
+    static ExportStepObserverState state;
+    return state;
+}
+
+void notifyExportStepObserver() {
+    void (*observer)(void* context) = nullptr;
+    void* context = nullptr;
+    {
+        ExportStepObserverState& state = exportStepObserverState();
+        std::lock_guard<std::mutex> lock(state.mutex);
+        observer = state.observer;
+        context = state.context;
+    }
+    if (observer) {
+        observer(context);
+    }
+}
+
+}  // namespace
+
 ClipExporter::ClipExporter(QObject* parent) : QObject(parent) {}
 
 ClipExporter::~ClipExporter() {
+    const bool rollBackCommittedOutput = outputWriteStarted_ && !exportFinishedEmitted_;
     cancelled_ = true;
+    if (rollBackCommittedOutput) {
+        removeCommittedOutputAndRestorePrevious();
+    }
     stopAndDiscardProcess();
+}
+
+void ClipExporter::setExportStepObserverForTests(void (*observer)(void* context), void* context) {
+    ExportStepObserverState& state = exportStepObserverState();
+    std::lock_guard<std::mutex> lock(state.mutex);
+    state.observer = observer;
+    state.context = context;
+}
+
+ClipExporter::SuppressDeferredDelete::SuppressDeferredDelete(ClipExporter* exporter)
+    : exporter_(exporter) {
+    exporter_->suppressDeferredDelete_ = true;
+}
+
+ClipExporter::SuppressDeferredDelete::~SuppressDeferredDelete() {
+    exporter_->suppressDeferredDelete_ = false;
+    if (!exporter_->deferredDeletePending_) {
+        return;
+    }
+    exporter_->deferredDeletePending_ = false;
+    exporter_->deleteLater();
+}
+
+bool ClipExporter::event(QEvent* event) {
+    if (event->type() == QEvent::DeferredDelete && suppressDeferredDelete_) {
+        deferredDeletePending_ = true;
+        return true;
+    }
+    return QObject::event(event);
 }
 
 QString ClipExporter::findFfmpeg() {
@@ -413,6 +477,11 @@ void ClipExporter::startExport() {
     cancelled_ = false;
     currentClipIndex_ = 0;
     outputWriteStarted_ = false;
+    replacedOutputBackupPath_.clear();
+    replacedSidecarBackupPath_.clear();
+    sidecarWrittenByThisExport_ = false;
+    suppressDeferredDelete_ = false;
+    deferredDeletePending_ = false;
     tempClipPaths_.clear();
     measuredSegmentDurationSeconds_.clear();
 
@@ -911,10 +980,17 @@ void ClipExporter::finishExport(bool success, const QString& message) {
         cleanup();
         return;
     }
-    if (!success && outputWriteStarted_) {
-        discardPartialSidecar();
-    }
     exportFinishedEmitted_ = true;
+    if (!success && outputWriteStarted_ && cancelled_) {
+        removeCommittedOutputAndRestorePrevious();
+    } else if (!success && outputWriteStarted_) {
+        discardPartialSidecar();
+        discardReplacedBackups();
+        outputWriteStarted_ = false;
+    } else if (success) {
+        discardReplacedBackups();
+        outputWriteStarted_ = false;
+    }
     emit exportFinished(success, message);
     cleanup();
 }
@@ -926,24 +1002,122 @@ void ClipExporter::discardPartialSidecar() {
     QFile::remove(CompilationSidecar::clipsJsonPathForVideo(outputPath_));
 }
 
+void ClipExporter::discardReplacedBackups() {
+    if (!replacedOutputBackupPath_.isEmpty()) {
+        QFile::remove(replacedOutputBackupPath_);
+        replacedOutputBackupPath_.clear();
+    }
+    if (!replacedSidecarBackupPath_.isEmpty()) {
+        QFile::remove(replacedSidecarBackupPath_);
+        replacedSidecarBackupPath_.clear();
+    }
+}
+
+void ClipExporter::removeCommittedOutputAndRestorePrevious() {
+    if (!outputWriteStarted_) {
+        return;
+    }
+    outputWriteStarted_ = false;
+
+    const QString sidecarPath = CompilationSidecar::clipsJsonPathForVideo(outputPath_);
+    const bool removeLiveSidecar =
+        sidecarWrittenByThisExport_ || !replacedSidecarBackupPath_.isEmpty();
+    sidecarWrittenByThisExport_ = false;
+
+    if (!outputPath_.isEmpty()) {
+        QFile::remove(outputPath_);
+    }
+    if (!replacedOutputBackupPath_.isEmpty()) {
+        const QString backupPath = replacedOutputBackupPath_;
+        replacedOutputBackupPath_.clear();
+        if (!QFile::rename(backupPath, outputPath_)) {
+            qWarning("ClipExporter: could not restore the previous output file: %s",
+                     qPrintable(outputPath_));
+        }
+    }
+
+    if (removeLiveSidecar) {
+        QFile::remove(sidecarPath);
+    }
+    if (!replacedSidecarBackupPath_.isEmpty()) {
+        const QString backupPath = replacedSidecarBackupPath_;
+        replacedSidecarBackupPath_.clear();
+        if (!QFile::rename(backupPath, sidecarPath)) {
+            qWarning("ClipExporter: could not restore the previous clips sidecar: %s",
+                     qPrintable(sidecarPath));
+        }
+    }
+}
+
+bool ClipExporter::parkExistingSidecar() {
+    const QString sidecarPath = CompilationSidecar::clipsJsonPathForVideo(outputPath_);
+    if (!QFile::exists(sidecarPath)) {
+        return true;
+    }
+    const QString backupPath = sidecarPath + QStringLiteral(".ava-replace-backup");
+    QFile::remove(backupPath);
+    if (!QFile::rename(sidecarPath, backupPath)) {
+        qWarning("ClipExporter: could not move the existing clips sidecar aside: %s",
+                 qPrintable(sidecarPath));
+        return false;
+    }
+    replacedSidecarBackupPath_ = backupPath;
+    return true;
+}
+
+bool ClipExporter::finishExportIfCancelled() {
+    if (exportFinishedEmitted_) {
+        return true;
+    }
+    notifyExportStepObserver();
+    if (exportFinishedEmitted_) {
+        return true;
+    }
+    if (!cancelled_) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 0);
+    }
+    if (exportFinishedEmitted_) {
+        return true;
+    }
+    if (!cancelled_) {
+        return false;
+    }
+    finishExport(false, QStringLiteral("Export cancelled."));
+    return true;
+}
+
 namespace {
 
-bool replaceDestinationFile(const QString& replacementPath, const QString& destinationPath) {
+// Moves an existing destination aside and leaves that backup for the caller.
+// The previous file is deleted only when the caller asks, after the export
+// finishes or is cancelled.
+bool replaceDestinationFile(const QString& replacementPath,
+                            const QString& destinationPath,
+                            QString* retainedBackupPath) {
+    if (retainedBackupPath) {
+        retainedBackupPath->clear();
+    }
     const QString backupPath = destinationPath + QStringLiteral(".ava-replace-backup");
     QFile::remove(backupPath);
     const bool destinationExisted = QFile::exists(destinationPath);
     if (destinationExisted && !QFile::rename(destinationPath, backupPath)) {
         return false;
     }
-    if (QFile::rename(replacementPath, destinationPath)) {
-        QFile::remove(backupPath);
-        return true;
-    }
-    if (QFile::copy(replacementPath, destinationPath)) {
+
+    const bool renamed = QFile::rename(replacementPath, destinationPath);
+    const bool copied = !renamed && QFile::copy(replacementPath, destinationPath);
+    if (copied) {
         QFile::remove(replacementPath);
-        QFile::remove(backupPath);
+    }
+    if (renamed || copied) {
+        if (destinationExisted && retainedBackupPath) {
+            *retainedBackupPath = backupPath;
+        } else if (destinationExisted) {
+            QFile::remove(backupPath);
+        }
         return true;
     }
+
     if (destinationExisted) {
         QFile::rename(backupPath, destinationPath);
     }
@@ -953,89 +1127,34 @@ bool replaceDestinationFile(const QString& replacementPath, const QString& desti
 }  // namespace
 
 void ClipExporter::commitStagedOutput(const QString& stagedPath) {
-    if (cancelled_) {
-        finishExport(false, QStringLiteral("Export cancelled."));
+    SuppressDeferredDelete suppressDeferredDelete(this);
+    if (finishExportIfCancelled()) {
         return;
     }
     if (!QFile::exists(stagedPath)) {
         finishExport(false, QStringLiteral("The exported video was not written."));
         return;
     }
-    if (!replaceDestinationFile(stagedPath, outputPath_)) {
+    QString retainedBackupPath;
+    if (!replaceDestinationFile(stagedPath, outputPath_, &retainedBackupPath)) {
         finishExport(false,
             QStringLiteral("Could not replace existing output file:\n%1").arg(outputPath_));
         return;
     }
     outputWriteStarted_ = true;
-    discardPartialSidecar();
+    replacedOutputBackupPath_ = retainedBackupPath;
+    if (!parkExistingSidecar()) {
+        removeCommittedOutputAndRestorePrevious();
+        finishExport(false,
+            QStringLiteral("Could not move the existing clips sidecar aside:\n%1")
+                .arg(CompilationSidecar::clipsJsonPathForVideo(outputPath_)));
+        return;
+    }
     finalizeCompilationSidecar();
 }
 
-void ClipExporter::embedChapterMetadata(const QVector<qint64>& offsetMilliseconds,
-                                        const QVector<qint64>& durationMilliseconds) {
-    if (cancelled_ || !tempDir_ || offsetMilliseconds.size() != clips_.size() ||
-        durationMilliseconds.size() != clips_.size()) {
-        qWarning("ClipExporter: skipped chapter metadata because export state was incomplete");
-        return;
-    }
-
-    QStringList titles;
-    titles.reserve(clips_.size());
-    for (int index = 0; index < clips_.size(); ++index) {
-        titles.append(CompilationSidecar::chapterTitle(
-            index + 1, clips_.size(), clips_.at(index).compilation.periodLabel));
-    }
-    const QString metadata = CompilationSidecar::renderChapterMetadata(
-        offsetMilliseconds, durationMilliseconds, titles);
-    const QString metadataPath = tempDir_->filePath(QStringLiteral("chapters.ffmeta"));
-    QFile metadataFile(metadataPath);
-    if (!metadataFile.open(QIODevice::WriteOnly)) {
-        qWarning("ClipExporter: could not write chapter metadata: %s",
-                 qPrintable(metadataFile.errorString()));
-        return;
-    }
-    const QByteArray metadataBytes = metadata.toUtf8();
-    if (metadataFile.write(metadataBytes) != metadataBytes.size()) {
-        qWarning("ClipExporter: chapter metadata write was short");
-        metadataFile.close();
-        return;
-    }
-    metadataFile.close();
-
-    const QString remuxPath = tempDir_->filePath(QStringLiteral("with_chapters.mp4"));
-    QProcess remux;
-    remux.start(ffmpegPath_, {
-        QStringLiteral("-y"),
-        QStringLiteral("-i"), outputPath_,
-        QStringLiteral("-f"), QStringLiteral("ffmetadata"),
-        QStringLiteral("-i"), metadataPath,
-        QStringLiteral("-map"), QStringLiteral("0"),
-        QStringLiteral("-c"), QStringLiteral("copy"),
-        QStringLiteral("-map_metadata"), QStringLiteral("1"),
-        QStringLiteral("-map_chapters"), QStringLiteral("1"),
-        remuxPath,
-    });
-    if (!remux.waitForFinished(120000)) {
-        remux.kill();
-        remux.waitForFinished(1000);
-        qWarning("ClipExporter: chapter remux timed out; keeping the compilation without chapters");
-        return;
-    }
-    if (remux.exitStatus() != QProcess::NormalExit || remux.exitCode() != 0) {
-        const QString stderrOutput =
-            QString::fromUtf8(remux.readAllStandardError()).trimmed().right(500);
-        qWarning("ClipExporter: chapter remux failed; keeping the compilation without chapters: %s",
-                 qPrintable(stderrOutput));
-        return;
-    }
-    if (!replaceDestinationFile(remuxPath, outputPath_)) {
-        qWarning("ClipExporter: could not replace the compilation with the chapter remux");
-    }
-}
-
 void ClipExporter::finalizeCompilationSidecar() {
-    if (cancelled_) {
-        finishExport(false, QStringLiteral("Export cancelled."));
+    if (finishExportIfCancelled()) {
         return;
     }
     if (measuredSegmentDurationSeconds_.size() != clips_.size()) {
@@ -1051,10 +1170,7 @@ void ClipExporter::finalizeCompilationSidecar() {
     }
     const CompilationSidecar::OffsetAccumulation offsets =
         CompilationSidecar::accumulateOffsets(durationMilliseconds);
-
-    embedChapterMetadata(offsets.offsetMilliseconds, durationMilliseconds);
-    if (cancelled_) {
-        finishExport(false, QStringLiteral("Export cancelled."));
+    if (finishExportIfCancelled()) {
         return;
     }
 
@@ -1065,12 +1181,21 @@ void ClipExporter::finalizeCompilationSidecar() {
     input.matchXmlFileName = matchXmlFileName_;
     input.finalDurationSeconds =
         CompilationSidecar::probeMediaDurationSeconds(ffprobePath_, outputPath_);
+    if (finishExportIfCancelled()) {
+        return;
+    }
     input.framesPerSecond =
         CompilationSidecar::probeVideoFramesPerSecond(ffprobePath_, outputPath_);
+    if (finishExportIfCancelled()) {
+        return;
+    }
     input.measuredDurationSeconds = measuredSegmentDurationSeconds_;
     input.clipsInConcatOrder.reserve(clips_.size());
     for (const ClipSegment& clip : clips_) {
         input.clipsInConcatOrder.append(clip.compilation);
+    }
+    if (finishExportIfCancelled()) {
+        return;
     }
 
     const CompilationSidecar::SidecarDocument document = CompilationSidecar::buildDocument(input);
@@ -1083,12 +1208,19 @@ void ClipExporter::finalizeCompilationSidecar() {
                  qPrintable(finalText),
                  qPrintable(CompilationSidecar::formatSeconds(offsets.summedEndMilliseconds)));
     }
+    if (finishExportIfCancelled()) {
+        return;
+    }
 
     QString writeError;
     const QByteArray jsonBytes = CompilationSidecar::renderJson(document);
     if (!CompilationSidecar::writeUtf8FileAtomically(
             CompilationSidecar::clipsJsonPathForVideo(outputPath_), jsonBytes, &writeError)) {
         finishExport(false, AppLocale::trUi("export.sidecar_write_failed").arg(writeError));
+        return;
+    }
+    sidecarWrittenByThisExport_ = true;
+    if (finishExportIfCancelled()) {
         return;
     }
     finishExport(true, {});

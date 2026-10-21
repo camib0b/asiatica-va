@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QString>
-#include <QStringList>
 #include <QVector>
 #include <QtGlobal>
 
@@ -22,8 +21,6 @@ struct ClipCompilationRecord {
     /// Stable prefix burned on every frame ("OR - 16-yd"), without the "n / N" counter.
     /// The burned line is "{overlayLabel}  {ord} / {N}".
     QString overlayLabel;
-    /// QUARTOS text used for chapter titles ("Q1"). Empty when the tag has no period.
-    QString periodLabel;
     /// Full-match in/out point in milliseconds, matching the XML <start>/<end> when
     /// this clip has an instance. This is not the padded encode length.
     qint64 sourceStartMs = 0;
@@ -52,7 +49,6 @@ struct SidecarClip {
     qint64 sourceStartMilliseconds = 0;
     qint64 sourceEndMilliseconds = 0;
     int xmlInstanceId = -1;
-    QString periodLabel;
     QVector<ClipSidecarLabel> labels;
 };
 
@@ -98,11 +94,6 @@ bool finalDurationWithinTolerance(qint64 finalDurationMilliseconds,
 
 SidecarDocument buildDocument(const SidecarBuildInput& input);
 QByteArray renderJson(const SidecarDocument& document);
-
-QString chapterTitle(int ordinal, int totalCount, const QString& periodLabel);
-QString renderChapterMetadata(const QVector<qint64>& offsetMilliseconds,
-                              const QVector<qint64>& durationMilliseconds,
-                              const QStringList& titles);
 
 QString clipsJsonPathForVideo(const QString& videoPath);
 bool writeUtf8FileAtomically(const QString& filePath,
