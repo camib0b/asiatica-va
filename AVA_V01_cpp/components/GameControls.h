@@ -99,6 +99,7 @@ private:
   /// After possession changes to the other side (e.g. Turnover), select the other team for the next tag.
   void switchTeamSideToOppositeTeam();
   void updateTeamButtonSelectionVisual();
+  void refreshMainButtonTitles();
   void flashButtonBorder(QPushButton* button);
   void setActiveMainButton(QPushButton* button);
   void clearActiveMainButton();

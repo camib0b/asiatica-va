@@ -20,6 +20,7 @@
 #include <QEvent>
 #include <QApplication>
 #include <QLabel>
+#include <QFontMetrics>
 #include <QColor>
 #include <QSizePolicy>
 #include <QLayout>
@@ -387,6 +388,32 @@ void GameControls::refreshTeamButtonLabels() {
   elideButtonLabel(awayTeamButton_, awayTeamFollowUpLabel_);
 }
 
+void GameControls::refreshMainButtonTitles() {
+  for (QLabel* titleLabel : mainButtonTitleLabels_) {
+    if (!titleLabel) continue;
+    const QString fullText = AppLocale::trEvent(titleLabel->property("gameEventName").toString());
+    const int availableWidth = titleLabel->contentsRect().width();
+    const int availableHeight = titleLabel->contentsRect().height();
+    const QFontMetrics metrics = titleLabel->fontMetrics();
+    QString shown = fullText;
+    if (availableWidth > 8 && availableHeight > 0) {
+      const QRect wrapped = metrics.boundingRect(QRect(0, 0, availableWidth, 1000),
+                                                 Qt::AlignHCenter | Qt::TextWordWrap, fullText);
+      const bool fitsWrapped =
+          wrapped.width() <= availableWidth + 1 && wrapped.height() <= availableHeight + 1;
+      if (!fitsWrapped) {
+        shown = metrics.elidedText(fullText, Qt::ElideRight, availableWidth);
+      }
+    }
+    if (titleLabel->text() != shown) titleLabel->setText(shown);
+    const QString tip = shown == fullText ? QString() : fullText;
+    if (titleLabel->toolTip() != tip) titleLabel->setToolTip(tip);
+    if (QPushButton* button = qobject_cast<QPushButton*>(titleLabel->parentWidget())) {
+      if (button->toolTip() != tip) button->setToolTip(tip);
+    }
+  }
+}
+
 QString GameControls::selectedTeamLabel() const {
   if (teamSide_ == TagSession::TeamSide::Home) return homeTeamFollowUpLabel_;
   if (teamSide_ == TagSession::TeamSide::Away) return awayTeamFollowUpLabel_;
@@ -458,6 +485,7 @@ void GameControls::applyUiLanguage() {
     const QString key = titleLabel->property("gameEventName").toString();
     titleLabel->setText(AppLocale::trEvent(key));
   }
+  refreshMainButtonTitles();
   for (QPushButton* followUpButton : followUpButtons_) {
     if (!followUpButton) continue;
     for (QLabel* titleLabel : followUpButton->findChildren<QLabel*>()) {
@@ -1228,6 +1256,14 @@ bool GameControls::eventFilter(QObject* obj, QEvent* event) {
       (obj == homeTeamButton_ || obj == awayTeamButton_)) {
     refreshTeamButtonLabels();
     return false;
+  }
+  if (event->type() == QEvent::Resize) {
+    for (QLabel* titleLabel : mainButtonTitleLabels_) {
+      if (titleLabel && titleLabel->parentWidget() == obj) {
+        refreshMainButtonTitles();
+        break;
+      }
+    }
   }
   if (event->type() == QEvent::KeyPress) {
     QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);

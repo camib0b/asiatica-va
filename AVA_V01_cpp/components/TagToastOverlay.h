@@ -71,6 +71,7 @@ private:
   void clearSequence();
   void startDismiss(bool immediate);
   void scheduleDismiss();
+  void showWithoutTakingFocus();
 
   QPointer<QWidget> videoFrame_;
   QPointer<QWidget> anchorWindow_;

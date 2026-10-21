@@ -5,6 +5,7 @@
 #include "../style/ThemeColors.h"
 #include "../ui/QtPtr.h"
 
+#include <QApplication>
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -138,7 +139,8 @@ TagToastOverlay::TagToastOverlay(QWidget* parent)
   chainLabel_->setFocusPolicy(Qt::NoFocus);
   chainLabel_->setAttribute(Qt::WA_TransparentForMouseEvents, true);
   chainLabel_->setMinimumWidth(0);
-  chainLabel_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+  // Ignored so an unwrapped sizeHint cannot force the toast wider than the frame.
+  chainLabel_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
   Style::setRole(chainLabel_, "tagToastChain");
   layout->addWidget(chainLabel_, 1, Qt::AlignVCenter);
 
@@ -239,17 +241,28 @@ void TagToastOverlay::present() {
     hide();
     return;
   }
-  const bool wasHidden = !isVisible();
+  showWithoutTakingFocus();
   reposition();
-  if (wasHidden) {
-    setWindowOpacity(Motion::reduced() ? 1.0 : 0.0);
-    show();
-    raise();
-  }
   if (!Motion::reduced()) {
     Motion::animateProperty(this, "windowOpacity", QVariant(1.0), Motion::kPress, Motion::strongOut());
   } else {
     setWindowOpacity(1.0);
+  }
+}
+
+void TagToastOverlay::showWithoutTakingFocus() {
+  const QPointer<QWidget> previousFocus = QApplication::focusWidget();
+  const bool wasHidden = !isVisible();
+  if (wasHidden && !Motion::reduced()) {
+    setWindowOpacity(0.0);
+  }
+  show();
+  // Offscreen has no window stacking, and raise() only prints a platform warning.
+  if (QApplication::platformName() != QLatin1String("offscreen")) {
+    raise();
+  }
+  if (previousFocus && QApplication::focusWidget() != previousFocus.data()) {
+    previousFocus->setFocus(Qt::OtherFocusReason);
   }
 }
 
@@ -304,33 +317,45 @@ void TagToastOverlay::startDismiss(bool immediate) {
 }
 
 void TagToastOverlay::reposition() {
-  if (repositioning_ || !chainLabel_) return;
+  if (repositioning_ || !chainLabel_ || !layout()) return;
   repositioning_ = true;
 
   chainLabel_->ensurePolished();
+  const int frameWidth = videoFrame_ ? videoFrame_->width() : 0;
   int availableWidth = kFallbackToastWidthPixels;
-  if (videoFrame_ && videoFrame_->width() > 0) {
-    availableWidth = qMax(160, videoFrame_->width() - (kTopMarginPixels * 2));
+  if (frameWidth > 0) {
+    const int inset = qMax(120, frameWidth - (kTopMarginPixels * 2));
+    availableWidth = qMin(frameWidth, inset);
   }
-  setMaximumWidth(availableWidth);
-  setMaximumHeight(kMaximumBodyHeightPixels);
 
-  const bool chipVisible = keyChip_ && keyChip_->isVisible();
-  const int chipWidth = chipVisible ? keyChip_->sizeHint().width() : 0;
-  const QMargins margins = contentsMargins();
-  const int spacing = layout() ? layout()->spacing() : 0;
-  const int chrome = margins.left() + margins.right() + chipWidth + (chipVisible ? spacing : 0);
+  // isHidden(), not isVisible(): the chip is shown before the tool window is,
+  // and isVisible() is false for every child of a hidden parent.
+  const bool chipShown = keyChip_ && !keyChip_->isHidden();
+  const int chipWidth = chipShown ? keyChip_->sizeHint().width() : 0;
+  const QMargins margins = layout()->contentsMargins();
+  const int spacing = chipShown ? layout()->spacing() : 0;
+  const int chrome = margins.left() + margins.right() + chipWidth + spacing;
   const int textBudget = qMax(48, availableWidth - chrome);
-  const int naturalTextWidth = chainLabel_->fontMetrics().horizontalAdvance(chainLabel_->text());
-  chainLabel_->setFixedWidth(qMax(1, qMin(naturalTextWidth + 2, textBudget)));
+  const int naturalTextWidth = chainLabel_->fontMetrics().horizontalAdvance(chainLabel_->text()) + 2;
+  const int textWidth = qBound(1, qMin(naturalTextWidth, textBudget), textBudget);
 
-  adjustSize();
-  if (width() > availableWidth) {
-    resize(availableWidth, height());
+  chainLabel_->setMinimumWidth(0);
+  chainLabel_->setMaximumWidth(textBudget);
+  chainLabel_->setFixedWidth(textWidth);
+
+  layout()->invalidate();
+  const int preferredWidth = qBound(1, chrome + textWidth, availableWidth);
+  int preferredHeight = layout()->totalHeightForWidth(preferredWidth);
+  if (preferredHeight <= 0) {
+    preferredHeight = qMax(layout()->sizeHint().height(), chainLabel_->sizeHint().height());
   }
-  if (height() > kMaximumBodyHeightPixels) {
-    resize(width(), kMaximumBodyHeightPixels);
-  }
+  const int height = qBound(1, preferredHeight, kMaximumBodyHeightPixels);
+
+  // resize() expands back to the label's unwrapped minimum when that minimum
+  // is larger than the maximum. Lock both so the toast cannot leave the frame.
+  setMinimumSize(0, 0);
+  setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+  setFixedSize(preferredWidth, height);
 
   if (videoFrame_ && presented_) {
     const QPoint origin = videoFrame_->mapToGlobal(QPoint(0, 0));
@@ -375,10 +400,7 @@ bool TagToastOverlay::eventFilter(QObject* watched, QEvent* event) {
         if (videoFrame_ && !anchorVisible) {
           hide();
         } else {
-          if (!isVisible()) {
-            show();
-            raise();
-          }
+          if (!isVisible()) showWithoutTakingFocus();
           reposition();
         }
       }

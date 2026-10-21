@@ -1,3 +1,4 @@
+#include "AppLocale.h"
 #include "GameControls.h"
 #include "TagToastOverlay.h"
 
@@ -186,29 +187,41 @@ void TaggingToastTest::longChainStaysInsideTheVideoFrame() {
   settleLayout(&toast);
 
   QVERIFY(toast.isPresented());
-  QVERIFY(toast.width() > 0);
-  QVERIFY(toast.width() <= videoFrame.width());
+  QVERIFY2(toast.width() > 0 && toast.width() <= videoFrame.width(),
+           qPrintable(QStringLiteral("toast %1 frame %2").arg(toast.width()).arg(videoFrame.width())));
   QVERIFY(toast.height() > 0);
   QVERIFY(toast.height() <= TagToastOverlay::kMaximumBodyHeightPixels);
+  const QPoint frameOrigin = videoFrame.mapToGlobal(QPoint(0, 0));
   QCOMPARE(toast.pos(), QPoint((videoFrame.width() - toast.width()) / 2, TagToastOverlay::kTopMarginPixels) +
-                            videoFrame.mapToGlobal(QPoint(0, 0)));
+                            frameOrigin);
+  QVERIFY(toast.pos().x() >= frameOrigin.x());
+  QVERIFY(toast.pos().x() + toast.width() <= frameOrigin.x() + videoFrame.width());
 
   QLabel* chain = toast.findChild<QLabel*>(QStringLiteral("TagToastChainLabel"));
   QVERIFY(chain);
   QVERIFY(chain->width() < videoFrame.width());
   QVERIFY(chain->text().contains(QStringLiteral("Wiśniewska")));
   QVERIFY(chain->text().contains(QStringLiteral("Ngọc")));
+  const int neededHeight = chain->heightForWidth(chain->width());
+  QVERIFY2(neededHeight <= chain->height(),
+           qPrintable(QStringLiteral("needed %1 label %2 toast %3")
+                          .arg(neededHeight)
+                          .arg(chain->height())
+                          .arg(toast.height())));
 }
 
 void TaggingToastTest::toastDoesNotTakeFocusOrMouse() {
   QLineEdit editor;
   editor.show();
-  editor.setFocus();
-  QCOMPARE(QApplication::focusWidget(), static_cast<QWidget*>(&editor));
+  editor.setFocus(Qt::OtherFocusReason);
+  // Offscreen often leaves focusWidget null. The toast must not change it either way.
+  QWidget* focusBefore = QApplication::focusWidget();
 
   TagToastOverlay toast;
   toast.beginEvent(QStringLiteral("X"), QStringLiteral("☆"), QColor(QStringLiteral("#18181b")), false);
-  QCOMPARE(QApplication::focusWidget(), static_cast<QWidget*>(&editor));
+  QCOMPARE(QApplication::focusWidget(), focusBefore);
+  QVERIFY(QApplication::focusWidget() != static_cast<QWidget*>(&toast));
+  QVERIFY(!toast.hasFocus());
   QCOMPARE(toast.focusPolicy(), Qt::NoFocus);
   QVERIFY(toast.testAttribute(Qt::WA_TransparentForMouseEvents));
   QVERIFY(toast.testAttribute(Qt::WA_ShowWithoutActivating));
@@ -332,6 +345,39 @@ void TaggingToastTest::keyboardRowsFollowQwertyOffsets() {
   settleLayout(&controls);
   const int wideHomeShift = mappedX(home, &controls) - mappedX(top, &controls);
   QVERIFY(wideHomeShift > narrowHomeShift);
+
+  controls.resize(GameControls::kMinimumPanelWidthPx, 820);
+  settleLayout(&controls);
+  QPushButton* turnover = buttonNamed(&controls, "Turnover");
+  QVERIFY(turnover);
+  QLabel* turnoverTitle = nullptr;
+  QLabel* circleTitle = nullptr;
+  for (QLabel* label : turnover->findChildren<QLabel*>()) {
+    if (label->property("gameEventName").toString() == QLatin1String("Turnover")) turnoverTitle = label;
+  }
+  for (QLabel* label : home->findChildren<QLabel*>()) {
+    if (label->property("gameEventName").toString() == QLatin1String("Circle Entry")) circleTitle = label;
+  }
+  QVERIFY(turnoverTitle);
+  QVERIFY(circleTitle);
+  const auto shownFits = [](const QLabel* title, const QString& fullText) {
+    QString stem = title->text();
+    stem.remove(QChar(0x2026));
+    stem.remove(QLatin1String("..."));
+    if (title->text() == fullText) return true;
+    return fullText.startsWith(stem) &&
+           title->fontMetrics().horizontalAdvance(title->text()) <= title->width() + 1;
+  };
+  QVERIFY2(shownFits(circleTitle, AppLocale::trEvent(QStringLiteral("Circle Entry"))),
+           qPrintable(circleTitle->text()));
+  QVERIFY2(shownFits(turnoverTitle, AppLocale::trEvent(QStringLiteral("Turnover"))),
+           qPrintable(turnoverTitle->text()));
+  QVERIFY(turnoverTitle->fontMetrics().horizontalAdvance(turnoverTitle->text()) <=
+          turnoverTitle->width() + 1);
+  QVERIFY(turnover->mapTo(&controls, QPoint(turnover->width() - 1, 0)).x() < controls.width());
+  QPushButton* card = buttonNamed(&controls, "Card");
+  QVERIFY(card);
+  QVERIFY(card->mapTo(&controls, QPoint(card->width() - 1, 0)).x() < controls.width());
 }
 
 void TaggingToastTest::longTeamNamesDoNotWidenThePanel() {
