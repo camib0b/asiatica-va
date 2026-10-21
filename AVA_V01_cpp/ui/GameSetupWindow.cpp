@@ -290,7 +290,6 @@ void GameSetupWindow::buildUi() {
   languageCombo->setObjectName(QStringLiteral("GameSetupLanguageCombo"));
   languageCombo->addItem(QString());
   languageCombo->addItem(QString());
-  languageCombo->setMaximumWidth(140);
   languageCombo->setFocusPolicy(Qt::StrongFocus);
   Style::setVariant(languageCombo.get(), "compact");
   languageCombo_ = languageCombo.get();

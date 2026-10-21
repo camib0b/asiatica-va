@@ -1,5 +1,7 @@
 #include "theme.h"
 
+#include "TextFit.h"
+
 #include <QApplication>
 #include <QFile>
 #include <QStyleFactory>
@@ -55,10 +57,11 @@ void ApplyLightTheme() {
     style = QStyleFactory::create(QStringLiteral("Windows"));
   }
   if (style) {
-    QApplication::setStyle(style);
+    QApplication::setStyle(new ElidingProxyStyle(style));
   } else {
     qWarning() << "Fusion and Windows styles unavailable; using platform default.";
   }
+  installTextFitWatcher();
 
   QFont font(QStringLiteral("Inter"));
   if (!QFontInfo(font).exactMatch()) {

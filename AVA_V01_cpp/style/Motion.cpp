@@ -201,6 +201,10 @@ class ButtonColorDriver final : public QObject {
   }
 
   void showCurrentState(int durationMs) {
+    if (!button_ || !button_->isEnabled()) {
+      clearInlineSheet();
+      return;
+    }
     if (pressed) {
       applyInstant(colors.pressedBackground, colors.pressedBorder);
       return;
@@ -213,8 +217,17 @@ class ButtonColorDriver final : public QObject {
   }
 
  private:
+  void clearInlineSheet() {
+    if (!button_ || button_->styleSheet().isEmpty()) return;
+    button_->setStyleSheet(QString());
+  }
+
   void publish() {
     if (!button_) return;
+    if (!button_->isEnabled()) {
+      clearInlineSheet();
+      return;
+    }
     const QString background = backgroundColor_.name(QColor::HexArgb);
     const QString border = borderColor_.name(QColor::HexArgb);
     QString sheet = QStringLiteral(
@@ -274,8 +287,10 @@ class ButtonHoverFilter final : public QObject {
     } else if (event->type() == QEvent::HoverLeave || event->type() == QEvent::Hide) {
       driver_->pointerInside = false;
       if (!driver_->pressed && !driver_->flashHolding) {
-        driver_->moveTo(driver_->colors.restBackground, driver_->colors.restBorder, Motion::kHoverOut);
+        driver_->showCurrentState(Motion::kHoverOut);
       }
+    } else if (event->type() == QEvent::EnabledChange) {
+      driver_->showCurrentState(0);
     }
     return false;
   }
