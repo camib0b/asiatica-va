@@ -40,6 +40,7 @@ qt_add_executable(AVA
   components/PlaybackSpeedometer.cpp
   components/TimelineBar.cpp
   components/GameControls.cpp
+  components/TagToastOverlay.cpp
   components/FollowUpCatalog.cpp
   components/MatchNotesEditor.cpp
   components/VideoPlayer.cpp
@@ -149,6 +150,11 @@ qt_add_executable(AVAExportTests
   tests/CompilationSidecarTests.cpp
   tests/PresentationPlaybackTests.cpp
   tests/WorkStateTests.cpp
+  tests/TaggingToastTests.cpp
+  components/TagToastOverlay.cpp
+  components/GameControls.cpp
+  components/FollowUpCatalog.cpp
+  style/Motion.cpp
   state/PresentationPlayback.cpp
   state/TagFilter.cpp
   i18n/AppLocale.cpp

@@ -32,6 +32,7 @@ class QTemporaryDir;
 class VideoConcatenator;
 class VideoPlayer;
 class GameControls;
+class TagToastOverlay;
 class GameSetupWindow;
 class StatsWindow;
 class ClipTrimBar;
@@ -246,6 +247,7 @@ private:
 
   // UI:
   VideoPlayer* videoPlayer_ = nullptr;
+  TagToastOverlay* tagToast_ = nullptr;
   GameControls* gameControls_ = nullptr;
   StatsWindow* statsWindow_ = nullptr;
   QWidget* notesColumn_ = nullptr;

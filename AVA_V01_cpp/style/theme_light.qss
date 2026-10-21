@@ -1151,7 +1151,21 @@ QWidget#VideoControlsBar QLabel[role="muted"] {
   color: #d4d4d8;
 }
 
-/* Compact game controls in tagging right column.
+/* Tag confirmation drawn over the video. The pill itself is painted by
+   TagToastOverlay; this only styles the chain text. */
+QWidget#TagToastOverlay {
+  background: transparent;
+  border: none;
+}
+QWidget#TagToastOverlay QLabel[role="tagToastChain"] {
+  color: #fafafa;
+  font-size: 13px;
+  font-weight: 600;
+  background: transparent;
+  padding: 0px;
+}
+
+/* Compact game controls in the tagging column (left of the video while tagging).
    Size, focus, and state rules elsewhere set 15–24px of horizontal padding;
    these selectors win so the tagging side panel is not forced wide. */
 QWidget#TaggingRightCol QPushButton[variant="gameControl"],

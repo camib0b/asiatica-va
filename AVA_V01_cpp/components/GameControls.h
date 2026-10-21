@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QColor>
 #include <QWidget>
 #include <QStringList>
 #include <QList>
@@ -11,7 +12,6 @@
 
 class QPushButton;
 class QLabel;
-class QGridLayout;
 class QHBoxLayout;
 class QWidget;
 class QKeyEvent;
@@ -55,6 +55,12 @@ signals:
   void mainEventTimestampCaptured(const QString& mainEvent);
   /// Follow-up flow finished (or skipped); WorkWindow should create the GameTag.
   void tagCommitted(const QString& mainEvent, const QString& followUpEvent = QString());
+  /// One step of the on-video confirmation. \c startsChain replaces the chain (main event).
+  /// \c chainOpen stays true while follow-up questions remain.
+  void tagSequenceAdvanced(const QString& shortcutKey, const QString& stepLabel, const QColor& teamColor,
+                           bool chainOpen, bool startsChain);
+  /// Esc ended the open follow-up. tagCommitted still records the main event with an empty path.
+  void tagSequenceDismissed();
   /// Emitted when the user advances from NotStarted (period-advance button / G or H).
   /// WorkWindow asks the session to insert the start-anchor tag, which opens Q1.
   void gameStartRequested();
@@ -85,6 +91,11 @@ private:
   void beginChainedGoalFlow();
   void clearFollowUpUi();
   QString selectedTeamLabel() const;
+  QColor selectedTeamColor() const;
+  void notifyTagSequence(const QString& shortcutKey, const QString& stepLabel, bool chainOpen,
+                         bool startsChain);
+  void refreshTeamButtonLabels();
+  std::array<QPushButton*, 14> keyboardOrderButtons() const;
   /// After possession changes to the other side (e.g. Turnover), select the other team for the next tag.
   void switchTeamSideToOppositeTeam();
   void updateTeamButtonSelectionVisual();
@@ -107,7 +118,6 @@ protected:
     Ended,             // All quarters closed; period-advance disabled.
   };
 
-  QGridLayout* mainGridLayout_ = nullptr;
   QHBoxLayout* followUpLayout_ = nullptr;
   QWidget* followUpContainer_ = nullptr;
 

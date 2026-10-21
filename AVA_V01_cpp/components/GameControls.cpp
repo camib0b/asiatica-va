@@ -6,9 +6,9 @@
 #include "../i18n/AppLocale.h"
 #include "../state/TagSession.h"
 
-#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <QSpacerItem>
 #include <QPushButton>
 #include <QWidget>
 #include <QTimer>
@@ -212,9 +212,58 @@ struct FocusNavEntry {
   int col = 0;
 };
 
+// One key is four layout units so a row can shift by quarter-keys (1 and 3).
+constexpr int kKeyWidthUnits = 4;
+constexpr int kHomeRowOffsetUnits = 1;    // ~1/4 key, matching the A row under Q
+constexpr int kBottomRowOffsetUnits = 3;  // ~3/4 key, matching the Z row under Q
+constexpr int kFullRowButtonCount = 4;
+constexpr int kFollowUpFocusRow = 4;
+
+void addKeyboardRow(QVBoxLayout* column, QWidget* parent, const QList<QPushButton*>& buttons,
+                    int leftOffsetUnits) {
+  if (!column) return;
+  auto* row = new QWidget(parent);
+  row->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  auto* layout = new QHBoxLayout(row);
+  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setSpacing(4);
+
+  auto* leftSpacer = new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Minimum);
+  layout->addSpacerItem(leftSpacer);
+  layout->setStretch(layout->count() - 1, qMax(0, leftOffsetUnits));
+
+  for (QPushButton* button : buttons) {
+    if (!button) continue;
+    layout->addWidget(button, kKeyWidthUnits);
+  }
+
+  const int buttonCount = static_cast<int>(buttons.size());
+  const int missingButtons = qMax(0, kFullRowButtonCount - buttonCount);
+  const int rightOffsetUnits =
+      qMax(0, kBottomRowOffsetUnits - leftOffsetUnits) + (kKeyWidthUnits * missingButtons);
+  auto* rightSpacer = new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Minimum);
+  layout->addSpacerItem(rightSpacer);
+  layout->setStretch(layout->count() - 1, rightOffsetUnits);
+
+  column->addWidget(row);
+}
+
+void elideButtonLabel(QPushButton* button, const QString& fullText) {
+  if (!button) return;
+  const int availableWidth = button->contentsRect().width();
+  QString shown = fullText;
+  if (availableWidth > 8) {
+    shown = button->fontMetrics().elidedText(fullText, Qt::ElideRight, availableWidth);
+  }
+  if (button->text() != shown) {
+    button->setText(shown);
+  }
+  button->setToolTip(shown == fullText ? QString() : fullText);
+}
+
 QVector<FocusNavEntry> buildFocusNavEntries(QPushButton* homeTeamButton,
                                             QPushButton* awayTeamButton,
-                                            QGridLayout* mainGridLayout,
+                                            const std::array<QPushButton*, 14>& mainButtons,
                                             const QList<QPushButton*>& followUpButtons) {
   QVector<FocusNavEntry> entries;
   if (homeTeamButton) {
@@ -223,22 +272,17 @@ QVector<FocusNavEntry> buildFocusNavEntries(QPushButton* homeTeamButton,
   if (awayTeamButton) {
     entries.append({awayTeamButton, -1, 1});
   }
-  if (mainGridLayout) {
-    for (int row = 0; row < mainGridLayout->rowCount(); ++row) {
-      for (int col = 0; col < mainGridLayout->columnCount(); ++col) {
-        QLayoutItem* item = mainGridLayout->itemAtPosition(row, col);
-        auto* button = qobject_cast<QPushButton*>(item ? item->widget() : nullptr);
-        if (button) {
-          entries.append({button, row, col});
-        }
-      }
-    }
+  for (int index = 0; index < static_cast<int>(mainButtons.size()); ++index) {
+    QPushButton* button = mainButtons.at(static_cast<std::size_t>(index));
+    if (!button) continue;
+    const int row = index / kFullRowButtonCount;
+    const int column = index % kFullRowButtonCount;
+    entries.append({button, row, column});
   }
-  const int followUpRow = mainGridLayout ? mainGridLayout->rowCount() : 0;
   for (int index = 0; index < followUpButtons.size(); ++index) {
     QPushButton* button = followUpButtons.at(index);
     if (button && button->isVisible()) {
-      entries.append({button, followUpRow, index});
+      entries.append({button, kFollowUpFocusRow, index});
     }
   }
   return entries;
@@ -334,15 +378,40 @@ void GameControls::setSessionTeamNames(const QString& homeName, const QString& a
   awayTeamFollowUpLabel_ = awayTrimmed.isEmpty() ? QStringLiteral("away") : awayTrimmed;
   homeTeamColorHex_ = normalizeTeamColorHex(homeColorHex);
   awayTeamColorHex_ = normalizeTeamColorHex(awayColorHex);
-  if (homeTeamButton_) homeTeamButton_->setText(homeTeamFollowUpLabel_);
-  if (awayTeamButton_) awayTeamButton_->setText(awayTeamFollowUpLabel_);
+  refreshTeamButtonLabels();
   updateTeamButtonSelectionVisual();
+}
+
+void GameControls::refreshTeamButtonLabels() {
+  elideButtonLabel(homeTeamButton_, homeTeamFollowUpLabel_);
+  elideButtonLabel(awayTeamButton_, awayTeamFollowUpLabel_);
 }
 
 QString GameControls::selectedTeamLabel() const {
   if (teamSide_ == TagSession::TeamSide::Home) return homeTeamFollowUpLabel_;
   if (teamSide_ == TagSession::TeamSide::Away) return awayTeamFollowUpLabel_;
   return QString();
+}
+
+QColor GameControls::selectedTeamColor() const {
+  const QString hex = teamSide_ == TagSession::TeamSide::Home   ? homeTeamColorHex_
+                      : teamSide_ == TagSession::TeamSide::Away ? awayTeamColorHex_
+                                                                : QString();
+  if (hex.isEmpty()) return QColor();
+  const QColor color(hex);
+  return color.isValid() ? color : QColor();
+}
+
+void GameControls::notifyTagSequence(const QString& shortcutKey, const QString& stepLabel,
+                                    bool chainOpen, bool startsChain) {
+  emit tagSequenceAdvanced(shortcutKey, stepLabel, selectedTeamColor(), chainOpen, startsChain);
+}
+
+std::array<QPushButton*, 14> GameControls::keyboardOrderButtons() const {
+  return {sixteenYardButton_, fiftyYardButton_, seventyFiveYardButton_, pcButton_,
+          circleEntryButton_, pcFoulButton_, shotButton_, goalButton_,
+          passButton_, specialButton_, turnoverButton_, cardButton_,
+          psButton_, shootoutButton_};
 }
 
 void GameControls::updateTeamButtonSelectionVisual() {
@@ -593,6 +662,7 @@ void GameControls::configureMainGameControlButton(QPushButton* button, const QSt
   if (!button) return;
   button->setText(QString());
   button->setProperty("gameEventName", eventName);
+  button->setProperty("shortcutHint", shortcutHint);
   auto* layout = new QVBoxLayout(button);
   layout->setContentsMargins(2, 4, 2, 4);
   layout->setSpacing(2);
@@ -601,10 +671,14 @@ void GameControls::configureMainGameControlButton(QPushButton* button, const QSt
   mainButtonTitleLabels_.append(titleLabel);
   titleLabel->setAlignment(Qt::AlignCenter);
   titleLabel->setWordWrap(true);
+  titleLabel->setMinimumWidth(0);
+  titleLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
   Style::setRole(titleLabel, "gameControlTitle");
   titleLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
   auto* shortcutLabel = new QLabel(shortcutHint, button);
   shortcutLabel->setAlignment(Qt::AlignCenter);
+  shortcutLabel->setMinimumWidth(0);
+  shortcutLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
   Style::setRole(shortcutLabel, "muted");
   shortcutLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
   layout->addWidget(titleLabel);
@@ -701,18 +775,20 @@ void GameControls::buildUi() {
     Style::setSize(btn, "lg");
     Style::setVariant(btn, "gameControl");
     btn->setFocusPolicy(Qt::StrongFocus);
-    btn->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    // Ignored width: a long club name must not push the video column aside.
+    btn->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+    btn->setMinimumWidth(0);
     btn->setMinimumHeight(64);
   }
   teamRowLayout->addWidget(homeTeamButton_, 1);
   teamRowLayout->addWidget(awayTeamButton_, 1);
   setTabOrder(homeTeamButton_, awayTeamButton_);
 
-  // Main grid: rows 0–2 are 4 columns; row 3 is PS + S.O.
+  // QWERTY block. Rows shift by a fraction of a key so Q sits above the gap before A.
   auto* mainGridWidget = new QWidget(this);
-  mainGridLayout_ = new QGridLayout(mainGridWidget);
-  mainGridLayout_->setContentsMargins(0, 0, 0, 0);
-  mainGridLayout_->setSpacing(4);
+  auto* keyboardRowsLayout = new QVBoxLayout(mainGridWidget);
+  keyboardRowsLayout->setContentsMargins(0, 0, 0, 0);
+  keyboardRowsLayout->setSpacing(4);
 
   // Create main event buttons (title + keyboard hint on second line)
   sixteenYardButton_ = new QPushButton(mainGridWidget);
@@ -761,32 +837,21 @@ void GameControls::buildUi() {
     Style::setVariant(button, "gameControl");
     // ClickFocus: not in Tab chain; main actions use Q/W/E… shortcuts and mouse.
     button->setFocusPolicy(Qt::ClickFocus);
-    button->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    button->setMinimumWidth(0);
     button->setMinimumHeight(52);
-  }
-  for (int column = 0; column < 4; ++column) {
-    mainGridLayout_->setColumnStretch(column, 1);
   }
   setFocusPolicy(Qt::StrongFocus);
 
-  // Row 0: 16-yd, 50-yd, 75-yd, PC
-  mainGridLayout_->addWidget(sixteenYardButton_, 0, 0);
-  mainGridLayout_->addWidget(fiftyYardButton_, 0, 1);
-  mainGridLayout_->addWidget(seventyFiveYardButton_, 0, 2);
-  mainGridLayout_->addWidget(pcButton_, 0, 3);
-  // Row 1: Circle Entry, PC Foul, Shot, Goal
-  mainGridLayout_->addWidget(circleEntryButton_, 1, 0);
-  mainGridLayout_->addWidget(pcFoulButton_, 1, 1);
-  mainGridLayout_->addWidget(shotButton_, 1, 2);
-  mainGridLayout_->addWidget(goalButton_, 1, 3);
-  // Row 2: Pass, Special, Turnover, Card
-  mainGridLayout_->addWidget(passButton_, 2, 0);
-  mainGridLayout_->addWidget(specialButton_, 2, 1);
-  mainGridLayout_->addWidget(turnoverButton_, 2, 2);
-  mainGridLayout_->addWidget(cardButton_, 2, 3);
-  // Row 3: PS, S.O.
-  mainGridLayout_->addWidget(psButton_, 3, 0);
-  mainGridLayout_->addWidget(shootoutButton_, 3, 1);
+  // Row 0 is QWER. Row 1 (ASDF) shifts ~1/4 key. Row 2 (ZXCV) and B/N shift ~3/4.
+  addKeyboardRow(keyboardRowsLayout, mainGridWidget,
+                 {sixteenYardButton_, fiftyYardButton_, seventyFiveYardButton_, pcButton_}, 0);
+  addKeyboardRow(keyboardRowsLayout, mainGridWidget,
+                 {circleEntryButton_, pcFoulButton_, shotButton_, goalButton_}, kHomeRowOffsetUnits);
+  addKeyboardRow(keyboardRowsLayout, mainGridWidget,
+                 {passButton_, specialButton_, turnoverButton_, cardButton_}, kBottomRowOffsetUnits);
+  addKeyboardRow(keyboardRowsLayout, mainGridWidget, {psButton_, shootoutButton_},
+                 kBottomRowOffsetUnits);
 
   // Follow-up buttons container (initially hidden)
   followUpContainer_ = new QWidget(this);
@@ -936,6 +1001,8 @@ void GameControls::onMainButtonClicked() {
   followUpState_.beginMainEvent(eventName);
   setActiveMainButton(button);
   emit mainEventTimestampCaptured(eventName);
+  const bool chainOpen = !FollowUpCatalog::firstLevelOptions(eventName).isEmpty();
+  notifyTagSequence(button->property("shortcutHint").toString(), eventName, chainOpen, true);
   showFirstLevelFollowUps();
 }
 
@@ -952,7 +1019,9 @@ void GameControls::advanceFollowUpFlow(const QString& choice) {
   followUpState_.select(choice);
   const QStringList nextOptions =
       FollowUpCatalog::optionsAfter(followUpState_.mainEvent(), followUpState_.selections());
-  if (nextOptions.isEmpty()) {
+  const bool chainOpen = !nextOptions.isEmpty();
+  notifyTagSequence(QString(), choice, chainOpen, false);
+  if (!chainOpen) {
     commitFollowUpFlow();
     return;
   }
@@ -980,14 +1049,23 @@ void GameControls::commitFollowUpFlow() {
 void GameControls::cancelFollowUpFlow() {
   if (followUpState_.isIdle()) return;
   const QString mainEvent = followUpState_.takeCommit().mainEvent;
+  emit tagSequenceDismissed();
   emit tagCommitted(mainEvent, QString());
   clearFollowUpUi();
 }
 
 void GameControls::beginChainedGoalFlow() {
+  // "Goal" is already the last toast step. A second toast would hide that chain.
+  // If Goal ever grows follow-up questions, those still need their own confirmation.
   followUpState_.beginMainEvent(QStringLiteral("Goal"));
   setActiveMainButton(goalButton_);
   emit mainEventTimestampCaptured(QStringLiteral("Goal"));
+  const bool chainOpen = !FollowUpCatalog::firstLevelOptions(QStringLiteral("Goal")).isEmpty();
+  if (chainOpen) {
+    const QString shortcut = goalButton_ ? goalButton_->property("shortcutHint").toString()
+                                         : QStringLiteral("F");
+    notifyTagSequence(shortcut, QStringLiteral("Goal"), true, true);
+  }
   showFirstLevelFollowUps();
 }
 
@@ -1061,7 +1139,7 @@ void GameControls::flashButtonBorder(QPushButton* button) {
 QList<QPushButton*> GameControls::focusableButtonsOrder() const {
   QList<QPushButton*> buttons;
   for (const FocusNavEntry& entry :
-       buildFocusNavEntries(homeTeamButton_, awayTeamButton_, mainGridLayout_, followUpButtons_)) {
+       buildFocusNavEntries(homeTeamButton_, awayTeamButton_, keyboardOrderButtons(), followUpButtons_)) {
     if (entry.button) {
       buttons.append(entry.button);
     }
@@ -1071,7 +1149,7 @@ QList<QPushButton*> GameControls::focusableButtonsOrder() const {
 
 void GameControls::focusNextInDirection(Qt::Key key) {
   const QVector<FocusNavEntry> entries =
-      buildFocusNavEntries(homeTeamButton_, awayTeamButton_, mainGridLayout_, followUpButtons_);
+      buildFocusNavEntries(homeTeamButton_, awayTeamButton_, keyboardOrderButtons(), followUpButtons_);
   if (entries.isEmpty()) {
     return;
   }
@@ -1146,6 +1224,11 @@ void GameControls::applyTeamOnlyTabNavigation(bool forwardTab) {
 }
 
 bool GameControls::eventFilter(QObject* obj, QEvent* event) {
+  if (event->type() == QEvent::Resize &&
+      (obj == homeTeamButton_ || obj == awayTeamButton_)) {
+    refreshTeamButtonLabels();
+    return false;
+  }
   if (event->type() == QEvent::KeyPress) {
     QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
     if (handleApplicationShortcut(keyEvent)) {
