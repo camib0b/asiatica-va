@@ -18,6 +18,10 @@ inline QColor faint() { return QColor(QStringLiteral("#a1a1aa")); }  // QLabel[r
 inline QColor quietText() { return QColor(QStringLiteral("#71717a")); } // --muted-foreground
 inline QColor border() { return QColor(QStringLiteral("#e4e4e7")); } // --border / zinc-200
 inline QColor hoverBorder() { return QColor(QStringLiteral("#d4d4d8")); } // zinc-300
+// Game-control hairline on the white tagging panel. zinc-200 matches the panel
+// and vanishes; zinc-400 is the resting stroke and zinc-500 is hover/press.
+inline QColor gameControlBorder() { return QColor(QStringLiteral("#a1a1aa")); }
+inline QColor gameControlHoverBorder() { return QColor(QStringLiteral("#71717a")); }
 inline QColor surface() { return QColor(QStringLiteral("#ffffff")); }
 inline QColor hoverSurface() { return QColor(QStringLiteral("#f4f4f5")); } // zinc-100
 inline QColor pressedSurface() { return QColor(QStringLiteral("#e4e4e7")); }

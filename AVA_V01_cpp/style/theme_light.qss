@@ -279,19 +279,22 @@ QPushButton[variant="ghost"][speedActive="true"] {
    Game Controls
 ========================= */
 
+/* Rest stroke is zinc-400, not --border (zinc-200): the panel behind these
+   keys is the same white as the fill, and zinc-200 disappears into it.
+   Hover and press step to zinc-500. No drop shadow — the keys sit 4px apart. */
 QPushButton[variant="gameControl"] {
   background: #FFFFFF;
-  border: 1px solid #e4e4e7;
+  border: 1px solid #a1a1aa;
   border-radius: 6px;
   font-weight: 500;
 }
 QPushButton[variant="gameControl"]:hover {
   background: #f4f4f5;
-  border-color: #d4d4d8;
+  border-color: #71717a;
 }
 QPushButton[variant="gameControl"]:pressed {
   background: #e4e4e7;
-  border-color: #d4d4d8;
+  border-color: #71717a;
 }
 QPushButton[variant="gameControl"]:focus {
   border: 2px solid #18181b;
@@ -349,7 +352,7 @@ QLabel[role="gameControlTitle"] {
   font-size: 12px;
 }
 QPushButton[variant="gameControl"] QLabel[role="muted"] {
-  color: #a1a1aa;
+  color: #71717a;
   font-size: 11px;
   font-weight: 400;
 }
@@ -358,7 +361,7 @@ QPushButton[variant="gameControl"][activeMain="true"] QLabel[role="gameControlTi
   font-weight: 700;
 }
 QPushButton[variant="gameControl"][activeMain="true"] QLabel[role="muted"] {
-  color: #71717a;
+  color: #52525b;
 }
 
 /* Follow-up buttons — zinc-950 fill so light labels stay readable */
@@ -615,6 +618,23 @@ QComboBox::drop-down {
 QComboBox::down-arrow {
   width: 10px;
   height: 10px;
+}
+
+/* Presentation filters. The shared combo rule reserves a wide arrow lane on
+   top of the padding, so a short value such as "Ambos" was clipped while the
+   box still showed empty white space. These two boxes keep a 16px arrow. */
+QComboBox#PresentationEventFilter,
+QComboBox#PresentationTeamFilter {
+  padding: 4px 2px 4px 8px;
+  min-width: 0px;
+}
+QComboBox#PresentationEventFilter::drop-down,
+QComboBox#PresentationTeamFilter::drop-down {
+  width: 16px;
+  padding: 0px;
+  border: none;
+  subcontrol-origin: border;
+  subcontrol-position: center right;
 }
 
 QComboBox QAbstractItemView {
@@ -1236,7 +1256,21 @@ QWidget#VideoControlsBar QLabel[role="muted"] {
   color: #d4d4d8;
 }
 
-/* Compact game controls in tagging right column.
+/* Tag confirmation drawn over the video. The pill itself is painted by
+   TagToastOverlay; this only styles the chain text. */
+QWidget#TagToastOverlay {
+  background: transparent;
+  border: none;
+}
+QWidget#TagToastOverlay QLabel[role="tagToastChain"] {
+  color: #fafafa;
+  font-size: 13px;
+  font-weight: 600;
+  background: transparent;
+  padding: 0px;
+}
+
+/* Compact game controls in the tagging column (left of the video while tagging).
    Size, focus, and state rules elsewhere set 15–24px of horizontal padding;
    these selectors win so the tagging side panel is not forced wide. */
 QWidget#TaggingRightCol QPushButton[variant="gameControl"],

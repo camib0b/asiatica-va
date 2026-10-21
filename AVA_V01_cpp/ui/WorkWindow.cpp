@@ -7,6 +7,7 @@
 #include "../style/ThemeColors.h"
 #include "../components/VideoPlayer.h"
 #include "../components/GameControls.h"
+#include "../components/TagToastOverlay.h"
 #include "../components/MatchNotesEditor.h"
 #include "../state/EventDefaults.h"
 #include "../state/PresentationQueue.h"
@@ -757,13 +758,13 @@ void WorkWindow::applyModeChrome() {
     }
 
     if (workSideStack_) {
-        if (isTagging && taggingRightCol_) {
-            workSideStack_->setCurrentWidget(taggingRightCol_);
-        } else if (isAnalyzing && statsWindow_) {
-            workSideStack_->setCurrentWidget(statsWindow_);
-        } else if (isPresenting && presentationPanel_) {
-            workSideStack_->setCurrentWidget(presentationPanel_);
-        }
+        // Every mode owns one page. Leaving this unset keeps the previous
+        // page, so returning to tagging still shows the analyzing panel.
+        QWidget* page = nullptr;
+        if (isTagging) page = taggingRightCol_;
+        else if (isAnalyzing) page = statsWindow_;
+        else if (isPresenting) page = presentationPanel_;
+        if (page) workSideStack_->setCurrentWidget(page);
     }
 
     // Preferred can shrink to the longest button word. Minimum treated each
@@ -792,6 +793,33 @@ void WorkWindow::applyModeChrome() {
     }
     if (workSideStack_) {
         workSideStack_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+        if (isTagging) {
+            workSideStack_->setMaximumWidth(kMaximumTaggingSidePanelWidthPx);
+        } else {
+            workSideStack_->setMaximumWidth(QWIDGETSIZE_MAX);
+        }
+    }
+
+    // Tagging keeps the event column on the left, next to the hand on the keys.
+    // Analyzing and presenting put their side panel back on the right.
+    if (workOuterSplitter_ && workSideStack_ && workOuterSplitter_->indexOf(workSideStack_) >= 0) {
+        const bool onLeft = isTagging;
+        const int desiredIndex = onLeft ? 0 : 1;
+        if (workOuterSplitter_->indexOf(workSideStack_) != desiredIndex) {
+            workOuterSplitter_->insertWidget(desiredIndex, workSideStack_);
+        }
+        if (onLeft) {
+            workOuterSplitter_->setStretchFactor(0, 0);
+            workOuterSplitter_->setStretchFactor(1, 4);
+        } else {
+            workOuterSplitter_->setStretchFactor(0, 4);
+            workOuterSplitter_->setStretchFactor(1, 1);
+        }
+    }
+    applySidePanelCompressedWidth();
+    if (tagToast_) {
+        if (isTagging) tagToast_->resumeOpenChain();
+        else tagToast_->suspend();
     }
 }
 
@@ -802,7 +830,34 @@ void WorkWindow::applySidePanelCompressedWidth() {
     const int totalWidth = workOuterSplitter_->width();
     if (totalWidth <= sideMinimumWidth) return;
 
-    workOuterSplitter_->setSizes({totalWidth - sideMinimumWidth, sideMinimumWidth});
+    const bool sideOnLeft = workSideStack_ && workOuterSplitter_->indexOf(workSideStack_) == 0;
+    const int sideWidth = sideMinimumWidth;
+    const int videoWidth = qMax(0, totalWidth - sideWidth);
+    if (sideOnLeft) {
+        workOuterSplitter_->setSizes({sideWidth, videoWidth});
+    } else {
+        workOuterSplitter_->setSizes({videoWidth, sideWidth});
+    }
+    enforceTaggingSidePanelWidthCap();
+}
+
+void WorkWindow::enforceTaggingSidePanelWidthCap() {
+    if (!workOuterSplitter_ || mode_ != Mode::Tagging || !workSideStack_) return;
+
+    const int sideIndex = workOuterSplitter_->indexOf(workSideStack_);
+    if (sideIndex < 0) return;
+
+    QList<int> sizes = workOuterSplitter_->sizes();
+    if (sideIndex >= sizes.size()) return;
+    if (sizes.at(sideIndex) <= kMaximumTaggingSidePanelWidthPx) return;
+
+    const int excess = sizes.at(sideIndex) - kMaximumTaggingSidePanelWidthPx;
+    sizes[sideIndex] = kMaximumTaggingSidePanelWidthPx;
+    const int videoIndex = sideIndex == 0 ? 1 : 0;
+    if (videoIndex < sizes.size()) {
+        sizes[videoIndex] += excess;
+    }
+    workOuterSplitter_->setSizes(sizes);
 }
 
 WorkWindow::TagContext WorkWindow::tagContext() const {
@@ -937,6 +992,8 @@ void WorkWindow::buildUi() {
     layout->addWidget(exportJobsBar_, 0);
 
     taggingRightCol_ = new QWidget(this);
+    // Object name stays TaggingRightCol so the compact-button QSS keeps matching
+    // after the column moves to the left of the video.
     taggingRightCol_->setObjectName(QStringLiteral("TaggingRightCol"));
     auto* taggingRightLayout = new QVBoxLayout(taggingRightCol_);
     taggingRightLayout->setContentsMargins(0, 0, 0, 0);
@@ -1100,6 +1157,8 @@ void WorkWindow::buildUi() {
 
     videoPlayer_ = new VideoPlayer(videoColumn_);
     videoColumnLayout->addWidget(videoPlayer_, 1);
+    tagToast_ = new TagToastOverlay(videoPlayer_->videoWidget());
+    tagToast_->trackVideoFrame(videoPlayer_->videoWidget());
 
     presentationClipBar_ = new ClipTrimBar(videoColumn_);
     videoColumnLayout->addWidget(presentationClipBar_, 0);
@@ -1137,16 +1196,18 @@ void WorkWindow::buildUi() {
     workOuterSplitter_->setChildrenCollapsible(false);
     workOuterSplitter_->setHandleWidth(6);
     workOuterSplitter_->setAttribute(Qt::WA_StyledBackground, true);
-    workOuterSplitter_->addWidget(workLeftSplitter_);
     workOuterSplitter_->addWidget(workSideStack_);
-    workOuterSplitter_->setStretchFactor(0, 4);
-    workOuterSplitter_->setStretchFactor(1, 1);
+    workOuterSplitter_->addWidget(workLeftSplitter_);
+    workOuterSplitter_->setStretchFactor(0, 0);
+    workOuterSplitter_->setStretchFactor(1, 4);
 
     for (QSplitter* splitter : {workOuterSplitter_, workLeftSplitter_, workTagsNotesSplitter_}) {
         splitter->setAttribute(Qt::WA_StyledBackground, true);
     }
 
     contentAreaLayout->addWidget(workOuterSplitter_, 1);
+    connect(workOuterSplitter_, &QSplitter::splitterMoved, this,
+            &WorkWindow::enforceTaggingSidePanelWidthCap);
     workOuterSplitter_->hide();
 
     buildPresentationUi();
@@ -1227,6 +1288,21 @@ void WorkWindow::wireSignals() {
         connect(gameControls_, &GameControls::nextQuarterRequested, this,
                 &WorkWindow::onNextQuarterRequested);
     }
+
+    connect(gameControls_, &GameControls::tagSequenceAdvanced, this,
+            [this](const QString& shortcutKey, const QString& stepLabel, const QColor& teamColor,
+                   bool chainOpen, bool startsChain) {
+                if (!tagToast_) return;
+                const QString displayLabel = AppLocale::trEvent(stepLabel);
+                if (startsChain) {
+                    tagToast_->beginEvent(shortcutKey, displayLabel, teamColor, chainOpen);
+                } else {
+                    tagToast_->appendFollowUp(displayLabel, chainOpen);
+                }
+            });
+    connect(gameControls_, &GameControls::tagSequenceDismissed, this, [this]() {
+        if (tagToast_) tagToast_->dismissImmediately();
+    });
 
     connect(gameControls_, &GameControls::tagCommitted, this, [this](const QString& mainEvent, const QString& followUpEvent) {
         if (!videoPlayer_) return;
@@ -1426,6 +1502,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     sourceVideoPath_ = filePath;
     workStage_ = WorkStage::VideoOpen;
 
+    if (tagToast_) tagToast_->dismissImmediately();
     capturedMainEvent_.reset();
     if (tagSession_) tagSession_->clear();
     if (tagsModel_) tagsModel_->setRows({});
@@ -1588,6 +1665,7 @@ void WorkWindow::onCloseVideo() {
     if (!confirmExportAllowsVideoRelease()) return;
     workStage_ = WorkStage::NoVideo;
     sourceVideoPath_.clear();
+    if (tagToast_) tagToast_->dismissImmediately();
     capturedMainEvent_.reset();
     if (gameControls_) gameControls_->setTeamSide(TagSession::TeamSide::Unspecified);
     if (videoPlayer_) videoPlayer_->setControlsVisible(false);
