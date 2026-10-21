@@ -161,11 +161,11 @@ Motion::ButtonColors colorsForGameButton(const QPushButton* button, const QPushB
   }
 
   colors.restBackground = Style::ThemeColors::surface();
-  colors.restBorder = Style::ThemeColors::border();
+  colors.restBorder = Style::ThemeColors::gameControlBorder();
   colors.hoverBackground = Style::ThemeColors::hoverSurface();
-  colors.hoverBorder = Style::ThemeColors::hoverBorder();
+  colors.hoverBorder = Style::ThemeColors::gameControlHoverBorder();
   colors.pressedBackground = Style::ThemeColors::pressedSurface();
-  colors.pressedBorder = Style::ThemeColors::hoverBorder();
+  colors.pressedBorder = Style::ThemeColors::gameControlHoverBorder();
   return colors;
 }
 

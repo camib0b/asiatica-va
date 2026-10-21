@@ -279,19 +279,22 @@ QPushButton[variant="ghost"][speedActive="true"] {
    Game Controls
 ========================= */
 
+/* Rest stroke is zinc-400, not --border (zinc-200): the panel behind these
+   keys is the same white as the fill, and zinc-200 disappears into it.
+   Hover and press step to zinc-500. No drop shadow — the keys sit 4px apart. */
 QPushButton[variant="gameControl"] {
   background: #FFFFFF;
-  border: 1px solid #e4e4e7;
+  border: 1px solid #a1a1aa;
   border-radius: 6px;
   font-weight: 500;
 }
 QPushButton[variant="gameControl"]:hover {
   background: #f4f4f5;
-  border-color: #d4d4d8;
+  border-color: #71717a;
 }
 QPushButton[variant="gameControl"]:pressed {
   background: #e4e4e7;
-  border-color: #d4d4d8;
+  border-color: #71717a;
 }
 QPushButton[variant="gameControl"]:focus {
   border: 2px solid #18181b;
@@ -349,7 +352,7 @@ QLabel[role="gameControlTitle"] {
   font-size: 12px;
 }
 QPushButton[variant="gameControl"] QLabel[role="muted"] {
-  color: #a1a1aa;
+  color: #71717a;
   font-size: 11px;
   font-weight: 400;
 }
@@ -358,7 +361,7 @@ QPushButton[variant="gameControl"][activeMain="true"] QLabel[role="gameControlTi
   font-weight: 700;
 }
 QPushButton[variant="gameControl"][activeMain="true"] QLabel[role="muted"] {
-  color: #71717a;
+  color: #52525b;
 }
 
 /* Follow-up buttons — zinc-950 fill so light labels stay readable */
