@@ -49,6 +49,14 @@ class ClipExporter final : public QObject {
     Q_OBJECT
 
 public:
+    enum class Activity {
+        Preparing,
+        ExportingClip,
+        JoiningClips,
+        Finishing,
+    };
+    Q_ENUM(Activity)
+
     explicit ClipExporter(QObject* parent = nullptr);
     ~ClipExporter() override;
 
@@ -72,7 +80,7 @@ public:
     static QString findFfprobe();
 
 signals:
-    void progressChanged(int currentClip, int totalClips);
+    void progressChanged(int currentClip, int totalClips, Activity activity);
     void exportFinished(bool success, const QString& message);
 
 private slots:

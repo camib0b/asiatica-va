@@ -75,6 +75,14 @@ public:
     /// (empty path, colliding output, missing ffmpeg, empty MP4 clip list, XML write failure).
     bool startJob(const ExportJobRequest& request, QString* errorMessage = nullptr);
 
+    /// One-line status for a running export. Preparing, joining, and finishing
+    /// do not use the clip counter.
+    static QString statusTextForActivity(ClipExporter::Activity activity,
+                                         int currentClip,
+                                         int totalClips);
+    /// Rewrites running status lines after a language change.
+    void refreshRunningStatusText();
+
     void cancelJob(int jobId);
     void dismissJob(int jobId);
 
@@ -115,6 +123,7 @@ private:
         QString errorMessage;
         int currentClip = 0;
         int totalClips = 0;
+        ClipExporter::Activity activity = ClipExporter::Activity::Preparing;
         /// Unparented QObject; this unique_ptr is the only owner. Do not parent it
         /// to the manager. Destroy via discardExporter() (release, disconnect,
         /// cancel, deleteLater). Job must outlive a connected exporter: never

@@ -1,4 +1,5 @@
 #include "PlaybackVideoPreparer.h"
+#include "BlockingProgressDialog.h"
 #include "FfmpegLocator.h"
 #include "../i18n/AppLocale.h"
 #include "../style/StyleProps.h"
@@ -153,8 +154,9 @@ void PlaybackVideoPreparer::onProcessError(QProcess::ProcessError error) {
 bool PlaybackVideoPreparer::waitWithProgress(QWidget* parentWidget) {
     if (finished_) return succeeded_;
 
+    const QString message = AppLocale::trUi("playback_prep.preparing");
     QProgressDialog progress(
-        AppLocale::trUi("playback_prep.preparing"),
+        message,
         AppLocale::trUi("playback_prep.cancel"),
         0, 0, parentWidget);
     Style::setRole(&progress, "blocking");
@@ -162,11 +164,13 @@ bool PlaybackVideoPreparer::waitWithProgress(QWidget* parentWidget) {
     progress.setMinimumDuration(0);
     progress.setAutoClose(false);
     progress.setAutoReset(false);
+    BlockingProgress::fitDialog(progress, message);
 
     const QMetaObject::Connection cancelConnection = connect(
         &progress, &QProgressDialog::canceled, this, &PlaybackVideoPreparer::cancel);
 
     progress.show();
+    BlockingProgress::fitDialog(progress, message);
     QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 
     while (!finished_) {
