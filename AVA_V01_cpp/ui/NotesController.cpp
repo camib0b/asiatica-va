@@ -5,6 +5,7 @@
 #include "../i18n/AppLocale.h"
 #include "../state/EventDefaults.h"
 #include "../state/TagSession.h"
+#include "TagRowDisplay.h"
 #include "TagsTableModel.h"
 
 #include <QAbstractItemView>
@@ -15,39 +16,6 @@
 #include <QTableView>
 #include <QTimer>
 
-namespace {
-
-QString formatTimestampMs(qint64 milliseconds) {
-  const qint64 clampedMilliseconds = milliseconds < 0 ? 0 : milliseconds;
-  const qint64 totalSeconds = clampedMilliseconds / 1000;
-  const qint64 hours = totalSeconds / 3600;
-  const qint64 minutes = (totalSeconds / 60) % 60;
-  const qint64 seconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return QStringLiteral("%1:%2:%3")
-        .arg(hours)
-        .arg(minutes, 2, 10, QChar('0'))
-        .arg(seconds, 2, 10, QChar('0'));
-  }
-
-  const qint64 minutesTotal = totalSeconds / 60;
-  return QStringLiteral("%1:%2")
-      .arg(minutesTotal, 2, 10, QChar('0'))
-      .arg(seconds, 2, 10, QChar('0'));
-}
-
-/// Removes segments that duplicate the session team labels (embedded in follow-up strings from GameControls).
-QString followUpForEventColumn(const QString& followUpEvent, const TagSession* session) {
-  if (!session || followUpEvent.isEmpty()) {
-    return followUpEvent;
-  }
-  return AppLocale::followUpPathWithoutTeamSegments(followUpEvent, session->homeTeamName(),
-                                                    session->awayTeamName());
-}
-
-}  // namespace
-
 NotesController::NotesController(QObject* parent)
     : QObject(parent),
       tagSession_(nullptr),
@@ -56,15 +24,15 @@ NotesController::NotesController(QObject* parent)
       matchNotesLabel_(nullptr),
       matchNotesEditor_(nullptr),
       clipNotesLabel_(nullptr),
-      notesEdit_(nullptr),
+      clipNotesEditor_(nullptr),
       videoPlayer_(nullptr),
-      noteDebounceTimer_(nullptr),
+      clipNoteDebounceTimer_(nullptr),
       matchNoteDebounceTimer_(nullptr),
-      resumeClipNoteTimer_(false),
-      resumeMatchNoteTimer_(false) {
-  noteDebounceTimer_ = new QTimer(this);
-  noteDebounceTimer_->setSingleShot(true);
-  connect(noteDebounceTimer_, &QTimer::timeout, this, &NotesController::saveNoteDebounceFired);
+      clipNoteDebounceShouldResume_(false),
+      matchNoteDebounceShouldResume_(false) {
+  clipNoteDebounceTimer_ = new QTimer(this);
+  clipNoteDebounceTimer_->setSingleShot(true);
+  connect(clipNoteDebounceTimer_, &QTimer::timeout, this, &NotesController::saveClipNoteDebounceFired);
 
   matchNoteDebounceTimer_ = new QTimer(this);
   matchNoteDebounceTimer_->setSingleShot(true);
@@ -87,20 +55,20 @@ void NotesController::setVideoPlayer(VideoPlayer* videoPlayer) {
   videoPlayer_ = videoPlayer;
 }
 
-void NotesController::setColumnWidgets(QLabel* matchNotesLabel,
+void NotesController::setNotesColumnWidgets(QLabel* matchNotesLabel,
                                        MatchNotesEditor* matchNotesEditor,
                                        QLabel* clipNotesLabel,
                                        QPlainTextEdit* clipNotesEditor) {
   matchNotesLabel_ = matchNotesLabel;
   matchNotesEditor_ = matchNotesEditor;
   clipNotesLabel_ = clipNotesLabel;
-  notesEdit_ = clipNotesEditor;
+  clipNotesEditor_ = clipNotesEditor;
 }
 
 void NotesController::wireEditorSignals() {
-  if (notesEdit_) {
-    notesEdit_->installEventFilter(this);
-    connect(notesEdit_, &QPlainTextEdit::textChanged, this, &NotesController::onNoteTextChanged);
+  if (clipNotesEditor_) {
+    clipNotesEditor_->installEventFilter(this);
+    connect(clipNotesEditor_, &QPlainTextEdit::textChanged, this, &NotesController::onClipNoteTextChanged);
   }
   if (matchNotesEditor_) {
     connect(matchNotesEditor_, &MatchNotesEditor::textChanged, this,
@@ -110,30 +78,30 @@ void NotesController::wireEditorSignals() {
   }
 }
 
-void NotesController::connectSessionSignals() {
+void NotesController::connectTagSessionSignals() {
   if (!tagSession_) return;
-  sessionConnections_.append(connect(
+  tagSessionConnections_.append(connect(
       tagSession_, &TagSession::aboutToClear, this, &NotesController::flushPendingClipNote,
       Qt::DirectConnection));
-  sessionConnections_.append(connect(
+  tagSessionConnections_.append(connect(
       tagSession_, &TagSession::aboutToReplaceTags, this, &NotesController::flushPendingClipNote,
       Qt::DirectConnection));
-  sessionConnections_.append(connect(
+  tagSessionConnections_.append(connect(
       tagSession_, &TagSession::tagNoteChanged, this, &NotesController::onTagSessionTagNoteChanged));
-  sessionConnections_.append(connect(
+  tagSessionConnections_.append(connect(
       tagSession_, &TagSession::matchNoteChanged, this,
       &NotesController::onTagSessionMatchNoteChanged));
 }
 
-void NotesController::disconnectSessionSignals() {
-  for (const QMetaObject::Connection& connection : sessionConnections_) {
+void NotesController::disconnectTagSessionSignals() {
+  for (const QMetaObject::Connection& connection : tagSessionConnections_) {
     QObject::disconnect(connection);
   }
-  sessionConnections_.clear();
+  tagSessionConnections_.clear();
 }
 
 void NotesController::applyUiStrings() const {
-  if (notesEdit_) notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
+  if (clipNotesEditor_) clipNotesEditor_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
   if (matchNotesLabel_) matchNotesLabel_->setText(AppLocale::trUi("notes.match_title"));
   if (clipNotesLabel_) clipNotesLabel_->setText(AppLocale::trUi("notes.clip_title"));
   if (matchNotesEditor_) matchNotesEditor_->applyUiStrings();
@@ -157,12 +125,12 @@ int NotesController::sessionIndexForTagId(quint64 tagId) const {
 }
 
 bool NotesController::isClipNotesEditor(const QWidget* widget) const {
-  return notesEdit_ && widget == notesEdit_.data();
+  return clipNotesEditor_ && widget == clipNotesEditor_.data();
 }
 
 void NotesController::flushPendingClipNote() {
-  if (noteDebounceTimer_) noteDebounceTimer_->stop();
-  resumeClipNoteTimer_ = false;
+  if (clipNoteDebounceTimer_) clipNoteDebounceTimer_->stop();
+  clipNoteDebounceShouldResume_ = false;
   if (!pendingClipNote_) return;
 
   const PendingClipNote note = *pendingClipNote_;
@@ -175,10 +143,10 @@ void NotesController::flushPendingClipNote() {
   tagSession_->setTagNote(sessionIndex, note.text);
 }
 
-void NotesController::loadNoteForSelectedTag() {
-  if (!notesEdit_) return;
+void NotesController::loadClipNoteForSelectedTag() {
+  if (!clipNotesEditor_) return;
 
-  const QSignalBlocker notesBlocker(notesEdit_);
+  const QSignalBlocker notesBlocker(clipNotesEditor_);
   const quint64 selectedId = selectedTagId();
   if (pendingClipNote_ && pendingClipNote_->tagId == selectedId) {
     showPendingClipNoteInEditor();
@@ -208,13 +176,13 @@ void NotesController::refreshMatchNoteMentionCandidates() {
     for (const TagSession::GameTag& tag : tagSession_->tags()) {
       if (tag.id == 0) continue;
       if (EventDefaults::isTimeControlEvent(tag.mainEvent)) continue;
-      const QString followUp = followUpForEventColumn(tag.followUpEvent, tagSession_);
+      const QString followUp = TagRowDisplay::followUpPathForDisplay(tag.followUpEvent, tagSession_);
       const QString eventLine = AppLocale::trDisplayTagLine(tag.mainEvent, followUp);
-      const QString teamName = displayTeamForTag(tag);
+      const QString teamName = TagRowDisplay::displayTeamForTag(tag, tagSession_);
       MatchNotesEditor::MentionCandidate candidate;
       candidate.tagId = tag.id;
       candidate.label = QStringLiteral("%1  %2  ·  %3")
-                            .arg(formatTimestampMs(tag.markMs), eventLine, teamName);
+                            .arg(TagRowDisplay::formatTimestampMs(tag.markMs), eventLine, teamName);
       candidate.searchText = candidate.label;
       candidates.append(candidate);
     }
@@ -222,22 +190,22 @@ void NotesController::refreshMatchNoteMentionCandidates() {
   matchNotesEditor_->setMentionCandidates(candidates);
 }
 
-void NotesController::stopNoteTimers() {
-  resumeClipNoteTimer_ = noteDebounceTimer_ && noteDebounceTimer_->isActive();
-  resumeMatchNoteTimer_ = matchNoteDebounceTimer_ && matchNoteDebounceTimer_->isActive();
-  if (noteDebounceTimer_) noteDebounceTimer_->stop();
+void NotesController::suspendNoteDebounceTimers() {
+  clipNoteDebounceShouldResume_ = clipNoteDebounceTimer_ && clipNoteDebounceTimer_->isActive();
+  matchNoteDebounceShouldResume_ = matchNoteDebounceTimer_ && matchNoteDebounceTimer_->isActive();
+  if (clipNoteDebounceTimer_) clipNoteDebounceTimer_->stop();
   if (matchNoteDebounceTimer_) matchNoteDebounceTimer_->stop();
 }
 
-void NotesController::resumeNoteTimers() {
-  if (resumeClipNoteTimer_ && pendingClipNote_ && noteDebounceTimer_) {
-    noteDebounceTimer_->start(400);
+void NotesController::resumeNoteDebounceTimers() {
+  if (clipNoteDebounceShouldResume_ && pendingClipNote_ && clipNoteDebounceTimer_) {
+    clipNoteDebounceTimer_->start(400);
   }
-  if (resumeMatchNoteTimer_ && matchNoteDebounceTimer_) {
+  if (matchNoteDebounceShouldResume_ && matchNoteDebounceTimer_) {
     matchNoteDebounceTimer_->start(400);
   }
-  resumeClipNoteTimer_ = false;
-  resumeMatchNoteTimer_ = false;
+  clipNoteDebounceShouldResume_ = false;
+  matchNoteDebounceShouldResume_ = false;
 }
 
 void NotesController::saveMatchNoteDebounceFired() {
@@ -254,18 +222,18 @@ void NotesController::discardPendingClipNoteForRemovedTag(quint64 tagId) {
 }
 
 bool NotesController::eventFilter(QObject* watched, QEvent* event) {
-  if (watched == notesEdit_.data() && event && event->type() == QEvent::FocusOut) {
+  if (watched == clipNotesEditor_.data() && event && event->type() == QEvent::FocusOut) {
     flushPendingClipNote();
   }
   return QObject::eventFilter(watched, event);
 }
 
-void NotesController::onNoteTextChanged() {
-  if (!notesEdit_ || !tagSession_ || !noteDebounceTimer_) return;
+void NotesController::onClipNoteTextChanged() {
+  if (!clipNotesEditor_ || !tagSession_ || !clipNoteDebounceTimer_) return;
   const quint64 tagId = selectedTagId();
   if (tagId == 0 || tagSession_->indexOfTagId(tagId) < 0) return;
-  pendingClipNote_ = PendingClipNote{tagId, tagSession_->tagIdEpoch(), notesEdit_->toPlainText()};
-  noteDebounceTimer_->start(400);
+  pendingClipNote_ = PendingClipNote{tagId, tagSession_->tagIdEpoch(), clipNotesEditor_->toPlainText()};
+  clipNoteDebounceTimer_->start(400);
 }
 
 void NotesController::onMatchNoteTextChanged() {
@@ -293,23 +261,23 @@ void NotesController::onMatchNoteTagMentionActivated(quint64 tagId) {
   }
 }
 
-void NotesController::saveNoteDebounceFired() {
+void NotesController::saveClipNoteDebounceFired() {
   flushPendingClipNote();
 }
 
 void NotesController::discardPendingClipNote() {
-  if (noteDebounceTimer_) noteDebounceTimer_->stop();
-  resumeClipNoteTimer_ = false;
+  if (clipNoteDebounceTimer_) clipNoteDebounceTimer_->stop();
+  clipNoteDebounceShouldResume_ = false;
   pendingClipNote_.reset();
 }
 
 void NotesController::onTagSessionTagNoteChanged(int changedIndex) {
-  if (!notesEdit_ || !tagSession_) return;
-  if (notesEdit_->hasFocus() || pendingClipNote_.has_value()) return;
+  if (!clipNotesEditor_ || !tagSession_) return;
+  if (clipNotesEditor_->hasFocus() || pendingClipNote_.has_value()) return;
   if (!tagSession_->isValidTagIndex(changedIndex)) return;
   const quint64 changedTagId = tagSession_->tags().at(changedIndex).id;
   if (selectedTagId() != changedTagId) return;
-  loadNoteForSelectedTag();
+  loadClipNoteForSelectedTag();
 }
 
 void NotesController::onTagSessionMatchNoteChanged() {
@@ -319,52 +287,35 @@ void NotesController::onTagSessionMatchNoteChanged() {
 }
 
 void NotesController::showPendingClipNoteInEditor() {
-  if (notesEdit_->toPlainText() != pendingClipNote_->text) {
-    notesEdit_->setPlainText(pendingClipNote_->text);
+  if (clipNotesEditor_->toPlainText() != pendingClipNote_->text) {
+    clipNotesEditor_->setPlainText(pendingClipNote_->text);
   }
-  notesEdit_->setEnabled(true);
-  notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
+  clipNotesEditor_->setEnabled(true);
+  clipNotesEditor_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
 }
 
 void NotesController::showDisabledClipNoteEditor() {
-  if (!notesEdit_->toPlainText().isEmpty()) {
-    notesEdit_->clear();
+  if (!clipNotesEditor_->toPlainText().isEmpty()) {
+    clipNotesEditor_->clear();
   }
-  notesEdit_->setEnabled(false);
-  notesEdit_->setPlaceholderText(AppLocale::trUi("notes.clip_placeholder_none"));
+  clipNotesEditor_->setEnabled(false);
+  clipNotesEditor_->setPlaceholderText(AppLocale::trUi("notes.clip_placeholder_none"));
 }
 
 void NotesController::showStoredClipNoteInEditor(quint64 selectedTagId) {
   const int sessionIndex = sessionIndexForTagId(selectedTagId);
   if (tagSession_->isValidTagIndex(sessionIndex)) {
     const QString noteText = tagSession_->tagNote(sessionIndex);
-    if (notesEdit_->toPlainText() != noteText) {
-      notesEdit_->setPlainText(noteText);
+    if (clipNotesEditor_->toPlainText() != noteText) {
+      clipNotesEditor_->setPlainText(noteText);
     }
-    notesEdit_->setEnabled(true);
-    notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
+    clipNotesEditor_->setEnabled(true);
+    clipNotesEditor_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
   } else {
-    if (!notesEdit_->toPlainText().isEmpty()) {
-      notesEdit_->clear();
+    if (!clipNotesEditor_->toPlainText().isEmpty()) {
+      clipNotesEditor_->clear();
     }
-    notesEdit_->setEnabled(true);
-    notesEdit_->setPlaceholderText(AppLocale::trUi("notes.clip_placeholder_none"));
+    clipNotesEditor_->setEnabled(true);
+    clipNotesEditor_->setPlaceholderText(AppLocale::trUi("notes.clip_placeholder_none"));
   }
-}
-
-QString NotesController::displayTeamForTag(const TagSession::GameTag& tag) const {
-  if (!tagSession_) {
-    if (tag.team == QStringLiteral("Home")) return QStringLiteral("Home");
-    if (tag.team == QStringLiteral("Away")) return QStringLiteral("Away");
-    return tag.team.isEmpty() ? QStringLiteral("—") : tag.team;
-  }
-  if (tag.team == QStringLiteral("Home")) {
-    const QString n = tagSession_->homeTeamName();
-    return n.isEmpty() ? QStringLiteral("Home") : n;
-  }
-  if (tag.team == QStringLiteral("Away")) {
-    const QString n = tagSession_->awayTeamName();
-    return n.isEmpty() ? QStringLiteral("Away") : n;
-  }
-  return tag.team.isEmpty() ? QStringLiteral("—") : tag.team;
 }

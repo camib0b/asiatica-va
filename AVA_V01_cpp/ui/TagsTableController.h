@@ -54,14 +54,14 @@ public:
 
 private:
   void onSelectAllFilters();
-  void onSelectNoFilters();
+  void onSelectNoneFilters();
   void onFilterActionToggled(bool checked);
   void onRemoveFilters();
   void onTagsFilterMenuAboutToHide();
   void applyDeferredFilterMenuStructureSync();
-  bool isTagAllowed(const QString& mainEvent, const QString& followUpEvent) const;
+  bool tagPassesEventFilter(const QString& mainEvent, const QString& followUpEvent) const;
   bool hasAnyFilterActive() const;
-  void updateFilterButtonsVisibility() const;
+  void updateRemoveFiltersButtonVisibility() const;
   void updateFilterIndicator() const;
   void rebuildTagsTableOnce();
   void showEmptyTagsTable();

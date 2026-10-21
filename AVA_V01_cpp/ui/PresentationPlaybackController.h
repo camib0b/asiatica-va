@@ -35,8 +35,8 @@ public:
 
   void setTagSession(TagSession* tagSession);
   void setVideoPlayer(VideoPlayer* videoPlayer);
-  void setQueue(PresentationQueue* queue);
-  void setClipBar(ClipTrimBar* clipBar);
+  void setPresentationQueue(PresentationQueue* queue);
+  void setPresentationClipBar(ClipTrimBar* clipBar);
   void setPresentationPanel(PresentationPanel* panel);
   void setStageLabels(QLabel* eventLabel, QLabel* contextLabel, QLabel* noteLabel);
   void setHostWindow(QWidget* hostWindow);
@@ -92,7 +92,7 @@ private:
   QPointer<QLabel> presentationNoteLabel_;
   QPointer<QWidget> hostWindow_;
   std::function<bool()> presentingQuery_;
-  bool presentationKeyboardShortcutsInstalled_ = false;
-  bool updatingPresentationClipBar_ = false;
+  bool presentationKeyboardShortcutsAttached_ = false;
+  bool savingClipIntervalFromBar_ = false;
   PresentationPlayback::State presentationPlayback_{};
 };

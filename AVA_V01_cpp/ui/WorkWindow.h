@@ -68,12 +68,12 @@ public:
   void showTeamSetupForVideo(const QString& filePath, const QStringList& sourceVideoPaths);
   void setTagSession(TagSession* session);
   void setExportDefaultDirectoryFromVideoPath(const QString& videoPath);
-  void setConcatenatedVideoTempDir(std::unique_ptr<QTemporaryDir> dir);
+  void setConcatenatedVideoTemporaryDirectory(std::unique_ptr<QTemporaryDir> directory);
   void setPendingConcatenation(std::unique_ptr<VideoConcatenator> concatenator);
   void releaseTransientResources();
   Mode mode() const { return mode_; }
   bool hasOpenVideo() const { return workStage_ == WorkStage::VideoOpen; }
-  void setMode(Mode m);
+  void setMode(Mode mode);
 
 signals:
   void videoClosed();
@@ -81,7 +81,7 @@ signals:
 private slots:
   void onReplaceVideo();
   void onCloseVideo();
-  void onTagTableSeekToRow(int row);
+  void seekVideoToTagsTableRow(int row);
   void onTagSelectionChanged();
   void onDeleteSelectedTag();
   void onUndoLastTag();
@@ -137,20 +137,20 @@ private:
 
   /// Period and team for a tag that is about to be added. Computed from the
   /// session and GameControls; not stored.
-  struct TagContext {
+  struct PendingTagPeriodAndTeam {
     QString period;
     TagSession::TeamSide team = TagSession::TeamSide::Unspecified;
   };
-  TagContext tagContext() const;
+  PendingTagPeriodAndTeam pendingTagPeriodAndTeam() const;
 
   struct CapturedMainEvent {
     QString event;
-    qint64 positionMs = 0;
+    qint64 markMs = 0;
   };
 
   /// Wait keeps the video open. Cancel stops the export and drops partial files.
   bool confirmExportAllowsVideoRelease();
-  void showAdjustedImportNote(int adjustedCount);
+  void showXmlImportAdjustmentNotice(int adjustedCount);
   /// Drops concat/prep temps, resets session UI, and emits videoClosed().
   void abortVideoOpen(const QString& errorMessage);
 
@@ -189,9 +189,9 @@ private:
   void wireTagsTableSignals();
   void wireModeToggleSignals();
   void wireNotesSignals();
-  void wireTagListActionSignals();
+  void wireTagsTableActionSignals();
   void installModeAndStatsShortcuts();
-  void wireLocaleAndNoteTimers();
+  void wireApplicationLanguageSignals();
   void wirePlaybackAndTemporaryDirectorySignals();
   void installTagEditShortcuts();
   void wireApplicationFocusSignals();
@@ -204,7 +204,7 @@ private:
                            bool startsChain);
   void dismissTagSequenceToast();
   void commitTagFromGameControls(const QString& mainEvent, const QString& followUpEvent);
-  void seekTagsTableIndex(const QModelIndex& index);
+  void seekVideoFromTagsTableIndex(const QModelIndex& index);
   void onTagsTableCurrentChanged(const QModelIndex& current, const QModelIndex& previous);
   void toggleVideoMuteFromToolbar();
   void cycleWorkMode();
@@ -265,17 +265,17 @@ private:
   QStackedWidget* contentStack_ = nullptr;
   QWidget* mainContentContainer_ = nullptr;
   GameSetupWindow* gameSetupWidget_ = nullptr;
-  QWidget* taggingRightCol_ = nullptr;
+  QWidget* taggingSideColumn_ = nullptr;
   QWidget* tagsSection_ = nullptr;
   QWidget* tagsHeaderRow_ = nullptr;
   QSplitter* workOuterSplitter_ = nullptr;
-  QSplitter* workLeftSplitter_ = nullptr;
+  QSplitter* videoAndTagsSplitter_ = nullptr;
   QWidget* videoColumn_ = nullptr;
   QSplitter* workTagsNotesSplitter_ = nullptr;
   QStackedWidget* workSideStack_ = nullptr;
-  QToolButton* modeTaggingBtn_ = nullptr;
-  QToolButton* modeAnalyzingBtn_ = nullptr;
-  QToolButton* modePresentingBtn_ = nullptr;
+  QToolButton* modeTaggingButton_ = nullptr;
+  QToolButton* modeAnalyzingButton_ = nullptr;
+  QToolButton* modePresentingButton_ = nullptr;
   ModeToggleTrack* modeToggleTrack_ = nullptr;
 
   // Presentation mode
@@ -329,7 +329,7 @@ private:
   QString sourceVideoPath_;
   QString exportDefaultDirectoryPath_;
   /// Concat, playback-prep, and export-retained temporary directories.
-  std::unique_ptr<PlaybackTemporaryDirectoryController> temporaryDirectoryController_;
+  std::unique_ptr<PlaybackTemporaryDirectoryController> playbackTemporaryDirectoryController_;
   /// Clip-note and match-note editors, debounce timers, and the unsaved clip draft.
   std::unique_ptr<NotesController> notesController_;
   /// Tags-table rebuild, event filter, and playhead highlight.

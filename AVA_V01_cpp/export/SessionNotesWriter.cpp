@@ -1,6 +1,7 @@
 #include "SessionNotesWriter.h"
 
 #include "AppLocale.h"
+#include "TagRowDisplay.h"
 #include "TagSession.h"
 
 #include <QDir>
@@ -11,23 +12,6 @@
 #include <QTextDocument>
 
 namespace {
-
-QString formatTimestampMs(qint64 milliseconds) {
-  const qint64 clampedMilliseconds = milliseconds < 0 ? 0 : milliseconds;
-  const qint64 totalSeconds = clampedMilliseconds / 1000;
-  const qint64 hours = totalSeconds / 3600;
-  const qint64 minutes = (totalSeconds / 60) % 60;
-  const qint64 seconds = totalSeconds % 60;
-  if (hours > 0) {
-    return QStringLiteral("%1:%2:%3")
-        .arg(QString::number(hours),
-             QString::number(minutes).rightJustified(2, QLatin1Char('0')),
-             QString::number(seconds).rightJustified(2, QLatin1Char('0')));
-  }
-  return QStringLiteral("%1:%2")
-      .arg(QString::number(totalSeconds / 60).rightJustified(2, QLatin1Char('0')),
-           QString::number(seconds).rightJustified(2, QLatin1Char('0')));
-}
 
 QString teamLabel(const TagSession& session, const QString& teamKey) {
   if (teamKey == QStringLiteral("Home")) {
@@ -40,7 +24,7 @@ QString teamLabel(const TagSession& session, const QString& teamKey) {
 }
 
 QString clipNoteHeading(const TagSession& session, const TagSession::GameTag& tag) {
-  QString heading = formatTimestampMs(tag.markMs);
+  QString heading = TagRowDisplay::formatTimestampMs(tag.markMs);
   const QString eventLine = AppLocale::trDisplayTagLine(tag.mainEvent, tag.followUpEvent);
   if (!eventLine.isEmpty()) {
     heading += QStringLiteral("  ");

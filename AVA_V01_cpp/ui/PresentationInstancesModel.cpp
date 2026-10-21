@@ -1,6 +1,7 @@
 #include "PresentationInstancesModel.h"
 
 #include "../style/ThemeColors.h"
+#include "TagRowDisplay.h"
 
 #include <QBrush>
 #include <QColor>
@@ -10,24 +11,6 @@ namespace {
 constexpr int kTimeColumn = 0;
 constexpr int kTeamColumn = 1;
 constexpr int kEventColumn = 2;
-
-QString formatTimestampMs(qint64 positionMs) {
-  if (positionMs < 0) positionMs = 0;
-  const qint64 totalSeconds = positionMs / 1000;
-  const qint64 hours = totalSeconds / 3600;
-  const qint64 minutes = (totalSeconds / 60) % 60;
-  const qint64 seconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return QStringLiteral("%1:%2:%3")
-        .arg(hours)
-        .arg(minutes, 2, 10, QChar('0'))
-        .arg(seconds, 2, 10, QChar('0'));
-  }
-  return QStringLiteral("%1:%2")
-      .arg(totalSeconds / 60, 2, 10, QChar('0'))
-      .arg(seconds, 2, 10, QChar('0'));
-}
 
 } // namespace
 
@@ -63,7 +46,7 @@ QVariant PresentationInstancesModel::data(const QModelIndex& index, int role) co
   QString displayText;
   switch (index.column()) {
   case kTimeColumn:
-    displayText = formatTimestampMs(row.markMs);
+    displayText = TagRowDisplay::formatTimestampMs(row.markMs);
     break;
   case kTeamColumn:
     displayText = row.teamDisplay;

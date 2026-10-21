@@ -5,6 +5,7 @@
 #include "../i18n/AppLocale.h"
 #include "../state/TagSession.h"
 #include "PresentationPanel.h"
+#include "TagRowDisplay.h"
 #include "TextInputFocus.h"
 
 #include <QApplication>
@@ -32,43 +33,6 @@ private:
   bool& flag_;
   bool previousValue_;
 };
-
-QString formatTimestampMs(qint64 milliseconds) {
-  const qint64 clampedMilliseconds = milliseconds < 0 ? 0 : milliseconds;
-  const qint64 totalSeconds = clampedMilliseconds / 1000;
-  const qint64 hours = totalSeconds / 3600;
-  const qint64 minutes = (totalSeconds / 60) % 60;
-  const qint64 seconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return QStringLiteral("%1:%2:%3")
-        .arg(hours)
-        .arg(minutes, 2, 10, QChar('0'))
-        .arg(seconds, 2, 10, QChar('0'));
-  }
-
-  const qint64 minutesTotal = totalSeconds / 60;
-  return QStringLiteral("%1:%2")
-      .arg(minutesTotal, 2, 10, QChar('0'))
-      .arg(seconds, 2, 10, QChar('0'));
-}
-
-QString displayTeamForTag(const TagSession::GameTag& tag, const TagSession* tagSession) {
-  if (!tagSession) {
-    if (tag.team == QStringLiteral("Home")) return QStringLiteral("Home");
-    if (tag.team == QStringLiteral("Away")) return QStringLiteral("Away");
-    return tag.team.isEmpty() ? QStringLiteral("—") : tag.team;
-  }
-  if (tag.team == QStringLiteral("Home")) {
-    const QString n = tagSession->homeTeamName();
-    return n.isEmpty() ? QStringLiteral("Home") : n;
-  }
-  if (tag.team == QStringLiteral("Away")) {
-    const QString n = tagSession->awayTeamName();
-    return n.isEmpty() ? QStringLiteral("Away") : n;
-  }
-  return tag.team.isEmpty() ? QStringLiteral("—") : tag.team;
-}
 
 /// Same rule as the export reviewer: leave room on both sides of the clip so the presenter can
 /// stretch the interval or scrub past it without the bar clipping the view.
@@ -133,8 +97,8 @@ PresentationPlaybackController::PresentationPlaybackController(QObject* parent)
       presentationNoteLabel_(nullptr),
       hostWindow_(nullptr),
       presentingQuery_(),
-      presentationKeyboardShortcutsInstalled_(false),
-      updatingPresentationClipBar_(false),
+      presentationKeyboardShortcutsAttached_(false),
+      savingClipIntervalFromBar_(false),
       presentationPlayback_() {}
 
 PresentationPlaybackController::~PresentationPlaybackController() {
@@ -149,11 +113,11 @@ void PresentationPlaybackController::setVideoPlayer(VideoPlayer* videoPlayer) {
   videoPlayer_ = videoPlayer;
 }
 
-void PresentationPlaybackController::setQueue(PresentationQueue* queue) {
+void PresentationPlaybackController::setPresentationQueue(PresentationQueue* queue) {
   presentationQueue_ = queue;
 }
 
-void PresentationPlaybackController::setClipBar(ClipTrimBar* clipBar) {
+void PresentationPlaybackController::setPresentationClipBar(ClipTrimBar* clipBar) {
   presentationClipBar_ = clipBar;
 }
 
@@ -210,11 +174,11 @@ void PresentationPlaybackController::leavePresentationPlayback() {
 }
 
 void PresentationPlaybackController::detachPresentationKeyboardShortcuts() {
-  if (!presentationKeyboardShortcutsInstalled_) return;
+  if (!presentationKeyboardShortcutsAttached_) return;
   if (QApplication* application = qApp) {
     application->removeEventFilter(this);
   }
-  presentationKeyboardShortcutsInstalled_ = false;
+  presentationKeyboardShortcutsAttached_ = false;
 }
 
 void PresentationPlaybackController::resetPresentationForVideoChange() {
@@ -257,14 +221,14 @@ void PresentationPlaybackController::onPresentationQueueChanged() {
   updatePresentationStage();
   // setClipInterval refresh emits queueChanged before clipIntervalChanged; reconfiguring here
   // would reset ClipTrimBar::dragTarget_ and end an in-progress handle drag.
-  if (!updatingPresentationClipBar_) {
+  if (!savingClipIntervalFromBar_) {
     configurePresentationClipBarForCurrentClip();
   }
 }
 
 void PresentationPlaybackController::onPresentationCurrentClipChanged(int /*queueIndex*/) {
   updatePresentationStage();
-  if (!updatingPresentationClipBar_) {
+  if (!savingClipIntervalFromBar_) {
     configurePresentationClipBarForCurrentClip();
   }
 }
@@ -278,7 +242,7 @@ void PresentationPlaybackController::onPresentationClipIntervalChanged(int queue
     presentationPanel_->setCurrentClip(clip->tagSessionIndex, clip->leadMs(), clip->lagMs());
   }
   // A drag on the clip bar already moved the handles; reconfiguring mid-drag would fight the user.
-  if (!updatingPresentationClipBar_) {
+  if (!savingClipIntervalFromBar_) {
     configurePresentationClipBarForCurrentClip();
   }
 
@@ -351,10 +315,7 @@ void PresentationPlaybackController::showEmptyPresentationStage() {
 void PresentationPlaybackController::showCurrentPresentationClip(
     const PresentationQueue::Clip& clip) {
   const QString followUpForDisplay =
-      tagSession_ ? AppLocale::followUpPathWithoutTeamSegments(clip.followUpEvent,
-                                                               tagSession_->homeTeamName(),
-                                                               tagSession_->awayTeamName())
-                  : clip.followUpEvent;
+      TagRowDisplay::followUpPathForDisplay(clip.followUpEvent, tagSession_);
 
   presentationEventLabel_->setText(
       AppLocale::trDisplayTagLine(clip.mainEvent, followUpForDisplay));
@@ -380,10 +341,10 @@ QString PresentationPlaybackController::presentationContextText(
   contextParts.append(QStringLiteral("%1 / %2")
                           .arg(presentationQueue_->currentIndex() + 1)
                           .arg(presentationQueue_->count()));
-  const QString teamName = displayTeamForTag(tagForDisplay, tagSession_);
+  const QString teamName = TagRowDisplay::displayTeamForTag(tagForDisplay, tagSession_);
   if (!teamName.isEmpty() && teamName != QStringLiteral("—")) contextParts.append(teamName);
   if (!periodLabel.isEmpty()) contextParts.append(periodLabel);
-  contextParts.append(formatTimestampMs(clip.markMs));
+  contextParts.append(TagRowDisplay::formatTimestampMs(clip.markMs));
   return contextParts.join(QStringLiteral("  ·  "));
 }
 
@@ -412,16 +373,16 @@ void PresentationPlaybackController::savePresentationClipIntervalFromClipBar() {
   const int queueIndex = presentationQueue_->currentIndex();
   if (queueIndex < 0) return;
 
-  const ScopedReentrancyFlag updatingClipBar(updatingPresentationClipBar_);
+  const ScopedReentrancyFlag savingClipInterval(savingClipIntervalFromBar_);
   presentationQueue_->setClipInterval(queueIndex, presentationClipBar_->clipStartMs(),
                                       presentationClipBar_->clipEndMs());
 }
 
 void PresentationPlaybackController::attachPresentationKeyboardShortcuts() {
-  if (presentationKeyboardShortcutsInstalled_) return;
+  if (presentationKeyboardShortcutsAttached_) return;
   if (QApplication* application = qApp) {
     application->installEventFilter(this);
-    presentationKeyboardShortcutsInstalled_ = true;
+    presentationKeyboardShortcutsAttached_ = true;
   }
 }
 
@@ -432,7 +393,7 @@ bool PresentationPlaybackController::eventFilter(QObject* watched, QEvent* event
 
 bool PresentationPlaybackController::handlePresentationTabShortcut(QObject* watched,
                                                                   QEvent* event) {
-  if (!event || !presentationKeyboardShortcutsInstalled_ || !isPresenting() ||
+  if (!event || !presentationKeyboardShortcutsAttached_ || !isPresenting() ||
       event->type() != QEvent::KeyPress) {
     return false;
   }
