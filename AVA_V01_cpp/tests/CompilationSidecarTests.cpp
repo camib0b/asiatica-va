@@ -883,6 +883,10 @@ void CompilationSidecarExportTest::cancelBeforeOutputReplaceDoesNotWriteSidecar(
     QVERIFY(stale.open(QIODevice::WriteOnly));
     stale.write("{}\n");
     stale.close();
+    QFile existingOutput(outputPath);
+    QVERIFY(existingOutput.open(QIODevice::WriteOnly));
+    existingOutput.write("not-a-video");
+    existingOutput.close();
 
     ExportJobRequest request;
     request.format = ExportOutputFormat::Mp4;
@@ -905,12 +909,17 @@ void CompilationSidecarExportTest::cancelBeforeOutputReplaceDoesNotWriteSidecar(
     QFile leftover(jsonPath);
     QVERIFY(leftover.open(QIODevice::ReadOnly));
     QCOMPARE(leftover.readAll(), QByteArray("{}\n"));
+    QVERIFY(QFile::exists(outputPath));
+    QFile keptOutput(outputPath);
+    QVERIFY(keptOutput.open(QIODevice::ReadOnly));
+    QCOMPARE(keptOutput.readAll(), QByteArray("not-a-video"));
 }
 
 #include "CompilationSidecarTests.moc"
 
 int runPresentationPlaybackTests(int argc, char** argv);
 int runWorkStateTests(int argc, char** argv);
+int runUiPolicyTests(int argc, char** argv);
 
 int main(int argc, char** argv) {
     QApplication application(argc, argv);
@@ -921,6 +930,10 @@ int main(int argc, char** argv) {
     const int workStateStatus = runWorkStateTests(argc, argv);
     if (workStateStatus != 0) {
         return workStateStatus;
+    }
+    const int uiPolicyStatus = runUiPolicyTests(argc, argv);
+    if (uiPolicyStatus != 0) {
+        return uiPolicyStatus;
     }
     int status = 0;
     {

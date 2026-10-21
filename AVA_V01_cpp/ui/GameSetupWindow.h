@@ -96,6 +96,8 @@ private:
   QDate gameDate_;
   bool suggestionSignalsArmed_ = false;
   const char* suggestionStatusKey_ = nullptr;
+  bool homeAbbrevFollowsName_ = true;
+  bool awayAbbrevFollowsName_ = true;
 
   std::unique_ptr<GameMetadataSuggester> metadataSuggester_;
   QVector<QMetaObject::Connection> metadataSuggesterConnections_;

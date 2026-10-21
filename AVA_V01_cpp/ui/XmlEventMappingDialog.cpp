@@ -1,4 +1,6 @@
 #include "XmlEventMappingDialog.h"
+
+#include "../export/XmlImportTimeline.h"
 #include "QtPtr.h"
 
 #include "../i18n/AppLocale.h"
@@ -662,10 +664,10 @@ TagSession::GameTag XmlEventMappingDialog::gameTagFromInstance(
   tag.period = instance.periodLabel;
   tag.intervalManuallyEdited = true;
 
-  tag.startMs = instance.startMs + offsetMs_;
-  tag.endMs = instance.endMs + offsetMs_;
-  if (tag.startMs < 0) tag.startMs = 0;
-  if (tag.endMs < tag.startMs) tag.endMs = tag.startMs;
+  const ImportedClipInterval interval =
+      clipIntervalOnVideoTimeline(instance.startMs, instance.endMs, offsetMs_);
+  tag.startMs = interval.startMs;
+  tag.endMs = interval.endMs;
 
   if (EventDefaults::isTimeControlEvent(tag.mainEvent)) {
     tag.markMs = tag.startMs;
@@ -689,6 +691,11 @@ XmlEventMappingDialog::ImportMappingResult XmlEventMappingDialog::buildImportSna
     if (mapping.skip) {
       ++result.skippedInstanceCount;
       continue;
+    }
+    const ImportedClipInterval interval =
+        clipIntervalOnVideoTimeline(instance.startMs, instance.endMs, offsetMs_);
+    if (interval.adjustedBeforeVideoStart) {
+      ++result.adjustedBeforeStartCount;
     }
     result.tags.append(gameTagFromInstance(instance, mapping));
   }

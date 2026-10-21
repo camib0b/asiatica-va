@@ -19,6 +19,7 @@
 #include "../export/ExportSettingsDialog.h"
 #include "../export/ExportClipBuilder.h"
 #include "../export/ExportJobManager.h"
+#include "../export/ExportOutputPath.h"
 #include "../export/ExportJobsBar.h"
 #include "../export/VideoConcatenator.h"
 #include "../export/PlaybackVideoPreparer.h"
@@ -317,6 +318,9 @@ WorkWindow::~WorkWindow() {
     flushPendingClipNote();
     detachPresentationKeyboardShortcuts();
     disconnectTagSessionSignals();
+    if (exportJobManager_) {
+        exportJobManager_->cancelExportingJobs();
+    }
     tagSession_ = nullptr;
 }
 
@@ -399,6 +403,7 @@ void WorkWindow::flashVideoMuteButton() {
 }
 
 void WorkWindow::setConcatenatedVideoTempDir(std::unique_ptr<QTemporaryDir> dir) {
+    retainOrDeleteTemporaryDirectory(concatenatedVideoTempDir_);
     concatenatedVideoTempDir_ = std::move(dir);
 }
 
@@ -415,17 +420,112 @@ void WorkWindow::setPendingConcatenation(std::unique_ptr<VideoConcatenator> conc
 }
 
 void WorkWindow::releaseTransientResources() {
+    if (exportJobManager_) {
+        exportJobManager_->cancelExportingJobs();
+    }
     cleanupPendingConcatenation();
     cleanupConcatenatedVideo();
     cleanupPlaybackPrepVideo();
+    retainedTemporaryDirectories_.clear();
 }
 
 void WorkWindow::cleanupConcatenatedVideo() {
-    concatenatedVideoTempDir_.reset();
+    retainOrDeleteTemporaryDirectory(concatenatedVideoTempDir_);
 }
 
 void WorkWindow::cleanupPlaybackPrepVideo() {
-    playbackPrepTempDir_.reset();
+    retainOrDeleteTemporaryDirectory(playbackPrepTempDir_);
+}
+
+bool WorkWindow::confirmExportAllowsVideoRelease() {
+    if (!exportJobManager_ || !exportJobManager_->hasExportingJob()) return true;
+
+    QMessageBox box(this);
+    box.setIcon(QMessageBox::Warning);
+    box.setWindowTitle(AppLocale::trUi("export.busy_title"));
+    box.setText(AppLocale::trUi("export.busy_message"));
+    auto* waitButton = box.addButton(AppLocale::trUi("export.busy_wait"), QMessageBox::AcceptRole);
+    auto* cancelExportButton =
+        box.addButton(AppLocale::trUi("export.busy_cancel"), QMessageBox::DestructiveRole);
+    box.setDefaultButton(waitButton);
+    box.setEscapeButton(waitButton);
+    const QString message = box.text();
+    const auto labels = box.findChildren<QLabel*>();
+    for (QLabel* label : labels) {
+        if (label->text() != message) continue;
+        label->setWordWrap(true);
+        label->setMaximumWidth(460);
+    }
+    box.exec();
+    if (box.clickedButton() != cancelExportButton) return false;
+    exportJobManager_->cancelExportingJobs();
+    return true;
+}
+
+void WorkWindow::retainOrDeleteTemporaryDirectory(std::unique_ptr<QTemporaryDir>& directory) {
+    if (!directory) return;
+    const QString absolutePath = QDir(directory->path()).absolutePath();
+    if (exportStillNeedsDirectory(absolutePath)) {
+        retainedTemporaryDirectories_.push_back(std::move(directory));
+        return;
+    }
+    directory.reset();
+}
+
+bool WorkWindow::exportStillNeedsDirectory(const QString& absoluteDirectoryPath) const {
+    if (!exportJobManager_) return false;
+    return ExportOutputPath::directoryIsNeededByExport(
+        absoluteDirectoryPath,
+        exportJobManager_->exportingInputDirectories(),
+        exportJobManager_->exportingSourcePaths());
+}
+
+void WorkWindow::releaseFinishedTemporaryDirectories() {
+    std::vector<std::unique_ptr<QTemporaryDir>> stillNeeded;
+    stillNeeded.reserve(retainedTemporaryDirectories_.size());
+    for (std::unique_ptr<QTemporaryDir>& directory : retainedTemporaryDirectories_) {
+        if (!directory) continue;
+        const QString absolutePath = QDir(directory->path()).absolutePath();
+        if (exportStillNeedsDirectory(absolutePath)) {
+            stillNeeded.push_back(std::move(directory));
+        }
+    }
+    retainedTemporaryDirectories_ = std::move(stillNeeded);
+}
+
+void WorkWindow::showAdjustedImportNote(int adjustedCount) {
+    if (adjustedCount <= 0 || !tagsSection_) return;
+
+    auto* label = tagsSection_->findChild<QLabel*>(QStringLiteral("ImportAdjustmentNotice"),
+                                                   Qt::FindDirectChildrenOnly);
+    if (!label) {
+        label = new QLabel(tagsSection_);
+        label->setObjectName(QStringLiteral("ImportAdjustmentNotice"));
+        label->setWordWrap(true);
+        label->setMinimumWidth(0);
+        label->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+        Style::setRole(label, "muted");
+        if (auto* layout = qobject_cast<QVBoxLayout*>(tagsSection_->layout())) {
+            layout->insertWidget(1, label);
+        }
+    }
+
+    const char* messageKey = adjustedCount == 1
+        ? "xml_import.adjusted_before_start_one"
+        : "xml_import.adjusted_before_start_many";
+    label->setText(AppLocale::trUi(messageKey).arg(adjustedCount));
+    label->show();
+
+    auto* timer = label->findChild<QTimer*>(QStringLiteral("hideTimer"), Qt::FindDirectChildrenOnly);
+    if (!timer) {
+        timer = new QTimer(label);
+        timer->setObjectName(QStringLiteral("hideTimer"));
+        timer->setSingleShot(true);
+        connect(timer, &QTimer::timeout, label, [guard = QPointer<QLabel>(label)]() {
+            if (guard) guard->hide();
+        });
+    }
+    timer->start(8000);
 }
 
 void WorkWindow::cleanupPendingConcatenation() {
@@ -838,6 +938,8 @@ void WorkWindow::buildUi() {
     layout->addWidget(contentStack_);
 
     exportJobManager_ = new ExportJobManager(this);
+    connect(exportJobManager_, &ExportJobManager::jobsChanged, this,
+            [this]() { releaseFinishedTemporaryDirectories(); });
     exportJobsBar_ = new ExportJobsBar(exportJobManager_, this);
     layout->addWidget(exportJobsBar_, 0);
 
@@ -1375,6 +1477,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
 }
 
 void WorkWindow::onReplaceVideo() {
+    if (!confirmExportAllowsVideoRelease()) return;
     stopNoteTimers();
     QStringList filePaths = VideoConcatenator::selectVideoFiles(this);
     if (filePaths.isEmpty()) {
@@ -1425,6 +1528,7 @@ void WorkWindow::onReplaceVideo() {
 }
 
 void WorkWindow::onCloseVideo() {
+    if (!confirmExportAllowsVideoRelease()) return;
     workStage_ = WorkStage::NoVideo;
     sourceVideoPath_.clear();
     capturedMainEvent_.reset();
@@ -1494,6 +1598,14 @@ void WorkWindow::onPresentationExportRequested() {
     request.includeAudioTrack = settings.includeAudioTrack;
     request.includeBrandingOverlay = settings.includeBrandingOverlay;
     request.session = captureTagSessionExportData(*tagSession_);
+    if (concatenatedVideoTempDir_) {
+        request.retainedInputDirectories.append(
+            QDir(concatenatedVideoTempDir_->path()).absolutePath());
+    }
+    if (playbackPrepTempDir_) {
+        request.retainedInputDirectories.append(
+            QDir(playbackPrepTempDir_->path()).absolutePath());
+    }
 
     QString errorMessage;
     if (!exportJobManager_->startJob(request, &errorMessage)) {
@@ -1629,6 +1741,7 @@ void WorkWindow::onImportXml() {
             .arg(result.importedCount)
             .arg(dialogSkipped)
             .arg(result.clampedCount));
+    showAdjustedImportNote(importResult.adjustedBeforeStartCount);
 }
 
 void WorkWindow::onModeToggled() {
