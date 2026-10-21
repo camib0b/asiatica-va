@@ -8,8 +8,8 @@
 
 /// Pure playback decisions for presentation mode.
 ///
-/// WorkWindow stores one State, dispatches an Action, and performs the returned
-/// effects on the player. The reducer does not reference widgets or the media player.
+/// PresentationPlaybackController stores one State, dispatches an Action, and performs
+/// the returned effects on the player. The reducer does not reference widgets or the media player.
 namespace PresentationPlayback {
 
 /// A playhead step larger than this is a seek. Auto-pause disarms and does not pause.

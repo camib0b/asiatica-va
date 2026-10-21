@@ -1,6 +1,7 @@
 #include "WorkWindow.h"
 #include "NotesController.h"
 #include "PlaybackTemporaryDirectoryController.h"
+#include "PresentationPlaybackController.h"
 #include "TagsTableModel.h"
 #include "ClipDurationSettingsDialog.h"
 #include "PresentationPanel.h"
@@ -100,7 +101,6 @@ private:
 #include <QFileInfo>
 #include <QTimer>
 #include <QSignalBlocker>
-#include <QEvent>
 #include <QDialog>
 #include <QModelIndex>
 #include <QSplitter>
@@ -110,11 +110,9 @@ private:
 #include <QApplication>
 #include <QAbstractSpinBox>
 #include <QComboBox>
-#include <QKeyEvent>
 #include <QTextEdit>
 
 #include <algorithm>
-#include <cstddef>
 
 namespace {
 
@@ -192,23 +190,6 @@ QString pathWithXmlSuffix(const QString& chosenPath) {
     }
     return QDir(chosenInfo.absolutePath())
         .filePath(chosenInfo.completeBaseName() + QStringLiteral(".xml"));
-}
-
-/// Same rule as the export reviewer: leave room on both sides of the clip so the presenter can
-/// stretch the interval or scrub past it without the bar clipping the view.
-struct PresentationClipWindow {
-    qint64 startMs = 0;
-    qint64 endMs = 0;
-};
-
-PresentationClipWindow presentationClipWindow(const PresentationQueue::Clip& clip, qint64 videoDurationMs) {
-    const qint64 halfWindowMs =
-        std::max<qint64>(25000, std::max(clip.leadMs(), clip.lagMs()) + 5000);
-    qint64 windowStartMs = clip.markMs - halfWindowMs;
-    qint64 windowEndMs = clip.markMs + halfWindowMs;
-    if (windowStartMs < 0) windowStartMs = 0;
-    if (videoDurationMs > 0 && windowEndMs > videoDurationMs) windowEndMs = videoDurationMs;
-    return PresentationClipWindow{windowStartMs, windowEndMs};
 }
 
 } // namespace
@@ -352,7 +333,13 @@ private:
 WorkWindow::WorkWindow(QWidget* parent)
     : QWidget(parent),
       temporaryDirectoryController_(std::make_unique<PlaybackTemporaryDirectoryController>()),
-      notesController_(std::make_unique<NotesController>()) {
+      notesController_(std::make_unique<NotesController>()),
+      presentationPlaybackController_(std::make_unique<PresentationPlaybackController>()) {
+    presentationPlaybackController_->setHostWindow(this);
+    presentationPlaybackController_->setPresentingQuery([this] { return mode_ == Mode::Presenting; });
+    connect(presentationPlaybackController_.get(),
+            &PresentationPlaybackController::leavePresentationRequested, this,
+            &WorkWindow::leavePresentingForVideoChange, Qt::DirectConnection);
     setAttribute(Qt::WA_StyledBackground, true);
     buildUi();
     wireSignals();
@@ -362,7 +349,7 @@ WorkWindow::WorkWindow(QWidget* parent)
 
 WorkWindow::~WorkWindow() {
     notesController_->flushPendingClipNote();
-    detachPresentationKeyboardShortcuts();
+    presentationPlaybackController_->detachPresentationKeyboardShortcuts();
     disconnectTagSessionSignals();
     if (exportJobManager_) {
         exportJobManager_->cancelExportingJobs();
@@ -590,7 +577,7 @@ void WorkWindow::onApplicationLanguageChanged() {
     if (statsOverlay_) statsOverlay_->applyUiStrings();
     if (videoPlayer_ && videoPlayer_->controlsBar()) videoPlayer_->controlsBar()->applyUiStrings();
     if (presentationPanel_) presentationPanel_->applyUiStrings();
-    updatePresentationStage();
+    presentationPlaybackController_->updatePresentationStage();
     syncFilterMenu();
     refreshTagsTableRows();
 }
@@ -613,7 +600,7 @@ void WorkWindow::applySessionTeamIdentity() {
         }
     }
     refreshTagsTableRows();
-    updatePresentationStage();
+    presentationPlaybackController_->updatePresentationStage();
     if (presentationPanel_) presentationPanel_->refreshFromSession();
 }
 
@@ -641,6 +628,8 @@ void WorkWindow::setTagSession(TagSession* session) {
 void WorkWindow::bindTagSessionToSurfaces() {
     if (statsWindow_) statsWindow_->setTagSession(tagSession_);
     if (statsOverlay_) statsOverlay_->setTagSession(tagSession_);
+    // Stage text reads the session while the queue emits during setTagSession.
+    presentationPlaybackController_->setTagSession(tagSession_);
     if (presentationQueue_) presentationQueue_->setTagSession(tagSession_);
     if (presentationPanel_) presentationPanel_->setTagSession(tagSession_);
 }
@@ -697,29 +686,26 @@ void WorkWindow::setMode(Mode m) {
     }
     notesController_->flushPendingClipNote();
     if (mode_ == Mode::Presenting && m != Mode::Presenting) {
-        leavePresentationPlayback();
+        presentationPlaybackController_->leavePresentationPlayback();
     }
     mode_ = m;
     applyModeChrome();
     if (m == Mode::Presenting) {
-        enterPresentationPlayback();
+        if (presentationPanel_) presentationPanel_->refreshFromSession();
+        presentationPlaybackController_->enterPresentationPlayback();
     }
     setModeToggleButtonsChecked();
     if (modeToggleTrack_) modeToggleTrack_->syncToMode(true);
     refreshPlaybackShortcutFocusGate();
 }
 
-void WorkWindow::leavePresentationPlayback() {
-    detachPresentationKeyboardShortcuts();
-    commitPresentationPlayback(PresentationPlayback::reduce(
-        presentationPlayback_, PresentationPlayback::ModeExit{}));
-}
-
-void WorkWindow::enterPresentationPlayback() {
-    if (presentationPanel_) presentationPanel_->refreshFromSession();
-    updatePresentationStage();
-    configurePresentationClipBarForCurrentClip();
-    attachPresentationKeyboardShortcuts();
+void WorkWindow::leavePresentingForVideoChange() {
+    // Closing or loading a video leaves Presenting. The next video would otherwise
+    // open there with the Tab filter already removed, and setMode would not install it again.
+    mode_ = Mode::Tagging;
+    presentationPlaybackController_->detachPresentationKeyboardShortcuts();
+    applyModeChrome();
+    syncModeToggleChecks();
 }
 
 void WorkWindow::applyModeChrome() {
@@ -1276,9 +1262,15 @@ void WorkWindow::hideChromeUntilVideoOpens() {
 
 void WorkWindow::buildPresentationUi() {
     presentationQueue_ = new PresentationQueue(this);
+    presentationPlaybackController_->setQueue(presentationQueue_);
+    presentationPlaybackController_->setClipBar(presentationClipBar_);
+    presentationPlaybackController_->setPresentationPanel(presentationPanel_);
+    presentationPlaybackController_->setStageLabels(presentationEventLabel_,
+                                                    presentationContextLabel_,
+                                                    presentationNoteLabel_);
     wirePresentationPanelSignals();
-    wirePresentationQueueSignals();
-    wirePresentationClipBarSignals();
+    presentationPlaybackController_->wirePresentationQueueSignals();
+    presentationPlaybackController_->wirePresentationClipBarSignals();
 }
 
 void WorkWindow::wirePresentationPanelSignals() {
@@ -1294,32 +1286,6 @@ void WorkWindow::wirePresentationPanelSignals() {
             &WorkWindow::onPresentationShowNotesToggled);
     connect(presentationPanel_, &PresentationPanel::exportRequested, this,
             &WorkWindow::onPresentationExportRequested);
-}
-
-void WorkWindow::wirePresentationQueueSignals() {
-    connect(presentationQueue_, &PresentationQueue::queueChanged, this,
-            &WorkWindow::onPresentationQueueChanged);
-    connect(presentationQueue_, &PresentationQueue::currentClipChanged, this,
-            &WorkWindow::onPresentationCurrentClipChanged);
-    connect(presentationQueue_, &PresentationQueue::clipIntervalChanged, this,
-            &WorkWindow::onPresentationClipIntervalChanged);
-}
-
-void WorkWindow::wirePresentationClipBarSignals() {
-    connect(presentationClipBar_, &ClipTrimBar::seekRequested, this,
-            &WorkWindow::seekVideoFromPresentationClipBar);
-    connect(presentationClipBar_, &ClipTrimBar::clipStartChanged, this,
-            &WorkWindow::onPresentationClipBarRangeEdited);
-    connect(presentationClipBar_, &ClipTrimBar::clipEndChanged, this,
-            &WorkWindow::onPresentationClipBarRangeEdited);
-}
-
-void WorkWindow::seekVideoFromPresentationClipBar(qint64 positionMs) {
-    if (videoPlayer_) videoPlayer_->seekToMs(positionMs);
-}
-
-void WorkWindow::onPresentationClipBarRangeEdited(qint64 /*endpointMs*/) {
-    savePresentationClipIntervalFromClipBar();
 }
 
 void WorkWindow::wireSignals() {
@@ -1486,11 +1452,12 @@ void WorkWindow::wirePlaybackAndTemporaryDirectorySignals() {
     connect(videoPlayer_, &VideoPlayer::durationChangedMs, this, &WorkWindow::onVideoDurationChanged);
     temporaryDirectoryController_->setVideoPlayer(videoPlayer_);
     notesController_->setVideoPlayer(videoPlayer_);
+    presentationPlaybackController_->setVideoPlayer(videoPlayer_);
 }
 
 void WorkWindow::onVideoPositionChanged(qint64 positionMs) {
     onPlayheadPositionChanged(positionMs);
-    updatePresentationPlayhead(positionMs);
+    presentationPlaybackController_->updatePresentationPlayhead(positionMs);
 }
 
 void WorkWindow::onVideoDurationChanged(qint64 durationMs) {
@@ -1660,12 +1627,12 @@ void WorkWindow::showWorkChromeForOpenedVideo() {
 
 void WorkWindow::resetPresentationForOpenedVideo() {
     if (presentationQueue_) presentationQueue_->clear();
-    resetPresentationForVideoChange();
+    presentationPlaybackController_->resetPresentationForVideoChange();
     if (presentationPanel_) {
         presentationPanel_->refreshFromSession();
         presentationPanel_->setExportEnabled(true);
     }
-    updatePresentationStage();
+    presentationPlaybackController_->updatePresentationStage();
 }
 
 void WorkWindow::refreshSurfacesForOpenedVideo() {
@@ -1824,7 +1791,7 @@ void WorkWindow::onCloseVideo() {
     if (modeToggleTrack_) modeToggleTrack_->syncToMode(false);
     if (presentationQueue_) presentationQueue_->clear();
     if (presentationPanel_) presentationPanel_->setExportEnabled(false);
-    resetPresentationForVideoChange();
+    presentationPlaybackController_->resetPresentationForVideoChange();
 
     if (tagSession_) tagSession_->clear();
     if (tagsModel_) tagsModel_->setRows({});
@@ -2046,47 +2013,6 @@ void WorkWindow::onModeToggled() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Presentation mode
-// ---------------------------------------------------------------------------
-
-namespace {
-
-template <typename... Functions>
-struct Overloaded : Functions... {
-    using Functions::operator()...;
-};
-
-template <typename... Functions>
-Overloaded(Functions...) -> Overloaded<Functions...>;
-
-PresentationPlayback::QueueSnapshot queueSnapshot(const PresentationQueue& queue) {
-    PresentationPlayback::QueueSnapshot snapshot;
-    snapshot.currentIndex = queue.currentIndex();
-    const int clipCount = queue.count();
-    snapshot.clips.reserve(static_cast<std::size_t>(clipCount));
-    for (int index = 0; index < clipCount; ++index) {
-        const PresentationQueue::Clip& clip = queue.clipAt(index);
-        snapshot.clips.push_back(PresentationPlayback::ClipSpan{clip.startMs, clip.endMs});
-    }
-    return snapshot;
-}
-
-void applyPresentationEffect(VideoPlayer& player, const PresentationPlayback::Effect& effect) {
-    std::visit(Overloaded{
-                   [&player](const PresentationPlayback::Seek& seek) {
-                       player.seekToMs(seek.positionMs);
-                   },
-                   [&player](const PresentationPlayback::Play&) { player.playWithControlFlash(); },
-                   [&player](const PresentationPlayback::Pause&) {
-                       player.pauseWithControlFlash();
-                   },
-               },
-               effect);
-}
-
-}  // namespace
-
 void WorkWindow::onPresentationSelectionChanged(const QVector<int>& tagSessionIndexes) {
     if (!presentationQueue_) return;
     presentationQueue_->setSelectedTagIndexes(tagSessionIndexes);
@@ -2096,46 +2022,7 @@ void WorkWindow::onPresentationClipActivated(int tagSessionIndex) {
     if (!presentationQueue_) return;
     if (mode_ != Mode::Presenting) setMode(Mode::Presenting);
     if (!presentationQueue_->setCurrentTagIndex(tagSessionIndex)) return;
-    showPresentationClip(presentationQueue_->currentIndex());
-}
-
-void WorkWindow::onPresentationQueueChanged() {
-    if (presentationQueue_ && presentationQueue_->isEmpty()) {
-        commitPresentationPlayback(PresentationPlayback::reduce(
-            presentationPlayback_, PresentationPlayback::QueueEmptied{}));
-    }
-    updatePresentationStage();
-    // setClipInterval refresh emits queueChanged before clipIntervalChanged; reconfiguring here
-    // would reset ClipTrimBar::dragTarget_ and end an in-progress handle drag.
-    if (!updatingPresentationClipBar_) {
-        configurePresentationClipBarForCurrentClip();
-    }
-}
-
-void WorkWindow::onPresentationCurrentClipChanged(int /*queueIndex*/) {
-    updatePresentationStage();
-    if (!updatingPresentationClipBar_) {
-        configurePresentationClipBarForCurrentClip();
-    }
-}
-
-void WorkWindow::onPresentationClipIntervalChanged(int queueIndex) {
-    if (!presentationQueue_ || queueIndex != presentationQueue_->currentIndex()) return;
-    const PresentationQueue::Clip* clip = presentationQueue_->currentClip();
-    if (!clip) return;
-
-    if (presentationPanel_) {
-        presentationPanel_->setCurrentClip(clip->tagSessionIndex, clip->leadMs(), clip->lagMs());
-    }
-    // A drag on the clip bar already moved the handles; reconfiguring mid-drag would fight the user.
-    if (!updatingPresentationClipBar_) {
-        configurePresentationClipBarForCurrentClip();
-    }
-
-    const qint64 positionMs = videoPlayer_ ? videoPlayer_->currentPositionMs() : 0;
-    commitPresentationPlayback(PresentationPlayback::reduce(
-        presentationPlayback_,
-        PresentationPlayback::ClipIntervalUpdated{positionMs, clip->endMs}));
+    presentationPlaybackController_->showPresentationClip(presentationQueue_->currentIndex());
 }
 
 void WorkWindow::onPresentationLeadLagEdited(qint64 leadMs, qint64 lagMs) {
@@ -2150,216 +2037,11 @@ void WorkWindow::onPresentationLeadLagEdited(qint64 leadMs, qint64 lagMs) {
 void WorkWindow::onPresentationApplyLeadLagToAll(qint64 leadMs, qint64 lagMs) {
     if (!presentationQueue_) return;
     presentationQueue_->applyLeadLagToAllClips(leadMs, lagMs);
-    configurePresentationClipBarForCurrentClip();
+    presentationPlaybackController_->configurePresentationClipBarForCurrentClip();
 }
 
 void WorkWindow::onPresentationShowNotesToggled() {
-    updatePresentationStage();
-}
-
-void WorkWindow::showPresentationClip(int queueIndex) {
-    if (!presentationQueue_ || !videoPlayer_) return;
-    if (!presentationQueue_->setCurrentIndex(queueIndex)) return;
-
-    const PresentationQueue::Clip* clip = presentationQueue_->currentClip();
-    if (!clip) return;
-
-    commitPresentationPlayback(PresentationPlayback::reduce(
-        presentationPlayback_, PresentationPlayback::OpenClip{clip->startMs, clip->endMs}));
-}
-
-void WorkWindow::goToNextPresentationClip() {
-    stepPresentationQueue(true);
-}
-
-void WorkWindow::goToPreviousPresentationClip() {
-    stepPresentationQueue(false);
-}
-
-void WorkWindow::stepPresentationQueue(bool forward) {
-    if (!presentationQueue_ || presentationQueue_->isEmpty() || !videoPlayer_) return;
-
-    const PresentationPlayback::QueueSnapshot snapshot = queueSnapshot(*presentationQueue_);
-    const PresentationPlayback::Action action =
-        forward ? PresentationPlayback::Action{PresentationPlayback::Next{snapshot}}
-                : PresentationPlayback::Action{PresentationPlayback::Previous{snapshot}};
-    commitPresentationPlayback(PresentationPlayback::reduce(presentationPlayback_, action));
-}
-
-void WorkWindow::commitPresentationPlayback(const PresentationPlayback::Result& result) {
-    if (result.queueIndex.has_value()) {
-        if (!presentationQueue_ || !presentationQueue_->setCurrentIndex(*result.queueIndex)) {
-            return;
-        }
-    }
-    presentationPlayback_ = result.state;
-    if (!videoPlayer_) return;
-    for (const PresentationPlayback::Effect& effect : result.effects) {
-        applyPresentationEffect(*videoPlayer_, effect);
-    }
-}
-
-void WorkWindow::resetPresentationForVideoChange() {
-    // Closing or loading a video leaves Presenting. The next video would otherwise
-    // open there with the Tab filter already removed, and setMode would not install it again.
-    if (mode_ == Mode::Presenting) {
-        mode_ = Mode::Tagging;
-        detachPresentationKeyboardShortcuts();
-        applyModeChrome();
-        syncModeToggleChecks();
-    }
-    commitPresentationPlayback(
-        PresentationPlayback::reduce(presentationPlayback_, PresentationPlayback::Reset{}));
-}
-
-void WorkWindow::updatePresentationStage() {
-    if (!presentationEventLabel_ || !presentationContextLabel_ || !presentationNoteLabel_) return;
-
-    const PresentationQueue::Clip* clip =
-        presentationQueue_ ? presentationQueue_->currentClip() : nullptr;
-    if (!clip) {
-        showEmptyPresentationStage();
-        return;
-    }
-    showCurrentPresentationClip(*clip);
-}
-
-void WorkWindow::showEmptyPresentationStage() {
-    presentationEventLabel_->setText(AppLocale::trUi("presentation.empty_title"));
-    presentationContextLabel_->setText(AppLocale::trUi("presentation.empty_hint"));
-    presentationNoteLabel_->clear();
-    presentationNoteLabel_->hide();
-    if (presentationPanel_) presentationPanel_->clearCurrentClip();
-}
-
-void WorkWindow::showCurrentPresentationClip(const PresentationQueue::Clip& clip) {
-    const QString followUpForDisplay = tagSession_
-        ? AppLocale::followUpPathWithoutTeamSegments(clip.followUpEvent,
-                                                     tagSession_->homeTeamName(),
-                                                     tagSession_->awayTeamName())
-        : clip.followUpEvent;
-
-    presentationEventLabel_->setText(
-        AppLocale::trDisplayTagLine(clip.mainEvent, followUpForDisplay));
-    presentationContextLabel_->setText(presentationContextText(clip));
-
-    const bool showNote =
-        presentationPanel_ && presentationPanel_->showNotesEnabled() && !clip.note.isEmpty();
-    presentationNoteLabel_->setText(clip.note);
-    presentationNoteLabel_->setVisible(showNote);
-
-    if (presentationPanel_) {
-        presentationPanel_->setCurrentClip(clip.tagSessionIndex, clip.leadMs(), clip.lagMs());
-    }
-}
-
-QString WorkWindow::presentationContextText(const PresentationQueue::Clip& clip) const {
-    TagSession::GameTag tagForDisplay;
-    tagForDisplay.team = clip.team;
-    const QString periodLabel =
-        tagSession_ ? tagSession_->periodLabelAtTimestampMs(clip.markMs) : QString();
-    QStringList contextParts;
-    contextParts.append(QStringLiteral("%1 / %2")
-                            .arg(presentationQueue_->currentIndex() + 1)
-                            .arg(presentationQueue_->count()));
-    const QString teamName = displayTeamForTag(tagForDisplay);
-    if (!teamName.isEmpty() && teamName != QStringLiteral("—")) contextParts.append(teamName);
-    if (!periodLabel.isEmpty()) contextParts.append(periodLabel);
-    contextParts.append(formatTimestampMs(clip.markMs));
-    return contextParts.join(QStringLiteral("  ·  "));
-}
-
-void WorkWindow::configurePresentationClipBarForCurrentClip() {
-    if (!presentationClipBar_) return;
-
-    const PresentationQueue::Clip* clip =
-        presentationQueue_ ? presentationQueue_->currentClip() : nullptr;
-    if (!clip) {
-        presentationClipBar_->hide();
-        return;
-    }
-    presentationClipBar_->show();
-
-    const qint64 videoDurationMs = videoPlayer_ ? videoPlayer_->durationMs() : 0;
-    const PresentationClipWindow window = presentationClipWindow(*clip, videoDurationMs);
-    presentationClipBar_->configure(clip->markMs, clip->startMs, clip->endMs, window.startMs,
-                                    window.endMs);
-    if (videoPlayer_) {
-        presentationClipBar_->setPlayheadMs(videoPlayer_->currentPositionMs());
-    }
-}
-
-void WorkWindow::savePresentationClipIntervalFromClipBar() {
-    if (!presentationQueue_ || !presentationClipBar_) return;
-    const int queueIndex = presentationQueue_->currentIndex();
-    if (queueIndex < 0) return;
-
-    const ScopedReentrancyFlag updatingClipBar(updatingPresentationClipBar_);
-    presentationQueue_->setClipInterval(queueIndex, presentationClipBar_->clipStartMs(),
-                                        presentationClipBar_->clipEndMs());
-}
-
-void WorkWindow::updatePresentationPlayhead(qint64 positionMs) {
-    const bool presenting = mode_ == Mode::Presenting;
-    if (presenting && presentationClipBar_) {
-        presentationClipBar_->setPlayheadMs(positionMs);
-    }
-
-    const bool playerIsPlaying = videoPlayer_ && videoPlayer_->isPlaying();
-    commitPresentationPlayback(PresentationPlayback::reduce(
-        presentationPlayback_,
-        PresentationPlayback::PlayheadTick{positionMs, presenting, playerIsPlaying}));
-}
-
-void WorkWindow::attachPresentationKeyboardShortcuts() {
-    if (presentationKeyboardShortcutsInstalled_) return;
-    if (QApplication* application = qApp) {
-        application->installEventFilter(this);
-        presentationKeyboardShortcutsInstalled_ = true;
-    }
-}
-
-void WorkWindow::detachPresentationKeyboardShortcuts() {
-    if (!presentationKeyboardShortcutsInstalled_) return;
-    if (QApplication* application = qApp) {
-        application->removeEventFilter(this);
-    }
-    presentationKeyboardShortcutsInstalled_ = false;
-}
-
-bool WorkWindow::eventFilter(QObject* watched, QEvent* event) {
-    if (handlePresentationTabShortcut(watched, event)) return true;
-    return QWidget::eventFilter(watched, event);
-}
-
-bool WorkWindow::handlePresentationTabShortcut(QObject* watched, QEvent* event) {
-    if (!event || !presentationKeyboardShortcutsInstalled_ || mode_ != Mode::Presenting ||
-        event->type() != QEvent::KeyPress) {
-        return false;
-    }
-
-    auto* targetWidget = qobject_cast<QWidget*>(watched);
-    if (!targetWidget || targetWidget->window() != window()) {
-        return false;
-    }
-
-    auto* keyEvent = static_cast<QKeyEvent*>(event);
-    const bool isTabKey = keyEvent->key() == Qt::Key_Tab || keyEvent->key() == Qt::Key_Backtab;
-    if (!isTabKey) return false;
-
-    // Let Tab keep its normal meaning while the user is typing in the panel.
-    if (TextInputFocus::widgetIsTextInput(QApplication::focusWidget())) {
-        return false;
-    }
-
-    const bool goBackwards = keyEvent->key() == Qt::Key_Backtab ||
-                             (keyEvent->modifiers() & Qt::ShiftModifier) != 0;
-    if (goBackwards) {
-        goToPreviousPresentationClip();
-    } else {
-        goToNextPresentationClip();
-    }
-    return true;
+    presentationPlaybackController_->updatePresentationStage();
 }
 
 void WorkWindow::onTagSelectionChanged() {

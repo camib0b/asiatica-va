@@ -38,6 +38,7 @@ class VideoConcatenator;
 class VideoPlayer;
 class PlaybackTemporaryDirectoryController;
 class NotesController;
+class PresentationPlaybackController;
 class GameControls;
 class TagToastOverlay;
 class GameSetupWindow;
@@ -47,7 +48,6 @@ class PresentationPanel;
 class ExportJobsBar;
 class ModeToggleTrack;
 
-#include "../state/PresentationPlayback.h"
 #include "../state/TagSession.h"
 
 class WorkWindow final : public QWidget {
@@ -112,17 +112,11 @@ private slots:
   // Presentation mode
   void onPresentationSelectionChanged(const QVector<int>& tagSessionIndexes);
   void onPresentationClipActivated(int tagSessionIndex);
-  void onPresentationCurrentClipChanged(int queueIndex);
-  void onPresentationQueueChanged();
-  void onPresentationClipIntervalChanged(int queueIndex);
   void onPresentationLeadLagEdited(qint64 leadMs, qint64 lagMs);
   void onPresentationApplyLeadLagToAll(qint64 leadMs, qint64 lagMs);
   void onPresentationShowNotesToggled();
   void onPresentationExportRequested();
   void enforceTaggingSidePanelWidthCap();
-
-protected:
-  bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
   bool exportXmlAndNotesBeforeReplace();
@@ -143,19 +137,6 @@ private:
     return Mode::Tagging;
   }
 
-  // Presentation mode helpers
-  void showPresentationClip(int queueIndex);
-  void goToNextPresentationClip();
-  void goToPreviousPresentationClip();
-  void stepPresentationQueue(bool forward);
-  void commitPresentationPlayback(const PresentationPlayback::Result& result);
-  void resetPresentationForVideoChange();
-  void updatePresentationStage();
-  void configurePresentationClipBarForCurrentClip();
-  void savePresentationClipIntervalFromClipBar();
-  void updatePresentationPlayhead(qint64 positionMs);
-  void attachPresentationKeyboardShortcuts();
-  void detachPresentationKeyboardShortcuts();
   void disconnectTagSessionSignals();
   void refreshTagsTableRows();
   void syncFilterMenu();
@@ -232,8 +213,6 @@ private:
   void installTagEditShortcuts();
   void wireApplicationFocusSignals();
   void wirePresentationPanelSignals();
-  void wirePresentationQueueSignals();
-  void wirePresentationClipBarSignals();
   void rememberCapturedMainEvent(const QString& mainEvent);
   void showTagSequenceStep(const QString& shortcutKey,
                            const QString& stepLabel,
@@ -248,8 +227,6 @@ private:
   void cycleWorkMode();
   void onVideoPositionChanged(qint64 positionMs);
   void onVideoDurationChanged(qint64 durationMs);
-  void seekVideoFromPresentationClipBar(qint64 positionMs);
-  void onPresentationClipBarRangeEdited(qint64 endpointMs);
 
   // Mode chrome. setMode and applyModeChrome stay the entry points.
   void updatePresentationChromeVisibility(bool isPresenting);
@@ -259,8 +236,9 @@ private:
   void placeSidePanelForMode(bool isTagging);
   void updateTagToastForMode(bool isTagging);
   void setModeToggleButtonsChecked();
-  void leavePresentationPlayback();
-  void enterPresentationPlayback();
+  /// Video close or load while Presenting. Assigns Tagging directly, detaches the Tab
+  /// filter, then applies chrome. setMode would flush notes and commit ModeExit first.
+  void leavePresentingForVideoChange();
 
   void bindTagSessionToSurfaces();
   void connectTagSessionSignals();
@@ -297,11 +275,6 @@ private:
       qint64 offsetMs);
   void importMappedXmlTags(TagSession::ImportMode importMode,
                            const XmlEventMappingDialog::ImportMappingResult& importResult);
-
-  void showEmptyPresentationStage();
-  void showCurrentPresentationClip(const PresentationQueue::Clip& clip);
-  QString presentationContextText(const PresentationQueue::Clip& clip) const;
-  bool handlePresentationTabShortcut(QObject* watched, QEvent* event);
 
   void rebuildTagsTableOnce();
   void showEmptyTagsTable();
@@ -341,13 +314,10 @@ private:
   PresentationQueue* presentationQueue_ = nullptr;
   ExportJobManager* exportJobManager_ = nullptr;
   ExportJobsBar* exportJobsBar_ = nullptr;
-  bool presentationKeyboardShortcutsInstalled_ = false;
-  bool updatingPresentationClipBar_ = false;
   bool rebuildingTagsTable_ = false;
   bool tagsTableRebuildRequested_ = false;
   bool filterMenuStructureSyncDeferred_ = false;
   bool filterMenuForceStructureSync_ = false;
-  PresentationPlayback::State presentationPlayback_{};
 
   // close or swap video files:
   QToolButton* videoMuteButton_ = nullptr;
@@ -394,4 +364,6 @@ private:
   std::unique_ptr<PlaybackTemporaryDirectoryController> temporaryDirectoryController_;
   /// Clip-note and match-note editors, debounce timers, and the unsaved clip draft.
   std::unique_ptr<NotesController> notesController_;
+  /// Presentation playback state, queue signals, clip bar, Tab shortcuts, and stage text.
+  std::unique_ptr<PresentationPlaybackController> presentationPlaybackController_;
 };
