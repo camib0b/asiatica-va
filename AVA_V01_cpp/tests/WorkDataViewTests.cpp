@@ -1,7 +1,6 @@
 #include "AppLocale.h"
 #include "PresentationInstancesModel.h"
 #include "PresentationPanel.h"
-#include "StyleProps.h"
 #include "TabularDigits.h"
 #include "TagSession.h"
 #include "ThemeColors.h"
@@ -17,6 +16,7 @@
 #include <QFile>
 #include <QFont>
 #include <QHeaderView>
+#include <QLabel>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSignalSpy>
@@ -40,13 +40,6 @@ QTableView* instancesTable(PresentationPanel& panel) {
 
 QToolButton* toolButtonByText(QWidget* parent, const QString& text) {
   for (QToolButton* button : parent->findChildren<QToolButton*>()) {
-    if (button->text() == text) return button;
-  }
-  return nullptr;
-}
-
-QPushButton* pushButtonByText(QWidget* parent, const QString& text) {
-  for (QPushButton* button : parent->findChildren<QPushButton*>()) {
     if (button->text() == text) return button;
   }
   return nullptr;
@@ -76,6 +69,10 @@ QPushButton* outlinePushButton(QWidget* parent) {
     if (button->property("variant").toString() == QStringLiteral("outline")) return button;
   }
   return nullptr;
+}
+
+QLabel* applyToAllLabel(QWidget* parent) {
+  return parent->findChild<QLabel*>(QStringLiteral("ApplyToAllButtonLabel"));
 }
 
 int presentationTimeColumnWidth(qint64 markMs) {
@@ -202,9 +199,14 @@ void WorkDataViewTest::presentationListKeepsSelectionAndFitsTheSideColumn() {
   QCOMPARE(eventFilter->property("role").toString(), QString());
   QCOMPARE(teamFilter->property("role").toString(), QString());
 
-  QPushButton* applyButton = pushButtonByText(&panel, AppLocale::trUi("presentation.apply_to_all"));
+  QPushButton* applyButton = panel.findChild<QPushButton*>(QStringLiteral("ApplyToAllButton"));
+  QLabel* applyLabel = applyToAllLabel(&panel);
   QVERIFY(applyButton);
+  QVERIFY(applyLabel);
   QCOMPARE(applyButton->property("variant").toString(), QStringLiteral("outline"));
+  QCOMPARE(applyButton->text(), QString());
+  QCOMPARE(applyLabel->text(), AppLocale::trUi("presentation.apply_to_all"));
+  QVERIFY(applyLabel->wordWrap());
 
   showPanel(panel, 320);
   expectColumnsFit(table);
@@ -443,9 +445,18 @@ void WorkDataViewTest::applyLabelAbbreviationsAndSteadyTimeDigits() {
   }
   QVERIFY(eventFilter);
   QVERIFY(teamFilter);
-  QCOMPARE(eventFilter->sizeAdjustPolicy(), QComboBox::AdjustToContentsOnFirstShow);
+  QCOMPARE(eventFilter->objectName(), QStringLiteral("PresentationEventFilter"));
+  QCOMPARE(teamFilter->objectName(), QStringLiteral("PresentationTeamFilter"));
+  QCOMPARE(eventFilter->sizeAdjustPolicy(), QComboBox::AdjustToMinimumContentsLengthWithIcon);
   QCOMPARE(teamFilter->sizeAdjustPolicy(), QComboBox::AdjustToMinimumContentsLengthWithIcon);
-  QCOMPARE(teamFilter->minimumContentsLength(), 4);
+  QCOMPARE(teamFilter->maximumWidth(), 220);
+  QVERIFY(eventFilter->mapTo(&panel, QPoint(0, 0)).y() !=
+          teamFilter->mapTo(&panel, QPoint(0, 0)).y());
+  auto* leadSpin = panel.findChild<QDoubleSpinBox*>(QStringLiteral("LeadSpinBox"));
+  auto* lagSpin = panel.findChild<QDoubleSpinBox*>(QStringLiteral("LagSpinBox"));
+  QVERIFY(leadSpin);
+  QVERIFY(lagSpin);
+  QVERIFY(leadSpin->mapTo(&panel, QPoint(0, 0)).y() != lagSpin->mapTo(&panel, QPoint(0, 0)).y());
   QVERIFY(teamFilter->view());
   QVERIFY(teamFilter->view()->hasMouseTracking());
 
@@ -473,61 +484,80 @@ void WorkDataViewTest::applyLabelAbbreviationsAndSteadyTimeDigits() {
   QVERIFY(homeRow >= 0);
 
   QPushButton* applyButton = outlinePushButton(&panel);
+  QLabel* applyLabel = applyToAllLabel(&panel);
   QVERIFY(applyButton);
+  QVERIFY(applyLabel);
   QCOMPARE(applyButton->property("variant").toString(), QStringLiteral("outline"));
-  QCOMPARE(applyButton->text(), QStringLiteral("Apply to all selected clips"));
+  QCOMPARE(applyButton->text(), QString());
+  QCOMPARE(applyLabel->text(), QStringLiteral("Apply to all selected clips"));
+  QCOMPARE(applyButton->accessibleName(), applyLabel->text());
   QCOMPARE(applyButton->toolTip(), AppLocale::trUi("presentation.apply_to_all_tooltip"));
 
   QVERIFY(table->model()->setData(table->model()->index(0, 0), Qt::Checked, Qt::CheckStateRole));
   QCOMPARE(panel.selectedTagIndexes().size(), 1);
-  QCOMPARE(applyButton->text(), QStringLiteral("Apply to the selected clip"));
+  QCOMPARE(applyLabel->text(), QStringLiteral("Apply to the selected clip"));
+  QCOMPARE(applyButton->accessibleName(), applyLabel->text());
   QCOMPARE(applyButton->toolTip(), AppLocale::trUi("presentation.apply_to_one_tooltip"));
   const int singularButtonWidth = applyButton->width();
 
   QVERIFY(table->model()->setData(table->model()->index(1, 0), Qt::Checked, Qt::CheckStateRole));
   QCOMPARE(panel.selectedTagIndexes().size(), 2);
-  QCOMPARE(applyButton->text(), QStringLiteral("Apply to all selected clips"));
+  QCOMPARE(applyLabel->text(), QStringLiteral("Apply to all selected clips"));
   QCOMPARE(applyButton->width(), singularButtonWidth);
 
   AppLocale::setLanguage(AppLocale::Language::Spanish);
   panel.applyUiStrings();
   showPanel(panel, 260);
   QCOMPARE(panel.selectedTagIndexes().size(), 2);
-  QCOMPARE(applyButton->text(), QStringLiteral("Aplicar a todos los clips seleccionados"));
+  QCOMPARE(applyLabel->text(), QStringLiteral("Aplicar a todos los clips seleccionados"));
   QCOMPARE(applyButton->toolTip(), AppLocale::trUi("presentation.apply_to_all_tooltip"));
 
   QVERIFY(table->model()->setData(table->model()->index(0, 0), Qt::Unchecked, Qt::CheckStateRole));
   QCOMPARE(panel.selectedTagIndexes().size(), 1);
-  QCOMPARE(applyButton->text(), QStringLiteral("Aplicar al clip seleccionado"));
+  QCOMPARE(applyLabel->text(), QStringLiteral("Aplicar al clip seleccionado"));
   QCOMPARE(applyButton->toolTip(), AppLocale::trUi("presentation.apply_to_one_tooltip"));
-  QVERIFY2(applyButton->width() + 1 >= Style::pushButtonMinimumWidth(applyButton),
-           qPrintable(QStringLiteral("singular width %1 minimum %2")
-                          .arg(applyButton->width())
-                          .arg(Style::pushButtonMinimumWidth(applyButton))));
+  QVERIFY(applyLabel->wordWrap());
+  QVERIFY(applyButton->rect().contains(applyLabel->geometry()));
 
   QVERIFY(table->model()->setData(table->model()->index(1, 0), Qt::Unchecked, Qt::CheckStateRole));
   QCOMPARE(panel.selectedTagIndexes().size(), 0);
-  QCOMPARE(applyButton->text(), QStringLiteral("Aplicar a todos los clips seleccionados"));
-  const int pluralMinimumWidth = Style::pushButtonMinimumWidth(applyButton);
-  showPanel(panel, qMax(260, pluralMinimumWidth));
-  QVERIFY2(applyButton->width() + 1 >= pluralMinimumWidth,
-           qPrintable(QStringLiteral("plural width %1 minimum %2")
-                          .arg(applyButton->width())
-                          .arg(pluralMinimumWidth)));
+  QCOMPARE(applyLabel->text(), QStringLiteral("Aplicar a todos los clips seleccionados"));
   showPanel(panel, 260);
+  const int pluralAdvance = applyLabel->fontMetrics().horizontalAdvance(applyLabel->text());
+  const QRect pluralTextRect = applyLabel->contentsRect();
+  QVERIFY2(pluralAdvance > pluralTextRect.width(),
+           qPrintable(QStringLiteral("plural advance %1 contents %2 button %3")
+                          .arg(pluralAdvance)
+                          .arg(pluralTextRect.width())
+                          .arg(applyButton->width())));
+  const QRect pluralNeeded = applyLabel->fontMetrics().boundingRect(
+      QRect(0, 0, pluralTextRect.width(), 10000),
+      Qt::AlignHCenter | Qt::AlignVCenter | Qt::TextWordWrap, applyLabel->text());
+  QVERIFY2(pluralNeeded.width() <= pluralTextRect.width() + 1 &&
+               pluralNeeded.height() <= pluralTextRect.height() + 1,
+           qPrintable(QStringLiteral("plural needs %1x%2 in %3x%4")
+                          .arg(pluralNeeded.width())
+                          .arg(pluralNeeded.height())
+                          .arg(pluralTextRect.width())
+                          .arg(pluralTextRect.height())));
+  QVERIFY(pluralTextRect.height() > applyLabel->fontMetrics().height());
+  QVERIFY(applyButton->width() <= 260);
+  QVERIFY(applyButton->rect().contains(applyLabel->geometry()));
 
-  session.setGameMetadata(QDate(), QStringLiteral("WISNIEWSKA-KOWALCZYK"), QStringLiteral("JO"));
+  const QString longCode = QStringLiteral("ALEKSANDRA WISNIEWSKA-KOWALCZYK");
+  session.setGameMetadata(QDate(), longCode, QStringLiteral("JO"));
   showPanel(panel, 260);
-  QCOMPARE(teamFilter->itemText(teamFilter->findData(QStringLiteral("Home"))),
-           QStringLiteral("WISNIEWSKA-KOWALCZYK"));
+  const int longHomeIndex = teamFilter->findData(QStringLiteral("Home"));
+  QCOMPARE(teamFilter->itemText(longHomeIndex), longCode);
   QCOMPARE(teamFilter->itemText(teamFilter->findData(QStringLiteral("Away"))), QStringLiteral("JO"));
-  QCOMPARE(teamFilter->itemData(teamFilter->findData(QStringLiteral("Home")), Qt::ToolTipRole)
-               .toString(),
-           homeName);
-  const int longAbbreviationAdvance =
-      teamFilter->fontMetrics().horizontalAdvance(QStringLiteral("WISNIEWSKA-KOWALCZYK"));
-  QVERIFY(teamFilter->sizeHint().width() < longAbbreviationAdvance);
-  QVERIFY(teamFilter->width() < longAbbreviationAdvance);
+  QCOMPARE(teamFilter->itemData(longHomeIndex, Qt::ToolTipRole).toString(), homeName);
+  teamFilter->setCurrentIndex(longHomeIndex);
+  showPanel(panel, 260);
+  QCOMPARE(teamFilter->toolTip(), homeName);
+  QVERIFY(teamFilter->width() <= 220);
+  const int longAbbreviationAdvance = teamFilter->fontMetrics().horizontalAdvance(longCode);
+  QVERIFY(longAbbreviationAdvance > teamFilter->width());
+  teamFilter->setCurrentIndex(0);
   QVERIFY(eventFilter->width() >= 48);
   QVERIFY(eventFilter->isVisible());
   expectColumnsFit(table);

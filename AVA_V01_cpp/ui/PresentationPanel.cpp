@@ -25,13 +25,17 @@
 #include <QLabel>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPaintEvent>
 #include <QPointer>
 #include <QPushButton>
+#include <QResizeEvent>
 #include <QScrollBar>
 #include <QSignalBlocker>
 #include <QStyle>
 #include <QStyledItemDelegate>
+#include <QStyleOptionComboBox>
 #include <QStyleOptionSpinBox>
+#include <QStylePainter>
 #include <QTableView>
 #include <QTimer>
 #include <QToolButton>
@@ -266,6 +270,92 @@ std::unique_ptr<QWidget, QtParentDeleter> makePresentationListDataToggle(QWidget
   return toggle;
 }
 
+/// Closed filter box hugs the selected value. The popup still lists the full strings.
+class PresentationFilterCombo final : public QComboBox {
+ public:
+  static constexpr int kMinimumWidthPx = 88;
+  static constexpr int kMaximumWidthPx = 220;
+  static constexpr int kArrowLanePx = 16;
+  static constexpr int kTextInsetPx = 8;
+
+  explicit PresentationFilterCombo(QWidget* parent) : QComboBox(parent) {
+    setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    setMinimumContentsLength(0);
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    setMinimumWidth(kMinimumWidthPx);
+    setMaximumWidth(kMaximumWidthPx);
+    if (view()) {
+      view()->setTextElideMode(Qt::ElideNone);
+      view()->setMouseTracking(true);
+    }
+    connect(this, &QComboBox::currentTextChanged, this, [this](const QString&) {
+      updateGeometry();
+      syncTooltip();
+      update();
+    });
+  }
+
+  QSize sizeHint() const override {
+    const int width = qBound(kMinimumWidthPx, fontMetrics().horizontalAdvance(currentText()) + chromePx(),
+                             kMaximumWidthPx);
+    return QSize(width, qMax(32, fontMetrics().height() + 12));
+  }
+
+  QSize minimumSizeHint() const override { return QSize(kMinimumWidthPx, sizeHint().height()); }
+
+  void showPopup() override {
+    int widest = width();
+    for (int index = 0; index < count(); ++index) {
+      widest = qMax(widest, fontMetrics().horizontalAdvance(itemText(index)) + chromePx());
+    }
+    if (QAbstractItemView* popup = view()) popup->setMinimumWidth(widest);
+    QComboBox::showPopup();
+  }
+
+ protected:
+  void resizeEvent(QResizeEvent* event) override {
+    QComboBox::resizeEvent(event);
+    syncTooltip();
+  }
+
+  void paintEvent(QPaintEvent* event) override {
+    Q_UNUSED(event);
+    QStylePainter painter(this);
+    QStyleOptionComboBox option;
+    initStyleOption(&option);
+    painter.drawComplexControl(QStyle::CC_ComboBox, option);
+    const QRect editRect = style()->subControlRect(QStyle::CC_ComboBox, &option,
+                                                   QStyle::SC_ComboBoxEditField, this);
+    option.currentText =
+        fontMetrics().elidedText(currentText(), Qt::ElideRight, qMax(1, editRect.width()));
+    painter.drawControl(QStyle::CE_ComboBoxLabel, option);
+  }
+
+ private:
+  static int chromePx() { return kTextInsetPx + kArrowLanePx + 6; }
+
+  int editFieldWidth() const {
+    QStyleOptionComboBox option;
+    initStyleOption(&option);
+    return style()->subControlRect(QStyle::CC_ComboBox, &option, QStyle::SC_ComboBoxEditField, this)
+        .width();
+  }
+
+  void syncTooltip() {
+    // Team rows store the club name on the item. Keep that when the closed box
+    // shows only the abbreviation, including when the abbreviation itself fits.
+    const QString itemTip = currentData(Qt::ToolTipRole).toString();
+    if (!itemTip.isEmpty()) {
+      if (toolTip() != itemTip) setToolTip(itemTip);
+      return;
+    }
+    const QString fullText = currentText();
+    const bool clipped = fontMetrics().horizontalAdvance(fullText) > editFieldWidth();
+    const QString tip = clipped ? fullText : QString();
+    if (toolTip() != tip) setToolTip(tip);
+  }
+};
+
 QDoubleSpinBox* makeLeadLagSpinBox(QWidget* parent) {
   auto* spinBox = new QDoubleSpinBox(parent);
   spinBox->setRange(kMinLeadLagSeconds, kMaxLeadLagSeconds);
@@ -278,6 +368,101 @@ QDoubleSpinBox* makeLeadLagSpinBox(QWidget* parent) {
   spinBox->setKeyboardTracking(true);
   return spinBox;
 }
+
+/// Full-width panel button whose label wraps instead of clipping both ends.
+/// QPushButton draws a single centered line, so a long translation is cut off
+/// when the presenting column is only as wide as the tagging keys.
+/// The label is positioned by hand: a layout sizes a word-wrapped QLabel from
+/// its narrowest word, then keeps that tall height after the button grows.
+/// Inset comes from the label's stylesheet padding, read after polish.
+class WrappingTextButton final : public QPushButton {
+ public:
+  explicit WrappingTextButton(const QString& objectName, QWidget* parent) : QPushButton(parent) {
+    setObjectName(objectName);
+    setCursor(Qt::PointingHandCursor);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    setMinimumWidth(0);
+    label_ = new QLabel(this);
+    label_->setObjectName(objectName + QStringLiteral("Label"));
+    label_->setWordWrap(true);
+    label_->setAlignment(Qt::AlignCenter);
+    label_->setTextFormat(Qt::PlainText);
+    label_->setMargin(0);
+    label_->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+  }
+
+  QLabel* label() const { return label_; }
+
+  void setLabelText(const QString& text) {
+    label_->setText(text);
+    setAccessibleName(text);
+    applyWrappedHeight();
+    updateGeometry();
+  }
+
+  bool hasHeightForWidth() const override { return true; }
+
+  int heightForWidth(int width) const override { return wrappedOuterHeight(qMax(1, width)); }
+
+  QSize sizeHint() const override {
+    const int width = this->width() > 1 ? this->width() : 255;
+    return QSize(0, heightForWidth(width));
+  }
+
+  QSize minimumSizeHint() const override { return QSize(0, sizeHint().height()); }
+
+ protected:
+  void resizeEvent(QResizeEvent* event) override {
+    QPushButton::resizeEvent(event);
+    applyWrappedHeight();
+  }
+
+  void changeEvent(QEvent* event) override {
+    QPushButton::changeEvent(event);
+    if (!event) return;
+    if (event->type() == QEvent::StyleChange || event->type() == QEvent::FontChange) {
+      applyWrappedHeight();
+    }
+  }
+
+ private:
+  static constexpr int kTextFlags = Qt::AlignHCenter | Qt::AlignVCenter | Qt::TextWordWrap;
+
+  QMargins labelInset() const {
+    if (!label_) return {};
+    label_->ensurePolished();
+    return label_->contentsMargins();
+  }
+
+  int wrappedTextHeight(int textWidth) const {
+    if (!label_) return 0;
+    label_->ensurePolished();
+    const QRect bounds = label_->fontMetrics().boundingRect(
+        QRect(0, 0, qMax(1, textWidth), 10000), kTextFlags, label_->text());
+    return qMax(label_->fontMetrics().height(), bounds.height());
+  }
+
+  int wrappedOuterHeight(int outerWidth) const {
+    const QMargins inset = labelInset();
+    const int textWidth = qMax(1, outerWidth - inset.left() - inset.right());
+    return wrappedTextHeight(textWidth) + inset.top() + inset.bottom();
+  }
+
+  void applyWrappedHeight() {
+    if (!label_ || width() <= 1) return;
+    const QMargins inset = labelInset();
+    const int textWidth = qMax(1, width() - inset.left() - inset.right());
+    const int textHeight = wrappedTextHeight(textWidth);
+    const int needed = textHeight + inset.top() + inset.bottom();
+    label_->setGeometry(0, 0, width(), needed);
+    if (minimumHeight() != needed || maximumHeight() != needed) {
+      setMinimumHeight(needed);
+      setMaximumHeight(needed);
+    }
+  }
+
+  QLabel* label_ = nullptr;
+};
 
 } // namespace
 
@@ -305,64 +490,78 @@ void PresentationPanel::buildUi() {
   rootLayout->setSpacing(8);
 
   titleLabel_ = new QLabel(this);
+  titleLabel_->setObjectName(QStringLiteral("PresentationPanelTitle"));
   Style::setRole(titleLabel_, "h3");
   rootLayout->addWidget(titleLabel_);
 
-  auto* filterRow = new QHBoxLayout();
-  filterRow->setContentsMargins(0, 0, 0, 0);
-  filterRow->setSpacing(8);
-
   eventFilterLabel_ = new QLabel(this);
+  eventFilterLabel_->setObjectName(QStringLiteral("PresentationEventFilterLabel"));
   Style::setRole(eventFilterLabel_, "muted");
-  eventFilterCombo_ = new QComboBox(this);
-  eventFilterCombo_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  eventFilterLabel_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+  eventFilterCombo_ = new PresentationFilterCombo(this);
+  eventFilterCombo_->setObjectName(QStringLiteral("PresentationEventFilter"));
   connect(eventFilterCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
           &PresentationPanel::onFilterChanged);
 
   teamFilterLabel_ = new QLabel(this);
+  teamFilterLabel_->setObjectName(QStringLiteral("PresentationTeamFilterLabel"));
   Style::setRole(teamFilterLabel_, "muted");
-  teamFilterCombo_ = new QComboBox(this);
-  teamFilterCombo_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-  // Abbreviations are short. A stored code is not length-capped, so the closed
-  // combo sizes to a few characters and elides instead of growing with the text.
-  teamFilterCombo_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-  teamFilterCombo_->setMinimumContentsLength(4);
-  if (QAbstractItemView* teamPopup = teamFilterCombo_->view()) {
-    teamPopup->setMouseTracking(true);
-  }
+  teamFilterLabel_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+  teamFilterCombo_ = new PresentationFilterCombo(this);
+  teamFilterCombo_->setObjectName(QStringLiteral("PresentationTeamFilter"));
   connect(teamFilterCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
           &PresentationPanel::onFilterChanged);
 
-  filterRow->addWidget(eventFilterLabel_);
-  filterRow->addWidget(eventFilterCombo_, 1);
-  filterRow->addWidget(teamFilterLabel_);
-  filterRow->addWidget(teamFilterCombo_, 1);
-  rootLayout->addLayout(filterRow);
+  // One filter per row. At the presenting column width (255px) both combos
+  // plus both labels do not fit on a single line, and the second combo was
+  // pushed past the panel edge.
+  auto* eventFilterRow = new QHBoxLayout();
+  eventFilterRow->setContentsMargins(0, 0, 0, 0);
+  eventFilterRow->setSpacing(8);
+  eventFilterRow->addWidget(eventFilterLabel_, 0);
+  eventFilterRow->addWidget(eventFilterCombo_, 1);
+  rootLayout->addLayout(eventFilterRow);
+
+  auto* teamFilterRow = new QHBoxLayout();
+  teamFilterRow->setContentsMargins(0, 0, 0, 0);
+  teamFilterRow->setSpacing(8);
+  teamFilterRow->addWidget(teamFilterLabel_, 0);
+  teamFilterRow->addWidget(teamFilterCombo_, 1);
+  rootLayout->addLayout(teamFilterRow);
 
   auto* selectionRow = new QHBoxLayout();
   selectionRow->setContentsMargins(0, 0, 0, 0);
   selectionRow->setSpacing(6);
 
   selectAllButton_ = new QToolButton(this);
+  selectAllButton_->setObjectName(QStringLiteral("PresentationSelectAllButton"));
   Style::setVariant(selectAllButton_, "ghost");
   Style::setSize(selectAllButton_, "sm");
   selectAllButton_->setCursor(Qt::PointingHandCursor);
+  selectAllButton_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
   connect(selectAllButton_, &QToolButton::clicked, this, &PresentationPanel::onSelectAllClicked);
 
   selectNoneButton_ = new QToolButton(this);
+  selectNoneButton_->setObjectName(QStringLiteral("PresentationSelectNoneButton"));
   Style::setVariant(selectNoneButton_, "ghost");
   Style::setSize(selectNoneButton_, "sm");
   selectNoneButton_->setCursor(Qt::PointingHandCursor);
+  selectNoneButton_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
   connect(selectNoneButton_, &QToolButton::clicked, this, &PresentationPanel::onSelectNoneClicked);
 
   selectionSummaryLabel_ = new QLabel(this);
+  selectionSummaryLabel_->setObjectName(QStringLiteral("PresentationSelectionSummary"));
+  selectionSummaryLabel_->setWordWrap(true);
+  selectionSummaryLabel_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+  selectionSummaryLabel_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+  selectionSummaryLabel_->setMinimumWidth(0);
   Style::setRole(selectionSummaryLabel_, "muted");
 
   selectionRow->addWidget(selectAllButton_);
   selectionRow->addWidget(selectNoneButton_);
   selectionRow->addStretch(1);
-  selectionRow->addWidget(selectionSummaryLabel_);
   rootLayout->addLayout(selectionRow);
+  rootLayout->addWidget(selectionSummaryLabel_);
 
   instancesModel_ = new PresentationInstancesModel(this);
   instancesTable_ = new QTableView(this);
@@ -390,15 +589,14 @@ void PresentationPanel::buildUi() {
   rootLayout->addWidget(separator);
 
   currentClipTitleLabel_ = new QLabel(this);
+  currentClipTitleLabel_->setObjectName(QStringLiteral("PresentationCurrentClipTitle"));
   Style::setRole(currentClipTitleLabel_, "h3");
   rootLayout->addWidget(currentClipTitleLabel_);
 
-  auto* leadLagRow = new QHBoxLayout();
-  leadLagRow->setContentsMargins(0, 0, 0, 0);
-  leadLagRow->setSpacing(8);
-
   leadLabel_ = new QLabel(this);
+  leadLabel_->setObjectName(QStringLiteral("PresentationLeadLabel"));
   Style::setRole(leadLabel_, "muted");
+  leadLabel_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
   leadSpinBox_ = makeLeadLagSpinBox(this);
   leadSpinBox_->setObjectName(QStringLiteral("LeadSpinBox"));
   leadSpinBox_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -409,7 +607,9 @@ void PresentationPanel::buildUi() {
   });
 
   lagLabel_ = new QLabel(this);
+  lagLabel_->setObjectName(QStringLiteral("PresentationLagLabel"));
   Style::setRole(lagLabel_, "muted");
+  lagLabel_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
   lagSpinBox_ = makeLeadLagSpinBox(this);
   lagSpinBox_->setObjectName(QStringLiteral("LagSpinBox"));
   lagSpinBox_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -419,34 +619,48 @@ void PresentationPanel::buildUi() {
     if (lagSpinBox_ && lagSpinBox_->hasFocus()) lagSpinBox_->clearFocus();
   });
 
-  leadLagRow->addWidget(leadLabel_);
-  leadLagRow->addWidget(leadSpinBox_, 1);
-  leadLagRow->addWidget(lagLabel_);
-  leadLagRow->addWidget(lagSpinBox_, 1);
-  rootLayout->addLayout(leadLagRow);
+  auto* leadRow = new QHBoxLayout();
+  leadRow->setContentsMargins(0, 0, 0, 0);
+  leadRow->setSpacing(8);
+  leadRow->addWidget(leadLabel_);
+  leadRow->addWidget(leadSpinBox_, 1);
+  rootLayout->addLayout(leadRow);
 
-  applyToAllButton_ = new QPushButton(this);
-  applyToAllButton_->setCursor(Qt::PointingHandCursor);
+  auto* lagRow = new QHBoxLayout();
+  lagRow->setContentsMargins(0, 0, 0, 0);
+  lagRow->setSpacing(8);
+  lagRow->addWidget(lagLabel_);
+  lagRow->addWidget(lagSpinBox_, 1);
+  rootLayout->addLayout(lagRow);
+
+  auto* applyToAllButton = new WrappingTextButton(QStringLiteral("ApplyToAllButton"), this);
+  applyToAllButton_ = applyToAllButton;
   Style::setVariant(applyToAllButton_, "outline");
   connect(applyToAllButton_, &QPushButton::clicked, this,
           &PresentationPanel::onApplyLeadLagToAllClicked);
   rootLayout->addWidget(applyToAllButton_);
 
   showNotesCheckBox_ = new QCheckBox(this);
+  showNotesCheckBox_->setObjectName(QStringLiteral("PresentationShowNotesCheck"));
   showNotesCheckBox_->setCursor(Qt::PointingHandCursor);
   showNotesCheckBox_->setChecked(true);
   connect(showNotesCheckBox_, &QCheckBox::toggled, this, &PresentationPanel::showNotesToggled);
   rootLayout->addWidget(showNotesCheckBox_);
 
   exportButton_ = new QPushButton(this);
+  exportButton_->setObjectName(QStringLiteral("PresentationExportButton"));
   exportButton_->setCursor(Qt::PointingHandCursor);
   Style::setVariant(exportButton_, "primary");
   connect(exportButton_, &QPushButton::clicked, this, &PresentationPanel::exportRequested);
   rootLayout->addWidget(exportButton_);
 
   keyboardHintLabel_ = new QLabel(this);
+  keyboardHintLabel_->setObjectName(QStringLiteral("PresentationKeyboardHint"));
   Style::setRole(keyboardHintLabel_, "faint");
   keyboardHintLabel_->setWordWrap(true);
+  keyboardHintLabel_->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+  keyboardHintLabel_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+  keyboardHintLabel_->setMinimumWidth(0);
   rootLayout->addWidget(keyboardHintLabel_);
 
   if (presentationListBreakUiEnabled()) {
@@ -814,7 +1028,10 @@ void PresentationPanel::updateApplyButtonLabel() {
                                                 : "presentation.apply_to_all";
   const char* tooltipKey = exactlyOneSelectedClip ? "presentation.apply_to_one_tooltip"
                                                   : "presentation.apply_to_all_tooltip";
-  applyToAllButton_->setText(AppLocale::trUi(labelKey));
+  const QString label = AppLocale::trUi(labelKey);
+  if (auto* wrappingButton = dynamic_cast<WrappingTextButton*>(applyToAllButton_)) {
+    wrappingButton->setLabelText(label);
+  }
   applyToAllButton_->setToolTip(AppLocale::trUi(tooltipKey));
 }
 

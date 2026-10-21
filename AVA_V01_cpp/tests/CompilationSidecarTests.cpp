@@ -922,6 +922,9 @@ void CompilationSidecarExportTest::cancelBeforeOutputReplaceDoesNotWriteSidecar(
 
 int runPresentationPlaybackTests(int argc, char** argv);
 int runWorkStateTests(int argc, char** argv);
+int runTaggingToastTests(int argc, char** argv);
+int runModeChromeTests(int argc, char** argv);
+int runPresentationFilterTests(int argc, char** argv);
 int runXmlEventMappingDialogTests(int argc, char** argv);
 int runUiPolicyTests(int argc, char** argv);
 int runWorkDataViewTests(int argc, char** argv);
@@ -938,6 +941,18 @@ int main(int argc, char** argv) {
     const int workStateStatus = runWorkStateTests(argc, argv);
     if (workStateStatus != 0) {
         return workStateStatus;
+    }
+    const int taggingToastStatus = runTaggingToastTests(argc, argv);
+    if (taggingToastStatus != 0) {
+        return taggingToastStatus;
+    }
+    const int modeChromeStatus = runModeChromeTests(argc, argv);
+    if (modeChromeStatus != 0) {
+        return modeChromeStatus;
+    }
+    const int filterStatus = runPresentationFilterTests(argc, argv);
+    if (filterStatus != 0) {
+        return filterStatus;
     }
     const int mappingStatus = runXmlEventMappingDialogTests(argc, argv);
     if (mappingStatus != 0) {

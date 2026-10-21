@@ -41,6 +41,7 @@ qt_add_executable(AVA
   components/PlaybackSpeedometer.cpp
   components/TimelineBar.cpp
   components/GameControls.cpp
+  components/TagToastOverlay.cpp
   components/FollowUpCatalog.cpp
   components/MatchNotesEditor.cpp
   components/VideoPlayer.cpp
@@ -158,6 +159,9 @@ qt_add_executable(AVAExportTests
   tests/VideoClipSequenceTests.cpp
   tests/ShootoutStateTests.cpp
   tests/WorkStateTests.cpp
+  tests/TaggingToastTests.cpp
+  tests/ModeChromeTests.cpp
+  tests/PresentationFilterTests.cpp
   tests/XmlEventMappingDialogTests.cpp
   tests/UiPolicyTests.cpp
   tests/WorkDataViewTests.cpp
@@ -165,7 +169,20 @@ qt_add_executable(AVAExportTests
   ui/PresentationInstancesModel.cpp
   ui/XmlEventMappingDialog.cpp
   ui/GameSetupWindow.cpp
+  ui/WorkWindow.cpp
+  ui/StatsWindow.cpp
+  ui/PresentationPanel.cpp
+  ui/PresentationInstancesModel.cpp
+  ui/TagsTableModel.cpp
+  ui/ClipDurationSettingsDialog.cpp
+  ui/XmlSyncDialog.cpp
   components/TeamColorPicker.cpp
+  components/TagToastOverlay.cpp
+  components/VideoPlayer.cpp
+  components/VideoControlsBar.cpp
+  components/PlaybackSpeedometer.cpp
+  components/TimelineBar.cpp
+  components/MatchNotesEditor.cpp
   export/GameMetadataSuggester.cpp
   export/XaiConfig.cpp
   export/ExportOutputPath.cpp
@@ -179,8 +196,15 @@ qt_add_executable(AVAExportTests
   components/FollowUpCatalog.cpp
   components/GameControls.cpp
   style/Motion.cpp
+  state/PresentationQueue.cpp
   ui/ReplaceVideoConfirmation.cpp
   export/ClipExporter.cpp
+  export/ClipTrimBar.cpp
+  export/ExportJobsBar.cpp
+  export/ExportSettingsDialog.cpp
+  export/VideoConcatenator.cpp
+  export/PlaybackVideoPreparer.cpp
+  export/XmlImporter.cpp
   export/ShootoutState.cpp
   export/ShootoutOverlay.cpp
   export/CompilationSidecar.cpp
@@ -207,8 +231,27 @@ target_include_directories(AVAExportTests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/export
 )
 
+if(APPLE)
+  target_sources(AVAExportTests PRIVATE
+    macos/PlaybackActivity.mm
+    macos/SystemPowerNotifier.mm
+    style/Motion_mac.mm
+  )
+  set_source_files_properties(
+    macos/PlaybackActivity.mm
+    macos/SystemPowerNotifier.mm
+    style/Motion_mac.mm
+    PROPERTIES COMPILE_OPTIONS -fobjc-arc)
+  target_link_libraries(AVAExportTests PRIVATE
+    "-framework Foundation"
+    "-framework AppKit"
+  )
+endif()
+
 target_link_libraries(AVAExportTests PRIVATE
   Qt6::Widgets
+  Qt6::Multimedia
+  Qt6::MultimediaWidgets
   Qt6::Network
   Qt6::Test
 )

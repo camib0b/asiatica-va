@@ -33,6 +33,7 @@ class QTemporaryDir;
 class VideoConcatenator;
 class VideoPlayer;
 class GameControls;
+class TagToastOverlay;
 class GameSetupWindow;
 class StatsWindow;
 class ClipTrimBar;
@@ -51,6 +52,9 @@ class WorkWindow final : public QWidget {
 
 public:
   enum class Mode { Tagging, Analyzing, Presenting };
+
+  /// Tagging column on the left: video keeps any width above this cap.
+  static constexpr int kMaximumTaggingSidePanelWidthPx = 500;
 
   /// Whether a source video is loaded. Path, stack index, and widget visibility
   /// are not substitutes for this.
@@ -117,6 +121,7 @@ private slots:
   void onPresentationApplyLeadLagToAll(qint64 leadMs, qint64 lagMs);
   void onPresentationShowNotesToggled();
   void onPresentationExportRequested();
+  void enforceTaggingSidePanelWidthCap();
 
 protected:
   bool eventFilter(QObject* watched, QEvent* event) override;
@@ -253,6 +258,7 @@ private:
 
   // UI:
   VideoPlayer* videoPlayer_ = nullptr;
+  TagToastOverlay* tagToast_ = nullptr;
   GameControls* gameControls_ = nullptr;
   StatsWindow* statsWindow_ = nullptr;
   QWidget* notesColumn_ = nullptr;
