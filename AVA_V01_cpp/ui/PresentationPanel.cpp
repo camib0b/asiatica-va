@@ -3,8 +3,10 @@
 #include "../i18n/AppLocale.h"
 #include "../state/EventDefaults.h"
 #include "../state/TagSession.h"
+#include "../state/TeamAbbreviation.h"
 #include "../state/TimeConvert.h"
 #include "../style/StyleProps.h"
+#include "../style/TabularDigits.h"
 #include "../style/WorkDataView.h"
 #include "QtPtr.h"
 
@@ -22,11 +24,13 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QPointer>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSignalBlocker>
 #include <QStyle>
+#include <QStyledItemDelegate>
 #include <QStyleOptionSpinBox>
 #include <QTableView>
 #include <QTimer>
@@ -64,6 +68,67 @@ bool mouseHitsSpinBoxButton(const QDoubleSpinBox* spinBox, const QPoint& localPo
       QStyle::CC_SpinBox, &option, QStyle::SC_SpinBoxDown, spinBox);
   return upRect.contains(localPos) || downRect.contains(localPos);
 }
+
+/// Time column only. Draws the checkbox and row chrome with the style, then the
+/// timestamp with fixed digit slots so proportional figures do not shift.
+class TabularTimeDelegate final : public QStyledItemDelegate {
+ public:
+  using QStyledItemDelegate::QStyledItemDelegate;
+
+  void paint(QPainter* painter, const QStyleOptionViewItem& option,
+             const QModelIndex& index) const override {
+    QStyleOptionViewItem styledOption = option;
+    initStyleOption(&styledOption, index);
+    const QString displayText = styledOption.text;
+    styledOption.text.clear();
+
+    const QWidget* widget = styledOption.widget;
+    QStyle* style = widget ? widget->style() : QApplication::style();
+    style->drawControl(QStyle::CE_ItemViewItem, &styledOption, painter, widget);
+
+    if (displayText.isEmpty() || !painter) return;
+
+    const QRect textRectangle =
+        style->subElementRect(QStyle::SE_ItemViewItemText, &styledOption, widget);
+    // QSS selection-color matches the normal text color. HighlightedText on
+    // Fusion is white, which would disappear against the zinc selection fill.
+    const QColor textColor = styledOption.palette.color(QPalette::Text);
+    Style::drawTabularText(painter, textRectangle, displayText, styledOption.font, textColor);
+  }
+
+  QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override {
+    QStyleOptionViewItem styledOption = option;
+    initStyleOption(&styledOption, index);
+    const QString displayText = styledOption.text;
+    if (displayText.isEmpty()) return QStyledItemDelegate::sizeHint(option, index);
+
+    // Ask the style for the widest digit in every slot. "09:59" and "10:00"
+    // then share one size hint; subtracting the proportional advance left a
+    // 1px residue from glyph side bearings.
+    const QFontMetrics fontMetrics(styledOption.font);
+    QChar widestDigit(u'0');
+    int widestAdvance = -1;
+    const QString digits = QStringLiteral("0123456789");
+    for (const QChar digit : digits) {
+      const int advance = fontMetrics.horizontalAdvance(digit);
+      if (advance > widestAdvance) {
+        widestAdvance = advance;
+        widestDigit = digit;
+      }
+    }
+
+    QString referenceText;
+    referenceText.reserve(displayText.size());
+    for (const QChar character : displayText) {
+      referenceText.append(character.isDigit() ? widestDigit : character);
+    }
+    styledOption.text = referenceText;
+
+    const QWidget* widget = styledOption.widget;
+    QStyle* style = widget ? widget->style() : QApplication::style();
+    return style->sizeFromContents(QStyle::CT_ItemViewItem, &styledOption, QSize(), widget);
+  }
+};
 
 void releaseSpinBoxFocusSoon(QDoubleSpinBox* spinBox) {
   if (!spinBox) return;
@@ -258,6 +323,13 @@ void PresentationPanel::buildUi() {
   Style::setRole(teamFilterLabel_, "muted");
   teamFilterCombo_ = new QComboBox(this);
   teamFilterCombo_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  // Abbreviations are short. A stored code is not length-capped, so the closed
+  // combo sizes to a few characters and elides instead of growing with the text.
+  teamFilterCombo_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+  teamFilterCombo_->setMinimumContentsLength(4);
+  if (QAbstractItemView* teamPopup = teamFilterCombo_->view()) {
+    teamPopup->setMouseTracking(true);
+  }
   connect(teamFilterCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
           &PresentationPanel::onFilterChanged);
 
@@ -304,6 +376,8 @@ void PresentationPanel::buildUi() {
   instancesTable_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
   instancesTable_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
   instancesTable_->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+  auto timeColumnDelegate = makeQtPtr<TabularTimeDelegate>(instancesTable_);
+  instancesTable_->setItemDelegateForColumn(0, timeColumnDelegate.get());
   connect(instancesModel_, &PresentationInstancesModel::checkStateChanged, this,
           &PresentationPanel::onModelCheckStateChanged);
   connect(instancesTable_, &QTableView::doubleClicked, this,
@@ -394,8 +468,6 @@ void PresentationPanel::applyUiStrings() {
   currentClipTitleLabel_->setText(AppLocale::trUi("presentation.current_clip"));
   leadLabel_->setText(AppLocale::trUi("clip_durations.col_lead"));
   lagLabel_->setText(AppLocale::trUi("clip_durations.col_lag"));
-  applyToAllButton_->setText(AppLocale::trUi("presentation.apply_to_all"));
-  applyToAllButton_->setToolTip(AppLocale::trUi("presentation.apply_to_all_tooltip"));
   showNotesCheckBox_->setText(AppLocale::trUi("presentation.show_notes"));
   exportButton_->setText(AppLocale::trUi("presentation.export"));
   keyboardHintLabel_->setText(AppLocale::trUi("presentation.keyboard_hint"));
@@ -432,6 +504,8 @@ void PresentationPanel::setTagSession(TagSession* session) {
       refreshFromSession();
     });
     connect(tagSession_, &TagSession::tagsChanged, this, &PresentationPanel::refreshFromSession);
+    connect(tagSession_, &TagSession::gameMetadataChanged, this,
+            &PresentationPanel::refreshFromSession);
     connect(tagSession_, &TagSession::tagNoteChanged, this, [this](int) { refreshFromSession(); });
   }
 
@@ -490,10 +564,11 @@ void PresentationPanel::rebuildEventFilterOptions() {
   const QSignalBlocker teamBlocker(teamFilterCombo_);
   teamFilterCombo_->clear();
   teamFilterCombo_->addItem(AppLocale::trUi("presentation.team_all"), QString());
-  teamFilterCombo_->addItem(teamDisplayName(QStringLiteral("Home")), QStringLiteral("Home"));
-  teamFilterCombo_->addItem(teamDisplayName(QStringLiteral("Away")), QStringLiteral("Away"));
+  addTeamFilterItem(QStringLiteral("Home"));
+  addTeamFilterItem(QStringLiteral("Away"));
   const int restoredTeamIndex = teamFilterCombo_->findData(previousTeam);
   teamFilterCombo_->setCurrentIndex(restoredTeamIndex >= 0 ? restoredTeamIndex : 0);
+  updateTeamFilterTooltip();
 }
 
 PresentationInstancesModel::Row PresentationPanel::makeVisibleRow(int tagSessionIndex, quint64 tagId,
@@ -670,6 +745,7 @@ void PresentationPanel::onFilterChanged() {
   rebuildRows();
   updateSelectionSummary();
   updateCurrentClipControlsEnabled();
+  updateTeamFilterTooltip();
 }
 
 void PresentationPanel::onModelCheckStateChanged(quint64 tagId, bool checked) {
@@ -728,6 +804,18 @@ void PresentationPanel::updateSelectionSummary() {
           .arg(visibleSelectedCount)
           .arg(listedCount)
           .arg(totalSelectedCount));
+  updateApplyButtonLabel();
+}
+
+void PresentationPanel::updateApplyButtonLabel() {
+  if (!applyToAllButton_) return;
+  const bool exactlyOneSelectedClip = selectedTagIndexes().size() == 1;
+  const char* labelKey = exactlyOneSelectedClip ? "presentation.apply_to_one"
+                                                : "presentation.apply_to_all";
+  const char* tooltipKey = exactlyOneSelectedClip ? "presentation.apply_to_one_tooltip"
+                                                  : "presentation.apply_to_all_tooltip";
+  applyToAllButton_->setText(AppLocale::trUi(labelKey));
+  applyToAllButton_->setToolTip(AppLocale::trUi(tooltipKey));
 }
 
 // ---------------------------------------------------------------------------
@@ -895,4 +983,41 @@ QString PresentationPanel::teamDisplayName(const QString& teamKey) const {
     return name.isEmpty() ? AppLocale::trUi("export.team_away_default") : name;
   }
   return teamKey.isEmpty() ? QStringLiteral("—") : teamKey;
+}
+
+QString PresentationPanel::teamFilterAbbreviation(const QString& teamKey) const {
+  QString storedAbbreviation;
+  if (tagSession_) {
+    if (teamKey == QStringLiteral("Home")) storedAbbreviation = tagSession_->homeAbbrev();
+    if (teamKey == QStringLiteral("Away")) storedAbbreviation = tagSession_->awayAbbrev();
+  }
+  if (!storedAbbreviation.trimmed().isEmpty()) return storedAbbreviation;
+
+  const bool hasStoredName =
+      tagSession_ && ((teamKey == QStringLiteral("Home") &&
+                       !tagSession_->homeTeamName().trimmed().isEmpty()) ||
+                      (teamKey == QStringLiteral("Away") &&
+                       !tagSession_->awayTeamName().trimmed().isEmpty()));
+  if (hasStoredName) {
+    const QString derived = TeamAbbreviation::fromTeamName(teamDisplayName(teamKey));
+    if (!derived.isEmpty()) return derived;
+  }
+  return teamDisplayName(teamKey);
+}
+
+void PresentationPanel::addTeamFilterItem(const QString& teamKey) {
+  const QString fullName = teamDisplayName(teamKey);
+  teamFilterCombo_->addItem(teamFilterAbbreviation(teamKey), teamKey);
+  teamFilterCombo_->setItemData(teamFilterCombo_->count() - 1, fullName.toHtmlEscaped(),
+                                Qt::ToolTipRole);
+}
+
+void PresentationPanel::updateTeamFilterTooltip() {
+  if (!teamFilterCombo_) return;
+  const QString teamKey = teamFilterCombo_->currentData().toString();
+  if (teamKey.isEmpty()) {
+    teamFilterCombo_->setToolTip(QString());
+    return;
+  }
+  teamFilterCombo_->setToolTip(teamDisplayName(teamKey).toHtmlEscaped());
 }

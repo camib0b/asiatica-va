@@ -81,6 +81,7 @@ private:
   void rebuildRows();
   void syncModelSelection();
   void updateSelectionSummary();
+  void updateApplyButtonLabel();
   void updateCurrentClipControlsEnabled();
   void updateShowNotesCheckboxVisibility();
   bool selectionHasAnyNotes() const;
@@ -91,6 +92,9 @@ private:
   bool passesFilters(const QString& mainEvent, const QString& team) const;
   bool eventFilterValueIsValid(const QString& eventFilter) const;
   QString teamDisplayName(const QString& teamKey) const;
+  QString teamFilterAbbreviation(const QString& teamKey) const;
+  void addTeamFilterItem(const QString& teamKey);
+  void updateTeamFilterTooltip();
   QDoubleSpinBox* focusedLeadLagSpinBox() const;
   bool isInsideLeadLagSpinBox(const QWidget* widget) const;
   void releaseLeadLagSpinBoxFocus();

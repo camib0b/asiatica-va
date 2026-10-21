@@ -1,6 +1,8 @@
 #include "AppLocale.h"
 #include "PresentationInstancesModel.h"
 #include "PresentationPanel.h"
+#include "StyleProps.h"
+#include "TabularDigits.h"
 #include "TagSession.h"
 #include "ThemeColors.h"
 #include "WorkDataView.h"
@@ -10,6 +12,7 @@
 #include <QBrush>
 #include <QButtonGroup>
 #include <QComboBox>
+#include <QDate>
 #include <QDoubleSpinBox>
 #include <QFile>
 #include <QFont>
@@ -68,6 +71,25 @@ void expectColumnsFit(QTableView* table) {
   QCOMPARE(table->horizontalScrollBar()->maximum(), 0);
 }
 
+QPushButton* outlinePushButton(QWidget* parent) {
+  for (QPushButton* button : parent->findChildren<QPushButton*>()) {
+    if (button->property("variant").toString() == QStringLiteral("outline")) return button;
+  }
+  return nullptr;
+}
+
+int presentationTimeColumnWidth(qint64 markMs) {
+  TagSession session;
+  session.setGameTeams(QStringLiteral("Home Club"), QStringLiteral("Away Club"), QString(),
+                       QString());
+  session.addTag(playTag(QStringLiteral("Goal"), QStringLiteral("Home"), markMs));
+  PresentationPanel panel;
+  panel.setTagSession(&session);
+  showPanel(panel, 320);
+  QTableView* table = instancesTable(panel);
+  return table ? table->columnWidth(0) : -1;
+}
+
 } // namespace
 
 class WorkDataViewTest : public QObject {
@@ -80,6 +102,7 @@ private slots:
   void presentationListKeepsSelectionAndFitsTheSideColumn();
   void breakUiToggleSwapsFixturesWithoutChangingSelection();
   void modelKeepsChecksHighlightAndEscapesTooltips();
+  void applyLabelAbbreviationsAndSteadyTimeDigits();
 };
 
 void WorkDataViewTest::initTestCase() {
@@ -99,7 +122,10 @@ void WorkDataViewTest::initTestCase() {
   qApp->setStyleSheet(stylesheet);
 }
 
-void WorkDataViewTest::cleanup() { qunsetenv("AVA_BREAK_UI"); }
+void WorkDataViewTest::cleanup() {
+  qunsetenv("AVA_BREAK_UI");
+  AppLocale::setLanguage(AppLocale::Language::English);
+}
 
 void WorkDataViewTest::sharedChromeMatchesAcrossTheThreeLists() {
   QTableView taggingLog;
@@ -363,6 +389,162 @@ void WorkDataViewTest::modelKeepsChecksHighlightAndEscapesTooltips() {
   const QVariant background = model.data(model.index(0, 1), Qt::BackgroundRole);
   QVERIFY(background.canConvert<QBrush>());
   QCOMPARE(background.value<QBrush>().color(), Style::ThemeColors::playheadHighlight());
+}
+
+void WorkDataViewTest::applyLabelAbbreviationsAndSteadyTimeDigits() {
+  qunsetenv("AVA_BREAK_UI");
+  AppLocale::setLanguage(AppLocale::Language::English);
+
+  const QString homeName = QStringLiteral("Aleksandra Wiśniewska-Kowalczyk");
+  const QString awayName = QStringLiteral("AT&T United");
+  TagSession session;
+  session.setGameTeams(homeName, awayName, QString(), QString());
+  session.addTag(playTag(QStringLiteral("Circle Entry"), QStringLiteral("Home"), 125000));
+  session.addTag(playTag(QStringLiteral("Goal"), QStringLiteral("Away"), 8000));
+
+  PresentationPanel panel;
+  panel.setTagSession(&session);
+  showPanel(panel, 260);
+
+  QTableView* table = instancesTable(panel);
+  QVERIFY(table);
+  QVERIFY(table->itemDelegateForColumn(0) != nullptr);
+  QVERIFY(table->itemDelegateForColumn(0) != table->itemDelegate());
+  QCOMPARE(table->itemDelegateForColumn(1), nullptr);
+  QCOMPARE(table->itemDelegateForColumn(2), nullptr);
+
+  const QFontMetrics tableMetrics = table->fontMetrics();
+  QCOMPARE(Style::tabularTextWidth(tableMetrics, QStringLiteral("09:59")),
+           Style::tabularTextWidth(tableMetrics, QStringLiteral("10:00")));
+  QCOMPARE(Style::tabularTextWidth(tableMetrics, QStringLiteral("11:11")),
+           Style::tabularTextWidth(tableMetrics, QStringLiteral("00:00")));
+  QCOMPARE(Style::tabularTextWidth(tableMetrics, QStringLiteral("1284:11:11")),
+           Style::tabularTextWidth(tableMetrics, QStringLiteral("1284:00:00")));
+  const int narrowDigitWidth = tableMetrics.horizontalAdvance(QChar(u'1'));
+  const int wideDigitWidth = tableMetrics.horizontalAdvance(QChar(u'0'));
+  if (narrowDigitWidth != wideDigitWidth) {
+    QVERIFY(tableMetrics.horizontalAdvance(QStringLiteral("11:11"))
+            < tableMetrics.horizontalAdvance(QStringLiteral("00:00")));
+  }
+
+  const int zeroMinutesWidth = presentationTimeColumnWidth(0);
+  const int elevenMinutesWidth = presentationTimeColumnWidth((11 * 60 + 11) * 1000LL);
+  QCOMPARE(zeroMinutesWidth, elevenMinutesWidth);
+  QVERIFY(zeroMinutesWidth > 48);
+  const qint64 longHoursMs = 1284LL * 3600LL * 1000LL;
+  QCOMPARE(presentationTimeColumnWidth(longHoursMs),
+           presentationTimeColumnWidth(longHoursMs + (11 * 60 + 11) * 1000LL));
+
+  QComboBox* eventFilter = nullptr;
+  QComboBox* teamFilter = nullptr;
+  for (QComboBox* combo : panel.findChildren<QComboBox*>()) {
+    if (combo->findData(QStringLiteral("Circle Entry")) >= 0) eventFilter = combo;
+    if (combo->findData(QStringLiteral("Home")) >= 0) teamFilter = combo;
+  }
+  QVERIFY(eventFilter);
+  QVERIFY(teamFilter);
+  QCOMPARE(eventFilter->sizeAdjustPolicy(), QComboBox::AdjustToContentsOnFirstShow);
+  QCOMPARE(teamFilter->sizeAdjustPolicy(), QComboBox::AdjustToMinimumContentsLengthWithIcon);
+  QCOMPARE(teamFilter->minimumContentsLength(), 4);
+  QVERIFY(teamFilter->view());
+  QVERIFY(teamFilter->view()->hasMouseTracking());
+
+  const int homeIndex = teamFilter->findData(QStringLiteral("Home"));
+  const int awayIndex = teamFilter->findData(QStringLiteral("Away"));
+  QVERIFY(homeIndex >= 0);
+  QVERIFY(awayIndex >= 0);
+  QCOMPARE(teamFilter->itemText(homeIndex), QStringLiteral("AWK"));
+  QCOMPARE(teamFilter->itemText(awayIndex), QStringLiteral("ATU"));
+  QCOMPARE(teamFilter->itemData(homeIndex, Qt::ToolTipRole).toString(), homeName);
+  QCOMPARE(teamFilter->itemData(awayIndex, Qt::ToolTipRole).toString(),
+           QStringLiteral("AT&amp;T United"));
+  QCOMPARE(teamFilter->toolTip(), QString());
+  teamFilter->setCurrentIndex(homeIndex);
+  QCOMPARE(teamFilter->toolTip(), homeName);
+  teamFilter->setCurrentIndex(0);
+  QCOMPARE(table->model()->rowCount(), 2);
+
+  int homeRow = -1;
+  for (int row = 0; row < table->model()->rowCount(); ++row) {
+    if (table->model()->data(table->model()->index(row, 1), Qt::DisplayRole).toString() == homeName) {
+      homeRow = row;
+    }
+  }
+  QVERIFY(homeRow >= 0);
+
+  QPushButton* applyButton = outlinePushButton(&panel);
+  QVERIFY(applyButton);
+  QCOMPARE(applyButton->property("variant").toString(), QStringLiteral("outline"));
+  QCOMPARE(applyButton->text(), QStringLiteral("Apply to all selected clips"));
+  QCOMPARE(applyButton->toolTip(), AppLocale::trUi("presentation.apply_to_all_tooltip"));
+
+  QVERIFY(table->model()->setData(table->model()->index(0, 0), Qt::Checked, Qt::CheckStateRole));
+  QCOMPARE(panel.selectedTagIndexes().size(), 1);
+  QCOMPARE(applyButton->text(), QStringLiteral("Apply to the selected clip"));
+  QCOMPARE(applyButton->toolTip(), AppLocale::trUi("presentation.apply_to_one_tooltip"));
+  const int singularButtonWidth = applyButton->width();
+
+  QVERIFY(table->model()->setData(table->model()->index(1, 0), Qt::Checked, Qt::CheckStateRole));
+  QCOMPARE(panel.selectedTagIndexes().size(), 2);
+  QCOMPARE(applyButton->text(), QStringLiteral("Apply to all selected clips"));
+  QCOMPARE(applyButton->width(), singularButtonWidth);
+
+  AppLocale::setLanguage(AppLocale::Language::Spanish);
+  panel.applyUiStrings();
+  showPanel(panel, 260);
+  QCOMPARE(panel.selectedTagIndexes().size(), 2);
+  QCOMPARE(applyButton->text(), QStringLiteral("Aplicar a todos los clips seleccionados"));
+  QCOMPARE(applyButton->toolTip(), AppLocale::trUi("presentation.apply_to_all_tooltip"));
+
+  QVERIFY(table->model()->setData(table->model()->index(0, 0), Qt::Unchecked, Qt::CheckStateRole));
+  QCOMPARE(panel.selectedTagIndexes().size(), 1);
+  QCOMPARE(applyButton->text(), QStringLiteral("Aplicar al clip seleccionado"));
+  QCOMPARE(applyButton->toolTip(), AppLocale::trUi("presentation.apply_to_one_tooltip"));
+  QVERIFY2(applyButton->width() + 1 >= Style::pushButtonMinimumWidth(applyButton),
+           qPrintable(QStringLiteral("singular width %1 minimum %2")
+                          .arg(applyButton->width())
+                          .arg(Style::pushButtonMinimumWidth(applyButton))));
+
+  QVERIFY(table->model()->setData(table->model()->index(1, 0), Qt::Unchecked, Qt::CheckStateRole));
+  QCOMPARE(panel.selectedTagIndexes().size(), 0);
+  QCOMPARE(applyButton->text(), QStringLiteral("Aplicar a todos los clips seleccionados"));
+  const int pluralMinimumWidth = Style::pushButtonMinimumWidth(applyButton);
+  showPanel(panel, qMax(260, pluralMinimumWidth));
+  QVERIFY2(applyButton->width() + 1 >= pluralMinimumWidth,
+           qPrintable(QStringLiteral("plural width %1 minimum %2")
+                          .arg(applyButton->width())
+                          .arg(pluralMinimumWidth)));
+  showPanel(panel, 260);
+
+  session.setGameMetadata(QDate(), QStringLiteral("WISNIEWSKA-KOWALCZYK"), QStringLiteral("JO"));
+  showPanel(panel, 260);
+  QCOMPARE(teamFilter->itemText(teamFilter->findData(QStringLiteral("Home"))),
+           QStringLiteral("WISNIEWSKA-KOWALCZYK"));
+  QCOMPARE(teamFilter->itemText(teamFilter->findData(QStringLiteral("Away"))), QStringLiteral("JO"));
+  QCOMPARE(teamFilter->itemData(teamFilter->findData(QStringLiteral("Home")), Qt::ToolTipRole)
+               .toString(),
+           homeName);
+  const int longAbbreviationAdvance =
+      teamFilter->fontMetrics().horizontalAdvance(QStringLiteral("WISNIEWSKA-KOWALCZYK"));
+  QVERIFY(teamFilter->sizeHint().width() < longAbbreviationAdvance);
+  QVERIFY(teamFilter->width() < longAbbreviationAdvance);
+  QVERIFY(eventFilter->width() >= 48);
+  QVERIFY(eventFilter->isVisible());
+  expectColumnsFit(table);
+
+  AppLocale::setLanguage(AppLocale::Language::English);
+  TagSession unnamedSession;
+  PresentationPanel unnamedPanel;
+  unnamedPanel.setTagSession(&unnamedSession);
+  QComboBox* unnamedTeamFilter = nullptr;
+  for (QComboBox* combo : unnamedPanel.findChildren<QComboBox*>()) {
+    if (combo->findData(QStringLiteral("Home")) >= 0) unnamedTeamFilter = combo;
+  }
+  QVERIFY(unnamedTeamFilter);
+  QCOMPARE(unnamedTeamFilter->itemText(unnamedTeamFilter->findData(QStringLiteral("Home"))),
+           QStringLiteral("Home"));
+  QCOMPARE(unnamedTeamFilter->itemText(unnamedTeamFilter->findData(QStringLiteral("Away"))),
+           QStringLiteral("Away"));
 }
 
 int runWorkDataViewTests(int argc, char** argv) {
