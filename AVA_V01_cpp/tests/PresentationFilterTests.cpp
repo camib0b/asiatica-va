@@ -151,16 +151,16 @@ void PresentationFilterTest::longNamesElideOnlyWhenTheBoxCannotGrow() {
   teams->setCurrentIndex(teams->findData(QStringLiteral("Home")));
   if (panel.layout()) panel.layout()->activate();
   QApplication::sendPostedEvents();
-  QCOMPARE(teams->currentText(), longTeam);
+  // The closed team box shows the abbreviation. The club name stays on the tooltip.
+  QCOMPARE(teams->currentText(), QStringLiteral("SFD"));
   QVERIFY(teams->width() <= 220);
-  QVERIFY2(teams->fontMetrics().horizontalAdvance(longTeam) > editFieldWidth(teams),
-           qPrintable(QStringLiteral("team box %1 edit %2").arg(teams->width()).arg(editFieldWidth(teams))));
-  QCOMPARE(teams->toolTip(), longTeam);
+  QVERIFY(teams->fontMetrics().horizontalAdvance(teams->currentText()) <= editFieldWidth(teams));
+  QCOMPARE(teams->toolTip(), longTeam.toHtmlEscaped());
 
   teams->setCurrentIndex(teams->findData(QStringLiteral("Away")));
   QApplication::sendPostedEvents();
   QCOMPARE(teams->currentText(), shortTeam);
-  QCOMPARE(teams->toolTip(), QString());
+  QCOMPARE(teams->toolTip(), shortTeam.toHtmlEscaped());
   QVERIFY(teams->fontMetrics().horizontalAdvance(shortTeam) <= editFieldWidth(teams));
 
   const int markupIndex = events->findData(QStringLiteral("<b>Shot</b> &amp; **goal**"));
