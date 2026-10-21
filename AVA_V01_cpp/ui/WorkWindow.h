@@ -22,7 +22,6 @@
 
 #include <memory>
 #include <optional>
-#include <vector>
 
 class QLabel;
 class QAction;
@@ -39,6 +38,7 @@ class QTemporaryDir;
 
 class VideoConcatenator;
 class VideoPlayer;
+class PlaybackTemporaryDirectoryController;
 class GameControls;
 class TagToastOverlay;
 class GameSetupWindow;
@@ -197,21 +197,8 @@ private:
     qint64 positionMs = 0;
   };
 
-  void cleanupConcatenatedVideo();
-  void cleanupPlaybackPrepVideo();
-  void cleanupPendingConcatenation();
   /// Wait keeps the video open. Cancel stops the export and drops partial files.
   bool confirmExportAllowsVideoRelease();
-  void retainOrDeleteTemporaryDirectory(std::unique_ptr<QTemporaryDir>& directory);
-  /// Deletes \p directory once the player is no longer reading a file inside it.
-  /// When \p releaseHoldingPlayer is true, the player drops that file first.
-  void queueTemporaryDirectoryForDeletion(std::unique_ptr<QTemporaryDir> directory,
-                                         bool releaseHoldingPlayer);
-  void deleteTemporaryDirectoriesReleasedByPlayer();
-  void scheduleTemporaryDirectoryDeletion();
-  bool playerMediaSourceIsInsideDirectory(const QString& directoryPath) const;
-  bool exportStillNeedsDirectory(const QString& absoluteDirectoryPath) const;
-  void releaseFinishedTemporaryDirectories();
   void showAdjustedImportNote(int adjustedCount);
   /// Drops concat/prep temps, resets session UI, and emits videoClosed().
   void abortVideoOpen(const QString& errorMessage);
@@ -434,12 +421,6 @@ private:
 
   QString sourceVideoPath_;
   QString exportDefaultDirectoryPath_;
-  std::unique_ptr<QTemporaryDir> concatenatedVideoTempDir_;
-  std::unique_ptr<QTemporaryDir> playbackPrepTempDir_;
-  /// Temps an in-progress export still reads after the video was closed or replaced.
-  std::vector<std::unique_ptr<QTemporaryDir>> retainedTemporaryDirectories_;
-  /// Temps waiting until the player has dropped the file they contain.
-  std::vector<std::unique_ptr<QTemporaryDir>> temporaryDirectoriesPendingDeletion_;
-  bool temporaryDirectoryDeletionScheduled_ = false;
-  std::unique_ptr<VideoConcatenator> pendingConcatenator_;
+  /// Concat, playback-prep, and export-retained temporary directories.
+  std::unique_ptr<PlaybackTemporaryDirectoryController> temporaryDirectoryController_;
 };
