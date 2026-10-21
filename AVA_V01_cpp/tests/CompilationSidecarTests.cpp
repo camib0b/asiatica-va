@@ -79,8 +79,7 @@ PresentationQueue::Clip presentationClipFrom(const TagSession::GameTag& tag, int
 void configureMatch(TagSession& session) {
     session.setGameTeams(QStringLiteral("UC"), QStringLiteral("OR"),
                          QStringLiteral("#3c5ac8"), QStringLiteral("#c83c3c"));
-    session.setGameMetadata(QStringLiteral("Copa área"), QDate(2026, 9, 27),
-                            QStringLiteral("UC"), QStringLiteral("OR"));
+    session.setGameMetadata(QDate(2026, 9, 27), QStringLiteral("UC"), QStringLiteral("OR"));
 }
 
 ClipCompilationRecord recordWithSource(qint64 sourceStartMs,
@@ -572,6 +571,10 @@ void CompilationSidecarExportTest::exportsSidecarBesideCompilation() {
 
     TagSession session;
     configureMatch(session);
+    // The removed competition name used to carry this non-ASCII text into the
+    // sidecar. The home display name still lands in matchXml.
+    session.setGameTeams(QStringLiteral("Copa área"), QStringLiteral("OR"),
+                         QStringLiteral("#3c5ac8"), QStringLiteral("#c83c3c"));
     appendTag(session, makeTag(QStringLiteral("Q1"), QString(), 0, 4500, 0, QStringLiteral("Q1")));
     appendTag(session, makeTag(QStringLiteral("Q2"), QString(), 4500, 8000, 4500,
                                QStringLiteral("Q2")));
@@ -726,8 +729,8 @@ void CompilationSidecarExportTest::exportsSidecarBesideCompilation() {
         const int resultado = jsonText.indexOf(QStringLiteral("\"RESULTADO\""));
         const int quartos = jsonText.indexOf(QStringLiteral("\"QUARTOS\""));
         const int year = jsonText.indexOf(QStringLiteral("\"ANO\""));
-        QVERIFY(competition >= 0);
-        QVERIFY(competition < resultado);
+        QCOMPARE(competition, -1);
+        QVERIFY(resultado >= 0);
         QVERIFY(resultado < quartos);
         QVERIFY(quartos < year);
     }
@@ -911,6 +914,7 @@ void CompilationSidecarExportTest::cancelBeforeOutputReplaceDoesNotWriteSidecar(
 
 int runPresentationPlaybackTests(int argc, char** argv);
 int runWorkStateTests(int argc, char** argv);
+int runInteractionGuardTests(int argc, char** argv);
 int runVideoClipSequenceTests(int argc, char** argv);
 
 int main(int argc, char** argv) {
@@ -922,6 +926,10 @@ int main(int argc, char** argv) {
     const int workStateStatus = runWorkStateTests(argc, argv);
     if (workStateStatus != 0) {
         return workStateStatus;
+    }
+    const int interactionStatus = runInteractionGuardTests(argc, argv);
+    if (interactionStatus != 0) {
+        return interactionStatus;
     }
     const int clipStatus = runVideoClipSequenceTests(argc, argv);
     if (clipStatus != 0) {

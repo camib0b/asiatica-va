@@ -30,6 +30,7 @@ qt_add_executable(AVA
   ui/XmlSyncDialog.cpp
   ui/XmlEventMappingDialog.cpp
   ui/StatsWindow.cpp
+  ui/ReplaceVideoConfirmation.cpp
   state/EventDefaults.cpp
   state/EventCodeMap.cpp
   state/PresentationQueue.cpp
@@ -56,6 +57,7 @@ qt_add_executable(AVA
   export/VideoConcatenator.cpp
   export/PlaybackVideoPreparer.cpp
   export/XmlExporter.cpp
+  export/SessionNotesWriter.cpp
   export/XmlImporter.cpp
   export/XaiConfig.cpp
   export/GameMetadataSuggester.cpp
@@ -148,6 +150,7 @@ find_package(Qt6 REQUIRED COMPONENTS Test)
 
 qt_add_executable(AVAExportTests
   tests/CompilationSidecarTests.cpp
+  tests/InteractionGuardTests.cpp
   tests/PresentationPlaybackTests.cpp
   tests/VideoClipSequenceTests.cpp
   tests/WorkStateTests.cpp
@@ -158,12 +161,17 @@ qt_add_executable(AVAExportTests
   state/EventDefaults.cpp
   state/EventCodeMap.cpp
   state/TagSession.cpp
+  components/FollowUpCatalog.cpp
+  components/GameControls.cpp
+  style/Motion.cpp
+  ui/ReplaceVideoConfirmation.cpp
   export/ClipExporter.cpp
   export/CompilationSidecar.cpp
   export/ConcatFileOrderDialog.cpp
   export/ExportClipBuilder.cpp
   export/ExportJobManager.cpp
   export/FfmpegLocator.cpp
+  export/SessionNotesWriter.cpp
   export/VideoClipSequence.cpp
   export/XmlExporter.cpp
 )
