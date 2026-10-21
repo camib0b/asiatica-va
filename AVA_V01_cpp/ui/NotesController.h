@@ -24,7 +24,7 @@ class VideoPlayer;
 /// unsaved clip draft, and @-mention candidates.
 ///
 /// Callers use flush, discard, load, and stop/resume. The tags-table rebuild
-/// still wraps load in its own signal blockers; those stay on WorkWindow.
+/// still wraps load in its own signal blockers; those stay on TagsTableController.
 /// aboutToClear and aboutToReplaceTags are direct connections so a session
 /// clear cannot drop or mis-apply the open draft.
 class NotesController final : public QObject {

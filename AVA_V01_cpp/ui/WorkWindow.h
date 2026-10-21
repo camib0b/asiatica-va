@@ -7,15 +7,12 @@
 #include <QStringList>
 #include <QBrush>
 #include <QColor>
-#include <QHash>
 #include <QList>
 #include <QModelIndex>
-#include <QSet>
 #include <QVector>
 
 #include "../export/ExportSettingsDialog.h"
 #include "../state/PresentationQueue.h"
-#include "../state/TagFilter.h"
 #include "TagsTableModel.h"
 #include "XmlEventMappingDialog.h"
 
@@ -38,6 +35,7 @@ class VideoConcatenator;
 class VideoPlayer;
 class PlaybackTemporaryDirectoryController;
 class NotesController;
+class TagsTableController;
 class PresentationPlaybackController;
 class GameControls;
 class TagToastOverlay;
@@ -87,12 +85,6 @@ private slots:
   void onTagSelectionChanged();
   void onDeleteSelectedTag();
   void onUndoLastTag();
-  void onSelectAllFilters();
-  void onSelectNoFilters();
-  void onFilterActionToggled(bool checked);
-  void onPlayheadPositionChanged(qint64 positionMs);
-  void onFilterByEventPathRequested(const QString& mainEvent, const QString& followUpEvent);
-  void onRemoveFilters();
   void onModeToggled();
   void showStatsOverlay();
   void onGameSetupConfirmed(const QString& filePath,
@@ -138,17 +130,10 @@ private:
   }
 
   void disconnectTagSessionSignals();
-  void refreshTagsTableRows();
-  void syncFilterMenu();
-  void updateFilterIndicator() const;
-  void updateFilterButtonsVisibility() const;
   void applySessionTeamIdentity();
   void flashNewTagRow(quint64 tagId);
   void fadeNewTagFlash();
   void syncModeToggleChecks();
-  QString displayTeamForTag(const TagSession::GameTag& tag) const;
-  bool isTagAllowed(const QString& mainEvent, const QString& followUpEvent) const;
-  bool hasAnyFilterActive() const;
 
   /// Period and team for a tag that is about to be added. Computed from the
   /// session and GameControls; not stored.
@@ -196,8 +181,6 @@ private:
   void buildWorkSideStack();
   void assembleWorkSplitters(QVBoxLayout* contentAreaLayout);
   void hideChromeUntilVideoOpens();
-  void onTagsFilterMenuAboutToHide();
-  void applyDeferredFilterMenuStructureSync();
 
   // wireSignals pieces. Connection order matches the previous single function.
   void wireGameSetupSignals();
@@ -276,15 +259,6 @@ private:
   void importMappedXmlTags(TagSession::ImportMode importMode,
                            const XmlEventMappingDialog::ImportMappingResult& importResult);
 
-  void rebuildTagsTableOnce();
-  void showEmptyTagsTable();
-  QVector<TagsTableModel::Row> visibleTagRowsSortedByMark() const;
-  TagsTableModel::Row tagsTableRowFor(const TagSession::GameTag& tag, int tagSessionIndex) const;
-  void fitTagsTableColumns();
-  void restoreTagsTableSelection(quint64 previouslySelectedTagId, int previousVerticalScroll);
-  QSet<QString> refreshFilterMenuActions(bool deferStructureChanges);
-  void hideRetiredFilterMenuActions(const QSet<QString>& liveMainEvents);
-
   // Mode and layout
   Mode mode_ = Mode::Tagging;
   WorkStage workStage_ = WorkStage::NoVideo;
@@ -314,10 +288,6 @@ private:
   PresentationQueue* presentationQueue_ = nullptr;
   ExportJobManager* exportJobManager_ = nullptr;
   ExportJobsBar* exportJobsBar_ = nullptr;
-  bool rebuildingTagsTable_ = false;
-  bool tagsTableRebuildRequested_ = false;
-  bool filterMenuStructureSyncDeferred_ = false;
-  bool filterMenuForceStructureSync_ = false;
 
   // close or swap video files:
   QToolButton* videoMuteButton_ = nullptr;
@@ -353,8 +323,6 @@ private:
   QVector<QMetaObject::Connection> tagSessionConnections_;
   QAction* filterSelectAllAction_ = nullptr;
   QAction* filterSelectNoneAction_ = nullptr;
-  QHash<QString, QAction*> filterActionByMainEvent_;
-  TagFilter tagFilter_;
 
   std::optional<CapturedMainEvent> capturedMainEvent_;
 
@@ -364,6 +332,8 @@ private:
   std::unique_ptr<PlaybackTemporaryDirectoryController> temporaryDirectoryController_;
   /// Clip-note and match-note editors, debounce timers, and the unsaved clip draft.
   std::unique_ptr<NotesController> notesController_;
+  /// Tags-table rebuild, event filter, and playhead highlight.
+  std::unique_ptr<TagsTableController> tagsTableController_;
   /// Presentation playback state, queue signals, clip bar, Tab shortcuts, and stage text.
   std::unique_ptr<PresentationPlaybackController> presentationPlaybackController_;
 };
