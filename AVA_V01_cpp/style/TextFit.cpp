@@ -42,11 +42,19 @@ bool textFitsWidth(const QFontMetrics& metrics, const QString& text, int availab
 
 void publishOverflowTooltip(QWidget* widget, const QString& fullText, bool clipped) {
   if (!widget) return;
-  const bool ownsTooltip = widget->property(kOwnsTooltipProperty).toBool();
   const QString visibleText = textWithoutMnemonic(fullText);
+  const QString currentTip = widget->toolTip();
+  bool ownsTooltip = widget->property(kOwnsTooltipProperty).toBool();
+  // A later owner (team-name tip, apply-button explanation) replaced the
+  // overflow string. Drop the claim instead of clearing or overwriting it.
+  if (ownsTooltip && currentTip != visibleText) {
+    widget->setProperty(kOwnsTooltipProperty, false);
+    ownsTooltip = false;
+    if (!currentTip.isEmpty()) return;
+  }
   if (clipped) {
-    if (!widget->toolTip().isEmpty() && !ownsTooltip) return;
-    if (widget->toolTip() == visibleText && ownsTooltip) return;
+    if (!currentTip.isEmpty() && !ownsTooltip) return;
+    if (currentTip == visibleText && ownsTooltip) return;
     widget->setToolTip(visibleText);
     widget->setProperty(kOwnsTooltipProperty, true);
     return;
@@ -67,6 +75,13 @@ void refreshButtonTooltip(QAbstractButton* button) {
 
 void refreshComboTooltip(QComboBox* combo) {
   if (!combo || combo->isEditable()) return;
+  // Item tips are the closed-box description (abbreviation shows the club name).
+  if (!combo->currentData(Qt::ToolTipRole).toString().isEmpty()) {
+    if (combo->property(kOwnsTooltipProperty).toBool()) {
+      combo->setProperty(kOwnsTooltipProperty, false);
+    }
+    return;
+  }
   combo->ensurePolished();
   QStyleOptionComboBox option;
   option.initFrom(combo);
