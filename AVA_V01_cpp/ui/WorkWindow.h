@@ -6,12 +6,19 @@
 #include <QString>
 #include <QStringList>
 #include <QBrush>
+#include <QColor>
 #include <QHash>
 #include <QList>
+#include <QModelIndex>
+#include <QSet>
 #include <QVector>
 
+#include "../export/ExportSettingsDialog.h"
 #include "../state/PendingClipNote.h"
+#include "../state/PresentationQueue.h"
 #include "../state/TagFilter.h"
+#include "TagsTableModel.h"
+#include "XmlEventMappingDialog.h"
 
 #include <memory>
 #include <optional>
@@ -21,8 +28,8 @@ class QLabel;
 class QAction;
 class QToolButton;
 class QTableView;
-class TagsTableModel;
 class QPlainTextEdit;
+class QHBoxLayout;
 class QVBoxLayout;
 class QStackedWidget;
 class QSplitter;
@@ -38,8 +45,6 @@ class GameSetupWindow;
 class StatsWindow;
 class ClipTrimBar;
 class PresentationPanel;
-class PresentationQueue;
-class ExportJobManager;
 class ExportJobsBar;
 class MatchNotesEditor;
 class ModeToggleTrack;
@@ -218,6 +223,129 @@ private:
   void updateVideoMuteButton(bool muted) const;
   void setVideoMuteButtonEnabled(bool enabled);
   void flashVideoMuteButton();
+
+  // buildUi pieces. Construction order matches the previous single function.
+  QWidget* buildTopToolbar(QWidget* parent);
+  void buildModeToggle(QWidget* topRow, QHBoxLayout* topLayout);
+  void buildVideoToolbar(QHBoxLayout* topLayout);
+  void buildVideoMuteButton(QHBoxLayout* videoControlsLayout);
+  void buildVideoSettingsMenu(QHBoxLayout* videoControlsLayout);
+  void buildExportJobsBar(QVBoxLayout* rootLayout);
+  void buildTaggingSideColumn();
+  void buildTagsSection();
+  void buildTagsHeaderRow(QVBoxLayout* tagsSectionLayout);
+  void buildTagsFilterMenu();
+  void buildTagsTable(QVBoxLayout* tagsSectionLayout);
+  void buildGameControlsAndStatsWindow();
+  void buildNotesColumn();
+  void buildVideoStageColumn();
+  void buildPresentationBanner(QVBoxLayout* videoColumnLayout);
+  void buildWorkSideStack();
+  void assembleWorkSplitters(QVBoxLayout* contentAreaLayout);
+  void hideChromeUntilVideoOpens();
+  void onTagsFilterMenuAboutToHide();
+  void applyDeferredFilterMenuStructureSync();
+
+  // wireSignals pieces. Connection order matches the previous single function.
+  void wireGameSetupSignals();
+  void wireVideoChromeSignals();
+  void wireGameControlsSignals();
+  void wireTagsTableSignals();
+  void wireModeToggleSignals();
+  void wireNotesSignals();
+  void wireTagListActionSignals();
+  void installModeAndStatsShortcuts();
+  void wireLocaleAndNoteTimers();
+  void wirePlaybackAndTemporaryDirectorySignals();
+  void installTagEditShortcuts();
+  void wireApplicationFocusSignals();
+  void wirePresentationPanelSignals();
+  void wirePresentationQueueSignals();
+  void wirePresentationClipBarSignals();
+  void rememberCapturedMainEvent(const QString& mainEvent);
+  void showTagSequenceStep(const QString& shortcutKey,
+                           const QString& stepLabel,
+                           const QColor& teamColor,
+                           bool chainOpen,
+                           bool startsChain);
+  void dismissTagSequenceToast();
+  void commitTagFromGameControls(const QString& mainEvent, const QString& followUpEvent);
+  void seekTagsTableIndex(const QModelIndex& index);
+  void onTagsTableCurrentChanged(const QModelIndex& current, const QModelIndex& previous);
+  void toggleVideoMuteFromToolbar();
+  void cycleWorkMode();
+  void onVideoPositionChanged(qint64 positionMs);
+  void onVideoDurationChanged(qint64 durationMs);
+  void seekVideoFromPresentationClipBar(qint64 positionMs);
+  void onPresentationClipBarRangeEdited(qint64 endpointMs);
+
+  // Mode chrome. setMode and applyModeChrome stay the entry points.
+  void updatePresentationChromeVisibility(bool isPresenting);
+  void placeNotesColumnForMode(bool isTagging, bool isAnalyzing);
+  void showModeSidePage(bool isTagging, bool isAnalyzing, bool isPresenting);
+  void applyModeSizePolicies(bool isTagging, bool isAnalyzing, bool isPresenting);
+  void placeSidePanelForMode(bool isTagging);
+  void updateTagToastForMode(bool isTagging);
+  void setModeToggleButtonsChecked();
+  void leavePresentationPlayback();
+  void enterPresentationPlayback();
+
+  void bindTagSessionToSurfaces();
+  void connectTagSessionSignals();
+  void onTagSessionTagsChanged(quint64 addedTagId);
+  void onTagSessionTagsImported();
+  void onTagSessionTagNoteChanged(int changedIndex);
+  void onTagSessionMatchNoteChanged();
+  void onTagSessionGameMetadataChanged();
+
+  std::optional<QString> preparePlaybackPath(const QString& filePath);
+  void resetSessionForOpenedVideo();
+  void showPlayerForOpenedVideo(const QString& playbackPath);
+  void showWorkChromeForOpenedVideo();
+  void resetPresentationForOpenedVideo();
+  void refreshSurfacesForOpenedVideo();
+  void replaceOpenVideoWithFile(const QString& filePath);
+  void replaceOpenVideoWithConcatenation(QStringList filePaths);
+
+  QString suggestedXmlReportPath() const;
+  bool startXmlReportJob(const QString& outputPath,
+                         const QString& failureTitle,
+                         const QString& emptyErrorFallback);
+  bool writeSessionNotesBesideXml(const QString& xmlPath);
+  QVector<PresentationQueue::Clip> copyPresentationQueueClips() const;
+  void appendRetainedPlaybackDirectories(ExportJobRequest& request) const;
+  ExportJobRequest buildPresentationExportRequest(
+      const ExportSettingsDialog::Result& settings,
+      const QVector<PresentationQueue::Clip>& queuedClips) const;
+
+  std::optional<TagSession::ImportMode> promptXmlImportMode();
+  std::optional<qint64> promptXmlSyncOffset(
+      const XmlImporter::SyncAnchorResult& anchor,
+      const QVector<XmlImporter::ParsedInstance>& instances);
+  std::optional<XmlEventMappingDialog::ImportMappingResult> promptXmlEventMapping(
+      const QVector<XmlImporter::ParsedInstance>& instances,
+      qint64 offsetMs);
+  void importMappedXmlTags(TagSession::ImportMode importMode,
+                           const XmlEventMappingDialog::ImportMappingResult& importResult);
+
+  void showEmptyPresentationStage();
+  void showCurrentPresentationClip(const PresentationQueue::Clip& clip);
+  QString presentationContextText(const PresentationQueue::Clip& clip) const;
+  bool handlePresentationTabShortcut(QObject* watched, QEvent* event);
+
+  void rebuildTagsTableOnce();
+  void showEmptyTagsTable();
+  QVector<TagsTableModel::Row> visibleTagRowsSortedByMark() const;
+  TagsTableModel::Row tagsTableRowFor(const TagSession::GameTag& tag, int tagSessionIndex) const;
+  void fitTagsTableColumns();
+  void restoreTagsTableSelection(quint64 previouslySelectedTagId, int previousVerticalScroll);
+  QSet<QString> refreshFilterMenuActions(bool deferStructureChanges);
+  void hideRetiredFilterMenuActions(const QSet<QString>& liveMainEvents);
+
+  int sessionIndexForTagId(quint64 tagId) const;
+  void showPendingClipNoteInEditor();
+  void showDisabledClipNoteEditor();
+  void showStoredClipNoteInEditor(quint64 selectedTagId);
 
   // Mode and layout
   Mode mode_ = Mode::Tagging;
