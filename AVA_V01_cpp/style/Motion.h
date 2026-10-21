@@ -19,10 +19,17 @@ inline constexpr int kHoverOut = 100;
 inline constexpr int kEnter = 200;
 inline constexpr int kMilestone = 280;
 inline constexpr int kStagger = 50;
+/// Half of one idle breath. Longer than a transition on purpose: nothing
+/// is waiting on it, and a faster loop would nag.
+inline constexpr int kAmbientBreath = 1600;
 
 /// Ease-out used for entrances and milestones.
 /// cubic-bezier(0.23, 1, 0.32, 1) — starts fast and settles.
 QEasingCurve strongOut();
+
+/// Ease-in-out for something already on screen that moves and returns.
+/// cubic-bezier(0.77, 0, 0.175, 1) — slow, fast, slow.
+QEasingCurve strongInOut();
 
 /// True when the OS asks for reduced motion or the coach turned on
 /// "Reducir animaciones" in the gear menu.
@@ -78,5 +85,12 @@ void flashButtonColors(QAbstractButton* button,
                        const QColor& flashBackground,
                        const QColor& flashBorder,
                        int holdMs);
+
+/// Idle breath: a soft ring around \p button. Hover and press ease the ring
+/// away; press also scales the button to 0.97 and back. Reduced motion skips
+/// the breath and the scale. The ring does not animate while \p active is false
+/// (hide the host and pass false so a stacked page does not burn CPU).
+void installAmbientPulse(QAbstractButton* button);
+void setAmbientPulseActive(QAbstractButton* button, bool active);
 
 }  // namespace Motion
