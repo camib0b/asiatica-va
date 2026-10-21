@@ -85,7 +85,8 @@ public:
     QStringList exportingSourcePaths() const;
     /// Temp directories a running export listed as inputs.
     QStringList exportingInputDirectories() const;
-    /// Cancels every running export. Partial destination files are not committed.
+    /// Cancels every running export. A joined file this export already committed
+    /// is removed, and a file it did not replace is left in place.
     void cancelExportingJobs();
     /// Absolute output paths (and companion XML paths) currently being written by a running job.
     QStringList activeOutputPaths() const;
