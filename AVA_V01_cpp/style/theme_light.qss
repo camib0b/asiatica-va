@@ -230,6 +230,15 @@ QPushButton[variant="gold"] {
 QPushButton[variant="gold"]:hover { background: rgba(176, 138, 46, 0.20); }
 QPushButton[variant="gold"]:pressed { background: rgba(176, 138, 46, 0.28); }
 
+QPushButton[variant="secondary"]:focus,
+QPushButton[variant="outline"]:focus,
+QPushButton[variant="ghost"]:focus,
+QPushButton[variant="destructive"]:focus,
+QPushButton[variant="gold"]:focus,
+QPushButton[variant="black"]:focus {
+  border: 2px solid #18181b;
+}
+
 /* Welcome/Setup CTA */
 QPushButton[variant="welcomeImport"] {
   background: #18181b;
@@ -421,6 +430,26 @@ QPushButton[variant="gameControlFollowUp"] QLabel[role="muted"] {
   font-weight: 400;
 }
 
+/* Disabled reads as disabled on every variant. welcomeImport keeps its own rule. */
+QPushButton:disabled,
+QPushButton[variant="primary"]:disabled,
+QPushButton[variant="black"]:disabled,
+QPushButton[variant="secondary"]:disabled,
+QPushButton[variant="outline"]:disabled,
+QPushButton[variant="ghost"]:disabled,
+QPushButton[variant="destructive"]:disabled,
+QPushButton[variant="gold"]:disabled,
+QPushButton[variant="gameControl"]:disabled,
+QPushButton[variant="gameControlFollowUp"]:disabled {
+  color: #52525b;
+  background: #f4f4f5;
+  border: 1px solid #e4e4e7;
+}
+QPushButton[variant="gameControl"]:disabled QLabel,
+QPushButton[variant="gameControlFollowUp"]:disabled QLabel {
+  color: #52525b;
+}
+
 /* =========================
    Inputs
 ========================= */
@@ -596,6 +625,11 @@ QWidget[role="devFixture"] QPushButton:checked {
   border-radius: 6px;
 }
 
+QWidget[role="devFixture"] QPushButton:focus {
+  padding: 1px 9px;
+  border: 2px solid #18181b;
+}
+
 /* =========================
    ComboBox / Select
 ========================= */
@@ -614,8 +648,15 @@ QComboBox:hover {
   border-color: #d4d4d8;
 }
 
-QComboBox:focus {
+QComboBox:focus,
+QComboBox:on {
   border: 1px solid #18181b;
+}
+
+QComboBox:disabled {
+  color: #52525b;
+  background: #f4f4f5;
+  border-color: #e4e4e7;
 }
 
 QComboBox::drop-down {
@@ -661,7 +702,7 @@ QComboBox QAbstractItemView {
 QComboBox QAbstractItemView::item {
   padding: 6px 8px;
   border-radius: 4px;
-  min-height: 28px;
+  min-height: 32px;
 }
 
 QComboBox QAbstractItemView::item:selected {
@@ -670,8 +711,7 @@ QComboBox QAbstractItemView::item:selected {
 }
 
 QComboBox[variant="compact"] {
-  min-height: 24px;
-  max-height: 28px;
+  min-height: 28px;
   padding: 2px 8px;
   font-size: 13px;
 }
@@ -683,9 +723,7 @@ QComboBox[variant="compact"]::drop-down {
 
 QComboBox[variant="abbrev"] {
   min-height: 28px;
-  max-height: 32px;
   min-width: 56px;
-  max-width: 72px;
   padding: 2px 6px;
   font-size: 13px;
 }
@@ -795,6 +833,13 @@ QToolButton:pressed {
   background: #e4e4e7;
 }
 
+QToolButton:disabled,
+QToolButton[variant="ghost"]:disabled {
+  color: #52525b;
+  background: #f4f4f5;
+  border: 1px solid #e4e4e7;
+}
+
 QToolButton[size="sm"] {
   padding: 4px 10px;
   font-size: 13px;
@@ -813,6 +858,28 @@ QToolButton[variant="ghost"]:pressed {
   background: #e4e4e7;
 }
 
+QToolButton:focus,
+QToolButton[variant="ghost"]:focus {
+  border: 2px solid #18181b;
+}
+QToolButton:focus {
+  padding: 5px 11px;
+}
+QToolButton[size="sm"]:focus {
+  padding: 3px 9px;
+}
+
+QToolButton#VideoMuteButton,
+QToolButton#VideoMenuButton {
+  padding: 4px;
+  min-width: 36px;
+  min-height: 32px;
+}
+QToolButton#VideoMuteButton:focus,
+QToolButton#VideoMenuButton:focus {
+  padding: 3px;
+}
+
 QToolButton#VideoMuteButton[flash="true"] {
   border: 1px solid #18181b;
   background: #f4f4f5;
@@ -828,6 +895,9 @@ QWidget#StatsTeamFilterRow QToolButton[variant="ghost"]:checked {
 QWidget#StatsTeamFilterRow QToolButton[variant="ghost"]:checked:hover {
   background: #fafafa;
   border-color: #d4d4d8;
+}
+QWidget#StatsTeamFilterRow QToolButton[variant="ghost"]:focus {
+  border: 2px solid #18181b;
 }
 
 /* Mode toggle group */
@@ -861,6 +931,14 @@ QToolButton#WorkModeAnalyzingButton:!checked:hover,
 QToolButton#WorkModePresentingButton:!checked:hover {
   background: transparent;
   border: 1px solid transparent;
+}
+
+QToolButton#WorkModeTaggingButton:focus,
+QToolButton#WorkModeAnalyzingButton:focus,
+QToolButton#WorkModePresentingButton:focus {
+  border: 2px solid #18181b;
+  background: transparent;
+  padding: 3px 9px;
 }
 
 /* =========================
@@ -927,9 +1005,9 @@ QWidget#PresentationPanel QPushButton[variant="primary"]:focus {
 }
 
 QWidget#PresentationPanel QPushButton[variant="primary"]:disabled {
-  background: #18181b;
-  border-color: #18181b;
-  color: #fafafa;
+  color: #52525b;
+  background: #f4f4f5;
+  border: 1px solid #e4e4e7;
 }
 
 /* The apply-to-selected label wraps inside the button. The button's own
@@ -1302,6 +1380,22 @@ QWidget#TagToastOverlay QLabel[role="tagToastChain"] {
   padding: 0px;
 }
 
+/* Focus uses a 2px border. Shrink padding by 1px so the label box stays put.
+   Placed after variant :focus rules so a size token wins over a variant's
+   default padding, and before the tagging-column overrides. */
+QPushButton[size="xs"]:focus {
+  padding: 3px 7px;
+}
+QPushButton[size="sm"]:focus {
+  padding: 5px 11px;
+}
+QPushButton[size="md"]:focus {
+  padding: 7px 15px;
+}
+QPushButton[size="lg"]:focus {
+  padding: 9px 23px;
+}
+
 /* Compact game controls in the tagging column (left of the video while tagging).
    Size, focus, and state rules elsewhere set 15–24px of horizontal padding;
    these selectors win so the tagging side panel is not forced wide. */
@@ -1505,7 +1599,6 @@ QComboBox#GameSetupLanguageCombo {
   background: transparent;
   border: 1px solid transparent;
   min-height: 28px;
-  max-height: 28px;
   padding: 2px 8px;
   font-size: 12px;
 }

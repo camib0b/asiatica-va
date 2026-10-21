@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QLayout>
 #include <QPushButton>
 #include <QSize>
 #include <QStyle>
@@ -31,6 +32,30 @@ inline int pushButtonMinimumWidth(const QPushButton* button) {
     return button->style()->sizeFromContents(QStyle::CT_PushButton, &option, textSize, button).width();
   };
 
+  return qMax(widthForFocus(false), widthForFocus(true));
+}
+
+/// Outer width that fits a button label, including stylesheet padding.
+/// Text buttons use the style box model. Buttons whose caption is a child
+/// label use the widget size hint, which already includes that padding.
+inline int buttonWidthFittingContents(const QPushButton* button) {
+  if (!button) return 0;
+  button->ensurePolished();
+  if (!button->text().isEmpty()) return pushButtonMinimumWidth(button);
+
+  // A caption drawn by a child label is not button text. Measure that layout,
+  // then add the style's border and padding for both focus states.
+  QStyleOptionButton option;
+  option.initFrom(button);
+  const QSize content = button->layout() ? button->layout()->sizeHint() : QSize(0, 0);
+  auto widthForFocus = [&](bool focused) {
+    if (focused) {
+      option.state |= QStyle::State_HasFocus;
+    } else {
+      option.state &= ~QStyle::State_HasFocus;
+    }
+    return button->style()->sizeFromContents(QStyle::CT_PushButton, &option, content, button).width();
+  };
   return qMax(widthForFocus(false), widthForFocus(true));
 }
 

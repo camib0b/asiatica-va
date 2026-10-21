@@ -2,6 +2,7 @@
 #include "FollowUpCatalog.h"
 #include "../style/Motion.h"
 #include "../style/StyleProps.h"
+#include "../style/TextFit.h"
 #include "../style/ThemeColors.h"
 #include "../i18n/AppLocale.h"
 #include "../state/TagSession.h"
@@ -252,7 +253,7 @@ void addKeyboardRow(QVBoxLayout* column, QWidget* parent, const QList<QPushButto
 
 void elideButtonLabel(QPushButton* button, const QString& fullText) {
   if (!button) return;
-  const int availableWidth = button->contentsRect().width();
+  const int availableWidth = Style::availableButtonTextWidth(button);
   QString shown = fullText;
   if (availableWidth > 8) {
     shown = button->fontMetrics().elidedText(fullText, Qt::ElideRight, availableWidth);
@@ -566,10 +567,8 @@ void GameControls::updateGameTimeUi(bool animateQuarterChange) {
   }
   periodAdvanceTitleLabel_->setText(AppLocale::trUi(titleKey));
   periodAdvanceButton_->setEnabled(gamePhase_ != GamePhase::Ended);
-  if (QLayout* buttonLayout = periodAdvanceButton_->layout()) {
-    periodAdvanceTitleLabel_->ensurePolished();
-    periodAdvanceButton_->setMinimumWidth(buttonLayout->sizeHint().width());
-  }
+  periodAdvanceTitleLabel_->ensurePolished();
+  periodAdvanceButton_->setMinimumWidth(Style::buttonWidthFittingContents(periodAdvanceButton_));
   updateQuarterTrack(animateQuarterChange);
 }
 
