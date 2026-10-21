@@ -1,5 +1,7 @@
 #include "ExportClipBuilder.h"
 
+#include "ShootoutOverlay.h"
+#include "ShootoutState.h"
 #include "TagSession.h"
 #include "XmlExporter.h"
 
@@ -151,6 +153,9 @@ QVector<ClipSegment> buildClipSegments(const TagSession* session,
     const QString awayColorHex = session ? session->awayTeamColor() : QString();
     const QVector<TagSession::GameTag> emptyTags;
     const auto& allTags = session ? session->tags() : emptyTags;
+    const ShootoutState shootoutState = options.includeScoreboardOverlay
+        ? ShootoutState::fromGameTags(allTags)
+        : ShootoutState();
     const int totalClips = clips.size();
     const QVector<XmlExporter::ExportedXmlInstance> exportedInstances =
         XmlExporter::buildExportedInstances(session);
@@ -264,6 +269,16 @@ QVector<ClipSegment> buildClipSegments(const TagSession* session,
         segment.overlayText = primary;
         segment.secondaryOverlayText = secondary;
         segment.scoreboards = scoreboardPhases;
+        if (options.includeScoreboardOverlay) {
+            ShootoutState::ClipWindow shootoutWindow;
+            shootoutWindow.startMs = clip.startMs;
+            shootoutWindow.endMs = clip.endMs;
+            shootoutWindow.tagId = clip.tagId;
+            shootoutWindow.isShootoutClip = clip.mainEvent == QStringLiteral("S.O.");
+            segment.shootouts = ShootoutOverlay::framesForClip(
+                shootoutState, shootoutWindow, options.language,
+                homeName, awayName, homeColorHex, awayColorHex);
+        }
         segment.compilation = compilation;
         segments.append(segment);
     }

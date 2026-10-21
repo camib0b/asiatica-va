@@ -45,6 +45,8 @@ qt_add_executable(AVA
   components/MatchNotesEditor.cpp
   components/VideoPlayer.cpp
   export/ClipExporter.cpp
+  export/ShootoutState.cpp
+  export/ShootoutOverlay.cpp
   export/CompilationSidecar.cpp
   export/FfmpegLocator.cpp
   export/ClipTrimBar.cpp
@@ -154,6 +156,7 @@ qt_add_executable(AVAExportTests
   tests/InteractionGuardTests.cpp
   tests/PresentationPlaybackTests.cpp
   tests/VideoClipSequenceTests.cpp
+  tests/ShootoutStateTests.cpp
   tests/WorkStateTests.cpp
   tests/XmlEventMappingDialogTests.cpp
   tests/UiPolicyTests.cpp
@@ -175,6 +178,8 @@ qt_add_executable(AVAExportTests
   style/Motion.cpp
   ui/ReplaceVideoConfirmation.cpp
   export/ClipExporter.cpp
+  export/ShootoutState.cpp
+  export/ShootoutOverlay.cpp
   export/CompilationSidecar.cpp
   export/ConcatFileOrderDialog.cpp
   export/ExportClipBuilder.cpp

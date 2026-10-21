@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CompilationSidecar.h"
+#include "ShootoutOverlay.h"
 
 #include <QObject>
 #include <QProcess>
@@ -36,6 +37,9 @@ struct ClipSegment {
     QString overlayText;
     QString secondaryOverlayText;
     QVector<TimedScoreboard> scoreboards;
+    /// Shoot-out board under the match scoreboard. Empty when this clip is before
+    /// the first S.O., or when the scoreboard overlay is off.
+    QVector<TimedShootoutOverlay> shootouts;
     /// Sidecar identity for this segment. Stays in the same order as the concat list.
     ClipCompilationRecord compilation;
 };

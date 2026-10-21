@@ -814,6 +814,10 @@ const QHash<QString, UiTranslation>& uiTranslationTable() {
       {QStringLiteral("xml_import.no_sync_anchor"),
        {QStringLiteral("No usable instance was found to align the XML with the video."),
         QStringLiteral("No se encontró una instancia usable para alinear el XML con el video.")}},
+      {QStringLiteral("shootout.round"),
+       {QStringLiteral("Round %1"), QStringLiteral("Ronda %1")}},
+      {QStringLiteral("shootout.sudden_death"),
+       {QStringLiteral("Sudden death %1"), QStringLiteral("Muerte súbita %1")}},
   };
   return table;
 }

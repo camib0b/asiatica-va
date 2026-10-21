@@ -926,6 +926,7 @@ int runXmlEventMappingDialogTests(int argc, char** argv);
 int runUiPolicyTests(int argc, char** argv);
 int runInteractionGuardTests(int argc, char** argv);
 int runVideoClipSequenceTests(int argc, char** argv);
+int runShootoutStateTests(int argc, char** argv);
 
 int main(int argc, char** argv) {
     QApplication application(argc, argv);
@@ -952,6 +953,10 @@ int main(int argc, char** argv) {
     const int clipStatus = runVideoClipSequenceTests(argc, argv);
     if (clipStatus != 0) {
         return clipStatus;
+    }
+    const int shootoutStatus = runShootoutStateTests(argc, argv);
+    if (shootoutStatus != 0) {
+        return shootoutStatus;
     }
     int status = 0;
     {
