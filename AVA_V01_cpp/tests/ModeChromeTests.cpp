@@ -1,3 +1,4 @@
+#include "GameControls.h"
 #include "WorkWindow.h"
 
 #include <QApplication>
@@ -57,6 +58,7 @@ class WorkModeChromeTest : public QObject {
  private slots:
   void taggingAnalyzingTaggingShowsControls();
   void repeatedSwitchesKeepEachModesPanel();
+  void taggingSidePanelWidthIsCappedAtFiveHundredPixels();
 };
 
 void WorkModeChromeTest::taggingAnalyzingTaggingShowsControls() {
@@ -118,6 +120,37 @@ void WorkModeChromeTest::repeatedSwitchesKeepEachModesPanel() {
   auto* stats = window.findChild<QWidget*>(QStringLiteral("StatsPanel"));
   QVERIFY(stats);
   QVERIFY(!stats->isVisible());
+}
+
+void WorkModeChromeTest::taggingSidePanelWidthIsCappedAtFiveHundredPixels() {
+  WorkWindow window;
+  window.resize(1600, 700);
+  showWorkSurface(&window);
+  QCOMPARE(window.mode(), WorkWindow::Mode::Tagging);
+
+  auto* outer = window.findChild<QSplitter*>(QStringLiteral("PresentationSplitter"));
+  auto* tagging = window.findChild<QWidget*>(QStringLiteral("TaggingRightCol"));
+  QVERIFY(outer && tagging);
+  auto* side = qobject_cast<QStackedWidget*>(tagging->parentWidget());
+  QVERIFY(side);
+  QCOMPARE(outer->indexOf(side), 0);
+  QCOMPARE(side->maximumWidth(), WorkWindow::kMaximumTaggingSidePanelWidthPx);
+
+  outer->setSizes({900, 700});
+  QVERIFY(QMetaObject::invokeMethod(&window, "enforceTaggingSidePanelWidthCap",
+                                    Qt::DirectConnection));
+  QApplication::sendPostedEvents();
+  QCOMPARE(outer->sizes().at(0), WorkWindow::kMaximumTaggingSidePanelWidthPx);
+  QVERIFY2(side->width() <= WorkWindow::kMaximumTaggingSidePanelWidthPx,
+           qPrintable(QStringLiteral("stack %1").arg(side->width())));
+  QVERIFY(outer->sizes().at(1) > outer->sizes().at(0));
+
+  window.setMode(WorkWindow::Mode::Analyzing);
+  QCOMPARE(side->maximumWidth(), QWIDGETSIZE_MAX);
+
+  window.setMode(WorkWindow::Mode::Tagging);
+  QCOMPARE(side->maximumWidth(), WorkWindow::kMaximumTaggingSidePanelWidthPx);
+  QVERIFY(outer->sizes().at(0) >= GameControls::kMinimumPanelWidthPx);
 }
 
 int runModeChromeTests(int argc, char** argv) {

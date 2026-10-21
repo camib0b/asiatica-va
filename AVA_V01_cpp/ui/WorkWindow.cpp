@@ -793,6 +793,11 @@ void WorkWindow::applyModeChrome() {
     }
     if (workSideStack_) {
         workSideStack_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+        if (isTagging) {
+            workSideStack_->setMaximumWidth(kMaximumTaggingSidePanelWidthPx);
+        } else {
+            workSideStack_->setMaximumWidth(QWIDGETSIZE_MAX);
+        }
     }
 
     // Tagging keeps the event column on the left, next to the hand on the keys.
@@ -825,13 +830,34 @@ void WorkWindow::applySidePanelCompressedWidth() {
     const int totalWidth = workOuterSplitter_->width();
     if (totalWidth <= sideMinimumWidth) return;
 
-    const int videoWidth = totalWidth - sideMinimumWidth;
     const bool sideOnLeft = workSideStack_ && workOuterSplitter_->indexOf(workSideStack_) == 0;
+    const int sideWidth = sideMinimumWidth;
+    const int videoWidth = qMax(0, totalWidth - sideWidth);
     if (sideOnLeft) {
-        workOuterSplitter_->setSizes({sideMinimumWidth, videoWidth});
+        workOuterSplitter_->setSizes({sideWidth, videoWidth});
     } else {
-        workOuterSplitter_->setSizes({videoWidth, sideMinimumWidth});
+        workOuterSplitter_->setSizes({videoWidth, sideWidth});
     }
+    enforceTaggingSidePanelWidthCap();
+}
+
+void WorkWindow::enforceTaggingSidePanelWidthCap() {
+    if (!workOuterSplitter_ || mode_ != Mode::Tagging || !workSideStack_) return;
+
+    const int sideIndex = workOuterSplitter_->indexOf(workSideStack_);
+    if (sideIndex < 0) return;
+
+    QList<int> sizes = workOuterSplitter_->sizes();
+    if (sideIndex >= sizes.size()) return;
+    if (sizes.at(sideIndex) <= kMaximumTaggingSidePanelWidthPx) return;
+
+    const int excess = sizes.at(sideIndex) - kMaximumTaggingSidePanelWidthPx;
+    sizes[sideIndex] = kMaximumTaggingSidePanelWidthPx;
+    const int videoIndex = sideIndex == 0 ? 1 : 0;
+    if (videoIndex < sizes.size()) {
+        sizes[videoIndex] += excess;
+    }
+    workOuterSplitter_->setSizes(sizes);
 }
 
 WorkWindow::TagContext WorkWindow::tagContext() const {
@@ -1180,6 +1206,8 @@ void WorkWindow::buildUi() {
     }
 
     contentAreaLayout->addWidget(workOuterSplitter_, 1);
+    connect(workOuterSplitter_, &QSplitter::splitterMoved, this,
+            &WorkWindow::enforceTaggingSidePanelWidthCap);
     workOuterSplitter_->hide();
 
     buildPresentationUi();
