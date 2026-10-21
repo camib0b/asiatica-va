@@ -96,7 +96,6 @@ private slots:
   void onGameSetupConfirmed(const QString& filePath,
                             const QString& homeName, const QString& awayName,
                             const QString& homeColor, const QString& awayColor,
-                            const QString& competitionName,
                             const QDate& gameDate,
                             const QString& homeAbbrev,
                             const QString& awayAbbrev);
@@ -123,6 +122,7 @@ protected:
   bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
+  bool exportXmlAndNotesBeforeReplace();
   void buildUi();
   void buildPresentationUi();
   void wireSignals();

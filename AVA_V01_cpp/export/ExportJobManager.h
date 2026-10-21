@@ -28,7 +28,6 @@ struct TagSessionExportData {
     QString awayTeamName;
     QString homeTeamColor;
     QString awayTeamColor;
-    QString competitionName;
     QDate gameDate;
     QString homeAbbrev;
     QString awayAbbrev;

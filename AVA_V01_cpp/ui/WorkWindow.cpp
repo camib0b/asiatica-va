@@ -23,7 +23,10 @@
 #include "../export/ExportJobsBar.h"
 #include "../export/VideoConcatenator.h"
 #include "../export/PlaybackVideoPreparer.h"
+#include "../export/SessionNotesWriter.h"
 #include "../export/XmlImporter.h"
+#include "ReplaceVideoConfirmation.h"
+#include "TextInputFocus.h"
 #include "XmlSyncDialog.h"
 #include "XmlEventMappingDialog.h"
 
@@ -99,16 +102,6 @@ void setToolButtonFlashState(QToolButton* button, bool flashing) {
 #include <cstddef>
 
 namespace {
-
-bool isTextInteractionFocusWidget(const QWidget* widget) {
-    if (!widget) return false;
-    if (qobject_cast<const QLineEdit*>(widget)) return true;
-    if (qobject_cast<const QAbstractSpinBox*>(widget)) return true;
-    if (qobject_cast<const QPlainTextEdit*>(widget)) return true;
-    if (qobject_cast<const QTextEdit*>(widget)) return true;
-    if (qobject_cast<const QComboBox*>(widget)) return true;
-    return false;
-}
 
 QString formatTimestampMs(qint64 milliseconds) {
     const qint64 clampedMilliseconds = milliseconds < 0 ? 0 : milliseconds;
@@ -331,7 +324,7 @@ bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(const QWidget* focus
     if (focusWidget->window() != window()) return false;
     if (!isAncestorOf(focusWidget)) return false;
     if (mode_ == Mode::Analyzing && notesEdit_ && focusWidget == notesEdit_) return false;
-    if (isTextInteractionFocusWidget(focusWidget)) return false;
+    if (TextInputFocus::widgetIsTextInput(focusWidget)) return false;
     return true;
 }
 
@@ -1356,7 +1349,6 @@ void WorkWindow::showTeamSetupForVideo(const QString& filePath, const QStringLis
 void WorkWindow::onGameSetupConfirmed(const QString& filePath,
                                        const QString& homeName, const QString& awayName,
                                        const QString& homeColor, const QString& awayColor,
-                                       const QString& competitionName,
                                        const QDate& gameDate,
                                        const QString& homeAbbrev,
                                        const QString& awayAbbrev) {
@@ -1373,7 +1365,7 @@ void WorkWindow::onGameSetupConfirmed(const QString& filePath,
 
     if (tagSession_) {
         tagSession_->setGameTeams(homeName, awayName, homeColor, awayColor);
-        tagSession_->setGameMetadata(competitionName, gameDate, homeAbbrev, awayAbbrev);
+        tagSession_->setGameMetadata(gameDate, homeAbbrev, awayAbbrev);
     }
     if (contentStack_) contentStack_->setCurrentIndex(1);
     loadVideoFromFile(filePath);
@@ -1476,9 +1468,74 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
     refreshPlaybackShortcutFocusGate();
 }
 
+bool WorkWindow::exportXmlAndNotesBeforeReplace() {
+    if (!tagSession_ || !exportJobManager_) {
+        return false;
+    }
+
+    const QString baseName = ExportClipBuilder::xmlReportBaseName(tagSession_);
+    QString directoryPath = exportDefaultDirectoryPath_.trimmed();
+    if (directoryPath.isEmpty()) {
+        directoryPath = QFileInfo(sourceVideoPath_).absolutePath();
+    }
+    const QString suggestedPath = QDir(directoryPath).filePath(baseName + QStringLiteral(".xml"));
+    const QString chosenPath = QFileDialog::getSaveFileName(
+        this,
+        AppLocale::trUi("replace_video.export_dialog_title"),
+        suggestedPath,
+        AppLocale::trUi("file.xml_filter"));
+    if (chosenPath.isEmpty()) {
+        return false;
+    }
+
+    const QFileInfo chosenInfo(chosenPath);
+    const QString xmlPath =
+        chosenInfo.suffix().compare(QStringLiteral("xml"), Qt::CaseInsensitive) == 0
+            ? chosenPath
+            : QDir(chosenInfo.absolutePath())
+                  .filePath(chosenInfo.completeBaseName() + QStringLiteral(".xml"));
+
+    ExportJobRequest request;
+    request.format = ExportOutputFormat::Xml;
+    request.outputPath = xmlPath;
+    request.session = captureTagSessionExportData(*tagSession_);
+
+    QString errorMessage;
+    if (!exportJobManager_->startJob(request, &errorMessage)) {
+        QMessageBox::warning(this,
+                             AppLocale::trUi("export.xml_title"),
+                             errorMessage.isEmpty() ? AppLocale::trUi("export.xml_failed")
+                                                    : errorMessage);
+        return false;
+    }
+
+    const QString notesPath = SessionNotesWriter::notesPathForXmlReport(xmlPath);
+    if (!SessionNotesWriter::writeFile(*tagSession_, notesPath, &errorMessage)) {
+        QMessageBox::warning(this,
+                             AppLocale::trUi("replace_video.title"),
+                             errorMessage.isEmpty() ? AppLocale::trUi("replace_video.notes_failed")
+                                                    : errorMessage);
+        return false;
+    }
+    return true;
+}
+
 void WorkWindow::onReplaceVideo() {
     if (!confirmExportAllowsVideoRelease()) return;
+    flushPendingClipNote();
+    saveMatchNoteDebounceFired();
     stopNoteTimers();
+
+    const ReplaceVideoChoice choice = chooseReplaceVideoAction(tagSession_, this);
+    if (choice == ReplaceVideoChoice::Cancel) {
+        resumeNoteTimers();
+        return;
+    }
+    if (choice == ReplaceVideoChoice::ExportThenContinue && !exportXmlAndNotesBeforeReplace()) {
+        resumeNoteTimers();
+        return;
+    }
+
     QStringList filePaths = VideoConcatenator::selectVideoFiles(this);
     if (filePaths.isEmpty()) {
         resumeNoteTimers();
@@ -2057,7 +2114,7 @@ bool WorkWindow::eventFilter(QObject* watched, QEvent* event) {
     if (!isTabKey) return QWidget::eventFilter(watched, event);
 
     // Let Tab keep its normal meaning while the user is typing in the panel.
-    if (isTextInteractionFocusWidget(QApplication::focusWidget())) {
+    if (TextInputFocus::widgetIsTextInput(QApplication::focusWidget())) {
         return QWidget::eventFilter(watched, event);
     }
 
