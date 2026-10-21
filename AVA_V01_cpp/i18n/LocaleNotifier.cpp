@@ -1,14 +1,13 @@
 #include "LocaleNotifier.h"
 
-#include "../ui/QtPtr.h"
-
 #include <QCoreApplication>
 
 LocaleNotifier::LocaleNotifier(QObject* parent) : QObject(parent) {}
 
 LocaleNotifier& LocaleNotifier::instance() {
-  static std::unique_ptr<LocaleNotifier, QtParentDeleter> notifier{
-      new LocaleNotifier(qApp)};
+  // QApplication owns this object. A second static owner would touch it
+  // again after that parent had already deleted it during shutdown.
+  static LocaleNotifier* notifier = new LocaleNotifier(qApp);
   return *notifier;
 }
 

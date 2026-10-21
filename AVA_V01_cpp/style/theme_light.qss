@@ -490,12 +490,12 @@ QDialog[role="fileOrder"] QLabel[role="clipIndex"] {
   background: #ffffff;
   color: #09090b;
   border: 1px solid #d4d4d8;
-  border-radius: 16px;
+  border-radius: 14px;
   font-weight: 600;
   font-size: 13px;
-  padding: 4px;
-  min-width: 1.6em;
-  min-height: 1.6em;
+  padding: 2px;
+  min-width: 1.5em;
+  min-height: 1.5em;
 }
 
 QFrame[role="clipConnector"] {
@@ -523,9 +523,12 @@ QDialog[role="fileOrder"] QLabel[role="clipFile"] {
   font-size: 12px;
 }
 
-QDialog[role="fileOrder"] QPushButton[role="clipMove"] {
-  min-width: 36px;
-  padding: 4px 8px;
+QDialog[role="fileOrder"] QPushButton[role="clipMove"],
+QDialog[role="fileOrder"] QPushButton[role="clipMove"]:focus {
+  min-width: 32px;
+  min-height: 22px;
+  padding: 0 6px;
+  font-size: 13px;
 }
 
 QLabel[role="clipFlow"] {

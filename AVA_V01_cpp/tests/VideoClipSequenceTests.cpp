@@ -470,7 +470,28 @@ void ConcatFileOrderDialogTest::opensInChronologicalOrder() {
     QVERIFY(headline);
     QVERIFY(detail);
     QCOMPARE(headline->text(), QStringLiteral("Join 4 clips into one video"));
-    QCOMPARE(detail->text(), QStringLiteral("4 clips · 10 min 12 s"));
+    QCOMPARE(detail->text(), QStringLiteral("Composed of 4 clips · 10 min 12 s"));
+    auto* subtitle = dialog.findChild<QLabel*>(QStringLiteral("concatSubtitle"));
+    QVERIFY(subtitle);
+    QCOMPARE(subtitle->text(), QStringLiteral(
+        "Drag each clip or use the arrows to order them. The top one plays first."));
+
+    auto* scroll = dialog.findChild<QScrollArea*>(QStringLiteral("concatScroll"));
+    QVERIFY(scroll);
+    QVERIFY(scroll->viewport());
+    const QList<QFrame*> rows = dialog.findChildren<QFrame*>(QStringLiteral("clipRow"));
+    QCOMPARE(rows.size(), 4);
+    int fullyVisibleRows = 0;
+    for (QFrame* row : rows) {
+        const QRect inViewport(row->mapTo(scroll->viewport(), QPoint(0, 0)), row->size());
+        if (scroll->viewport()->rect().contains(inViewport)) ++fullyVisibleRows;
+        QVERIFY(row->height() <= 72);
+    }
+    QCOMPARE(fullyVisibleRows, 4);
+    const QVector<QPushButton*> moveButtons = buttonsNamed(&dialog, "clipMoveDown");
+    QCOMPARE(moveButtons.size(), 4);
+    QVERIFY(moveButtons.first()->height() >= 22);
+    QVERIFY(moveButtons.first()->width() >= 28);
 
     const QList<QLabel*> indexes = dialog.findChildren<QLabel*>(QStringLiteral("clipIndex"));
     QCOMPARE(indexes.size(), 4);
@@ -530,13 +551,17 @@ void ConcatFileOrderDialogTest::singularEmptyAndSpanishCopy() {
         auto* headline = dialog.findChild<QLabel*>(QStringLiteral("concatHeadline"));
         auto* resetButton = dialog.findChild<QPushButton*>(QStringLiteral("concatReset"));
         auto* subtitle = dialog.findChild<QLabel*>(QStringLiteral("concatSubtitle"));
+        auto* detail = dialog.findChild<QLabel*>(QStringLiteral("concatOutputDetail"));
         QVERIFY(headline);
         QVERIFY(resetButton);
         QVERIFY(subtitle);
+        QVERIFY(detail);
         QCOMPARE(headline->text(), QStringLiteral("Unir 4 clips en un solo video"));
         QCOMPARE(dialog.windowTitle(), QStringLiteral("Ordenar archivos de video"));
         QCOMPARE(resetButton->text(), QStringLiteral("Restablecer orden cronológico"));
-        QVERIFY(subtitle->text().contains(QStringLiteral("flechas")));
+        QCOMPARE(subtitle->text(), QStringLiteral(
+            "Arrastra cada clip o usa las flechas para ordenarlos. El de arriba se reproduce primero."));
+        QCOMPARE(detail->text(), QStringLiteral("Compuesto por 4 clips · 10 min 12 s"));
     }
 
     ConcatFileOrderDialog one({QStringLiteral("/videos/penalty_corner_003_10m55s-11m54s_p72.mp4")});
@@ -545,7 +570,7 @@ void ConcatFileOrderDialogTest::singularEmptyAndSpanishCopy() {
     QVERIFY(oneHeadline);
     QVERIFY(oneDetail);
     QCOMPARE(oneHeadline->text(), QStringLiteral("Join 1 clip into one video"));
-    QCOMPARE(oneDetail->text(), QStringLiteral("1 clip · 59 s"));
+    QCOMPARE(oneDetail->text(), QStringLiteral("Composed of 1 clip · 59 s"));
     QVERIFY(one.findChild<QPushButton*>(QStringLiteral("concatContinue"))->isEnabled());
     QVERIFY(!buttonsNamed(&one, "clipMoveUp").first()->isEnabled());
     QVERIFY(!buttonsNamed(&one, "clipMoveDown").first()->isEnabled());
@@ -555,7 +580,7 @@ void ConcatFileOrderDialogTest::singularEmptyAndSpanishCopy() {
     QCOMPARE(empty.findChild<QLabel*>(QStringLiteral("concatHeadline"))->text(),
              QStringLiteral("No clips to join"));
     QCOMPARE(empty.findChild<QLabel*>(QStringLiteral("concatOutputDetail"))->text(),
-             QStringLiteral("Nothing to join"));
+             QStringLiteral("Nothing to compose"));
     QVERIFY(!empty.findChild<QPushButton*>(QStringLiteral("concatContinue"))->isEnabled());
     QVERIFY(!empty.findChild<QPushButton*>(QStringLiteral("concatReset"))->isEnabled());
     QCOMPARE(empty.findChildren<QFrame*>(QStringLiteral("clipRow")).size(), 0);
@@ -656,7 +681,7 @@ void ConcatFileOrderDialogTest::worstCaseKeepsTextReadableAndActionsPinned() {
     QVERIFY(!moveDown.last()->isEnabled());
 
     QCOMPARE(dialog.findChild<QLabel*>(QStringLiteral("concatOutputDetail"))->text(),
-             QStringLiteral("16 clips"));
+             QStringLiteral("Composed of 16 clips"));
 }
 
 void ConcatFileOrderDialogTest::largeCountUsesGroupingAndStillScrolls() {
@@ -677,7 +702,7 @@ void ConcatFileOrderDialogTest::largeCountUsesGroupingAndStillScrolls() {
     QVERIFY(headline);
     QVERIFY(detail);
     QCOMPARE(headline->text(), QStringLiteral("Join %1 clips into one video").arg(expectedCount));
-    QCOMPARE(detail->text(), QStringLiteral("%1 clips").arg(expectedCount));
+    QCOMPARE(detail->text(), QStringLiteral("Composed of %1 clips").arg(expectedCount));
     QVERIFY(!expectedCount.isEmpty());
     QVERIFY(expectedCount != QString::number(count));
 

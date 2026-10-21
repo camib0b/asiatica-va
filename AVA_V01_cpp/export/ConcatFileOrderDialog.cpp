@@ -377,8 +377,8 @@ void ConcatFileOrderDialog::buildUi() {
     setSizeGripEnabled(true);
 
     auto rootLayout = makeQtPtr<QVBoxLayout>(this);
-    rootLayout->setSpacing(12);
-    rootLayout->setContentsMargins(24, 20, 24, 20);
+    rootLayout->setSpacing(8);
+    rootLayout->setContentsMargins(24, 12, 24, 12);
 
     auto headlineLabel = makeQtPtr<QLabel>(this);
     headlineLabel->setObjectName(QStringLiteral("concatHeadline"));
@@ -673,13 +673,13 @@ QFrame* ConcatFileOrderDialog::createRow(int index) {
     row->onDragFinished = [this] { finishDrag(); };
 
     auto rowLayout = makeQtPtr<QHBoxLayout>(row.get());
-    rowLayout->setContentsMargins(8, 6, 8, 0);
-    rowLayout->setSpacing(10);
+    rowLayout->setContentsMargins(8, 1, 8, 1);
+    rowLayout->setSpacing(8);
 
     auto rail = makeQtPtr<QWidget>(row.get());
     auto railLayout = makeQtPtr<QVBoxLayout>(rail.get());
-    railLayout->setContentsMargins(0, 2, 0, 0);
-    railLayout->setSpacing(4);
+    railLayout->setContentsMargins(0, 0, 0, 0);
+    railLayout->setSpacing(2);
 
     auto indexLabel = makeQtPtr<QLabel>(rail.get());
     indexLabel->setObjectName(QStringLiteral("clipIndex"));
@@ -701,8 +701,8 @@ QFrame* ConcatFileOrderDialog::createRow(int index) {
 
     auto textColumn = makeQtPtr<QWidget>(row.get());
     auto textLayout = makeQtPtr<QVBoxLayout>(textColumn.get());
-    textLayout->setContentsMargins(0, 2, 0, 10);
-    textLayout->setSpacing(2);
+    textLayout->setContentsMargins(0, 0, 0, 0);
+    textLayout->setSpacing(0);
 
     auto titleLabel = makeQtPtr<ClipTextLabel>(textColumn.get());
     titleLabel->setObjectName(QStringLiteral("clipTitle"));
@@ -761,8 +761,8 @@ QFrame* ConcatFileOrderDialog::createRow(int index) {
     Style::setRole(moveDownButton.get(), "clipMove");
 
     auto buttonColumn = makeQtPtr<QVBoxLayout>();
-    buttonColumn->setSpacing(4);
-    buttonColumn->setContentsMargins(0, 2, 0, 8);
+    buttonColumn->setSpacing(2);
+    buttonColumn->setContentsMargins(0, 0, 0, 0);
     buttonColumn->addWidget(moveUpButton.get());
     buttonColumn->addWidget(moveDownButton.get());
     buttonColumn->addStretch(1);
