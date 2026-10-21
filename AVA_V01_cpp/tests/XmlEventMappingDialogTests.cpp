@@ -58,7 +58,7 @@ XmlImporter::ParsedInstance makeInstance(const QString& code, qint64 startMs, qi
 }
 
 void setSessionAbbrevs(TagSession* session) {
-    session->setGameMetadata(QString(), QDate(), QStringLiteral("HOME"), QStringLiteral("AWAY"));
+    session->setGameMetadata(QDate(), QStringLiteral("HOME"), QStringLiteral("AWAY"));
 }
 
 int rowForCode(QTableWidget* table, const QString& code) {
