@@ -1,5 +1,6 @@
 #include "StatsWindow.h"
 #include "../style/StyleProps.h"
+#include "../style/WorkDataView.h"
 #include "../i18n/AppLocale.h"
 
 #include <QVBoxLayout>
@@ -127,11 +128,11 @@ void StatsWindow::buildUi() {
     teamFilterLayout->addStretch(1);
 
     tree_ = new QTreeWidget(this);
+    tree_->setObjectName(QStringLiteral("StatsTree"));
     tree_->setColumnCount(2);
     tree_->setHeaderLabels({AppLocale::trUi("stats.col_event"), AppLocale::trUi("stats.col_count")});
     tree_->setRootIsDecorated(true);
-    tree_->setAlternatingRowColors(true);
-    tree_->setUniformRowHeights(true);
+    Style::configureWorkDataView(tree_);
     tree_->header()->setStretchLastSection(false);
     tree_->header()->setSectionResizeMode(0, QHeaderView::Stretch);
     tree_->header()->setSectionResizeMode(1, QHeaderView::Fixed);

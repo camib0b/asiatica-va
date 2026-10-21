@@ -60,17 +60,28 @@ QVariant PresentationInstancesModel::data(const QModelIndex& index, int role) co
   const Row& row = rows_.at(index.row());
   const bool isCurrentClip = currentTagId_ != 0 && row.tagId == currentTagId_;
 
-  if (role == Qt::DisplayRole) {
-    switch (index.column()) {
-    case kTimeColumn:
-      return formatTimestampMs(row.markMs);
-    case kTeamColumn:
-      return row.teamDisplay;
-    case kEventColumn:
-      return row.eventLine;
-    default:
-      return {};
-    }
+  QString displayText;
+  switch (index.column()) {
+  case kTimeColumn:
+    displayText = formatTimestampMs(row.markMs);
+    break;
+  case kTeamColumn:
+    displayText = row.teamDisplay;
+    break;
+  case kEventColumn:
+    displayText = row.eventLine;
+    break;
+  default:
+    break;
+  }
+
+  if (role == Qt::DisplayRole) return displayText;
+
+  // Elided cells keep the full value on hover. Escape so a tag that looks like
+  // markup is shown literally; QToolTip treats "<...>" as rich text.
+  if (role == Qt::ToolTipRole) {
+    if (displayText.isEmpty()) return {};
+    return displayText.toHtmlEscaped();
   }
 
   if (role == Qt::CheckStateRole && index.column() == kTimeColumn) {

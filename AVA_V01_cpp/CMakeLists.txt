@@ -17,6 +17,7 @@ qt_add_executable(AVA
   i18n/AppLocale.cpp
   i18n/LocaleNotifier.cpp
   style/theme.cpp
+  style/TextFit.cpp
   style/Motion.cpp
   ui/MainWindow.cpp
   ui/WelcomeWindow.cpp
@@ -164,7 +165,10 @@ qt_add_executable(AVAExportTests
   tests/PresentationFilterTests.cpp
   tests/XmlEventMappingDialogTests.cpp
   tests/UiPolicyTests.cpp
+  tests/WorkDataViewTests.cpp
   tests/WorkWindowCorrectnessTests.cpp
+  ui/PresentationPanel.cpp
+  ui/PresentationInstancesModel.cpp
   ui/XmlEventMappingDialog.cpp
   ui/GameSetupWindow.cpp
   ui/WorkWindow.cpp
@@ -195,6 +199,7 @@ qt_add_executable(AVAExportTests
   components/GameControls.cpp
   style/Motion.cpp
   state/PresentationQueue.cpp
+  style/TextFit.cpp
   ui/ReplaceVideoConfirmation.cpp
   export/ClipExporter.cpp
   export/ClipTrimBar.cpp

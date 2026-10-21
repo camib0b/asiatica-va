@@ -330,35 +330,6 @@ std::optional<double> probeLastPacketEndSeconds(const QString& ffprobePath,
     return endSeconds;
 }
 
-QString escapeFfmetadata(const QString& text) {
-    QString escaped;
-    escaped.reserve(text.size());
-    for (int index = 0; index < text.size(); ++index) {
-        const QChar character = text.at(index);
-        switch (character.unicode()) {
-        case '\\':
-        case '=':
-        case ';':
-        case '#':
-        case '\n':
-        case '\r':
-            escaped += QLatin1Char('\\');
-            if (character == QLatin1Char('\n')) {
-                escaped += QLatin1Char('n');
-            } else if (character == QLatin1Char('\r')) {
-                escaped += QLatin1Char('r');
-            } else {
-                escaped += character;
-            }
-            break;
-        default:
-            escaped += character;
-            break;
-        }
-    }
-    return escaped;
-}
-
 }  // namespace
 
 qint64 roundSecondsToMilliseconds(double seconds) {
@@ -447,7 +418,6 @@ SidecarDocument buildDocument(const SidecarBuildInput& input) {
         clip.sourceStartMilliseconds = record.sourceStartMs;
         clip.sourceEndMilliseconds = record.sourceEndMs;
         clip.xmlInstanceId = record.xmlInstanceId;
-        clip.periodLabel = record.periodLabel;
         clip.labels = record.labels;
         document.clips.append(clip);
     }
@@ -532,36 +502,6 @@ QByteArray renderJson(const SidecarDocument& document) {
     json.endArray();
     json.endObject();
     return json.toUtf8();
-}
-
-QString chapterTitle(int ordinal, int totalCount, const QString& periodLabel) {
-    const QString counter = QStringLiteral("%1/%2").arg(ordinal).arg(totalCount);
-    const QString period = periodLabel.trimmed();
-    if (period.isEmpty()) {
-        return counter;
-    }
-    return QStringLiteral("%1 · %2").arg(counter, period);
-}
-
-QString renderChapterMetadata(const QVector<qint64>& offsetMilliseconds,
-                              const QVector<qint64>& durationMilliseconds,
-                              const QStringList& titles) {
-    const int count = qMin(offsetMilliseconds.size(),
-                           qMin(durationMilliseconds.size(), titles.size()));
-    QString metadata = QStringLiteral(";FFMETADATA1\n");
-    for (int index = 0; index < count; ++index) {
-        const qint64 startMilliseconds = offsetMilliseconds.at(index);
-        qint64 endMilliseconds = startMilliseconds + durationMilliseconds.at(index);
-        if (endMilliseconds <= startMilliseconds) {
-            endMilliseconds = startMilliseconds + 1;
-        }
-        metadata += QStringLiteral("\n[CHAPTER]\n");
-        metadata += QStringLiteral("TIMEBASE=1/1000\n");
-        metadata += QStringLiteral("START=%1\n").arg(startMilliseconds);
-        metadata += QStringLiteral("END=%1\n").arg(endMilliseconds);
-        metadata += QStringLiteral("title=%1\n").arg(escapeFfmetadata(titles.at(index)));
-    }
-    return metadata;
 }
 
 QString clipsJsonPathForVideo(const QString& videoPath) {

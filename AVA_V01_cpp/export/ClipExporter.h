@@ -3,6 +3,7 @@
 #include "CompilationSidecar.h"
 #include "ShootoutOverlay.h"
 
+#include <QEvent>
 #include <QObject>
 #include <QProcess>
 #include <QSize>
@@ -62,6 +63,10 @@ public:
     void startExport();
     void cancelExport();
 
+    /// Null unless a test installs it. Called between steps after the joined
+    /// file may already be at the output path, so the test can cancel there.
+    static void setExportStepObserverForTests(void (*observer)(void* context), void* context);
+
     /// Delegates to FfmpegLocator (bundled Helpers, then Homebrew/usr, then PATH).
     static QString findFfmpeg();
     static QString findFfprobe();
@@ -78,17 +83,34 @@ private slots:
 private:
     void processNextClip();
     void concatenateClips();
-    /// Moves a finished temp video onto the destination. Failure leaves the
-    /// previous destination in place.
+    /// Moves a finished temp video onto the destination. A failed replace leaves
+    /// the previous file in place. Cancel after a successful replace removes the
+    /// new file and puts a replaced file back.
     void commitStagedOutput(const QString& stagedPath);
     void finalizeCompilationSidecar();
-    void embedChapterMetadata(const QVector<qint64>& offsetMilliseconds,
-                              const QVector<qint64>& durationMilliseconds);
+    bool finishExportIfCancelled();
+    bool parkExistingSidecar();
+    void removeCommittedOutputAndRestorePrevious();
+    void discardReplacedBackups();
     void discardPartialSidecar();
     void cleanup();
     void stopAndDiscardProcess();
     void finishExport(bool success, const QString& message);
     void startFfmpegJob(const QStringList& arguments, bool concatenating);
+    bool event(QEvent* event) override;
+
+    /// Swallows DeferredDelete while commit/sidecar steps pump the event loop,
+    /// then posts it again when those steps return.
+    class SuppressDeferredDelete {
+    public:
+        explicit SuppressDeferredDelete(ClipExporter* exporter);
+        ~SuppressDeferredDelete();
+        SuppressDeferredDelete(const SuppressDeferredDelete&) = delete;
+        SuppressDeferredDelete& operator=(const SuppressDeferredDelete&) = delete;
+
+    private:
+        ClipExporter* exporter_;
+    };
 
     QString sourceVideoPath_;
     QString outputPath_;
@@ -97,6 +119,14 @@ private:
     /// ffprobe durations of tempClipPaths_, in the same order.
     QVector<double> measuredSegmentDurationSeconds_;
     bool outputWriteStarted_ = false;
+    /// Previous output moved aside when this export replaced it. Empty when
+    /// the output path was new. Restored on cancel, deleted on success.
+    QString replacedOutputBackupPath_;
+    /// Previous clips sidecar moved aside for the same reason.
+    QString replacedSidecarBackupPath_;
+    bool sidecarWrittenByThisExport_ = false;
+    bool suppressDeferredDelete_ = false;
+    bool deferredDeletePending_ = false;
 
     /// Unparented QObject; this unique_ptr is the only owner. Replace via
     /// stopAndDiscardProcess() (release + deleteLater) so finished() cannot

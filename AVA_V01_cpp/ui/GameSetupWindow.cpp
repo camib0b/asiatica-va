@@ -5,6 +5,7 @@
 #include "../export/GameMetadataSuggester.h"
 #include "../export/XaiConfig.h"
 #include "../i18n/AppLocale.h"
+#include "../state/TeamAbbreviation.h"
 #include "../style/StyleProps.h"
 
 #include <QAbstractItemView>
@@ -47,59 +48,15 @@ QWidget* keyboardFocusTarget(QWidget* widget) {
   return widget;
 }
 
-/// Uppercase alphanumeric runs, treating spaces/punctuation as word breaks.
-/// Combining marks are stripped so "Católica" contributes CATOLICA.
-QVector<QString> alphanumericWordsFromTeamName(const QString& teamName) {
-  const QString decomposedName = teamName.normalized(QString::NormalizationForm_D);
-  QVector<QString> words;
-  QString currentWord;
-  currentWord.reserve(16);
-  for (QChar character : decomposedName) {
-    if (character.isMark()) {
-      continue;
-    }
-    if (character.isLetterOrNumber()) {
-      currentWord.append(character.toUpper());
-      continue;
-    }
-    if (!currentWord.isEmpty()) {
-      words.append(currentWord);
-      currentWord.clear();
-    }
+/// Both teams would be stored under one abbreviation. Empty codes are not a clash:
+/// a blank field is filled from the team name, and that result is compared too.
+bool abbreviationsAreTheSame(const QString& homeAbbreviation, const QString& awayAbbreviation) {
+  const QString home = homeAbbreviation.trimmed();
+  const QString away = awayAbbreviation.trimmed();
+  if (home.isEmpty() || away.isEmpty()) {
+    return false;
   }
-  if (!currentWord.isEmpty()) {
-    words.append(currentWord);
-  }
-  return words;
-}
-
-/// Up to 3 letters: first letter of each word, then extra letters from the last
-/// word so "Old Girls" / "Old Gabs" become OGI / OGA instead of colliding.
-QString deriveAbbreviationFromTeamName(const QString& teamName) {
-  const QVector<QString> words = alphanumericWordsFromTeamName(teamName);
-  if (words.isEmpty()) {
-    return {};
-  }
-
-  QString abbreviation;
-  abbreviation.reserve(3);
-  for (const QString& word : words) {
-    abbreviation.append(word.at(0));
-    if (abbreviation.size() == 3) {
-      return abbreviation;
-    }
-  }
-
-  for (int wordIndex = words.size() - 1; wordIndex >= 0; --wordIndex) {
-    const QString& word = words.at(wordIndex);
-    for (int letterIndex = 1; letterIndex < word.size(); ++letterIndex) {
-      abbreviation.append(word.at(letterIndex));
-      if (abbreviation.size() == 3) {
-        return abbreviation;
-      }
-    }
-  }
-  return abbreviation;
+  return home.compare(away, Qt::CaseInsensitive) == 0;
 }
 }
 
@@ -125,7 +82,8 @@ GameSetupWindow::GameSetupWindow(QWidget* parent)
       awayColorPicker_(nullptr),
       languageCombo_(nullptr),
       continueButton_(nullptr),
-      backButton_(nullptr) {
+      backButton_(nullptr),
+      abbrevConflictLabel_(nullptr) {
   setObjectName("AppRoot");
   setAttribute(Qt::WA_StyledBackground, true);
   buildUi();
@@ -261,7 +219,7 @@ void GameSetupWindow::onLanguageComboChanged(int index) {
 
 void GameSetupWindow::onHomeNameEditingFinished() {
   if (!homeAbbrevEdit_ || !homeNameEdit_ || !homeAbbrevFollowsName_) return;
-  const QString derived = deriveAbbreviationFromTeamName(homeNameEdit_->text());
+  const QString derived = TeamAbbreviation::fromTeamName(homeNameEdit_->text());
   if (homeAbbrevEdit_->text() != derived) {
     QSignalBlocker blocker(homeAbbrevEdit_);
     homeAbbrevEdit_->setText(derived);
@@ -271,7 +229,7 @@ void GameSetupWindow::onHomeNameEditingFinished() {
 
 void GameSetupWindow::onAwayNameEditingFinished() {
   if (!awayAbbrevEdit_ || !awayNameEdit_ || !awayAbbrevFollowsName_) return;
-  const QString derived = deriveAbbreviationFromTeamName(awayNameEdit_->text());
+  const QString derived = TeamAbbreviation::fromTeamName(awayNameEdit_->text());
   if (awayAbbrevEdit_->text() != derived) {
     QSignalBlocker blocker(awayAbbrevEdit_);
     awayAbbrevEdit_->setText(derived);
@@ -290,7 +248,6 @@ void GameSetupWindow::buildUi() {
   languageCombo->setObjectName(QStringLiteral("GameSetupLanguageCombo"));
   languageCombo->addItem(QString());
   languageCombo->addItem(QString());
-  languageCombo->setMaximumWidth(140);
   languageCombo->setFocusPolicy(Qt::StrongFocus);
   Style::setVariant(languageCombo.get(), "compact");
   languageCombo_ = languageCombo.get();
@@ -367,6 +324,16 @@ void GameSetupWindow::buildUi() {
   addTeamGroup(homeTeamLabel_, homeNameEdit_, homeAbbrevEdit_, homeColorPicker_, true);
   addTeamGroup(awayTeamLabel_, awayNameEdit_, awayAbbrevEdit_, awayColorPicker_, false);
 
+  auto abbrevConflictLabel = makeQtPtr<QLabel>(contentContainer.get());
+  abbrevConflictLabel->setObjectName(QStringLiteral("SetupAbbrevConflictLabel"));
+  abbrevConflictLabel->setWordWrap(true);
+  abbrevConflictLabel->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+  abbrevConflictLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+  Style::setRole(abbrevConflictLabel.get(), "exportError");
+  abbrevConflictLabel->setVisible(false);
+  abbrevConflictLabel_ = abbrevConflictLabel.get();
+  layout->addWidget(abbrevConflictLabel.get());
+
   auto buttonRow = makeQtPtr<QHBoxLayout>();
   buttonRow->setSpacing(12);
   auto backButton = makeQtPtr<QPushButton>(contentContainer.get());
@@ -377,6 +344,7 @@ void GameSetupWindow::buildUi() {
   Style::setSize(backButton.get(), "md");
   backButton_ = backButton.get();
   auto continueButton = makeQtPtr<QPushButton>(contentContainer.get());
+  continueButton->setObjectName(QStringLiteral("GameSetupContinueButton"));
   continueButton->setCursor(Qt::PointingHandCursor);
   continueButton->setAutoDefault(false);
   continueButton->setDefault(false);
@@ -416,10 +384,12 @@ void GameSetupWindow::wireSignals() {
   connect(homeAbbrevEdit_, &QLineEdit::textEdited, this, [this](const QString& text) {
     homeAbbrevFollowsName_ = text.trimmed().isEmpty();
     if (homeAbbrevFollowsName_) onHomeNameEditingFinished();
+    updateContinueButtonEnabled();
   });
   connect(awayAbbrevEdit_, &QLineEdit::textEdited, this, [this](const QString& text) {
     awayAbbrevFollowsName_ = text.trimmed().isEmpty();
     if (awayAbbrevFollowsName_) onAwayNameEditingFinished();
+    updateContinueButtonEnabled();
   });
 
   const QVector<QWidget*> tabFilterTargets = {languageCombo_,   homeNameEdit_,   homeAbbrevEdit_,
@@ -601,10 +571,25 @@ void GameSetupWindow::onMetadataSuggestionFinished() {
 
 void GameSetupWindow::updateContinueButtonEnabled() const {
   if (!continueButton_) return;
-  const bool canContinue = !videoPath_.trimmed().isEmpty();
+  const SetupFormValues values = collectSetupFormValues();
+  const bool abbreviationsConflict =
+      abbreviationsAreTheSame(values.homeAbbrev, values.awayAbbrev);
+  if (abbrevConflictLabel_) {
+    abbrevConflictLabel_->setText(abbreviationsConflict ? AppLocale::trUi("setup.same_abbrev")
+                                                        : QString());
+    abbrevConflictLabel_->setVisible(abbreviationsConflict);
+  }
+  const bool hasVideo = !videoPath_.trimmed().isEmpty();
+  const bool canContinue = hasVideo && !abbreviationsConflict;
   continueButton_->setEnabled(canContinue);
   continueButton_->setCursor(canContinue ? Qt::PointingHandCursor : Qt::ArrowCursor);
-  continueButton_->setToolTip(canContinue ? QString() : AppLocale::trUi("setup.continue_disabled_hint"));
+  QString disabledHint;
+  if (abbreviationsConflict) {
+    disabledHint = AppLocale::trUi("setup.same_abbrev");
+  } else if (!hasVideo) {
+    disabledHint = AppLocale::trUi("setup.continue_disabled_hint");
+  }
+  continueButton_->setToolTip(disabledHint);
 }
 
 GameSetupWindow::SetupFormValues GameSetupWindow::collectSetupFormValues() const {
@@ -616,10 +601,10 @@ GameSetupWindow::SetupFormValues GameSetupWindow::collectSetupFormValues() const
   values.homeAbbrev = homeAbbrevEdit_ ? homeAbbrevEdit_->text().trimmed().toUpper() : QString();
   values.awayAbbrev = awayAbbrevEdit_ ? awayAbbrevEdit_->text().trimmed().toUpper() : QString();
   if (values.homeAbbrev.isEmpty()) {
-    values.homeAbbrev = deriveAbbreviationFromTeamName(values.homeName);
+    values.homeAbbrev = TeamAbbreviation::fromTeamName(values.homeName);
   }
   if (values.awayAbbrev.isEmpty()) {
-    values.awayAbbrev = deriveAbbreviationFromTeamName(values.awayName);
+    values.awayAbbrev = TeamAbbreviation::fromTeamName(values.awayName);
   }
   values.gameDate = gameDate_;
   return values;
@@ -667,7 +652,8 @@ void GameSetupWindow::onContinue() {
   }
 
   const SetupFormValues values = collectSetupFormValues();
-  if (!hasRequiredSetupFields(values)) {
+  if (!hasRequiredSetupFields(values) ||
+      abbreviationsAreTheSame(values.homeAbbrev, values.awayAbbrev)) {
     updateContinueButtonEnabled();
     return;
   }

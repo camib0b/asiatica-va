@@ -113,4 +113,5 @@ private:
   QPointer<QComboBox> languageCombo_;
   QPointer<QPushButton> continueButton_;
   QPointer<QPushButton> backButton_;
+  QPointer<QLabel> abbrevConflictLabel_;
 };

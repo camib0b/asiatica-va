@@ -91,7 +91,6 @@ std::unique_ptr<QComboBox, QtParentDeleter> makeAbbrevComboWidget(QWidget* paren
   auto combo = makeQtPtr<QComboBox>(parent);
   Style::setVariant(combo.get(), "abbrev");
   combo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-  combo->setMaximumWidth(72);
   combo->setMinimumWidth(56);
   return combo;
 }
@@ -100,7 +99,6 @@ std::unique_ptr<QComboBox, QtParentDeleter> makeTableComboWidget(QWidget* parent
   auto combo = makeQtPtr<QComboBox>(parent);
   Style::setVariant(combo.get(), "compact");
   combo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-  combo->setFixedHeight(28);
   return combo;
 }
 

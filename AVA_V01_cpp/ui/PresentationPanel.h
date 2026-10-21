@@ -2,6 +2,7 @@
 
 #include "PresentationInstancesModel.h"
 
+#include <QPointer>
 #include <QSet>
 #include <QVector>
 #include <QWidget>
@@ -65,14 +66,22 @@ private slots:
   void onSelectNoneClicked();
   void onLeadLagSpinChanged();
   void onApplyLeadLagToAllClicked();
+  void onListFixtureChanged(int fixtureId);
 
 private:
+  enum class ListFixture { Session, WorstCase, Empty, One, Thousand };
+
   void buildUi();
   void rebuildEventFilterOptions();
   QVector<PresentationInstancesModel::Row> buildVisibleRows() const;
+  QVector<PresentationInstancesModel::Row> buildFixtureRows() const;
+  PresentationInstancesModel::Row makeVisibleRow(int tagSessionIndex, quint64 tagId, qint64 markMs,
+                                                 const QString& teamKey, const QString& mainEvent,
+                                                 const QString& followUpEvent) const;
   void rebuildRows();
   void syncModelSelection();
   void updateSelectionSummary();
+  void updateApplyButtonLabel();
   void updateCurrentClipControlsEnabled();
   void updateShowNotesCheckboxVisibility();
   bool selectionHasAnyNotes() const;
@@ -83,6 +92,9 @@ private:
   bool passesFilters(const QString& mainEvent, const QString& team) const;
   bool eventFilterValueIsValid(const QString& eventFilter) const;
   QString teamDisplayName(const QString& teamKey) const;
+  QString teamFilterAbbreviation(const QString& teamKey) const;
+  void addTeamFilterItem(const QString& teamKey);
+  void updateTeamFilterTooltip();
   QDoubleSpinBox* focusedLeadLagSpinBox() const;
   bool isInsideLeadLagSpinBox(const QWidget* widget) const;
   void releaseLeadLagSpinBoxFocus();
@@ -112,6 +124,10 @@ private:
 
   /// Stable GameTag::id values; converted to session indexes at the public API boundary.
   QSet<quint64> selectedTagIdSet_{};
+  /// Dev-only break-ui dataset. Session is the live tag list. Anything else is
+  /// shown only when AVA_BREAK_UI=1 and never writes the presentation queue.
+  ListFixture listFixture_ = ListFixture::Session;
+  QPointer<QWidget> breakUiToggle_;
   quint64 currentTagId_ = 0;
   int currentTagSessionIndex_ = -1;
   QVector<int> lastEmittedSelectedIndexes_{};

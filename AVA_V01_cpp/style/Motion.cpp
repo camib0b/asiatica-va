@@ -5,8 +5,12 @@
 #include <QAbstractAnimation>
 #include <QAbstractButton>
 #include <QEvent>
+#include <QGraphicsEffect>
 #include <QGraphicsOpacityEffect>
+#include <QLayout>
+#include <QPainter>
 #include <QParallelAnimationGroup>
+#include <QPixmap>
 #include <QPointF>
 #include <QPointer>
 #include <QPropertyAnimation>
@@ -15,6 +19,9 @@
 #include <QTimer>
 #include <QVariantAnimation>
 #include <QWidget>
+
+#include "QtPtr.h"
+#include "StyleProps.h"
 
 #include <QtGlobal>
 
@@ -201,6 +208,10 @@ class ButtonColorDriver final : public QObject {
   }
 
   void showCurrentState(int durationMs) {
+    if (!button_ || !button_->isEnabled()) {
+      clearInlineSheet();
+      return;
+    }
     if (pressed) {
       applyInstant(colors.pressedBackground, colors.pressedBorder);
       return;
@@ -213,8 +224,17 @@ class ButtonColorDriver final : public QObject {
   }
 
  private:
+  void clearInlineSheet() {
+    if (!button_ || button_->styleSheet().isEmpty()) return;
+    button_->setStyleSheet(QString());
+  }
+
   void publish() {
     if (!button_) return;
+    if (!button_->isEnabled()) {
+      clearInlineSheet();
+      return;
+    }
     const QString background = backgroundColor_.name(QColor::HexArgb);
     const QString border = borderColor_.name(QColor::HexArgb);
     QString sheet = QStringLiteral(
@@ -274,8 +294,10 @@ class ButtonHoverFilter final : public QObject {
     } else if (event->type() == QEvent::HoverLeave || event->type() == QEvent::Hide) {
       driver_->pointerInside = false;
       if (!driver_->pressed && !driver_->flashHolding) {
-        driver_->moveTo(driver_->colors.restBackground, driver_->colors.restBorder, Motion::kHoverOut);
+        driver_->showCurrentState(Motion::kHoverOut);
       }
+    } else if (event->type() == QEvent::EnabledChange) {
+      driver_->showCurrentState(0);
     }
     return false;
   }
@@ -355,11 +377,372 @@ void startFadeGroup(QWidget* widget, FadeDriver* driver, int durationMs) {
 
 }  // namespace
 
+// Idle ring + press scale for one button. Parent the controller to the button
+// so it dies with it. The ring is a sibling, inset into margins reserved on
+// the button's parent, so the entrance fade (an opacity effect on that parent)
+// does not have to composite a second effect on the button itself.
+class PressScaleEffect final : public QGraphicsEffect {
+ public:
+  void setScaleFactor(qreal scaleFactor) {
+    if (qAbs(scaleFactor_ - scaleFactor) < 0.001) return;
+    scaleFactor_ = scaleFactor;
+    update();
+  }
+
+ protected:
+  void draw(QPainter* painter) override {
+    QPoint offset;
+    const QPixmap pixmap = sourcePixmap(Qt::LogicalCoordinates, &offset);
+    if (pixmap.isNull()) {
+      drawSource(painter);
+      return;
+    }
+
+    const qreal devicePixelRatio = pixmap.devicePixelRatio() > 0.0 ? pixmap.devicePixelRatio() : 1.0;
+    const QSizeF logicalSize = QSizeF(pixmap.size()) / devicePixelRatio;
+    const QPointF topLeft(offset);
+    const QPointF center = topLeft + QPointF(logicalSize.width() / 2.0, logicalSize.height() / 2.0);
+    painter->save();
+    painter->translate(center);
+    painter->scale(scaleFactor_, scaleFactor_);
+    painter->translate(-center);
+    painter->drawPixmap(topLeft, pixmap);
+    painter->restore();
+  }
+
+ private:
+  qreal scaleFactor_ = 1.0;
+};
+
+class AmbientPulseController final : public QObject {
+  Q_OBJECT
+  Q_PROPERTY(qreal ringOpacity READ ringOpacity WRITE setRingOpacity)
+  Q_PROPERTY(qreal pressScale READ pressScale WRITE setPressScale)
+
+ public:
+  explicit AmbientPulseController(QAbstractButton* button)
+      : QObject(button),
+        button_(button),
+        hostWindow_(button ? button->window() : nullptr) {
+    setObjectName(QStringLiteral("motion.ambientPulse"));
+    if (!button_) return;
+
+    reserveOutset();
+    auto ring = makeQtPtr<QWidget>(button_->parentWidget());
+    ring->setObjectName(QStringLiteral("motion.ambientRing"));
+    ring->setFocusPolicy(Qt::NoFocus);
+    ring->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    ring->setAttribute(Qt::WA_StyledBackground, true);
+    ring->setAttribute(Qt::WA_TranslucentBackground, true);
+    ring->setAttribute(Qt::WA_NoSystemBackground, true);
+    ring->setAutoFillBackground(false);
+    Style::setRole(ring.get(), "ambientRing");
+    ring->hide();
+    ring_ = ring.get();
+
+    button_->setAttribute(Qt::WA_Hover, true);
+    button_->installEventFilter(this);
+    if (QWidget* host = button_->parentWidget()) host->installEventFilter(this);
+    if (hostWindow_ && hostWindow_ != button_) hostWindow_->installEventFilter(this);
+
+    QObject::connect(button_, &QAbstractButton::pressed, this, [this]() { handlePressed(); });
+    QObject::connect(button_, &QAbstractButton::released, this, [this]() { handleReleased(); });
+    repositionRing();
+  }
+
+  qreal ringOpacity() const { return ringOpacity_; }
+  qreal pressScale() const { return pressScale_; }
+
+  void setRingOpacity(qreal opacity) {
+    ringOpacity_ = qBound(0.0, opacity, 1.0);
+    if (!ring_) return;
+    if (ringOpacity_ <= 0.001) {
+      ringOpacity_ = 0.0;
+      ring_->hide();
+      return;
+    }
+
+    auto* effect = qobject_cast<QGraphicsOpacityEffect*>(ring_->graphicsEffect());
+    if (!effect) {
+      effect = new QGraphicsOpacityEffect();
+      effect->setOpacity(ringOpacity_);
+      ring_->setGraphicsEffect(effect);
+    } else {
+      effect->setOpacity(ringOpacity_);
+    }
+    if (ring_->isHidden()) {
+      repositionRing();
+      ring_->show();
+      ring_->lower();
+    }
+  }
+
+  void setPressScale(qreal scale) {
+    pressScale_ = scale;
+    if (!button_) return;
+    if (qAbs(scale - 1.0) < 0.004) {
+      pressScale_ = 1.0;
+      if (pressScaleEffect_) button_->setGraphicsEffect(nullptr);
+      return;
+    }
+
+    QGraphicsEffect* existing = button_->graphicsEffect();
+    if (existing && existing != pressScaleEffect_.data()) return;
+
+    if (!pressScaleEffect_) {
+      auto* effect = new PressScaleEffect();
+      effect->setObjectName(QStringLiteral("motion.pressScaleEffect"));
+      effect->setScaleFactor(scale);
+      pressScaleEffect_ = effect;
+      button_->setGraphicsEffect(effect);
+      return;
+    }
+    static_cast<PressScaleEffect*>(pressScaleEffect_.data())->setScaleFactor(scale);
+  }
+
+  void setActive(bool active) {
+    active_ = active;
+    if (!active) {
+      breathing_ = false;
+      if (ringAnimation_) ringAnimation_->stop();
+      setRingOpacity(0.0);
+      if (scaleAnimation_) scaleAnimation_->stop();
+      setPressScale(1.0);
+      return;
+    }
+    repositionRing();
+    resumeBreathIfIdle();
+  }
+
+ protected:
+  bool eventFilter(QObject* watched, QEvent* event) override {
+    if (!button_ || !event) return false;
+
+    if (watched == hostWindow_) {
+      const QEvent::Type type = event->type();
+      if (type == QEvent::WindowStateChange || type == QEvent::Hide || type == QEvent::Show) {
+        syncHostVisibility();
+      }
+      return false;
+    }
+
+    if (watched == button_) {
+      switch (event->type()) {
+        case QEvent::Resize:
+        case QEvent::Move:
+        case QEvent::Show:
+          repositionRing();
+          if (event->type() == QEvent::Show && active_) resumeBreathIfIdle();
+          break;
+        case QEvent::Hide:
+          pointerInside_ = false;
+          breathing_ = false;
+          if (ringAnimation_) ringAnimation_->stop();
+          setRingOpacity(0.0);
+          if (scaleAnimation_) scaleAnimation_->stop();
+          setPressScale(1.0);
+          break;
+        case QEvent::HoverEnter:
+          pointerInside_ = true;
+          breathing_ = false;
+          animateRingOpacity(0.0, Motion::kHoverIn, Motion::strongOut());
+          break;
+        case QEvent::HoverLeave:
+          pointerInside_ = false;
+          resumeBreathIfIdle();
+          break;
+        case QEvent::EnabledChange:
+          if (!button_->isEnabled()) {
+            breathing_ = false;
+            animateRingOpacity(0.0, Motion::kHoverOut, Motion::strongOut());
+            if (scaleAnimation_) scaleAnimation_->stop();
+            setPressScale(1.0);
+          } else {
+            resumeBreathIfIdle();
+          }
+          break;
+        default:
+          break;
+      }
+      return false;
+    }
+
+    if (watched == button_->parentWidget()) {
+      const QEvent::Type type = event->type();
+      if (type == QEvent::Resize || type == QEvent::LayoutRequest || type == QEvent::Move) {
+        repositionRing();
+      }
+    }
+    return false;
+  }
+
+ private:
+  // Button radius in theme_light.qss is 6px. The ring's border-radius is
+  // 6 + kAmbientOutsetPx, so this outset and that radius have to stay paired.
+  static constexpr int kAmbientOutsetPx = 8;
+  static constexpr qreal kAmbientPeakOpacity = 0.35;
+  static constexpr qreal kPressedScale = 0.97;
+
+  void reserveOutset() {
+    if (!button_) return;
+    QWidget* host = button_->parentWidget();
+    if (!host || !host->layout()) return;
+    QLayout* layout = host->layout();
+    const QMargins margins = layout->contentsMargins();
+    layout->setContentsMargins(qMax(margins.left(), kAmbientOutsetPx),
+                                qMax(margins.top(), kAmbientOutsetPx),
+                                qMax(margins.right(), kAmbientOutsetPx),
+                                qMax(margins.bottom(), kAmbientOutsetPx));
+  }
+
+  void repositionRing() {
+    if (!ring_ || !button_) return;
+    const QRect next = button_->geometry().adjusted(-kAmbientOutsetPx, -kAmbientOutsetPx,
+                                                     kAmbientOutsetPx, kAmbientOutsetPx);
+    if (ring_->geometry() != next) ring_->setGeometry(next);
+  }
+
+  bool breathHostIsShowing() const {
+    if (!button_ || !button_->isVisible()) return false;
+    if (!hostWindow_) return false;
+    return hostWindow_->isVisible() && !hostWindow_->isMinimized();
+  }
+
+  bool canBreath() const {
+    if (!active_ || !button_ || !button_->isEnabled()) return false;
+    if (pointerInside_ || buttonPressed_ || Motion::reduced()) return false;
+    return breathHostIsShowing();
+  }
+
+  int breathDuration(qreal from, qreal to) const {
+    if (kAmbientPeakOpacity <= 0.0) return Motion::kAmbientBreath;
+    const qreal fraction = qBound(0.0, qAbs(to - from) / kAmbientPeakOpacity, 1.0);
+    return qMax(Motion::kHoverIn, static_cast<int>(qRound(Motion::kAmbientBreath * fraction)));
+  }
+
+  void ensureRingAnimation() {
+    if (ringAnimation_) return;
+    ringAnimation_ = new QPropertyAnimation(this, "ringOpacity", this);
+    ringAnimation_->setObjectName(QStringLiteral("motion.ambientRingOpacity"));
+    QObject::connect(ringAnimation_, &QAbstractAnimation::finished, this, [this]() { continueBreath(); });
+  }
+
+  void ensureScaleAnimation() {
+    if (scaleAnimation_) return;
+    scaleAnimation_ = new QPropertyAnimation(this, "pressScale", this);
+    scaleAnimation_->setObjectName(QStringLiteral("motion.pressScale"));
+  }
+
+  void animateRingOpacity(qreal target, int durationMs, const QEasingCurve& curve) {
+    if (!ring_) return;
+    ensureRingAnimation();
+    ringAnimation_->stop();
+    if (Motion::reduced()) {
+      breathing_ = false;
+      setRingOpacity(0.0);
+      return;
+    }
+    if (qAbs(ringOpacity_ - target) < 0.001 || durationMs <= 0) {
+      setRingOpacity(target);
+      return;
+    }
+    ringAnimation_->setStartValue(ringOpacity_);
+    ringAnimation_->setEndValue(target);
+    ringAnimation_->setDuration(durationMs);
+    ringAnimation_->setEasingCurve(curve);
+    ringAnimation_->start();
+  }
+
+  void animatePressScale(qreal target, int durationMs) {
+    if (!button_) return;
+    if (Motion::reduced() || durationMs <= 0) {
+      setPressScale(target);
+      return;
+    }
+    ensureScaleAnimation();
+    scaleAnimation_->stop();
+    if (qAbs(pressScale_ - target) < 0.001) {
+      setPressScale(target);
+      return;
+    }
+    scaleAnimation_->setStartValue(pressScale_);
+    scaleAnimation_->setEndValue(target);
+    scaleAnimation_->setDuration(durationMs);
+    scaleAnimation_->setEasingCurve(Motion::strongOut());
+    scaleAnimation_->start();
+  }
+
+  void continueBreath() {
+    if (!breathing_ || !canBreath()) {
+      breathing_ = false;
+      return;
+    }
+    const qreal target = ringOpacity_ <= (kAmbientPeakOpacity * 0.5) ? kAmbientPeakOpacity : 0.0;
+    animateRingOpacity(target, breathDuration(ringOpacity_, target), Motion::strongInOut());
+  }
+
+  void resumeBreathIfIdle() {
+    if (!canBreath()) {
+      breathing_ = false;
+      return;
+    }
+    if (breathing_ && ringAnimation_ && ringAnimation_->state() == QAbstractAnimation::Running) return;
+    breathing_ = true;
+    animateRingOpacity(kAmbientPeakOpacity, breathDuration(ringOpacity_, kAmbientPeakOpacity),
+                       Motion::strongInOut());
+  }
+
+  void handlePressed() {
+    buttonPressed_ = true;
+    breathing_ = false;
+    animateRingOpacity(0.0, Motion::kPress, Motion::strongOut());
+    if (!Motion::reduced()) animatePressScale(kPressedScale, Motion::kPress);
+  }
+
+  void handleReleased() {
+    buttonPressed_ = false;
+    if (Motion::reduced()) setPressScale(1.0);
+    else animatePressScale(1.0, Motion::kPress);
+    resumeBreathIfIdle();
+  }
+
+  void syncHostVisibility() {
+    if (breathHostIsShowing()) {
+      if (active_) resumeBreathIfIdle();
+      return;
+    }
+    breathing_ = false;
+    if (ringAnimation_) ringAnimation_->stop();
+    setRingOpacity(0.0);
+    if (scaleAnimation_) scaleAnimation_->stop();
+    setPressScale(1.0);
+  }
+
+  QPointer<QAbstractButton> button_;
+  QPointer<QWidget> ring_;
+  QPointer<QWidget> hostWindow_;
+  QPointer<QGraphicsEffect> pressScaleEffect_;
+  QPropertyAnimation* ringAnimation_ = nullptr;
+  QPropertyAnimation* scaleAnimation_ = nullptr;
+  qreal ringOpacity_ = 0.0;
+  qreal pressScale_ = 1.0;
+  bool active_ = false;
+  bool breathing_ = false;
+  bool pointerInside_ = false;
+  bool buttonPressed_ = false;
+};
+
 namespace Motion {
 
 QEasingCurve strongOut() {
   QEasingCurve curve(QEasingCurve::BezierSpline);
   curve.addCubicBezierSegment(QPointF(0.23, 1.0), QPointF(0.32, 1.0), QPointF(1.0, 1.0));
+  return curve;
+}
+
+QEasingCurve strongInOut() {
+  QEasingCurve curve(QEasingCurve::BezierSpline);
+  curve.addCubicBezierSegment(QPointF(0.77, 0.0), QPointF(0.175, 1.0), QPointF(1.0, 1.0));
   return curve;
 }
 
@@ -553,6 +936,23 @@ void flashButtonColors(QAbstractButton* button,
     });
   }
   holdTimer->start(qMax(0, holdMs));
+}
+
+void installAmbientPulse(QAbstractButton* button) {
+  if (!button || !button->parentWidget()) return;
+  if (button->findChild<AmbientPulseController*>(QStringLiteral("motion.ambientPulse"),
+                                                 Qt::FindDirectChildrenOnly)) {
+    return;
+  }
+  new AmbientPulseController(button);
+}
+
+void setAmbientPulseActive(QAbstractButton* button, bool active) {
+  if (!button) return;
+  auto* controller = button->findChild<AmbientPulseController*>(QStringLiteral("motion.ambientPulse"),
+                                                                Qt::FindDirectChildrenOnly);
+  if (!controller) return;
+  controller->setActive(active);
 }
 
 }  // namespace Motion
