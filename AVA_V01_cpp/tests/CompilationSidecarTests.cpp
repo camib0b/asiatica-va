@@ -1060,6 +1060,7 @@ int runPresentationFilterTests(int argc, char** argv);
 int runXmlEventMappingDialogTests(int argc, char** argv);
 int runUiPolicyTests(int argc, char** argv);
 int runWorkDataViewTests(int argc, char** argv);
+int runWorkWindowCorrectnessTests(int argc, char** argv);
 int runInteractionGuardTests(int argc, char** argv);
 int runVideoClipSequenceTests(int argc, char** argv);
 int runShootoutStateTests(int argc, char** argv);
@@ -1097,6 +1098,10 @@ int main(int argc, char** argv) {
     const int workDataViewStatus = runWorkDataViewTests(argc, argv);
     if (workDataViewStatus != 0) {
         return workDataViewStatus;
+    }
+    const int workWindowStatus = runWorkWindowCorrectnessTests(argc, argv);
+    if (workWindowStatus != 0) {
+        return workWindowStatus;
     }
     const int interactionStatus = runInteractionGuardTests(argc, argv);
     if (interactionStatus != 0) {

@@ -74,6 +74,20 @@ void setToolButtonFlashState(QToolButton* button, bool flashing) {
   button->style()->polish(button);
   button->update();
 }
+
+/// Sets a reentrancy flag for this scope and restores the value it had on entry.
+class ScopedReentrancyFlag {
+public:
+    explicit ScopedReentrancyFlag(bool& flag) : flag_(flag), previousValue_(flag) { flag_ = true; }
+    ~ScopedReentrancyFlag() { flag_ = previousValue_; }
+
+    ScopedReentrancyFlag(const ScopedReentrancyFlag&) = delete;
+    ScopedReentrancyFlag& operator=(const ScopedReentrancyFlag&) = delete;
+
+private:
+    bool& flag_;
+    bool previousValue_;
+};
 }  // namespace
 #include <QColor>
 #include <QPlainTextEdit>
@@ -315,6 +329,20 @@ WorkWindow::~WorkWindow() {
     if (exportJobManager_) {
         exportJobManager_->cancelExportingJobs();
     }
+    if (videoPlayer_) {
+        disconnect(videoPlayer_, &VideoPlayer::playbackMediaSettled, this,
+                   &WorkWindow::deleteTemporaryDirectoriesReleasedByPlayer);
+        videoPlayer_->releaseLoadedMedia();
+    }
+    // The window is going away, so do not arm a retry timer on this object.
+    temporaryDirectoryDeletionScheduled_ = true;
+    queueTemporaryDirectoryForDeletion(std::move(concatenatedVideoTempDir_), true);
+    queueTemporaryDirectoryForDeletion(std::move(playbackPrepTempDir_), true);
+    std::vector<std::unique_ptr<QTemporaryDir>> retained = std::move(retainedTemporaryDirectories_);
+    for (std::unique_ptr<QTemporaryDir>& directory : retained) {
+        queueTemporaryDirectoryForDeletion(std::move(directory), true);
+    }
+    deleteTemporaryDirectoriesReleasedByPlayer();
     tagSession_ = nullptr;
 }
 
@@ -329,7 +357,7 @@ bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(const QWidget* focus
     return true;
 }
 
-void WorkWindow::onApplicationFocusWidgetChanged(QWidget* /*oldFocus*/, QWidget* newFocus) const {
+void WorkWindow::onApplicationFocusWidgetChanged(QWidget* /*oldFocus*/, QWidget* newFocus) {
     if (!videoPlayer_) {
         return;
     }
@@ -337,7 +365,7 @@ void WorkWindow::onApplicationFocusWidgetChanged(QWidget* /*oldFocus*/, QWidget*
     videoPlayer_->setPlaybackShortcutFocusGate(allowPlaybackShortcuts);
 }
 
-void WorkWindow::refreshPlaybackShortcutFocusGate() const {
+void WorkWindow::refreshPlaybackShortcutFocusGate() {
     onApplicationFocusWidgetChanged(nullptr, QApplication::focusWidget());
 }
 
@@ -370,7 +398,7 @@ void WorkWindow::updateVideoMuteButton(bool muted) const {
     videoMuteButton_->setToolTip(muted ? AppLocale::trUi("vc.tt.unmute") : AppLocale::trUi("vc.tt.mute"));
 }
 
-void WorkWindow::setVideoMuteButtonEnabled(bool enabled) const {
+void WorkWindow::setVideoMuteButtonEnabled(bool enabled) {
     if (videoMuteButton_) {
         videoMuteButton_->setEnabled(enabled);
     }
@@ -420,7 +448,10 @@ void WorkWindow::releaseTransientResources() {
     cleanupPendingConcatenation();
     cleanupConcatenatedVideo();
     cleanupPlaybackPrepVideo();
-    retainedTemporaryDirectories_.clear();
+    std::vector<std::unique_ptr<QTemporaryDir>> retained = std::move(retainedTemporaryDirectories_);
+    for (std::unique_ptr<QTemporaryDir>& directory : retained) {
+        queueTemporaryDirectoryForDeletion(std::move(directory), true);
+    }
 }
 
 void WorkWindow::cleanupConcatenatedVideo() {
@@ -463,7 +494,54 @@ void WorkWindow::retainOrDeleteTemporaryDirectory(std::unique_ptr<QTemporaryDir>
         retainedTemporaryDirectories_.push_back(std::move(directory));
         return;
     }
-    directory.reset();
+    queueTemporaryDirectoryForDeletion(std::move(directory), true);
+}
+
+void WorkWindow::queueTemporaryDirectoryForDeletion(std::unique_ptr<QTemporaryDir> directory,
+                                                   bool releaseHoldingPlayer) {
+    if (!directory) return;
+
+    const QString absolutePath = QDir(directory->path()).absolutePath();
+    if (releaseHoldingPlayer && playerMediaSourceIsInsideDirectory(absolutePath) && videoPlayer_) {
+        videoPlayer_->releaseLoadedMedia();
+    }
+
+    temporaryDirectoriesPendingDeletion_.push_back(std::move(directory));
+    deleteTemporaryDirectoriesReleasedByPlayer();
+    scheduleTemporaryDirectoryDeletion();
+}
+
+void WorkWindow::deleteTemporaryDirectoriesReleasedByPlayer() {
+    std::vector<std::unique_ptr<QTemporaryDir>> stillPending;
+    stillPending.reserve(temporaryDirectoriesPendingDeletion_.size());
+    for (std::unique_ptr<QTemporaryDir>& directory : temporaryDirectoriesPendingDeletion_) {
+        if (!directory) continue;
+        const QString absolutePath = QDir(directory->path()).absolutePath();
+        if (playerMediaSourceIsInsideDirectory(absolutePath)) {
+            stillPending.push_back(std::move(directory));
+            continue;
+        }
+        if (!directory->remove()) {
+            stillPending.push_back(std::move(directory));
+            continue;
+        }
+        directory->setAutoRemove(false);
+    }
+    temporaryDirectoriesPendingDeletion_ = std::move(stillPending);
+}
+
+void WorkWindow::scheduleTemporaryDirectoryDeletion() {
+    if (temporaryDirectoryDeletionScheduled_ || temporaryDirectoriesPendingDeletion_.empty()) return;
+    temporaryDirectoryDeletionScheduled_ = true;
+    QTimer::singleShot(0, this, [this]() {
+        temporaryDirectoryDeletionScheduled_ = false;
+        deleteTemporaryDirectoriesReleasedByPlayer();
+    });
+}
+
+bool WorkWindow::playerMediaSourceIsInsideDirectory(const QString& directoryPath) const {
+    if (!videoPlayer_) return false;
+    return ExportOutputPath::pathIsInsideDirectory(videoPlayer_->activeMediaFilePath(), directoryPath);
 }
 
 bool WorkWindow::exportStillNeedsDirectory(const QString& absoluteDirectoryPath) const {
@@ -476,15 +554,21 @@ bool WorkWindow::exportStillNeedsDirectory(const QString& absoluteDirectoryPath)
 
 void WorkWindow::releaseFinishedTemporaryDirectories() {
     std::vector<std::unique_ptr<QTemporaryDir>> stillNeeded;
+    std::vector<std::unique_ptr<QTemporaryDir>> finished;
     stillNeeded.reserve(retainedTemporaryDirectories_.size());
     for (std::unique_ptr<QTemporaryDir>& directory : retainedTemporaryDirectories_) {
         if (!directory) continue;
         const QString absolutePath = QDir(directory->path()).absolutePath();
         if (exportStillNeedsDirectory(absolutePath)) {
             stillNeeded.push_back(std::move(directory));
+        } else {
+            finished.push_back(std::move(directory));
         }
     }
     retainedTemporaryDirectories_ = std::move(stillNeeded);
+    for (std::unique_ptr<QTemporaryDir>& directory : finished) {
+        queueTemporaryDirectoryForDeletion(std::move(directory), false);
+    }
 }
 
 void WorkWindow::showAdjustedImportNote(int adjustedCount) {
@@ -1023,12 +1107,22 @@ void WorkWindow::buildUi() {
     tagsRemoveFiltersButton_->setCursor(Qt::PointingHandCursor);
     tagsRemoveFiltersButton_->hide();
     tagsFilterMenu_ = new QMenu(tagsFilterButton_);
+    tagsFilterMenu_->setObjectName(QStringLiteral("TagsFilterMenu"));
     tagsFilterButton_->setMenu(tagsFilterMenu_);
     filterSelectAllAction_ = tagsFilterMenu_->addAction(QString());
     filterSelectNoneAction_ = tagsFilterMenu_->addAction(QString());
     tagsFilterMenu_->addSeparator();
     connect(filterSelectAllAction_, &QAction::triggered, this, &WorkWindow::onSelectAllFilters);
     connect(filterSelectNoneAction_, &QAction::triggered, this, &WorkWindow::onSelectNoFilters);
+    connect(tagsFilterMenu_, &QMenu::aboutToHide, this, [this]() {
+        if (!filterMenuStructureSyncDeferred_) return;
+        QTimer::singleShot(0, this, [this]() {
+            if (!filterMenuStructureSyncDeferred_) return;
+            filterMenuForceStructureSync_ = true;
+            syncFilterMenu();
+            filterMenuForceStructureSync_ = false;
+        });
+    });
     tagsFilterIndicator_ = new QLabel(tagsHeaderRow_);
     tagsFilterIndicator_->setWordWrap(false);
     Style::setRole(tagsFilterIndicator_, "muted");
@@ -1369,6 +1463,8 @@ void WorkWindow::wireSignals() {
     connect(videoPlayer_, &VideoPlayer::durationChangedMs, this, [this](qint64 durationMs) {
         if (presentationQueue_) presentationQueue_->setVideoDurationMs(durationMs);
     });
+    connect(videoPlayer_, &VideoPlayer::playbackMediaSettled, this,
+            &WorkWindow::deleteTemporaryDirectoriesReleasedByPlayer);
 
     // Backspace to delete selected tag
     auto* deleteTagAction = new QAction(this);
@@ -2037,7 +2133,7 @@ void WorkWindow::resetPresentationForVideoChange() {
         PresentationPlayback::reduce(presentationPlayback_, PresentationPlayback::Reset{}));
 }
 
-void WorkWindow::updatePresentationStage() const {
+void WorkWindow::updatePresentationStage() {
     if (!presentationEventLabel_ || !presentationContextLabel_ || !presentationNoteLabel_) return;
 
     const PresentationQueue::Clip* clip =
@@ -2085,7 +2181,7 @@ void WorkWindow::updatePresentationStage() const {
     }
 }
 
-void WorkWindow::configurePresentationClipBarForCurrentClip() const {
+void WorkWindow::configurePresentationClipBarForCurrentClip() {
     if (!presentationClipBar_) return;
 
     const PresentationQueue::Clip* clip =
@@ -2118,10 +2214,9 @@ void WorkWindow::savePresentationClipIntervalFromClipBar() {
     const int queueIndex = presentationQueue_->currentIndex();
     if (queueIndex < 0) return;
 
-    updatingPresentationClipBar_ = true;
+    const ScopedReentrancyFlag updatingClipBar(updatingPresentationClipBar_);
     presentationQueue_->setClipInterval(queueIndex, presentationClipBar_->clipStartMs(),
                                         presentationClipBar_->clipEndMs());
-    updatingPresentationClipBar_ = false;
 }
 
 void WorkWindow::updatePresentationPlayhead(qint64 positionMs) {
@@ -2277,29 +2372,26 @@ void WorkWindow::showStatsOverlay() {
     statsOverlayDialog_->show();
 }
 
-void WorkWindow::loadNoteForSelectedTag() const {
+void WorkWindow::loadNoteForSelectedTag() {
     if (!notesEdit_) return;
 
+    const QSignalBlocker notesBlocker(notesEdit_);
     const quint64 selectedId = selectedTagId();
     if (pendingClipNote_ && pendingClipNote_->tagId == selectedId) {
-        notesEdit_->blockSignals(true);
         if (notesEdit_->toPlainText() != pendingClipNote_->text) {
             notesEdit_->setPlainText(pendingClipNote_->text);
         }
-        notesEdit_->blockSignals(false);
         notesEdit_->setEnabled(true);
         notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
         return;
     }
 
-    notesEdit_->blockSignals(true);
     if (selectedId == 0 || !tagSession_) {
         if (!notesEdit_->toPlainText().isEmpty()) {
             notesEdit_->clear();
         }
         notesEdit_->setEnabled(false);
         notesEdit_->setPlaceholderText(AppLocale::trUi("notes.clip_placeholder_none"));
-        notesEdit_->blockSignals(false);
         return;
     }
 
@@ -2324,17 +2416,16 @@ void WorkWindow::loadNoteForSelectedTag() const {
         notesEdit_->setEnabled(true);
         notesEdit_->setPlaceholderText(AppLocale::trUi("notes.clip_placeholder_none"));
     }
-    notesEdit_->blockSignals(false);
 }
 
-void WorkWindow::loadMatchNote() const {
+void WorkWindow::loadMatchNote() {
     if (!matchNotesEditor_) return;
     const QString html = tagSession_ ? tagSession_->matchNote() : QString();
     if (matchNotesEditor_->isDocumentEquivalentTo(html)) return;
     matchNotesEditor_->setSerializedHtml(html);
 }
 
-void WorkWindow::refreshMatchNoteMentionCandidates() const {
+void WorkWindow::refreshMatchNoteMentionCandidates() {
     if (!matchNotesEditor_) return;
 
     QVector<MatchNotesEditor::MentionCandidate> candidates;
@@ -2510,6 +2601,12 @@ void WorkWindow::updateFilterButtonsVisibility() const {
 void WorkWindow::syncFilterMenu() {
     if (!tagsFilterMenu_ || !filterSelectAllAction_ || !filterSelectNoneAction_) return;
 
+    const bool deferStructureChanges =
+        tagsFilterMenu_->isVisible() && !filterMenuForceStructureSync_;
+    if (deferStructureChanges) {
+        filterMenuStructureSyncDeferred_ = true;
+    }
+
     filterSelectAllAction_->setText(AppLocale::trUi("filter.select_all"));
     filterSelectNoneAction_->setText(AppLocale::trUi("filter.select_none"));
 
@@ -2521,6 +2618,7 @@ void WorkWindow::syncFilterMenu() {
             liveMainEvents.insert(mainEvent);
             QAction* action = filterActionByMainEvent_.value(mainEvent, nullptr);
             if (!action) {
+                if (deferStructureChanges) continue;
                 action = tagsFilterMenu_->addAction(AppLocale::trEvent(mainEvent));
                 action->setCheckable(true);
                 action->setData(mainEvent);
@@ -2534,13 +2632,16 @@ void WorkWindow::syncFilterMenu() {
                 const QSignalBlocker blocker(action);
                 action->setChecked(checked);
             }
-            action->setVisible(true);
+            if (!deferStructureChanges) action->setVisible(true);
         }
     }
+
+    if (deferStructureChanges) return;
 
     for (auto it = filterActionByMainEvent_.cbegin(); it != filterActionByMainEvent_.cend(); ++it) {
         if (!liveMainEvents.contains(it.key())) it.value()->setVisible(false);
     }
+    filterMenuStructureSyncDeferred_ = false;
 }
 
 void WorkWindow::updateFilterIndicator() const {
@@ -2580,83 +2681,90 @@ void WorkWindow::updateFilterIndicator() const {
 
 void WorkWindow::refreshTagsTableRows() {
     if (!tagsTable_ || !tagsModel_) return;
-
-    const quint64 previouslySelectedTagId = selectedTagId();
-    const int previousVerticalScroll =
-        tagsTable_->verticalScrollBar() ? tagsTable_->verticalScrollBar()->value() : 0;
-    const QSignalBlocker tableBlocker(tagsTable_);
-
-    if (!tagSession_) {
-        tagsModel_->setRows({});
-        refreshMatchNoteMentionCandidates();
-        updateFilterIndicator();
-        updateFilterButtonsVisibility();
-        if (selectedTagId() != previouslySelectedTagId) {
-            loadNoteForSelectedTag();
-        }
+    if (rebuildingTagsTable_) {
+        tagsTableRebuildRequested_ = true;
         return;
     }
 
-    struct TagEntry {
-        TagSession::GameTag tag;
-        int tagSessionIndex;
-    };
-    QVector<TagEntry> entries;
-    int tagSessionIndex = 0;
-    for (const TagSession::GameTag& tag : tagSession_->tags()) {
-        if (isTagAllowed(tag.mainEvent, tag.followUpEvent)) {
-            entries.append({tag, tagSessionIndex});
+    const ScopedReentrancyFlag rebuilding(rebuildingTagsTable_);
+    do {
+        tagsTableRebuildRequested_ = false;
+
+        const quint64 previouslySelectedTagId = selectedTagId();
+        const int previousVerticalScroll =
+            tagsTable_->verticalScrollBar() ? tagsTable_->verticalScrollBar()->value() : 0;
+        const QSignalBlocker tableBlocker(tagsTable_);
+        const QSignalBlocker selectionBlocker(tagsTable_->selectionModel());
+
+        if (!tagSession_) {
+            tagsModel_->setRows({});
+            refreshMatchNoteMentionCandidates();
+            updateFilterIndicator();
+            updateFilterButtonsVisibility();
+        } else {
+            struct TagEntry {
+                TagSession::GameTag tag;
+                int tagSessionIndex;
+            };
+            QVector<TagEntry> entries;
+            int tagSessionIndex = 0;
+            for (const TagSession::GameTag& tag : tagSession_->tags()) {
+                if (isTagAllowed(tag.mainEvent, tag.followUpEvent)) {
+                    entries.append({tag, tagSessionIndex});
+                }
+                tagSessionIndex++;
+            }
+
+            std::sort(entries.begin(), entries.end(), [](const TagEntry& left, const TagEntry& right) {
+                return left.tag.markMs < right.tag.markMs;
+            });
+
+            QVector<TagsTableModel::Row> rows;
+            rows.reserve(entries.size());
+            for (const TagEntry& entry : entries) {
+                const TagSession::GameTag& tag = entry.tag;
+                TagsTableModel::Row row;
+                row.tagId = tag.id;
+                row.tagSessionIndex = entry.tagSessionIndex;
+                row.markMs = tag.markMs;
+                row.teamKey = tag.team;
+                row.timeText = formatTimestampMs(tag.markMs);
+                row.teamText = displayTeamForTag(tag);
+                row.eventText =
+                    AppLocale::trDisplayTagLine(tag.mainEvent, followUpForEventColumn(tag.followUpEvent, tagSession_));
+                row.teamBackground = teamBackgroundForTag(tag, tagSession_);
+                rows.append(row);
+            }
+
+            tagsModel_->setRows(rows);
+            tagsTable_->resizeColumnToContents(0);
+            tagsTable_->resizeColumnToContents(1);
+
+            const int restoredRow = tagsModel_->rowForTagId(previouslySelectedTagId);
+            if (restoredRow >= 0) {
+                tagsTable_->selectRow(restoredRow);
+                tagsTable_->scrollTo(tagsModel_->index(restoredRow, 0), QAbstractItemView::EnsureVisible);
+                if (tagsTable_->verticalScrollBar()) {
+                    tagsTable_->verticalScrollBar()->setValue(previousVerticalScroll);
+                }
+            } else {
+                tagsTable_->scrollToBottom();
+            }
+
+            if (videoPlayer_) {
+                tagsModel_->setPlayheadMs(videoPlayer_->currentPositionMs());
+            }
+
+            updateFilterIndicator();
+            updateFilterButtonsVisibility();
+            refreshMatchNoteMentionCandidates();
         }
-        tagSessionIndex++;
-    }
 
-    std::sort(entries.begin(), entries.end(), [](const TagEntry& left, const TagEntry& right) {
-        return left.tag.markMs < right.tag.markMs;
-    });
-
-    QVector<TagsTableModel::Row> rows;
-    rows.reserve(entries.size());
-    for (const TagEntry& entry : entries) {
-        const TagSession::GameTag& tag = entry.tag;
-        TagsTableModel::Row row;
-        row.tagId = tag.id;
-        row.tagSessionIndex = entry.tagSessionIndex;
-        row.markMs = tag.markMs;
-        row.teamKey = tag.team;
-        row.timeText = formatTimestampMs(tag.markMs);
-        row.teamText = displayTeamForTag(tag);
-        row.eventText =
-            AppLocale::trDisplayTagLine(tag.mainEvent, followUpForEventColumn(tag.followUpEvent, tagSession_));
-        row.teamBackground = teamBackgroundForTag(tag, tagSession_);
-        rows.append(row);
-    }
-
-    tagsModel_->setRows(rows);
-    tagsTable_->resizeColumnToContents(0);
-    tagsTable_->resizeColumnToContents(1);
-
-    const int restoredRow = tagsModel_->rowForTagId(previouslySelectedTagId);
-    if (restoredRow >= 0) {
-        tagsTable_->selectRow(restoredRow);
-        tagsTable_->scrollTo(tagsModel_->index(restoredRow, 0), QAbstractItemView::EnsureVisible);
-        if (tagsTable_->verticalScrollBar()) {
-            tagsTable_->verticalScrollBar()->setValue(previousVerticalScroll);
+        if (selectedTagId() != previouslySelectedTagId) {
+            flushPendingClipNote();
+            loadNoteForSelectedTag();
         }
-    } else {
-        tagsTable_->scrollToBottom();
-    }
-
-    if (videoPlayer_) {
-        tagsModel_->setPlayheadMs(videoPlayer_->currentPositionMs());
-    }
-
-    updateFilterIndicator();
-    updateFilterButtonsVisibility();
-    refreshMatchNoteMentionCandidates();
-
-    if (selectedTagId() != previouslySelectedTagId) {
-        loadNoteForSelectedTag();
-    }
+    } while (tagsTableRebuildRequested_);
 }
 
 #include "WorkWindow.moc"

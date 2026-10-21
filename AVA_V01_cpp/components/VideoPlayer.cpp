@@ -846,6 +846,18 @@ void VideoPlayer::onMediaStatusChanged(QMediaPlayer::MediaStatus status) {
             }
         });
     }
+
+    switch (status) {
+        case QMediaPlayer::NoMedia:
+        case QMediaPlayer::InvalidMedia:
+        case QMediaPlayer::LoadedMedia:
+        case QMediaPlayer::BufferedMedia:
+        case QMediaPlayer::EndOfMedia:
+            emit playbackMediaSettled();
+            break;
+        default:
+            break;
+    }
 }
 
 void VideoPlayer::finalizePendingMediaSession() {
@@ -943,6 +955,34 @@ void VideoPlayer::onSystemDidWake() {
                            if (!player_ || loadedSourcePath_.isEmpty()) return;
                            reloadCurrentMediaFromDisk(targetPositionMs, targetRate, resumePlaying);
                        });
+}
+
+void VideoPlayer::releaseLoadedMedia() {
+    if (!player_) return;
+
+    const bool hadMedia = !loadedSourcePath_.isEmpty() || !player_->source().isEmpty();
+    userRequestedPlaying_ = false;
+    pendingMediaSession_.active = false;
+    sleepRecoveryPending_ = false;
+    pipelineReloadsWithoutProgress_ = 0;
+    resetPlaybackStallWatchdog();
+    if (playbackStallTimer_) playbackStallTimer_->stop();
+    if (!hadMedia) return;
+
+    avaEndPlaybackUserActivity();
+    loadedSourcePath_.clear();
+    wasPlayingBeforeScrub_ = false;
+    player_->stop();
+    if (!player_->source().isEmpty()) {
+        player_->setSource(QUrl());
+    }
+    if (videoTimelineBar_) videoTimelineBar_->reset();
+}
+
+QString VideoPlayer::activeMediaFilePath() const {
+    if (!loadedSourcePath_.isEmpty()) return loadedSourcePath_;
+    if (!player_ || !player_->source().isLocalFile()) return {};
+    return player_->source().toLocalFile();
 }
 
 void VideoPlayer::loadVideoFromFile(const QString& filePath) {

@@ -166,6 +166,7 @@ qt_add_executable(AVAExportTests
   tests/XmlEventMappingDialogTests.cpp
   tests/UiPolicyTests.cpp
   tests/WorkDataViewTests.cpp
+  tests/WorkWindowCorrectnessTests.cpp
   ui/PresentationPanel.cpp
   ui/PresentationInstancesModel.cpp
   ui/XmlEventMappingDialog.cpp
