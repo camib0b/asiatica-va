@@ -173,7 +173,7 @@ void XmlEventMappingDialogTest::sameAbbreviationBlocksConfirm() {
     QCOMPARE(AppLocale::trUiForLanguage("xml_import.mapping_same_abbrev",
                                        AppLocale::Language::Spanish),
              QStringLiteral(
-                 "El local y el visitante no pueden usar la misma abreviatura XML. Elija una abreviatura distinta para cada equipo."));
+                 "El local y el visitante no pueden usar la misma abreviatura para el XML."));
     QCOMPARE(conflictLabel->text(), expectedMessage);
     QVERIFY(!importButton->isEnabled());
     QCOMPARE(teamForCode(table, QStringLiteral("HOME GOAL+")), QStringLiteral("Home"));

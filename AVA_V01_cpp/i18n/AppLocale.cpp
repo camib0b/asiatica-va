@@ -661,10 +661,9 @@ const QHash<QString, UiTranslation>& uiTranslationTable() {
        {QStringLiteral("Choose a team for code: %1"),
         QStringLiteral("Elija un equipo para el código: %1")}},
       {QStringLiteral("xml_import.mapping_same_abbrev"),
-       {QStringLiteral(
-            "Home and away cannot use the same XML abbreviation. Choose a different abbreviation for each team."),
+       {QStringLiteral("Home and away cannot use the same abbreviation for the XML."),
         QStringLiteral(
-            "El local y el visitante no pueden usar la misma abreviatura XML. Elija una abreviatura distinta para cada equipo.")}},
+            "El local y el visitante no pueden usar la misma abreviatura para el XML.")}},
       {QStringLiteral("xml_import.complete_summary"),
        {QStringLiteral("Imported %1 events (%2 skipped, %3 clamped to video bounds)."),
         QStringLiteral("Se importaron %1 eventos (%2 omitidos, %3 ajustados a los límites del video).")}},
