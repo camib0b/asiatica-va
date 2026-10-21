@@ -14,7 +14,6 @@
 #include <QVector>
 
 #include "../export/ExportSettingsDialog.h"
-#include "../state/PendingClipNote.h"
 #include "../state/PresentationQueue.h"
 #include "../state/TagFilter.h"
 #include "TagsTableModel.h"
@@ -27,7 +26,6 @@ class QLabel;
 class QAction;
 class QToolButton;
 class QTableView;
-class QPlainTextEdit;
 class QHBoxLayout;
 class QVBoxLayout;
 class QStackedWidget;
@@ -39,6 +37,7 @@ class QTemporaryDir;
 class VideoConcatenator;
 class VideoPlayer;
 class PlaybackTemporaryDirectoryController;
+class NotesController;
 class GameControls;
 class TagToastOverlay;
 class GameSetupWindow;
@@ -46,7 +45,6 @@ class StatsWindow;
 class ClipTrimBar;
 class PresentationPanel;
 class ExportJobsBar;
-class MatchNotesEditor;
 class ModeToggleTrack;
 
 #include "../state/PresentationPlayback.h"
@@ -87,9 +85,6 @@ private slots:
   void onCloseVideo();
   void onTagTableSeekToRow(int row);
   void onTagSelectionChanged();
-  void onNoteTextChanged();
-  void onMatchNoteTextChanged();
-  void onMatchNoteTagMentionActivated(quint64 tagId);
   void onDeleteSelectedTag();
   void onUndoLastTag();
   void onSelectAllFilters();
@@ -100,8 +95,6 @@ private slots:
   void onRemoveFilters();
   void onModeToggled();
   void showStatsOverlay();
-  void saveNoteDebounceFired();
-  void saveMatchNoteDebounceFired();
   void onGameSetupConfirmed(const QString& filePath,
                             const QString& homeName, const QString& awayName,
                             const QString& homeColor, const QString& awayColor,
@@ -169,14 +162,6 @@ private:
   void updateFilterIndicator() const;
   void updateFilterButtonsVisibility() const;
   void applySessionTeamIdentity();
-  void flushPendingClipNote();
-  void discardPendingClipNote();
-  void stopNoteTimers();
-  void resumeNoteTimers();
-  quint64 selectedTagId() const;
-  void loadNoteForSelectedTag();
-  void loadMatchNote();
-  void refreshMatchNoteMentionCandidates();
   void flashNewTagRow(quint64 tagId);
   void fadeNewTagFlash();
   void syncModeToggleChecks();
@@ -281,8 +266,6 @@ private:
   void connectTagSessionSignals();
   void onTagSessionTagsChanged(quint64 addedTagId);
   void onTagSessionTagsImported();
-  void onTagSessionTagNoteChanged(int changedIndex);
-  void onTagSessionMatchNoteChanged();
   void onTagSessionGameMetadataChanged();
 
   std::optional<QString> preparePlaybackPath(const QString& filePath);
@@ -328,11 +311,6 @@ private:
   void restoreTagsTableSelection(quint64 previouslySelectedTagId, int previousVerticalScroll);
   QSet<QString> refreshFilterMenuActions(bool deferStructureChanges);
   void hideRetiredFilterMenuActions(const QSet<QString>& liveMainEvents);
-
-  int sessionIndexForTagId(quint64 tagId) const;
-  void showPendingClipNoteInEditor();
-  void showDisabledClipNoteEditor();
-  void showStoredClipNoteInEditor(quint64 selectedTagId);
 
   // Mode and layout
   Mode mode_ = Mode::Tagging;
@@ -388,17 +366,8 @@ private:
   GameControls* gameControls_ = nullptr;
   StatsWindow* statsWindow_ = nullptr;
   QWidget* notesColumn_ = nullptr;
-  QLabel* matchNotesLabel_ = nullptr;
-  MatchNotesEditor* matchNotesEditor_ = nullptr;
-  QLabel* clipNotesLabel_ = nullptr;
-  QPlainTextEdit* notesEdit_ = nullptr;
   QDialog* statsOverlayDialog_ = nullptr;
   StatsWindow* statsOverlay_ = nullptr;
-  QTimer* noteDebounceTimer_ = nullptr;
-  QTimer* matchNoteDebounceTimer_ = nullptr;
-  bool resumeClipNoteTimer_ = false;
-  bool resumeMatchNoteTimer_ = false;
-  std::optional<PendingClipNote> pendingClipNote_;
   QLabel* tagsHeaderLabel_ = nullptr;
   QToolButton* tagsFilterButton_ = nullptr;
   QToolButton* tagsRemoveFiltersButton_ = nullptr;
@@ -423,4 +392,6 @@ private:
   QString exportDefaultDirectoryPath_;
   /// Concat, playback-prep, and export-retained temporary directories.
   std::unique_ptr<PlaybackTemporaryDirectoryController> temporaryDirectoryController_;
+  /// Clip-note and match-note editors, debounce timers, and the unsaved clip draft.
+  std::unique_ptr<NotesController> notesController_;
 };

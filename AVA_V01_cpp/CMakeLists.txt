@@ -24,6 +24,7 @@ qt_add_executable(AVA
   ui/GameSetupWindow.cpp
   ui/WorkWindow.cpp
   ui/PlaybackTemporaryDirectoryController.cpp
+  ui/NotesController.cpp
   components/TeamColorPicker.cpp
   ui/PresentationPanel.cpp
   ui/PresentationInstancesModel.cpp
@@ -174,6 +175,7 @@ qt_add_executable(AVAExportTests
   ui/GameSetupWindow.cpp
   ui/WorkWindow.cpp
   ui/PlaybackTemporaryDirectoryController.cpp
+  ui/NotesController.cpp
   ui/StatsWindow.cpp
   ui/PresentationPanel.cpp
   ui/PresentationInstancesModel.cpp

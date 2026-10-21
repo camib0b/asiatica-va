@@ -1,4 +1,5 @@
 #include "WorkWindow.h"
+#include "NotesController.h"
 #include "PlaybackTemporaryDirectoryController.h"
 #include "TagsTableModel.h"
 #include "ClipDurationSettingsDialog.h"
@@ -11,7 +12,6 @@
 #include "../components/GameControls.h"
 #include "../components/TagToastOverlay.h"
 #include "../components/MatchNotesEditor.h"
-#include "../state/EventDefaults.h"
 #include "../state/PresentationQueue.h"
 #include "../state/TagSession.h"
 #include "StatsWindow.h"
@@ -351,7 +351,8 @@ private:
 
 WorkWindow::WorkWindow(QWidget* parent)
     : QWidget(parent),
-      temporaryDirectoryController_(std::make_unique<PlaybackTemporaryDirectoryController>()) {
+      temporaryDirectoryController_(std::make_unique<PlaybackTemporaryDirectoryController>()),
+      notesController_(std::make_unique<NotesController>()) {
     setAttribute(Qt::WA_StyledBackground, true);
     buildUi();
     wireSignals();
@@ -360,7 +361,7 @@ WorkWindow::WorkWindow(QWidget* parent)
 }
 
 WorkWindow::~WorkWindow() {
-    flushPendingClipNote();
+    notesController_->flushPendingClipNote();
     detachPresentationKeyboardShortcuts();
     disconnectTagSessionSignals();
     if (exportJobManager_) {
@@ -368,6 +369,7 @@ WorkWindow::~WorkWindow() {
     }
     temporaryDirectoryController_->releaseForShutdown();
     tagSession_ = nullptr;
+    notesController_->setTagSession(nullptr);
 }
 
 bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(const QWidget* focusWidget) const {
@@ -376,7 +378,7 @@ bool WorkWindow::shouldDeliverPlaybackKeyboardToVideoPlayer(const QWidget* focus
     if (!focusWidget) return true;
     if (focusWidget->window() != window()) return false;
     if (!isAncestorOf(focusWidget)) return false;
-    if (mode_ == Mode::Analyzing && notesEdit_ && focusWidget == notesEdit_) return false;
+    if (mode_ == Mode::Analyzing && notesController_->isClipNotesEditor(focusWidget)) return false;
     if (TextInputFocus::widgetIsTextInput(focusWidget)) return false;
     return true;
 }
@@ -563,10 +565,7 @@ void WorkWindow::applyUiStrings() const {
         undoLastTagButton_->setText(AppLocale::trUi("tags.undo"));
         undoLastTagButton_->setToolTip(AppLocale::trUi("tags.undo_tooltip"));
     }
-    if (notesEdit_) notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
-    if (matchNotesLabel_) matchNotesLabel_->setText(AppLocale::trUi("notes.match_title"));
-    if (clipNotesLabel_) clipNotesLabel_->setText(AppLocale::trUi("notes.clip_title"));
-    if (matchNotesEditor_) matchNotesEditor_->applyUiStrings();
+    notesController_->applyUiStrings();
     if (tagsModel_) {
         tagsModel_->setColumnHeaders({AppLocale::trUi("tags.col_time"), AppLocale::trUi("tags.col_team"),
                                       AppLocale::trUi("tags.col_event")});
@@ -601,6 +600,7 @@ void WorkWindow::disconnectTagSessionSignals() {
         QObject::disconnect(connection);
     }
     tagSessionConnections_.clear();
+    notesController_->disconnectSessionSignals();
 }
 
 void WorkWindow::applySessionTeamIdentity() {
@@ -620,10 +620,11 @@ void WorkWindow::applySessionTeamIdentity() {
 void WorkWindow::setTagSession(TagSession* session) {
     if (tagSession_ == session) return;
 
-    flushPendingClipNote();
+    notesController_->flushPendingClipNote();
     disconnectTagSessionSignals();
 
     tagSession_ = session;
+    notesController_->setTagSession(session);
     bindTagSessionToSurfaces();
     if (gameControls_) {
         gameControls_->setTeamSide(tagSession_ ? TagSession::TeamSide::Home
@@ -631,7 +632,7 @@ void WorkWindow::setTagSession(TagSession* session) {
     }
     syncFilterMenu();
     applySessionTeamIdentity();
-    loadMatchNote();
+    notesController_->loadMatchNote();
 
     if (!tagSession_) return;
     connectTagSessionSignals();
@@ -645,20 +646,11 @@ void WorkWindow::bindTagSessionToSurfaces() {
 }
 
 void WorkWindow::connectTagSessionSignals() {
-    tagSessionConnections_.append(connect(
-        tagSession_, &TagSession::aboutToClear, this, &WorkWindow::flushPendingClipNote,
-        Qt::DirectConnection));
-    tagSessionConnections_.append(connect(
-        tagSession_, &TagSession::aboutToReplaceTags, this, &WorkWindow::flushPendingClipNote,
-        Qt::DirectConnection));
+    notesController_->connectSessionSignals();
     tagSessionConnections_.append(connect(
         tagSession_, &TagSession::tagsChanged, this, &WorkWindow::onTagSessionTagsChanged));
     tagSessionConnections_.append(connect(
         tagSession_, &TagSession::tagsImported, this, &WorkWindow::onTagSessionTagsImported));
-    tagSessionConnections_.append(connect(
-        tagSession_, &TagSession::tagNoteChanged, this, &WorkWindow::onTagSessionTagNoteChanged));
-    tagSessionConnections_.append(connect(
-        tagSession_, &TagSession::matchNoteChanged, this, &WorkWindow::onTagSessionMatchNoteChanged));
     tagSessionConnections_.append(connect(
         tagSession_, &TagSession::gameMetadataChanged, this, &WorkWindow::onTagSessionGameMetadataChanged));
 }
@@ -682,21 +674,6 @@ void WorkWindow::onTagSessionTagsImported() {
     }
 }
 
-void WorkWindow::onTagSessionTagNoteChanged(int changedIndex) {
-    if (!notesEdit_ || !tagSession_) return;
-    if (notesEdit_->hasFocus() || pendingClipNote_.has_value()) return;
-    if (!tagSession_->isValidTagIndex(changedIndex)) return;
-    const quint64 changedTagId = tagSession_->tags().at(changedIndex).id;
-    if (selectedTagId() != changedTagId) return;
-    loadNoteForSelectedTag();
-}
-
-void WorkWindow::onTagSessionMatchNoteChanged() {
-    if (!tagSession_) return;
-    if (matchNotesEditor_ && matchNotesEditor_->hasFocus()) return;
-    loadMatchNote();
-}
-
 void WorkWindow::onTagSessionGameMetadataChanged() {
     if (!tagSession_) return;
     applySessionTeamIdentity();
@@ -718,7 +695,7 @@ void WorkWindow::setMode(Mode m) {
         syncModeToggleChecks();
         return;
     }
-    flushPendingClipNote();
+    notesController_->flushPendingClipNote();
     if (mode_ == Mode::Presenting && m != Mode::Presenting) {
         leavePresentationPlayback();
     }
@@ -1147,6 +1124,7 @@ void WorkWindow::buildTagsTable(QVBoxLayout* tagsSectionLayout) {
     tagsTable_->setMinimumHeight(rowHeight * 2 + headerHeight);
     tagsTable_->setMaximumHeight(QWIDGETSIZE_MAX);
     tagsSectionLayout->addWidget(tagsTable_, 1);
+    notesController_->setTagsTable(tagsTable_, tagsModel_);
 }
 
 void WorkWindow::buildGameControlsAndStatsWindow() {
@@ -1165,25 +1143,26 @@ void WorkWindow::buildNotesColumn() {
     notesColumnLayout->setContentsMargins(0, 0, 0, 0);
     notesColumnLayout->setSpacing(6);
 
-    matchNotesLabel_ = new QLabel(notesColumn_);
-    Style::setRole(matchNotesLabel_, "muted");
-    matchNotesEditor_ = new MatchNotesEditor(notesColumn_);
-    matchNotesEditor_->setMinimumWidth(0);
-    matchNotesEditor_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    auto* matchNotesLabel = new QLabel(notesColumn_);
+    Style::setRole(matchNotesLabel, "muted");
+    auto* matchNotesEditor = new MatchNotesEditor(notesColumn_);
+    matchNotesEditor->setMinimumWidth(0);
+    matchNotesEditor->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-    clipNotesLabel_ = new QLabel(notesColumn_);
-    Style::setRole(clipNotesLabel_, "muted");
-    notesEdit_ = new QPlainTextEdit(notesColumn_);
-    notesEdit_->setMaximumHeight(88);
-    notesEdit_->setMinimumHeight(64);
-    notesEdit_->setMinimumWidth(0);
-    notesEdit_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    Style::setRole(notesEdit_, "muted");
+    auto* clipNotesLabel = new QLabel(notesColumn_);
+    Style::setRole(clipNotesLabel, "muted");
+    auto* notesEdit = new QPlainTextEdit(notesColumn_);
+    notesEdit->setMaximumHeight(88);
+    notesEdit->setMinimumHeight(64);
+    notesEdit->setMinimumWidth(0);
+    notesEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    Style::setRole(notesEdit, "muted");
 
-    notesColumnLayout->addWidget(matchNotesLabel_);
-    notesColumnLayout->addWidget(matchNotesEditor_, 1);
-    notesColumnLayout->addWidget(clipNotesLabel_);
-    notesColumnLayout->addWidget(notesEdit_, 0);
+    notesColumnLayout->addWidget(matchNotesLabel);
+    notesColumnLayout->addWidget(matchNotesEditor, 1);
+    notesColumnLayout->addWidget(clipNotesLabel);
+    notesColumnLayout->addWidget(notesEdit, 0);
+    notesController_->setColumnWidgets(matchNotesLabel, matchNotesEditor, clipNotesLabel, notesEdit);
     static_cast<QVBoxLayout*>(taggingRightCol_->layout())->addWidget(notesColumn_, 1);
 }
 
@@ -1470,16 +1449,7 @@ void WorkWindow::wireModeToggleSignals() {
 }
 
 void WorkWindow::wireNotesSignals() {
-    if (notesEdit_) {
-        notesEdit_->installEventFilter(this);
-        connect(notesEdit_, &QPlainTextEdit::textChanged, this, &WorkWindow::onNoteTextChanged);
-    }
-    if (matchNotesEditor_) {
-        connect(matchNotesEditor_, &MatchNotesEditor::textChanged, this,
-                &WorkWindow::onMatchNoteTextChanged);
-        connect(matchNotesEditor_, &MatchNotesEditor::tagMentionActivated, this,
-                &WorkWindow::onMatchNoteTagMentionActivated);
-    }
+    notesController_->wireEditorSignals();
 }
 
 void WorkWindow::wireTagListActionSignals() {
@@ -1509,20 +1479,13 @@ void WorkWindow::cycleWorkMode() {
 void WorkWindow::wireLocaleAndNoteTimers() {
     connect(&LocaleNotifier::instance(), &LocaleNotifier::languageChanged, this,
             &WorkWindow::onApplicationLanguageChanged);
-
-    noteDebounceTimer_ = new QTimer(this);
-    noteDebounceTimer_->setSingleShot(true);
-    connect(noteDebounceTimer_, &QTimer::timeout, this, &WorkWindow::saveNoteDebounceFired);
-
-    matchNoteDebounceTimer_ = new QTimer(this);
-    matchNoteDebounceTimer_->setSingleShot(true);
-    connect(matchNoteDebounceTimer_, &QTimer::timeout, this, &WorkWindow::saveMatchNoteDebounceFired);
 }
 
 void WorkWindow::wirePlaybackAndTemporaryDirectorySignals() {
     connect(videoPlayer_, &VideoPlayer::positionChangedMs, this, &WorkWindow::onVideoPositionChanged);
     connect(videoPlayer_, &VideoPlayer::durationChangedMs, this, &WorkWindow::onVideoDurationChanged);
     temporaryDirectoryController_->setVideoPlayer(videoPlayer_);
+    notesController_->setVideoPlayer(videoPlayer_);
 }
 
 void WorkWindow::onVideoPositionChanged(qint64 positionMs) {
@@ -1576,7 +1539,7 @@ void WorkWindow::onGameSetupConfirmed(const QString& filePath,
                                        const QString& homeAbbrev,
                                        const QString& awayAbbrev) {
     if (VideoConcatenator* pendingConcatenator = temporaryDirectoryController_->pendingConcatenator()) {
-        stopNoteTimers();
+        notesController_->stopNoteTimers();
         const bool concatOk = pendingConcatenator->waitWithProgress(this);
         const QString errorMessage = pendingConcatenator->errorMessage();
         if (!concatOk) {
@@ -1632,7 +1595,7 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
 }
 
 std::optional<QString> WorkWindow::preparePlaybackPath(const QString& filePath) {
-    stopNoteTimers();
+    notesController_->stopNoteTimers();
     QString playbackPath = filePath;
     temporaryDirectoryController_->cleanupPlaybackPrepVideo();
 
@@ -1774,23 +1737,23 @@ bool WorkWindow::writeSessionNotesBesideXml(const QString& xmlPath) {
 
 void WorkWindow::onReplaceVideo() {
     if (!confirmExportAllowsVideoRelease()) return;
-    flushPendingClipNote();
-    saveMatchNoteDebounceFired();
-    stopNoteTimers();
+    notesController_->flushPendingClipNote();
+    notesController_->saveMatchNoteDebounceFired();
+    notesController_->stopNoteTimers();
 
     const ReplaceVideoChoice choice = chooseReplaceVideoAction(tagSession_, this);
     if (choice == ReplaceVideoChoice::Cancel) {
-        resumeNoteTimers();
+        notesController_->resumeNoteTimers();
         return;
     }
     if (choice == ReplaceVideoChoice::ExportThenContinue && !exportXmlAndNotesBeforeReplace()) {
-        resumeNoteTimers();
+        notesController_->resumeNoteTimers();
         return;
     }
 
     QStringList filePaths = VideoConcatenator::selectVideoFiles(this);
     if (filePaths.isEmpty()) {
-        resumeNoteTimers();
+        notesController_->resumeNoteTimers();
         return;
     }
 
@@ -1810,7 +1773,7 @@ void WorkWindow::replaceOpenVideoWithFile(const QString& filePath) {
 void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
     filePaths.sort(Qt::CaseInsensitive);
     if (!VideoConcatenator::showFileOrderDialog(filePaths, this)) {
-        resumeNoteTimers();
+        notesController_->resumeNoteTimers();
         return;
     }
     setExportDefaultDirectoryFromVideoPath(filePaths.first());
@@ -1820,7 +1783,7 @@ void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
         QMessageBox::warning(this,
                              AppLocale::trUi("app.title"),
                              AppLocale::trUi("concat.error_failed"));
-        resumeNoteTimers();
+        notesController_->resumeNoteTimers();
         return;
     }
 
@@ -1832,7 +1795,7 @@ void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
         if (!result.errorMessage.isEmpty()) {
             QMessageBox::warning(this, AppLocale::trUi("app.title"), result.errorMessage);
         }
-        resumeNoteTimers();
+        notesController_->resumeNoteTimers();
         return;
     }
 
@@ -2365,9 +2328,6 @@ void WorkWindow::detachPresentationKeyboardShortcuts() {
 }
 
 bool WorkWindow::eventFilter(QObject* watched, QEvent* event) {
-    if (watched == notesEdit_ && event && event->type() == QEvent::FocusOut) {
-        flushPendingClipNote();
-    }
     if (handlePresentationTabShortcut(watched, event)) return true;
     return QWidget::eventFilter(watched, event);
 }
@@ -2403,76 +2363,8 @@ bool WorkWindow::handlePresentationTabShortcut(QObject* watched, QEvent* event) 
 }
 
 void WorkWindow::onTagSelectionChanged() {
-    flushPendingClipNote();
-    loadNoteForSelectedTag();
-}
-
-void WorkWindow::onNoteTextChanged() {
-    if (!notesEdit_ || !tagSession_ || !noteDebounceTimer_) return;
-    const quint64 tagId = selectedTagId();
-    if (tagId == 0 || tagSession_->indexOfTagId(tagId) < 0) return;
-    pendingClipNote_ = PendingClipNote{tagId, tagSession_->tagIdEpoch(), notesEdit_->toPlainText()};
-    noteDebounceTimer_->start(400);
-}
-
-void WorkWindow::stopNoteTimers() {
-    resumeClipNoteTimer_ = noteDebounceTimer_ && noteDebounceTimer_->isActive();
-    resumeMatchNoteTimer_ = matchNoteDebounceTimer_ && matchNoteDebounceTimer_->isActive();
-    if (noteDebounceTimer_) noteDebounceTimer_->stop();
-    if (matchNoteDebounceTimer_) matchNoteDebounceTimer_->stop();
-}
-
-void WorkWindow::resumeNoteTimers() {
-    if (resumeClipNoteTimer_ && pendingClipNote_ && noteDebounceTimer_) {
-        noteDebounceTimer_->start(400);
-    }
-    if (resumeMatchNoteTimer_ && matchNoteDebounceTimer_) {
-        matchNoteDebounceTimer_->start(400);
-    }
-    resumeClipNoteTimer_ = false;
-    resumeMatchNoteTimer_ = false;
-}
-
-void WorkWindow::saveNoteDebounceFired() {
-    flushPendingClipNote();
-}
-
-void WorkWindow::onMatchNoteTextChanged() {
-    if (!matchNoteDebounceTimer_) return;
-    matchNoteDebounceTimer_->start(400);
-}
-
-void WorkWindow::saveMatchNoteDebounceFired() {
-    if (!tagSession_ || !matchNotesEditor_) return;
-    tagSession_->setMatchNote(matchNotesEditor_->serializedHtml());
-}
-
-void WorkWindow::discardPendingClipNote() {
-    if (noteDebounceTimer_) noteDebounceTimer_->stop();
-    resumeClipNoteTimer_ = false;
-    pendingClipNote_.reset();
-}
-
-void WorkWindow::flushPendingClipNote() {
-    if (noteDebounceTimer_) noteDebounceTimer_->stop();
-    resumeClipNoteTimer_ = false;
-    if (!pendingClipNote_) return;
-
-    const PendingClipNote note = *pendingClipNote_;
-    pendingClipNote_.reset();
-    if (!tagSession_) return;
-
-    const int sessionIndex = tagSession_->indexOfTagId(note.tagId);
-    const bool tagStillPresent = tagSession_->isValidTagIndex(sessionIndex);
-    if (!pendingClipNoteApplies(note, tagSession_->tagIdEpoch(), tagStillPresent)) return;
-    tagSession_->setTagNote(sessionIndex, note.text);
-}
-
-quint64 WorkWindow::selectedTagId() const {
-    if (!tagsTable_ || !tagsModel_ || !tagsTable_->selectionModel()) return 0;
-    const QModelIndex currentIndex = tagsTable_->selectionModel()->currentIndex();
-    if (!currentIndex.isValid()) return 0;
-    return tagsModel_->tagIdAt(currentIndex.row());
+    notesController_->flushPendingClipNote();
+    notesController_->loadNoteForSelectedTag();
 }
 
 void WorkWindow::showStatsOverlay() {
@@ -2491,115 +2383,6 @@ void WorkWindow::showStatsOverlay() {
     if (statsOverlay_) statsOverlay_->setTagSession(tagSession_);
     statsOverlayDialog_->raise();
     statsOverlayDialog_->show();
-}
-
-void WorkWindow::loadNoteForSelectedTag() {
-    if (!notesEdit_) return;
-
-    const QSignalBlocker notesBlocker(notesEdit_);
-    const quint64 selectedId = selectedTagId();
-    if (pendingClipNote_ && pendingClipNote_->tagId == selectedId) {
-        showPendingClipNoteInEditor();
-        return;
-    }
-
-    if (selectedId == 0 || !tagSession_) {
-        showDisabledClipNoteEditor();
-        return;
-    }
-
-    showStoredClipNoteInEditor(selectedId);
-}
-
-void WorkWindow::showPendingClipNoteInEditor() {
-    if (notesEdit_->toPlainText() != pendingClipNote_->text) {
-        notesEdit_->setPlainText(pendingClipNote_->text);
-    }
-    notesEdit_->setEnabled(true);
-    notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
-}
-
-void WorkWindow::showDisabledClipNoteEditor() {
-    if (!notesEdit_->toPlainText().isEmpty()) {
-        notesEdit_->clear();
-    }
-    notesEdit_->setEnabled(false);
-    notesEdit_->setPlaceholderText(AppLocale::trUi("notes.clip_placeholder_none"));
-}
-
-void WorkWindow::showStoredClipNoteInEditor(quint64 selectedTagId) {
-    const int sessionIndex = sessionIndexForTagId(selectedTagId);
-    if (tagSession_->isValidTagIndex(sessionIndex)) {
-        const QString noteText = tagSession_->tagNote(sessionIndex);
-        if (notesEdit_->toPlainText() != noteText) {
-            notesEdit_->setPlainText(noteText);
-        }
-        notesEdit_->setEnabled(true);
-        notesEdit_->setPlaceholderText(AppLocale::trUi("tags.note_placeholder"));
-    } else {
-        if (!notesEdit_->toPlainText().isEmpty()) {
-            notesEdit_->clear();
-        }
-        notesEdit_->setEnabled(true);
-        notesEdit_->setPlaceholderText(AppLocale::trUi("notes.clip_placeholder_none"));
-    }
-}
-
-int WorkWindow::sessionIndexForTagId(quint64 tagId) const {
-    if (!tagSession_) return -1;
-    const int sessionIndex = tagSession_->indexOfTagId(tagId);
-    if (sessionIndex >= 0) return sessionIndex;
-    if (!tagsModel_ || !tagsTable_ || !tagsTable_->selectionModel()) return sessionIndex;
-    const QModelIndex currentIndex = tagsTable_->selectionModel()->currentIndex();
-    if (!currentIndex.isValid()) return sessionIndex;
-    return tagsModel_->tagSessionIndexAt(currentIndex.row());
-}
-
-void WorkWindow::loadMatchNote() {
-    if (!matchNotesEditor_) return;
-    const QString html = tagSession_ ? tagSession_->matchNote() : QString();
-    if (matchNotesEditor_->isDocumentEquivalentTo(html)) return;
-    matchNotesEditor_->setSerializedHtml(html);
-}
-
-void WorkWindow::refreshMatchNoteMentionCandidates() {
-    if (!matchNotesEditor_) return;
-
-    QVector<MatchNotesEditor::MentionCandidate> candidates;
-    if (tagSession_) {
-        for (const TagSession::GameTag& tag : tagSession_->tags()) {
-            if (tag.id == 0) continue;
-            if (EventDefaults::isTimeControlEvent(tag.mainEvent)) continue;
-            const QString followUp = followUpForEventColumn(tag.followUpEvent, tagSession_);
-            const QString eventLine = AppLocale::trDisplayTagLine(tag.mainEvent, followUp);
-            const QString teamName = displayTeamForTag(tag);
-            MatchNotesEditor::MentionCandidate candidate;
-            candidate.tagId = tag.id;
-            candidate.label = QStringLiteral("%1  %2  ·  %3")
-                                  .arg(formatTimestampMs(tag.markMs), eventLine, teamName);
-            candidate.searchText = candidate.label;
-            candidates.append(candidate);
-        }
-    }
-    matchNotesEditor_->setMentionCandidates(candidates);
-}
-
-void WorkWindow::onMatchNoteTagMentionActivated(quint64 tagId) {
-    if (!tagSession_ || !tagsTable_ || !tagsModel_) return;
-    const int sessionIndex = tagSession_->indexOfTagId(tagId);
-    if (!tagSession_->isValidTagIndex(sessionIndex)) return;
-
-    const int row = tagsModel_->rowForTagId(tagId);
-    if (row >= 0) {
-        tagsTable_->selectRow(row);
-        tagsTable_->scrollTo(tagsModel_->index(row, 0), QAbstractItemView::PositionAtCenter);
-        onTagTableSeekToRow(row);
-        return;
-    }
-
-    if (videoPlayer_) {
-        videoPlayer_->seekToMs(tagSession_->tags().at(sessionIndex).markMs);
-    }
 }
 
 void WorkWindow::onTagTableSeekToRow(int row) {
@@ -2653,17 +2436,13 @@ void WorkWindow::onPlayheadPositionChanged(qint64 positionMs) {
 void WorkWindow::onDeleteSelectedTag() {
     if (!tagsTable_ || !tagSession_ || !tagsModel_) return;
 
-    const quint64 tagId = selectedTagId();
+    const quint64 tagId = notesController_->selectedTagId();
     if (tagId == 0) return;
 
-    const int tagIndex = sessionIndexForTagId(tagId);
+    const int tagIndex = notesController_->sessionIndexForTagId(tagId);
     if (tagIndex < 0 || !tagSession_->isValidTagIndex(tagIndex)) return;
 
-    if (pendingClipNote_ && pendingClipNote_->tagId == tagId) {
-        discardPendingClipNote();
-    } else {
-        flushPendingClipNote();
-    }
+    notesController_->discardPendingClipNoteForRemovedTag(tagId);
     tagSession_->removeTag(tagIndex);
 }
 
@@ -2833,7 +2612,7 @@ void WorkWindow::refreshTagsTableRows() {
 }
 
 void WorkWindow::rebuildTagsTableOnce() {
-    const quint64 previouslySelectedTagId = selectedTagId();
+    const quint64 previouslySelectedTagId = notesController_->selectedTagId();
     const int previousVerticalScroll =
         tagsTable_->verticalScrollBar() ? tagsTable_->verticalScrollBar()->value() : 0;
     // Keep both blockers alive through the note reload. A selection change
@@ -2852,18 +2631,18 @@ void WorkWindow::rebuildTagsTableOnce() {
         }
         updateFilterIndicator();
         updateFilterButtonsVisibility();
-        refreshMatchNoteMentionCandidates();
+        notesController_->refreshMatchNoteMentionCandidates();
     }
 
-    if (selectedTagId() != previouslySelectedTagId) {
-        flushPendingClipNote();
-        loadNoteForSelectedTag();
+    if (notesController_->selectedTagId() != previouslySelectedTagId) {
+        notesController_->flushPendingClipNote();
+        notesController_->loadNoteForSelectedTag();
     }
 }
 
 void WorkWindow::showEmptyTagsTable() {
     tagsModel_->setRows({});
-    refreshMatchNoteMentionCandidates();
+    notesController_->refreshMatchNoteMentionCandidates();
     updateFilterIndicator();
     updateFilterButtonsVisibility();
 }
