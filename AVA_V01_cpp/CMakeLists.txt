@@ -56,6 +56,7 @@ qt_add_executable(AVA
   components/MatchNotesEditor.cpp
   components/VideoPlayer.cpp
   export/ClipExporter.cpp
+  export/ExportVideoEncoder.cpp
   export/ShootoutState.cpp
   export/ShootoutOverlay.cpp
   export/CompilationSidecar.cpp
@@ -165,6 +166,7 @@ find_package(Qt6 REQUIRED COMPONENTS Test)
 
 qt_add_executable(AVAExportTests
   tests/CompilationSidecarTests.cpp
+  tests/ExportVideoEncoderTests.cpp
   tests/EventCatalogTests.cpp
   tests/EventLabelOverrideTests.cpp
   tests/TagEventRoundTripTests.cpp
@@ -225,6 +227,7 @@ qt_add_executable(AVAExportTests
   style/TextFit.cpp
   ui/ReplaceVideoConfirmation.cpp
   export/ClipExporter.cpp
+  export/ExportVideoEncoder.cpp
   export/ClipTrimBar.cpp
   export/ExportJobsBar.cpp
   export/ExportSettingsDialog.cpp
