@@ -2,7 +2,9 @@
 #include "QtPtr.h"
 
 #include "../i18n/AppLocale.h"
+#include "../state/EventCatalog.h"
 #include "../state/EventDefaults.h"
+#include "../state/EventLabelResolver.h"
 #include "../state/TagSession.h"
 #include "../state/TimeConvert.h"
 #include "../style/StyleProps.h"
@@ -31,6 +33,12 @@ static_assert(EventDefaults::kMaxLeadLagMs == static_cast<qint64>(kMaxDurationSe
 qint64 millisecondsFromSpinSeconds(double seconds) {
   return TimeConvert::clampedMillisecondsFromSeconds(seconds, EventDefaults::kMinLeadLagMs,
                                                      EventDefaults::kMaxLeadLagMs);
+}
+
+QString durationEventLabel(const QString& eventName, const TagSession* session) {
+  const EventCatalog::Node* node = EventCatalog::mainEventForCanonicalName(eventName);
+  if (!node) return AppLocale::trEvent(eventName);
+  return EventLabelResolver::labelForId(node->id, session);
 }
 
 std::unique_ptr<QDoubleSpinBox, QtParentDeleter> makeDurationSpinBox(QWidget* parent) {
@@ -68,6 +76,10 @@ ClipDurationSettingsDialog::ClipDurationSettingsDialog(TagSession* session, QWid
   buildUi();
   populateRows();
   applyUiStrings();
+  if (tagSession_) {
+    connect(tagSession_, &TagSession::eventLabelOverridesChanged, this,
+            &ClipDurationSettingsDialog::applyUiStrings);
+  }
 }
 
 void ClipDurationSettingsDialog::buildUi() {
@@ -170,7 +182,7 @@ void ClipDurationSettingsDialog::populateRows() {
   for (const QString& eventName : eventTypes) {
     const EventDefaults::EventDuration duration = EventDefaults::defaultFor(eventName);
 
-    auto eventLabel = makeQtPtr<QLabel>(AppLocale::trEvent(eventName), tableHost_.get());
+    auto eventLabel = makeQtPtr<QLabel>(durationEventLabel(eventName, tagSession_), tableHost_.get());
     auto leadSpin = makeDurationSpinBox(tableHost_.get());
     leadSpin->setValue(duration.leadMs / 1000.0);
     auto lagSpin = makeDurationSpinBox(tableHost_.get());
@@ -214,7 +226,7 @@ void ClipDurationSettingsDialog::applyUiStrings() {
   if (closeButton_) closeButton_->setText(AppLocale::trUi("clip_durations.close"));
 
   for (DurationRow& row : rows_) {
-    if (row.eventLabel) row.eventLabel->setText(AppLocale::trEvent(row.eventName));
+    if (row.eventLabel) row.eventLabel->setText(durationEventLabel(row.eventName, tagSession_));
     refreshTotalLabel(row);
   }
 }

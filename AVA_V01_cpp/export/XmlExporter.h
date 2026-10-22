@@ -28,6 +28,14 @@ class TagSession;
 /// stores the same <ID> this writer emits. The tagged-team "+" instance is emitted before the
 /// opposing "-" instance.
 ///
+/// Session label overrides are not written. `<code>` stays the stable short code
+/// (`UC SHOT+`) or, when an abbreviation is missing, the canonical English name.
+/// carpeta.cl and a later import match that code back to the catalog id. This
+/// document has no separate event display-name field: QUARTOS, RESULTADO, and
+/// ANO are not the event label. A rename therefore does not change the XML of
+/// an event. The visible name goes to the .clips.json overlay label and to
+/// compilation filenames instead. Follow-up renames stay out of both files.
+///
 /// The output format mirrors the reference shipped with the spec:
 ///   <file>
 ///     <ALL_INSTANCES>

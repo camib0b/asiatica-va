@@ -1,6 +1,7 @@
 #include "TagRowDisplay.h"
 
 #include "../i18n/AppLocale.h"
+#include "../state/EventLabelResolver.h"
 #include "../state/TagEvent.h"
 
 namespace TagRowDisplay {
@@ -52,8 +53,8 @@ QString followUpPathForDisplay(const QString& followUpEvent, const TagSession* t
                                                     tagSession->awayTeamName());
 }
 
-QString eventLineForTag(const TagSession::GameTag& tag) {
-  return TagEvent::displayTagLine(tag.mainEventKey(), tag.followUpChain());
+QString eventLineForTag(const TagSession::GameTag& tag, const TagSession* tagSession) {
+  return EventLabelResolver::tagLine(tag.mainEventKey(), tag.followUpChain(), tagSession);
 }
 
 QString displayTeamForTag(const TagSession::GameTag& tag, const TagSession* tagSession) {

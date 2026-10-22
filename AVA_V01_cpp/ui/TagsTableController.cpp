@@ -2,6 +2,7 @@
 
 #include "../components/VideoPlayer.h"
 #include "../i18n/AppLocale.h"
+#include "../state/EventLabelResolver.h"
 #include "../state/TagEvent.h"
 #include "../state/TagSession.h"
 #include "NotesController.h"
@@ -217,8 +218,8 @@ void TagsTableController::updateFilterIndicator() const {
   if (!tagsFilterIndicator_) return;
 
   if (tagFilter_.eventPath.has_value() && !tagFilter_.eventPath->mainEvent.isEmpty()) {
-    const QString pathText = TagEvent::displayTagLine(tagFilter_.eventPath->mainEvent,
-                                                      tagFilter_.eventPath->followUps);
+    const QString pathText = EventLabelResolver::tagLine(tagFilter_.eventPath->mainEvent,
+                                                         tagFilter_.eventPath->followUps, tagSession_);
     tagsFilterIndicator_->setText(AppLocale::trUi("filter.indicator") + pathText);
     tagsFilterIndicator_->show();
     return;
@@ -231,7 +232,7 @@ void TagsTableController::updateFilterIndicator() const {
   QStringList shownLabels;
   for (const TagEvent::MainEventKey& mainEvent : visibleMainEvents) {
     if (tagFilter_.hiddenMainEvents.contains(mainEvent)) continue;
-    shownLabels.append(TagEvent::displayLabel(mainEvent));
+    shownLabels.append(EventLabelResolver::labelForKey(mainEvent, tagSession_));
   }
 
   if (shownLabels.isEmpty() || shownLabels.size() == visibleMainEvents.size()) {
@@ -315,7 +316,7 @@ TagsTableModel::Row TagsTableController::tagsTableRowFor(const TagSession::GameT
   row.teamKey = tag.team;
   row.timeText = TagRowDisplay::formatTimestampMs(tag.markMs);
   row.teamText = TagRowDisplay::displayTeamForTag(tag, tagSession_);
-  row.eventText = TagRowDisplay::eventLineForTag(tag);
+  row.eventText = TagRowDisplay::eventLineForTag(tag, tagSession_);
   row.teamBackground = TagRowDisplay::teamBackgroundForTag(tag, tagSession_);
   return row;
 }
@@ -350,13 +351,13 @@ QSet<TagEvent::MainEventKey> TagsTableController::refreshFilterMenuActions(bool 
     QAction* action = filterActionByMainEvent_.value(mainEvent, nullptr);
     if (!action) {
       if (deferStructureChanges) continue;
-      action = tagsFilterMenu_->addAction(TagEvent::displayLabel(mainEvent));
+      action = tagsFilterMenu_->addAction(EventLabelResolver::labelForKey(mainEvent, tagSession_));
       action->setCheckable(true);
       action->setData(QVariant::fromValue(mainEvent));
       connect(action, &QAction::toggled, this, &TagsTableController::onFilterActionToggled);
       filterActionByMainEvent_.insert(mainEvent, action);
     } else {
-      action->setText(TagEvent::displayLabel(mainEvent));
+      action->setText(EventLabelResolver::labelForKey(mainEvent, tagSession_));
     }
     const bool checked = !tagFilter_.hiddenMainEvents.contains(mainEvent);
     if (action->isChecked() != checked) {

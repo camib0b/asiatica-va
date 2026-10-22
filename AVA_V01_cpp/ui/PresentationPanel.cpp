@@ -2,6 +2,7 @@
 
 #include "../i18n/AppLocale.h"
 #include "../state/EventDefaults.h"
+#include "../state/EventLabelResolver.h"
 #include "../state/TagEvent.h"
 #include "../state/TagSession.h"
 #include "../state/TeamAbbreviation.h"
@@ -743,6 +744,8 @@ void PresentationPanel::setTagSession(TagSession* session) {
     connect(tagSession_, &TagSession::gameMetadataChanged, this,
             &PresentationPanel::refreshFromSession);
     connect(tagSession_, &TagSession::tagNoteChanged, this, [this](int) { refreshFromSession(); });
+    connect(tagSession_, &TagSession::eventLabelOverridesChanged, this,
+            &PresentationPanel::refreshFromSession);
   }
 
   refreshFromSession();
@@ -785,8 +788,9 @@ void PresentationPanel::rebuildEventFilterOptions() {
       if (mainEvent.isTimeControl()) continue;
       const int count = counts.value(mainEvent, 0);
       if (count <= 0) continue;
-      const QString label =
-          QStringLiteral("%1  (%2)").arg(TagEvent::displayLabel(mainEvent)).arg(count);
+      const QString label = QStringLiteral("%1  (%2)")
+                                .arg(EventLabelResolver::labelForKey(mainEvent, tagSession_))
+                                .arg(count);
       if (mainEvent.id != EventCatalog::EventId::None) {
         eventFilterCombo_->addItem(label, static_cast<int>(mainEvent.id));
       } else {
@@ -828,7 +832,7 @@ PresentationInstancesModel::Row PresentationPanel::makeVisibleRow(int tagSession
 PresentationInstancesModel::Row PresentationPanel::makeSessionRow(
     int tagSessionIndex, const TagSession::GameTag& tag) const {
   return {tagSessionIndex, tag.id, tag.markMs, teamDisplayName(tag.team),
-          TagRowDisplay::eventLineForTag(tag)};
+          TagRowDisplay::eventLineForTag(tag, tagSession_)};
 }
 
 QVector<PresentationInstancesModel::Row> PresentationPanel::buildFixtureRows() const {

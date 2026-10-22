@@ -10,6 +10,7 @@
 
 #include "FollowUpState.h"
 #include "../state/EventCatalog.h"
+#include "../state/EventLabelOverrides.h"
 #include "../state/TagSession.h"
 
 class QPushButton;
@@ -50,6 +51,11 @@ public:
   /// or an empty string when no quarter is in progress.
   QString currentPeriodName() const;
 
+  /// Button titles and follow-up popups. Canonical names stay on the buttons so
+  /// commits and shortcuts do not change. Shortcut and hidden overrides are
+  /// stored on the session and are not applied here.
+  void setEventLabelOverrides(const EventLabelOverrides::Table& overrides);
+
   void applyUiLanguage();
 
 signals:
@@ -59,8 +65,10 @@ signals:
   void tagCommitted(const QString& mainEvent, const QString& followUpEvent = QString());
   /// One step of the on-video confirmation. \c startsChain replaces the chain (main event).
   /// \c chainOpen stays true while follow-up questions remain.
+  /// \p stepLabel is the canonical token. \p stepEventId is the catalog id the
+  /// toast resolves, so a rename does not change the token tests and commits use.
   void tagSequenceAdvanced(const QString& shortcutKey, const QString& stepLabel, const QColor& teamColor,
-                           bool chainOpen, bool startsChain);
+                           bool chainOpen, bool startsChain, EventCatalog::EventId stepEventId);
   /// Esc ended the open follow-up. tagCommitted still records the main event with an empty path.
   void tagSequenceDismissed();
   /// Emitted when the user advances from NotStarted (period-advance button / G or H).
@@ -96,7 +104,7 @@ private:
   QString selectedTeamLabel() const;
   QColor selectedTeamColor() const;
   void notifyTagSequence(const QString& shortcutKey, const QString& stepLabel, bool chainOpen,
-                         bool startsChain);
+                         bool startsChain, EventCatalog::EventId stepEventId);
   void refreshTeamButtonLabels();
   const QList<QPushButton*>& keyboardOrderButtons() const;
   /// After possession changes to the other side (e.g. Turnover), select the other team for the next tag.
@@ -150,6 +158,7 @@ protected:
   QString homeTeamColorHex_;
   QString awayTeamColorHex_;
   TagSession::TeamSide teamSide_ = TagSession::TeamSide::Unspecified;
+  EventLabelOverrides::Table labelOverrides_;
 
   QVector<QLabel*> mainButtonTitleLabels_;
 };

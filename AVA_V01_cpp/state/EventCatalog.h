@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QMetaType>
 #include <QString>
 #include <QStringList>
 
@@ -225,3 +226,5 @@ int buttonGridRowCount();
 ButtonGridRow buttonGridRowAt(int rowIndex);
 
 }  // namespace EventCatalog
+
+Q_DECLARE_METATYPE(EventCatalog::EventId)

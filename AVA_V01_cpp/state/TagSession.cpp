@@ -34,6 +34,14 @@ bool isGameTimeTag(const TagSession::GameTag& tag, int* quarterIndexOut = nullpt
   return isGameTimeMainEvent(tag.unlistedName, quarterIndexOut);
 }
 
+EventLabelOverrides::Result publishIfOverrideChanged(TagSession* session,
+                                                     const EventLabelOverrides::Table& before,
+                                                     const EventLabelOverrides::Table& after,
+                                                     const EventLabelOverrides::Result& result) {
+  if (result.accepted && before != after) emit session->eventLabelOverridesChanged();
+  return result;
+}
+
 /// Enforces start >= 0, end >= start, and start <= mark <= end.
 /// When \p videoDurationMs is >= 0, start and end are also capped to that duration.
 /// Returns true when any of the three timestamps changed.
@@ -102,6 +110,43 @@ void TagSession::clear() {
   resetGameTimeState();
   emit cleared();
   emit tagsChanged();
+}
+
+EventLabelOverrides::Result TagSession::setEventLabel(EventCatalog::EventId id,
+                                                      const QString& label) {
+  const EventLabelOverrides::Table before = eventLabelOverrides_;
+  const EventLabelOverrides::Result result = eventLabelOverrides_.setLabel(id, label);
+  return publishIfOverrideChanged(this, before, eventLabelOverrides_, result);
+}
+
+EventLabelOverrides::Result TagSession::clearEventLabel(EventCatalog::EventId id) {
+  const EventLabelOverrides::Table before = eventLabelOverrides_;
+  const EventLabelOverrides::Result result = eventLabelOverrides_.clearLabel(id);
+  return publishIfOverrideChanged(this, before, eventLabelOverrides_, result);
+}
+
+EventLabelOverrides::Result TagSession::setEventShortcutKey(EventCatalog::EventId id, Qt::Key key) {
+  const EventLabelOverrides::Table before = eventLabelOverrides_;
+  const EventLabelOverrides::Result result = eventLabelOverrides_.setShortcutKey(id, key);
+  return publishIfOverrideChanged(this, before, eventLabelOverrides_, result);
+}
+
+EventLabelOverrides::Result TagSession::clearEventShortcutKey(EventCatalog::EventId id) {
+  const EventLabelOverrides::Table before = eventLabelOverrides_;
+  const EventLabelOverrides::Result result = eventLabelOverrides_.clearShortcutKey(id);
+  return publishIfOverrideChanged(this, before, eventLabelOverrides_, result);
+}
+
+EventLabelOverrides::Result TagSession::setEventHidden(EventCatalog::EventId id, bool hidden) {
+  const EventLabelOverrides::Table before = eventLabelOverrides_;
+  const EventLabelOverrides::Result result = eventLabelOverrides_.setHidden(id, hidden);
+  return publishIfOverrideChanged(this, before, eventLabelOverrides_, result);
+}
+
+void TagSession::clearEventLabelOverrides() {
+  if (eventLabelOverrides_ == EventLabelOverrides::Table{}) return;
+  eventLabelOverrides_.clear();
+  emit eventLabelOverridesChanged();
 }
 
 void TagSession::clearGameMetadata() {

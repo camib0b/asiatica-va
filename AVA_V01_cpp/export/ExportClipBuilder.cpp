@@ -1,6 +1,8 @@
 #include "ExportClipBuilder.h"
 
 #include "EventCatalog.h"
+#include "EventLabelOverrides.h"
+#include "EventLabelResolver.h"
 #include "ShootoutOverlay.h"
 #include "ShootoutState.h"
 #include "TagEvent.h"
@@ -25,6 +27,15 @@ QString teamAbbrevForClip(const TagSession* session, const QString& teamKey) {
         return session->awayAbbrev();
     }
     return {};
+}
+
+QString filenameEventLabel(const QString& canonicalEvent,
+                           const EventLabelOverrides::Table& overrides) {
+    const EventCatalog::Node* node = EventCatalog::mainEventForCanonicalName(canonicalEvent);
+    if (node && overrides.hasLabel(node->id)) return overrides.label(node->id);
+    // The star is a display label, not a filename. A session rename replaces it.
+    if (canonicalEvent == QStringLiteral("Special")) return QStringLiteral("special");
+    return AppLocale::trEvent(canonicalEvent);
 }
 
 }  // namespace
@@ -59,10 +70,7 @@ QString sanitizedFileNamePart(const QString& raw) {
 }
 
 QString eventLabelForExportFileName(const QString& canonicalEvent) {
-    if (canonicalEvent == QStringLiteral("Special")) {
-        return QStringLiteral("special");
-    }
-    return AppLocale::trEvent(canonicalEvent);
+    return filenameEventLabel(canonicalEvent, EventLabelOverrides::Table{});
 }
 
 QString xmlReportBaseName(const TagSession* session) {
@@ -100,7 +108,9 @@ QString compilationBaseName(const TagSession* session,
 
     const QString eventSegment = (clips.isEmpty() || mixedEvents || sharedEvent.isEmpty())
         ? sanitizedFileNamePart(AppLocale::trUi("export.mixed_events_filename"))
-        : sanitizedFileNamePart(eventLabelForExportFileName(TagEvent::canonicalName(sharedEvent)));
+        : sanitizedFileNamePart(filenameEventLabel(
+              TagEvent::canonicalName(sharedEvent),
+              session ? session->eventLabelOverrides() : EventLabelOverrides::Table{}));
     const QString teamSegment = (clips.isEmpty() || mixedTeams || sharedTeam.isEmpty())
         ? sanitizedFileNamePart(AppLocale::trUi("export.team_all"))
         : sanitizedFileNamePart(teamDisplayName(session, sharedTeam));
@@ -160,8 +170,10 @@ QVector<ClipSegment> buildClipSegments(const TagSession* session,
         QString primary;
         QString secondary;
         if (options.includeBottomOverlay) {
-            const QString translatedEvent =
-                TagEvent::displayLabel(clip.mainEvent, options.language);
+            const QString translatedEvent = EventLabelResolver::labelForKey(
+                clip.mainEvent,
+                session ? session->eventLabelOverrides() : EventLabelOverrides::Table{},
+                options.language);
             overlayLabel = QStringLiteral("%1 - %2")
                 .arg(teamDisplayName(session, clip.team), translatedEvent);
             // Two spaces before the counter: "{label}  {n} / {N}".

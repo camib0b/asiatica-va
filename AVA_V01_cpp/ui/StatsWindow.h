@@ -30,6 +30,7 @@ private slots:
   void onSessionCleared();
   void onSessionTagsChanged();
   void onSessionGameMetadataChanged();
+  void onEventLabelOverridesChanged();
   void onTeamFilterClicked(int id);
 
 private:

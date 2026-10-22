@@ -175,7 +175,7 @@ void NotesController::refreshMatchNoteMentionCandidates() {
     for (const TagSession::GameTag& tag : tagSession_->tags()) {
       if (tag.id == 0) continue;
       if (tag.mainEventKey().isTimeControl()) continue;
-      const QString eventLine = TagRowDisplay::eventLineForTag(tag);
+      const QString eventLine = TagRowDisplay::eventLineForTag(tag, tagSession_);
       const QString teamName = TagRowDisplay::displayTeamForTag(tag, tagSession_);
       MatchNotesEditor::MentionCandidate candidate;
       candidate.tagId = tag.id;

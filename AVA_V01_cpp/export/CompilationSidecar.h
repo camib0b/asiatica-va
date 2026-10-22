@@ -20,6 +20,8 @@ struct ClipCompilationRecord {
     QString code;
     /// Stable prefix burned on every frame ("OR - 16-yd"), without the "n / N" counter.
     /// The burned line is "{overlayLabel}  {ord} / {N}".
+    /// The event half is the resolved display label, so a session rename is
+    /// visible here. `code` stays the XML short code either way.
     QString overlayLabel;
     /// Full-match in/out point in milliseconds, matching the XML <start>/<end> when
     /// this clip has an instance. This is not the padded encode length.
