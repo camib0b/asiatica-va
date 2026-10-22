@@ -3,12 +3,13 @@
 #include "FfmpegLocator.h"
 #include "../i18n/AppLocale.h"
 #include "../style/StyleProps.h"
+#include "../ui/QtPtr.h"
 
-#include <QCoreApplication>
 #include <QFileInfo>
 #include <QProcess>
 #include <QProgressDialog>
 #include <QSignalBlocker>
+#include <QTimer>
 
 namespace {
 
@@ -31,9 +32,14 @@ PlaybackVideoPreparer::PlaybackVideoPreparer(QObject* parent)
       errorMessage_(),
       finished_(false),
       succeeded_(false),
-      cancelled_(false) {}
+      cancelled_(false),
+      progressDialog_(nullptr),
+      progressParent_(nullptr),
+      progressCompletion_(),
+      progressWaitDelivered_(false) {}
 
 PlaybackVideoPreparer::~PlaybackVideoPreparer() {
+    closeProgressDialog();
     stopAndDiscardProcess();
 }
 
@@ -41,11 +47,18 @@ void PlaybackVideoPreparer::stopAndDiscardProcess() {
     if (!process_) return;
     QProcess* dyingProcess = process_.release();
     dyingProcess->disconnect();
-    if (dyingProcess->state() != QProcess::NotRunning) {
-        dyingProcess->kill();
-        dyingProcess->waitForFinished(3000);
+    if (dyingProcess->state() == QProcess::NotRunning) {
+        dyingProcess->deleteLater();
+        return;
     }
-    dyingProcess->deleteLater();
+    QObject::connect(dyingProcess, &QProcess::finished, dyingProcess, &QObject::deleteLater);
+    QObject::connect(dyingProcess, &QProcess::errorOccurred, dyingProcess,
+                     [dyingProcess](QProcess::ProcessError error) {
+                         if (error == QProcess::FailedToStart) {
+                             dyingProcess->deleteLater();
+                         }
+                     });
+    dyingProcess->kill();
 }
 
 bool PlaybackVideoPreparer::requiresTranscodeForPlayback(const QString& filePath) {
@@ -70,6 +83,7 @@ void PlaybackVideoPreparer::startPreparation(const QString& inputPath,
     finished_ = false;
     succeeded_ = false;
     cancelled_ = false;
+    progressWaitDelivered_ = false;
     errorMessage_.clear();
 
     stopAndDiscardProcess();
@@ -151,35 +165,72 @@ void PlaybackVideoPreparer::onProcessError(QProcess::ProcessError error) {
     emit preparationFinished(false);
 }
 
-bool PlaybackVideoPreparer::waitWithProgress(QWidget* parentWidget) {
-    if (finished_) return succeeded_;
+void PlaybackVideoPreparer::openProgressDialog(QWidget* parentWidget) {
+    if (progressDialog_) return;
 
     const QString message = AppLocale::trUi("playback_prep.preparing");
-    QProgressDialog progress(
+    auto dialogOwner = makeQtPtr<QProgressDialog>(
         message,
         AppLocale::trUi("playback_prep.cancel"),
         0, 0, parentWidget);
-    Style::setRole(&progress, "blocking");
-    progress.setWindowModality(Qt::WindowModal);
-    progress.setMinimumDuration(0);
-    progress.setAutoClose(false);
-    progress.setAutoReset(false);
-    BlockingProgress::fitDialog(progress, message);
+    QProgressDialog* dialog = dialogOwner.get();
+    progressDialog_ = dialog;
+    Style::setRole(dialog, "blocking");
+    dialog->setWindowModality(Qt::WindowModal);
+    dialog->setMinimumDuration(0);
+    dialog->setAutoClose(false);
+    dialog->setAutoReset(false);
+    BlockingProgress::fitDialog(*dialog, message);
+    connect(dialog, &QProgressDialog::canceled, this, &PlaybackVideoPreparer::cancel);
+    dialogOwner.release();
+    dialog->show();
+    BlockingProgress::fitDialog(*dialog, message);
+    QTimer::singleShot(0, dialog, [guard = QPointer<QProgressDialog>(dialog), message]() {
+        if (!guard) return;
+        BlockingProgress::fitDialog(*guard, message);
+    });
+}
 
-    const QMetaObject::Connection cancelConnection = connect(
-        &progress, &QProgressDialog::canceled, this, &PlaybackVideoPreparer::cancel);
+void PlaybackVideoPreparer::closeProgressDialog() {
+    if (!progressDialog_) return;
+    QProgressDialog* dialog = progressDialog_.data();
+    progressDialog_.clear();
+    dialog->disconnect();
+    const QSignalBlocker closeGuard(dialog);
+    dialog->close();
+    dialog->setParent(nullptr);
+    dialog->deleteLater();
+}
 
-    progress.show();
-    BlockingProgress::fitDialog(progress, message);
-    QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+void PlaybackVideoPreparer::deliverProgressWait() {
+    if (progressWaitDelivered_) return;
+    progressWaitDelivered_ = true;
 
-    while (!finished_) {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+    const bool preparationOk = succeeded_;
+    closeProgressDialog();
+    auto completion = std::move(progressCompletion_);
+    QWidget* parentWidget = progressParent_.data();
+    if (!completion) return;
+    if (!parentWidget) {
+        completion(preparationOk);
+        return;
+    }
+    QTimer::singleShot(0, parentWidget, [completion = std::move(completion), preparationOk]() {
+        if (completion) completion(preparationOk);
+    });
+}
+
+void PlaybackVideoPreparer::waitWithProgress(QWidget* parentWidget,
+                                            std::function<void(bool succeeded)> onFinished) {
+    progressParent_ = parentWidget;
+    progressCompletion_ = std::move(onFinished);
+    if (finished_) {
+        deliverProgressWait();
+        return;
     }
 
-    disconnect(cancelConnection);
-    const QSignalBlocker closeGuard(&progress);
-    const bool preparationOk = succeeded_;
-    progress.close();
-    return preparationOk;
+    openProgressDialog(parentWidget);
+    connect(this, &PlaybackVideoPreparer::preparationFinished, this, [this](bool) {
+        deliverProgressWait();
+    });
 }

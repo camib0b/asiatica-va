@@ -1,12 +1,16 @@
 #pragma once
 
+#include <QMetaType>
 #include <QObject>
+#include <QPointer>
 #include <QProcess>
 #include <QString>
 #include <QStringList>
 
+#include <functional>
 #include <memory>
 
+class QProgressDialog;
 class QWidget;
 
 struct VideoConcatenationResult {
@@ -15,6 +19,8 @@ struct VideoConcatenationResult {
     QString errorMessage;
 };
 
+Q_DECLARE_METATYPE(VideoConcatenationResult)
+
 class VideoConcatenator : public QObject {
     Q_OBJECT
 
@@ -22,11 +28,12 @@ public:
     explicit VideoConcatenator(QObject* parent = nullptr);
     ~VideoConcatenator() override;
 
-    /// Runs file selection validation, FFmpeg concat, and progress UI in one call.
-    /// Returns a snapshot of the outcome and resets internal state for reuse.
-    VideoConcatenationResult runWithProgress(const QStringList& inputPaths,
-                                             const QString& outputDir,
-                                             QWidget* parentWidget);
+    /// Starts FFmpeg concat and a window-modal progress dialog without blocking
+    /// the UI thread. Emits runFinished with a snapshot, then resets to idle.
+    /// Connect runFinished before calling.
+    void runWithProgress(const QStringList& inputPaths,
+                         const QString& outputDir,
+                         QWidget* parentWidget);
 
     void startConcatenation(const QStringList& inputPaths, const QString& outputDir);
     void cancel();
@@ -35,13 +42,17 @@ public:
     QString outputPath() const;
     QString errorMessage() const;
 
-    bool waitWithProgress(QWidget* parentWidget);
+    /// Progress UI for a concatenation that is already running (team setup).
+    /// Calls onFinished later on the UI thread and does not reset the job, so
+    /// getters are still valid inside onFinished.
+    void waitWithProgress(QWidget* parentWidget, std::function<void(bool succeeded)> onFinished);
 
     static QStringList selectVideoFiles(QWidget* parentWidget);
     static bool showFileOrderDialog(QStringList& filePaths, QWidget* parentWidget);
 
 signals:
     void concatenationFinished(bool success);
+    void runFinished(const VideoConcatenationResult& result);
 
 private slots:
     void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
@@ -64,6 +75,10 @@ private:
     void discardConcatList();
     void removePartialOutput();
     void resetToIdle();
+    void openProgressDialog(QWidget* parentWidget);
+    void closeProgressDialog();
+    void publishRunResult();
+    void publishProgressCompletion();
 
     /// Unparented QObject; this unique_ptr is the only owner. Replace via
     /// stopAndDiscardProcess() (release + deleteLater) so finished() cannot
@@ -74,4 +89,9 @@ private:
     QString errorMessage_;
     int sourceCount_ = 0;
     JobState state_ = JobState::Idle;
+    QPointer<QProgressDialog> progressDialog_;
+    QPointer<QWidget> progressParent_;
+    std::function<void(bool succeeded)> progressCompletion_;
+    bool runWithProgressActive_ = false;
+    bool runResultPublished_ = false;
 };

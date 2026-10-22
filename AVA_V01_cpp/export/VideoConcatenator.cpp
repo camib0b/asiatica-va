@@ -3,18 +3,20 @@
 #include "ConcatFileOrderDialog.h"
 #include "../i18n/AppLocale.h"
 #include "../style/StyleProps.h"
+#include "../ui/QtPtr.h"
 
 #include "BlockingProgressDialog.h"
 
-#include <QCoreApplication>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QMetaType>
 #include <QProcess>
 #include <QProgressDialog>
 #include <QSignalBlocker>
 #include <QTemporaryFile>
 #include <QTextStream>
+#include <QTimer>
 
 namespace {
 
@@ -49,6 +51,9 @@ QString ffmpegStderrForDisplay(const QByteArray& stderrBytes) {
         + text.right(keepTailCharacters);
 }
 
+[[maybe_unused]] const int kVideoConcatenationResultMetaTypeId =
+    qRegisterMetaType<VideoConcatenationResult>();
+
 }  // namespace
 
 VideoConcatenator::VideoConcatenator(QObject* parent)
@@ -58,9 +63,15 @@ VideoConcatenator::VideoConcatenator(QObject* parent)
       outputPath_(),
       errorMessage_(),
       sourceCount_(0),
-      state_(JobState::Idle) {}
+      state_(JobState::Idle),
+      progressDialog_(nullptr),
+      progressParent_(nullptr),
+      progressCompletion_(),
+      runWithProgressActive_(false),
+      runResultPublished_(false) {}
 
 VideoConcatenator::~VideoConcatenator() {
+    closeProgressDialog();
     stopAndDiscardProcess();
     discardConcatList();
     if (state_ != JobState::Succeeded) removePartialOutput();
@@ -78,18 +89,23 @@ QString VideoConcatenator::errorMessage() const {
     return errorMessage_;
 }
 
-VideoConcatenationResult VideoConcatenator::runWithProgress(const QStringList& inputPaths,
-                                                            const QString& outputDir,
-                                                            QWidget* parentWidget) {
-    startConcatenation(inputPaths, outputDir);
-    waitWithProgress(parentWidget);
-
-    VideoConcatenationResult result;
-    result.succeeded = succeeded();
-    result.outputPath = outputPath_;
-    result.errorMessage = errorMessage_;
-    resetToIdle();
-    return result;
+void VideoConcatenator::runWithProgress(const QStringList& inputPaths,
+                                        const QString& outputDir,
+                                        QWidget* parentWidget) {
+    progressParent_ = parentWidget;
+    runResultPublished_ = false;
+    runWithProgressActive_ = true;
+    if (state_ != JobState::Running) {
+        startConcatenation(inputPaths, outputDir);
+    }
+    if (!runWithProgressActive_) {
+        return;
+    }
+    if (isTerminal() || state_ == JobState::Idle) {
+        publishRunResult();
+        return;
+    }
+    openProgressDialog(parentWidget);
 }
 
 bool VideoConcatenator::isTerminal() const {
@@ -118,17 +134,29 @@ void VideoConcatenator::settle(JobState nextState, const QString& message) {
         removePartialOutput();
     }
     emit concatenationFinished(nextState == JobState::Succeeded);
+    if (runWithProgressActive_) {
+        publishRunResult();
+    } else if (progressCompletion_) {
+        publishProgressCompletion();
+    }
 }
 
 void VideoConcatenator::stopAndDiscardProcess() {
     if (!process_) return;
     QProcess* dyingProcess = process_.release();
     dyingProcess->disconnect();
-    if (dyingProcess->state() != QProcess::NotRunning) {
-        dyingProcess->kill();
-        dyingProcess->waitForFinished(3000);
+    if (dyingProcess->state() == QProcess::NotRunning) {
+        dyingProcess->deleteLater();
+        return;
     }
-    dyingProcess->deleteLater();
+    QObject::connect(dyingProcess, &QProcess::finished, dyingProcess, &QObject::deleteLater);
+    QObject::connect(dyingProcess, &QProcess::errorOccurred, dyingProcess,
+                     [dyingProcess](QProcess::ProcessError error) {
+                         if (error == QProcess::FailedToStart) {
+                             dyingProcess->deleteLater();
+                         }
+                     });
+    dyingProcess->kill();
 }
 
 void VideoConcatenator::discardConcatList() {
@@ -264,37 +292,92 @@ void VideoConcatenator::onProcessError(QProcess::ProcessError error) {
     failWith(AppLocale::trUi("concat.error_ffmpeg_start").arg(program, processError));
 }
 
-bool VideoConcatenator::waitWithProgress(QWidget* parentWidget) {
-    if (isTerminal()) return succeeded();
+void VideoConcatenator::openProgressDialog(QWidget* parentWidget) {
+    if (progressDialog_) return;
 
     const QString message = AppLocale::trUi("concat.preparing").arg(sourceCount_);
-    QProgressDialog progress(
+    auto dialogOwner = makeQtPtr<QProgressDialog>(
         message,
         AppLocale::trUi("concat.cancel"),
         0, 0, parentWidget);
-    Style::setRole(&progress, "blocking");
-    progress.setWindowModality(Qt::WindowModal);
-    progress.setMinimumDuration(0);
-    progress.setAutoClose(false);
-    progress.setAutoReset(false);
-    BlockingProgress::fitDialog(progress, message);
+    QProgressDialog* dialog = dialogOwner.get();
+    progressDialog_ = dialog;
+    Style::setRole(dialog, "blocking");
+    dialog->setWindowModality(Qt::WindowModal);
+    dialog->setMinimumDuration(0);
+    dialog->setAutoClose(false);
+    dialog->setAutoReset(false);
+    BlockingProgress::fitDialog(*dialog, message);
+    connect(dialog, &QProgressDialog::canceled, this, &VideoConcatenator::cancel);
+    dialogOwner.release();
+    dialog->show();
+    BlockingProgress::fitDialog(*dialog, message);
+    QTimer::singleShot(0, dialog, [guard = QPointer<QProgressDialog>(dialog), message]() {
+        if (!guard) return;
+        BlockingProgress::fitDialog(*guard, message);
+    });
+}
 
-    const QMetaObject::Connection cancelConnection = connect(
-        &progress, &QProgressDialog::canceled, this, &VideoConcatenator::cancel);
+void VideoConcatenator::closeProgressDialog() {
+    if (!progressDialog_) return;
+    QProgressDialog* dialog = progressDialog_.data();
+    progressDialog_.clear();
+    dialog->disconnect();
+    const QSignalBlocker closeGuard(dialog);
+    dialog->close();
+    dialog->setParent(nullptr);
+    dialog->deleteLater();
+}
 
-    progress.show();
-    BlockingProgress::fitDialog(progress, message);
-    QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+void VideoConcatenator::publishRunResult() {
+    if (runResultPublished_) return;
+    runResultPublished_ = true;
+    runWithProgressActive_ = false;
 
-    while (!isTerminal()) {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+    VideoConcatenationResult result;
+    result.succeeded = succeeded();
+    result.outputPath = outputPath_;
+    result.errorMessage = errorMessage_;
+    closeProgressDialog();
+    // resetToIdle releases the QProcess. That must not run on finished()'s stack.
+    QTimer::singleShot(0, this, [this, result]() {
+        resetToIdle();
+        emit runFinished(result);
+    });
+}
+
+void VideoConcatenator::publishProgressCompletion() {
+    const bool concatenationOk = succeeded();
+    auto completion = std::move(progressCompletion_);
+    closeProgressDialog();
+    if (!completion) return;
+    QWidget* parentWidget = progressParent_.data();
+    if (!parentWidget) {
+        completion(concatenationOk);
+        return;
+    }
+    QTimer::singleShot(0, parentWidget, [completion = std::move(completion), concatenationOk]() {
+        if (completion) completion(concatenationOk);
+    });
+}
+
+void VideoConcatenator::waitWithProgress(QWidget* parentWidget,
+                                        std::function<void(bool succeeded)> onFinished) {
+    progressParent_ = parentWidget;
+    if (isTerminal() || state_ == JobState::Idle) {
+        const bool concatenationOk = succeeded();
+        if (!parentWidget) {
+            if (onFinished) onFinished(concatenationOk);
+            return;
+        }
+        QTimer::singleShot(0, parentWidget, [onFinished = std::move(onFinished), concatenationOk]() {
+            if (onFinished) onFinished(concatenationOk);
+        });
+        return;
     }
 
-    disconnect(cancelConnection);
-    const QSignalBlocker closeGuard(&progress);
-    const bool concatenationOk = succeeded();
-    progress.close();
-    return concatenationOk;
+    progressCompletion_ = std::move(onFinished);
+    openProgressDialog(parentWidget);
 }
 
 QStringList VideoConcatenator::selectVideoFiles(QWidget* parentWidget) {

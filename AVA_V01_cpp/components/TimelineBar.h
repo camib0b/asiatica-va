@@ -57,6 +57,10 @@ private:
   QElapsedTimer seekCommitElapsed_;
   QTimer* scrubSeekThrottleTimer_ = nullptr;
   qint64 pendingScrubSeekMs_ = -1;
+  // Last sliderMoved target. The throttle clears pendingScrubSeekMs_ after it
+  // emits, but release still has to seek here: with tracking off, sliderReleased
+  // runs before Qt copies sliderPosition into value.
+  qint64 lastSliderMovedMs_ = -1;
   qint64 lastDisplayedPosSeconds_ = -1;
   qint64 lastDisplayedDurSeconds_ = -1;
 };

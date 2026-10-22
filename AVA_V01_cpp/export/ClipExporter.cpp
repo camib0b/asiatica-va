@@ -5,12 +5,12 @@
 #include "ExportVideoEncoder.h"
 #include "FfmpegLocator.h"
 
-#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QFont>
 #include <QFontMetrics>
+#include <QFutureWatcher>
 #include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -20,6 +20,7 @@
 #include <QRegularExpression>
 #include <QTemporaryDir>
 #include <QTextStream>
+#include <QtConcurrent>
 #include <QtGlobal>
 
 #include <algorithm>
@@ -168,6 +169,8 @@ int parseRotationFromFfmpegStderr(const QString& stderrOutput) {
     return 0;
 }
 
+// Blocks until ffprobe exits or the timeout elapses. Callers must run this off
+// the UI thread (see runProbeOffUiThread).
 VideoProbeResult probeWithFfprobe(const QString& ffprobePath, const QString& videoPath) {
     QProcess process;
     process.start(ffprobePath, {
@@ -230,6 +233,8 @@ VideoProbeResult probeWithFfprobe(const QString& ffprobePath, const QString& vid
     return result;
 }
 
+// Blocks until ffmpeg exits or the timeout elapses. Same off-UI-thread rule as
+// probeWithFfprobe. ffmpeg -i writes the stream description to stderr.
 VideoProbeResult probeWithFfmpeg(const QString& ffmpegPath, const QString& videoPath) {
     QProcess process;
     process.start(ffmpegPath, {
@@ -254,12 +259,13 @@ VideoProbeResult probeWithFfmpeg(const QString& ffmpegPath, const QString& video
     return result;
 }
 
-VideoProbeResult probeSourceVideo(const QString& videoPath) {
+VideoProbeResult probeSourceVideo(const QString& videoPath,
+                                  const QString& ffprobePath,
+                                  const QString& ffmpegPath) {
     if (videoPath.isEmpty()) {
         return {};
     }
 
-    const QString ffprobePath = FfmpegLocator::findFfprobe();
     if (!ffprobePath.isEmpty()) {
         const VideoProbeResult probedResult = probeWithFfprobe(ffprobePath, videoPath);
         if (probedResult.isValid()) {
@@ -267,7 +273,6 @@ VideoProbeResult probeSourceVideo(const QString& videoPath) {
         }
     }
 
-    const QString ffmpegPath = FfmpegLocator::findFfmpeg();
     if (!ffmpegPath.isEmpty()) {
         const VideoProbeResult fallbackResult = probeWithFfmpeg(ffmpegPath, videoPath);
         if (fallbackResult.isValid()) {
@@ -275,9 +280,24 @@ VideoProbeResult probeSourceVideo(const QString& videoPath) {
         }
     }
 
-    qWarning("ClipExporter: failed to probe video dimensions for %s",
-             qPrintable(videoPath));
     return {};
+}
+
+struct OptionalSeconds {
+    bool present = false;
+    double value = 0.0;
+};
+
+template <typename Result, typename Task, typename Done>
+void runProbeOffUiThread(QObject* context, Task task, Done done) {
+    auto* watcher = new QFutureWatcher<Result>(context);
+    QObject::connect(watcher, &QFutureWatcher<Result>::finished, context,
+                     [watcher, done = std::move(done)]() {
+                         Result result = watcher->result();
+                         watcher->deleteLater();
+                         done(std::move(result));
+                     });
+    watcher->setFuture(QtConcurrent::run(std::move(task)));
 }
 
 struct BottomOverlayLayout {
@@ -499,6 +519,7 @@ void ClipExporter::startExport() {
     emit progressChanged(0, static_cast<int>(clips_.size()), Activity::Preparing);
 
     // Child process; the callback is queued so the UI thread does not wait.
+    // Source dimensions are probed only after this returns, still off the UI thread.
     ExportVideoEncoder::requestH264VideoToolboxAvailability(
         ffmpegPath_, this, [this](bool h264VideoToolboxAvailable) {
             onEncoderAvailability(h264VideoToolboxAvailable);
@@ -506,11 +527,7 @@ void ClipExporter::startExport() {
 }
 
 void ClipExporter::onEncoderAvailability(bool h264VideoToolboxAvailable) {
-    if (exportFinishedEmitted_) {
-        return;
-    }
-    if (cancelled_) {
-        finishExport(false, QStringLiteral("Export cancelled."));
+    if (stopIfExportInactive()) {
         return;
     }
     h264VideoToolboxAvailable_ = h264VideoToolboxAvailable;
@@ -518,11 +535,7 @@ void ClipExporter::onEncoderAvailability(bool h264VideoToolboxAvailable) {
 }
 
 void ClipExporter::prepareSourceAndExportClips() {
-    if (exportFinishedEmitted_) {
-        return;
-    }
-    if (cancelled_) {
-        finishExport(false, QStringLiteral("Export cancelled."));
+    if (stopIfExportInactive()) {
         return;
     }
     if (!tempDir_ || !tempDir_->isValid()) {
@@ -530,21 +543,44 @@ void ClipExporter::prepareSourceAndExportClips() {
         return;
     }
 
-    const VideoProbeResult sourceProbe = probeSourceVideo(sourceVideoPath_);
-    if (cancelled_ || exportFinishedEmitted_) {
-        if (!exportFinishedEmitted_) {
-            finishExport(false, QStringLiteral("Export cancelled."));
-        }
-        return;
+    const QString videoPath = sourceVideoPath_;
+    const QString ffprobePath = ffprobePath_;
+    const QString ffmpegPath = ffmpegPath_;
+    runProbeOffUiThread<VideoProbeResult>(
+        this,
+        [videoPath, ffprobePath, ffmpegPath]() {
+            return probeSourceVideo(videoPath, ffprobePath, ffmpegPath);
+        },
+        [this, videoPath](VideoProbeResult sourceProbe) {
+            if (stopIfExportInactive()) {
+                return;
+            }
+            if (!sourceProbe.isValid()) {
+                qWarning("ClipExporter: failed to probe video dimensions for %s",
+                         qPrintable(videoPath));
+                finishExport(false,
+                    QStringLiteral("Failed to probe source video dimensions for \"%1\".")
+                        .arg(videoPath));
+                return;
+            }
+            applyMeasuredSource(sourceProbe.displaySize(), sourceProbe.rotationDegrees);
+        });
+}
+
+bool ClipExporter::stopIfExportInactive() {
+    if (exportFinishedEmitted_) {
+        return true;
     }
-    if (!sourceProbe.isValid()) {
-        finishExport(false,
-            QStringLiteral("Failed to probe source video dimensions for \"%1\".")
-                .arg(sourceVideoPath_));
-        return;
+    if (!cancelled_) {
+        return false;
     }
-    sourceRotationDegrees_ = sourceProbe.rotationDegrees;
-    sourceVideoSize_ = sourceProbe.displaySize();
+    finishExport(false, QStringLiteral("Export cancelled."));
+    return true;
+}
+
+void ClipExporter::applyMeasuredSource(const QSize& displaySize, int rotationDegrees) {
+    sourceRotationDegrees_ = rotationDegrees;
+    sourceVideoSize_ = displaySize;
     if (!sourceVideoSize_.isValid()) {
         finishExport(false,
             QStringLiteral("Failed to compute display size for \"%1\".")
@@ -579,7 +615,6 @@ void ClipExporter::cancelExport() {
     cancelled_ = true;
     if (currentProcess_ && currentProcess_->state() != QProcess::NotRunning) {
         currentProcess_->kill();
-        currentProcess_->waitForFinished(3000);
     }
 }
 
@@ -934,16 +969,38 @@ void ClipExporter::onClipProcessFinished(int exitCode, QProcess::ExitStatus exit
 
     const QString tempPath = tempDir_->filePath(
         QStringLiteral("clip_%1.mp4").arg(currentClipIndex_, 4, 10, QChar('0')));
-    const std::optional<double> measuredDuration =
-        CompilationSidecar::probeMediaDurationSeconds(ffprobePath_, tempPath);
-    if (!measuredDuration.has_value()) {
-        finishExport(false,
-                     AppLocale::trUi("export.sidecar_probe_failed").arg(currentClipIndex_ + 1));
+    const QString ffprobePath = ffprobePath_;
+    const int clipNumber = currentClipIndex_ + 1;
+    runProbeOffUiThread<OptionalSeconds>(
+        this,
+        [ffprobePath, tempPath]() {
+            OptionalSeconds measured;
+            const std::optional<double> duration =
+                CompilationSidecar::probeMediaDurationSeconds(ffprobePath, tempPath);
+            if (duration.has_value()) {
+                measured.present = true;
+                measured.value = *duration;
+            }
+            return measured;
+        },
+        [this, tempPath, clipNumber](OptionalSeconds measured) {
+            acceptSegmentDuration(tempPath, clipNumber, measured.present, measured.value);
+        });
+}
+
+void ClipExporter::acceptSegmentDuration(const QString& tempPath,
+                                         int clipNumber,
+                                         bool hasDuration,
+                                         double seconds) {
+    if (stopIfExportInactive()) {
         return;
     }
-    measuredSegmentDurationSeconds_.append(*measuredDuration);
+    if (!hasDuration) {
+        finishExport(false, AppLocale::trUi("export.sidecar_probe_failed").arg(clipNumber));
+        return;
+    }
+    measuredSegmentDurationSeconds_.append(seconds);
     tempClipPaths_.append(tempPath);
-
     ++currentClipIndex_;
     processNextClip();
 }
@@ -1141,12 +1198,6 @@ bool ClipExporter::finishExportIfCancelled() {
         return true;
     }
     if (!cancelled_) {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 0);
-    }
-    if (exportFinishedEmitted_) {
-        return true;
-    }
-    if (!cancelled_) {
         return false;
     }
     finishExport(false, QStringLiteral("Export cancelled."));
@@ -1252,13 +1303,67 @@ void ClipExporter::finalizeCompilationSidecar() {
     input.videoFileName = QFileInfo(outputPath_).fileName();
     input.sourceVideoFileName = QFileInfo(sourceVideoPath_).fileName();
     input.matchXmlFileName = matchXmlFileName_;
-    input.finalDurationSeconds =
-        CompilationSidecar::probeMediaDurationSeconds(ffprobePath_, outputPath_);
-    if (finishExportIfCancelled()) {
-        return;
-    }
-    input.framesPerSecond =
-        CompilationSidecar::probeVideoFramesPerSecond(ffprobePath_, outputPath_);
+    probeFinalSidecarDuration(input, offsets.summedEndMilliseconds);
+}
+
+void ClipExporter::probeFinalSidecarDuration(CompilationSidecar::SidecarBuildInput input,
+                                             qint64 summedEndMilliseconds) {
+    const QString ffprobePath = ffprobePath_;
+    const QString mediaPath = outputPath_;
+    runProbeOffUiThread<OptionalSeconds>(
+        this,
+        [ffprobePath, mediaPath]() {
+            OptionalSeconds measured;
+            const std::optional<double> duration =
+                CompilationSidecar::probeMediaDurationSeconds(ffprobePath, mediaPath);
+            if (duration.has_value()) {
+                measured.present = true;
+                measured.value = *duration;
+            }
+            return measured;
+        },
+        [this, input, summedEndMilliseconds](OptionalSeconds measured) {
+            if (finishExportIfCancelled()) {
+                return;
+            }
+            CompilationSidecar::SidecarBuildInput withDuration = input;
+            if (measured.present) {
+                withDuration.finalDurationSeconds = measured.value;
+            }
+            probeFinalSidecarFrameRate(withDuration, summedEndMilliseconds);
+        });
+}
+
+void ClipExporter::probeFinalSidecarFrameRate(CompilationSidecar::SidecarBuildInput input,
+                                              qint64 summedEndMilliseconds) {
+    const QString ffprobePath = ffprobePath_;
+    const QString mediaPath = outputPath_;
+    runProbeOffUiThread<OptionalSeconds>(
+        this,
+        [ffprobePath, mediaPath]() {
+            OptionalSeconds measured;
+            const std::optional<double> framesPerSecond =
+                CompilationSidecar::probeVideoFramesPerSecond(ffprobePath, mediaPath);
+            if (framesPerSecond.has_value()) {
+                measured.present = true;
+                measured.value = *framesPerSecond;
+            }
+            return measured;
+        },
+        [this, input, summedEndMilliseconds](OptionalSeconds measured) {
+            if (finishExportIfCancelled()) {
+                return;
+            }
+            CompilationSidecar::SidecarBuildInput withFrameRate = input;
+            if (measured.present) {
+                withFrameRate.framesPerSecond = measured.value;
+            }
+            writeCompilationSidecar(withFrameRate, summedEndMilliseconds);
+        });
+}
+
+void ClipExporter::writeCompilationSidecar(CompilationSidecar::SidecarBuildInput input,
+                                           qint64 summedEndMilliseconds) {
     if (finishExportIfCancelled()) {
         return;
     }
@@ -1279,7 +1384,7 @@ void ClipExporter::finalizeCompilationSidecar() {
         qWarning("ClipExporter: clip timestamp check failed for \"%s\" (final %s s, clips end at %s s)",
                  qPrintable(outputPath_),
                  qPrintable(finalText),
-                 qPrintable(CompilationSidecar::formatSeconds(offsets.summedEndMilliseconds)));
+                 qPrintable(CompilationSidecar::formatSeconds(summedEndMilliseconds)));
     }
     if (finishExportIfCancelled()) {
         return;
@@ -1303,11 +1408,18 @@ void ClipExporter::stopAndDiscardProcess() {
     if (!currentProcess_) return;
     QProcess* dyingProcess = currentProcess_.release();
     dyingProcess->disconnect();
-    if (dyingProcess->state() != QProcess::NotRunning) {
-        dyingProcess->kill();
-        dyingProcess->waitForFinished(3000);
+    if (dyingProcess->state() == QProcess::NotRunning) {
+        dyingProcess->deleteLater();
+        return;
     }
-    dyingProcess->deleteLater();
+    QObject::connect(dyingProcess, &QProcess::finished, dyingProcess, &QObject::deleteLater);
+    QObject::connect(dyingProcess, &QProcess::errorOccurred, dyingProcess,
+                     [dyingProcess](QProcess::ProcessError error) {
+                         if (error == QProcess::FailedToStart) {
+                             dyingProcess->deleteLater();
+                         }
+                     });
+    dyingProcess->kill();
 }
 
 void ClipExporter::startFfmpegJob(const QStringList& arguments, bool concatenating) {

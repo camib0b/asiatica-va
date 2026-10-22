@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Multimedia MultimediaWidgets Network)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Multimedia MultimediaWidgets Network Concurrent)
 
 qt_standard_project_setup()
 
@@ -133,6 +133,7 @@ target_link_libraries(AVA PRIVATE
   Qt6::Multimedia
   Qt6::MultimediaWidgets
   Qt6::Network
+  Qt6::Concurrent
 )
 
 set(AVA_GIT_SHA "")
@@ -181,6 +182,7 @@ qt_add_executable(AVAExportTests
   tests/UiPolicyTests.cpp
   tests/WorkDataViewTests.cpp
   tests/WorkWindowCorrectnessTests.cpp
+  tests/TimelineScrubTests.cpp
   ui/PresentationPanel.cpp
   ui/PresentationInstancesModel.cpp
   ui/XmlEventMappingDialog.cpp
@@ -280,6 +282,7 @@ target_link_libraries(AVAExportTests PRIVATE
   Qt6::Multimedia
   Qt6::MultimediaWidgets
   Qt6::Network
+  Qt6::Concurrent
   Qt6::Test
 )
 

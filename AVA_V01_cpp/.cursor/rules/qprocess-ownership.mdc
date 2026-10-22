@@ -8,7 +8,7 @@ alwaysApply: false
 
 `std::unique_ptr<QProcess>` is the only owner. Do not also pass `this` as a Qt parent. Never assign a new process while the previous one is still stored.
 
-`stopAndDiscardProcess()` must `release()`, disconnect, kill/wait if running, then `deleteLater()`. Share that cleanup with the destructor. Do not `unique_ptr::reset()` on the `finished()` stack.
+`stopAndDiscardProcess()` must `release()`, disconnect, and `deleteLater()`. If the process is still running, `kill()` and connect `finished` (and `FailedToStart`) to `deleteLater()`. Do not `waitForFinished()` on the UI thread. Share that cleanup with the destructor. Do not `unique_ptr::reset()` on the `finished()` stack.
 
 ```cpp
 // BAD — parented AND leaked on reuse; finished() can land on the next run

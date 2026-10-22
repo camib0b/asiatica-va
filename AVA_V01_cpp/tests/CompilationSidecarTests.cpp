@@ -1071,6 +1071,7 @@ int runInteractionGuardTests(int argc, char** argv);
 int runVideoClipSequenceTests(int argc, char** argv);
 int runShootoutStateTests(int argc, char** argv);
 int runExportVideoEncoderTests(int argc, char** argv);
+int runTimelineScrubTests(int argc, char** argv);
 
 int main(int argc, char** argv) {
     QApplication application(argc, argv);
@@ -1137,6 +1138,10 @@ int main(int argc, char** argv) {
     const int shootoutStatus = runShootoutStateTests(argc, argv);
     if (shootoutStatus != 0) {
         return shootoutStatus;
+    }
+    const int timelineScrubStatus = runTimelineScrubTests(argc, argv);
+    if (timelineScrubStatus != 0) {
+        return timelineScrubStatus;
     }
     int status = 0;
     {

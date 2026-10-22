@@ -7,7 +7,6 @@
 #include "TagSession.h"
 #include "XmlExporter.h"
 
-#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 
@@ -354,9 +353,6 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
         jobPointer->activity = activity;
         updateExportingStatus(*jobPointer);
         emit jobsChanged();
-        if (activity == ClipExporter::Activity::Preparing) {
-            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
-        }
     });
     connect(exporter, &ClipExporter::exportFinished, exporter,
             [this, jobPointer, snapshotSession](bool success, const QString& message) {

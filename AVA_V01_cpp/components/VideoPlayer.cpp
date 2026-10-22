@@ -32,6 +32,8 @@ static void avaRemoveSystemPowerObservers(void*) {}
 #include <QSizePolicy>
 #include <QTimer>
 #include <QUrl>
+#include <QVideoFrame>
+#include <QVideoSink>
 #include <QVideoWidget>
 #include <QAction>
 #include <QKeySequence>
@@ -53,6 +55,25 @@ namespace {
 
     bool isNearPlaybackEnd(qint64 positionMs, qint64 durationMs) {
         return durationMs > 0 && positionMs >= durationMs - kPlaybackEndGuardMs;
+    }
+
+    // A scrub seek counts as presented when positionChanged lands here, or a
+    // new frame is at least this close to the requested target.
+    constexpr qint64 kScrubSeekPresentToleranceMs = 250;
+    // Matches TimelineBar's seek-commit timeout: a decoder that never reports
+    // a frame or a matching position must not pin later scrub seeks.
+    constexpr int kScrubSeekPresentTimeoutMs = 2000;
+
+    qint64 absoluteDifference(qint64 left, qint64 right) {
+        return left >= right ? left - right : right - left;
+    }
+
+    qint64 clampedMediaPositionMs(const QMediaPlayer* player, qint64 positionMs) {
+        const qint64 nonNegativePositionMs = std::max<qint64>(0, positionMs);
+        if (!player) return nonNegativePositionMs;
+        const qint64 durationMs = player->duration();
+        if (durationMs <= 0) return nonNegativePositionMs;
+        return std::clamp(nonNegativePositionMs, qint64{0}, durationMs);
     }
 
     constexpr int kControlsOverlayBottomMarginPx = 12;
@@ -84,6 +105,14 @@ VideoPlayer::VideoPlayer(QWidget* parent)
       controlsOverlayOpacity_(kControlsOverlayActiveOpacity),
       playbackRate_(1.0),
       wasPlayingBeforeScrub_(false),
+      scrubSeekInFlight_(false),
+      scrubSeekWatchingForFrame_(false),
+      scrubResumePlayback_(false),
+      scrubSeekIssuePosted_(false),
+      scrubSeekInFlightTargetMs_(-1),
+      scrubSeekPendingMs_(-1),
+      scrubSeekPositionAtIssueMs_(-1),
+      scrubSeekFrameStartAtIssueUs_(-1),
       lastStallCheckPositionMs_(-1),
       consecutivePlaybackStallTicks_(0),
       userRequestedPlaying_(false),
@@ -122,6 +151,7 @@ qint64 VideoPlayer::durationMs() const {
 
 void VideoPlayer::seekToMs(qint64 posMs) {
     if (!player_) return;
+    cancelScrubSeekGate();
     const qint64 dur = player_->duration();
     const qint64 target = (dur > 0) ? std::clamp(posMs, qint64{0}, dur) : std::max<qint64>(0, posMs);
     player_->setPosition(target);
@@ -376,24 +406,43 @@ void VideoPlayer::wireSignals() {
     connect(player_, &QMediaPlayer::positionChanged, this, [this](qint64 pos) {
         if (videoTimelineBar_) videoTimelineBar_->setPositionMs(pos);
         emit positionChangedMs(pos);
+        noteScrubSeekPosition(pos);
+    });
+
+    if (QVideoSink* videoSink = player_->videoSink()) {
+        connect(videoSink, &QVideoSink::videoFrameChanged, this,
+                [this](const QVideoFrame& frame) {
+                    noteScrubSeekFrame(frame.startTime());
+                });
+    }
+
+    scrubSeekTimeoutTimer_ = new QTimer(this);
+    scrubSeekTimeoutTimer_->setSingleShot(true);
+    scrubSeekTimeoutTimer_->setInterval(kScrubSeekPresentTimeoutMs);
+    connect(scrubSeekTimeoutTimer_, &QTimer::timeout, this, [this]() {
+        finishScrubSeekInFlight();
     });
 
     // Timeline widget -> Player (scrub behavior)
     connect(videoTimelineBar_, &TimelineBar::scrubStarted, this, [this]() {
+        scrubResumePlayback_ = false;
+        scrubSeekPendingMs_ = -1;
         wasPlayingBeforeScrub_ = (player_->playbackState() == QMediaPlayer::PlayingState);
         if (wasPlayingBeforeScrub_) player_->pause();
     });
 
-    // Live seeking while dragging (TimelineBar throttles; you just apply)
+    // Live seeking while dragging. TimelineBar already keeps only the newest
+    // target; this gate waits until the previous setPosition has presented.
     connect(videoTimelineBar_, &TimelineBar::scrubSeekTo, this, [this](qint64 posMs) {
-        player_->setPosition(posMs);
+        enqueueScrubSeek(posMs);
     });
 
-    // Final seek + resume if needed
+    // Final seek + resume if needed. The resume still follows the drop seek;
+    // it waits only when an earlier scrub seek is still in flight.
     connect(videoTimelineBar_, &TimelineBar::scrubFinished, this, [this](qint64 posMs) {
-        player_->setPosition(posMs);
-        if (wasPlayingBeforeScrub_) player_->play();
+        if (wasPlayingBeforeScrub_) scrubResumePlayback_ = true;
         wasPlayingBeforeScrub_ = false;
+        enqueueScrubSeek(posMs);
     });
 
     // Time-entry seek should pause and stay paused after jumping.
@@ -556,12 +605,163 @@ void VideoPlayer::updatePlaybackShortcutActionStates() {
 }
 
 void VideoPlayer::seekByMs(qint64 deltaMs) {
+    cancelScrubSeekGate();
     const qint64 dur  = player_->duration();
     const qint64 pos  = player_->position();
     const qint64 next = pos + deltaMs;
 
     const qint64 target = (dur > 0) ? std::clamp(next, qint64{0}, dur) : std::max<qint64>(0, next);
     player_->setPosition(target);
+}
+
+void VideoPlayer::enqueueScrubSeek(qint64 positionMs) {
+    if (!player_) return;
+    const qint64 clampedPositionMs = clampedMediaPositionMs(player_, positionMs);
+
+    if (scrubSeekInFlight_) {
+        if (clampedPositionMs == scrubSeekInFlightTargetMs_) {
+            // The newest target is the seek already running. Do not abort it.
+            scrubSeekPendingMs_ = -1;
+            resumeScrubPlaybackIfRequested();
+            return;
+        }
+        scrubSeekPendingMs_ = clampedPositionMs;
+        return;
+    }
+
+    if (scrubSeekIssuePosted_) {
+        scrubSeekPendingMs_ = clampedPositionMs;
+        return;
+    }
+
+    issueScrubSeek(clampedPositionMs);
+}
+
+void VideoPlayer::issueScrubSeek(qint64 positionMs) {
+    if (!player_) return;
+    const qint64 clampedPositionMs = clampedMediaPositionMs(player_, positionMs);
+    if (scrubSeekInFlight_) {
+        scrubSeekPendingMs_ = clampedPositionMs;
+        return;
+    }
+
+    scrubSeekPendingMs_ = -1;
+    scrubSeekInFlight_ = true;
+    scrubSeekInFlightTargetMs_ = clampedPositionMs;
+    scrubSeekWatchingForFrame_ = false;
+    scrubSeekPositionAtIssueMs_ = player_->position();
+    scrubSeekFrameStartAtIssueUs_ = -1;
+    if (QVideoSink* videoSink = player_->videoSink()) {
+        scrubSeekFrameStartAtIssueUs_ = videoSink->videoFrame().startTime();
+    }
+    if (scrubSeekTimeoutTimer_) {
+        scrubSeekTimeoutTimer_->start(kScrubSeekPresentTimeoutMs);
+    }
+
+    player_->setPosition(clampedPositionMs);
+    if (!scrubSeekInFlight_ || scrubSeekInFlightTargetMs_ != clampedPositionMs) {
+        return;
+    }
+
+    scrubSeekWatchingForFrame_ = true;
+    resumeScrubPlaybackIfRequested();
+    if (!scrubSeekInFlight_ || scrubSeekInFlightTargetMs_ != clampedPositionMs) {
+        return;
+    }
+
+    // Already on the requested frame: nothing will signal completion.
+    if (absoluteDifference(player_->position(), clampedPositionMs) <= kScrubSeekPresentToleranceMs) {
+        QTimer::singleShot(0, this, [this, clampedPositionMs]() {
+            if (!scrubSeekInFlight_ || scrubSeekInFlightTargetMs_ != clampedPositionMs) return;
+            finishScrubSeekInFlight();
+        });
+    }
+}
+
+void VideoPlayer::finishScrubSeekInFlight() {
+    if (!scrubSeekInFlight_) return;
+    scrubSeekInFlight_ = false;
+    scrubSeekWatchingForFrame_ = false;
+    scrubSeekInFlightTargetMs_ = -1;
+    scrubSeekPositionAtIssueMs_ = -1;
+    scrubSeekFrameStartAtIssueUs_ = -1;
+    if (scrubSeekTimeoutTimer_) scrubSeekTimeoutTimer_->stop();
+
+    if (scrubSeekPendingMs_ >= 0) {
+        schedulePendingScrubSeek();
+        return;
+    }
+    resumeScrubPlaybackIfRequested();
+}
+
+void VideoPlayer::schedulePendingScrubSeek() {
+    if (scrubSeekIssuePosted_) return;
+    scrubSeekIssuePosted_ = true;
+    QTimer::singleShot(0, this, [this]() {
+        scrubSeekIssuePosted_ = false;
+        if (!player_ || scrubSeekInFlight_) return;
+        if (scrubSeekPendingMs_ < 0) {
+            resumeScrubPlaybackIfRequested();
+            return;
+        }
+        const qint64 nextPositionMs = scrubSeekPendingMs_;
+        scrubSeekPendingMs_ = -1;
+        issueScrubSeek(nextPositionMs);
+    });
+}
+
+void VideoPlayer::resumeScrubPlaybackIfRequested() {
+    if (!scrubResumePlayback_ || !player_) return;
+    scrubResumePlayback_ = false;
+    if (player_->playbackState() != QMediaPlayer::PlayingState) {
+        player_->play();
+    }
+}
+
+void VideoPlayer::cancelScrubSeekGate() {
+    scrubSeekInFlight_ = false;
+    scrubSeekWatchingForFrame_ = false;
+    scrubResumePlayback_ = false;
+    scrubSeekInFlightTargetMs_ = -1;
+    scrubSeekPendingMs_ = -1;
+    scrubSeekPositionAtIssueMs_ = -1;
+    scrubSeekFrameStartAtIssueUs_ = -1;
+    if (scrubSeekTimeoutTimer_) scrubSeekTimeoutTimer_->stop();
+}
+
+void VideoPlayer::noteScrubSeekPosition(qint64 positionMs) {
+    if (!scrubSeekInFlight_) return;
+    if (absoluteDifference(positionMs, scrubSeekInFlightTargetMs_) > kScrubSeekPresentToleranceMs) {
+        return;
+    }
+    finishScrubSeekInFlight();
+}
+
+void VideoPlayer::noteScrubSeekFrame(qint64 frameStartUs) {
+    if (!player_ || !scrubSeekInFlight_ || !scrubSeekWatchingForFrame_) return;
+    if (frameStartUs < 0 || frameStartUs == scrubSeekFrameStartAtIssueUs_) return;
+
+    const qint64 framePositionMs = frameStartUs / 1000;
+    const qint64 targetPositionMs = scrubSeekInFlightTargetMs_;
+    if (absoluteDifference(framePositionMs, targetPositionMs) <= kScrubSeekPresentToleranceMs) {
+        finishScrubSeekInFlight();
+        return;
+    }
+
+    // A long-GOP seek presents the nearest keyframe, which can be far from the
+    // requested time. Count that frame once it is closer to the target than
+    // the picture we left, and ignore a stale frame still showing the old one.
+    const qint64 distanceFromIssueMs =
+        absoluteDifference(scrubSeekPositionAtIssueMs_, targetPositionMs);
+    const qint64 playheadPositionMs = player_->position();
+    const bool frameMovedTowardTarget =
+        absoluteDifference(framePositionMs, targetPositionMs) < distanceFromIssueMs;
+    const bool playheadMovedTowardTarget =
+        playheadPositionMs != scrubSeekPositionAtIssueMs_
+        && absoluteDifference(playheadPositionMs, targetPositionMs) < distanceFromIssueMs;
+    if (frameMovedTowardTarget || playheadMovedTowardTarget) {
+        finishScrubSeekInFlight();
+    }
 }
 
 void VideoPlayer::onPlayClicked() { player_->play(); }
@@ -782,6 +982,7 @@ void VideoPlayer::nudgePlaybackAfterBackendStall() {
         bumpedPositionMs = std::min(bumpedPositionMs, durationMs);
     }
 
+    cancelScrubSeekGate();
     player_->pause();
     player_->setPosition(bumpedPositionMs);
     userRequestedPlaying_ = wasPlayingBeforeNudge;
@@ -812,6 +1013,7 @@ void VideoPlayer::setMediaSourceFromPath(const QString& sourcePath,
                                          double rate,
                                          bool resumePlaying) {
     if (!player_ || sourcePath.isEmpty()) return;
+    cancelScrubSeekGate();
 
     pendingMediaSession_.active = true;
     pendingMediaSession_.resumePositionMs = resumePositionMs;
@@ -959,6 +1161,7 @@ void VideoPlayer::onSystemDidWake() {
 
 void VideoPlayer::releaseLoadedMedia() {
     if (!player_) return;
+    cancelScrubSeekGate();
 
     const bool hadMedia = !loadedSourcePath_.isEmpty() || !player_->source().isEmpty();
     userRequestedPlaying_ = false;
@@ -996,6 +1199,7 @@ void VideoPlayer::loadVideoFromFile(const QString& filePath) {
     if (videoControlsBar_) videoControlsBar_->setEnabledForMedia(false);
     
     // Reset timeline UI immediately; durationChanged will set real range later
+    cancelScrubSeekGate();
     wasPlayingBeforeScrub_ = false;
     resetPlaybackStallWatchdog();
     pipelineReloadsWithoutProgress_ = 0;
