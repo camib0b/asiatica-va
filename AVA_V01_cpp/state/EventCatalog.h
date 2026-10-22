@@ -14,6 +14,16 @@ inline constexpr int kMaxFollowUpDepth = 3;
 /// Widest follow-up row. Pass, Turnover, Special, and PC Foul each have four.
 inline constexpr int kMaxFollowUpChildren = 4;
 
+/// Buttons across one GameControls keyboard row. A shorter row stays left-aligned.
+inline constexpr int kButtonGridColumnCount = 4;
+
+/// Layout weight of one key. Button-row offsets use the same units, so 1 is a
+/// quarter key and 3 is three quarters of a key.
+inline constexpr int kButtonGridUnitsPerKey = 4;
+
+/// buttonRow and buttonColumn when the node is not on the GameControls grid.
+inline constexpr int kNoButtonGridPosition = -1;
+
 /// Stable identity for a main event or a follow-up.
 ///
 /// Values are part of the catalog contract. Do not renumber or reuse them.
@@ -105,7 +115,7 @@ enum class PayloadLayout {
 };
 
 /// One catalog row. Main events and follow-ups share this shape.
-/// Follow-ups leave shortcut, XML code, lead/lag, and payload unused.
+/// Follow-ups leave shortcut, XML code, lead/lag, payload, and the button grid unused.
 struct Node {
   EventId id = EventId::None;
   /// English token. XML export, .clips.json, and clip-duration QSettings still
@@ -123,8 +133,23 @@ struct Node {
   PayloadLayout payloadLayout = PayloadLayout::PlainChain;
   bool switchesTeam = false;
   bool mainEvent = false;
+  /// GameControls keyboard row, top to bottom. kNoButtonGridPosition for follow-ups.
+  int buttonRow = kNoButtonGridPosition;
+  /// Left-to-right slot within buttonRow. kNoButtonGridPosition for follow-ups.
+  int buttonColumn = kNoButtonGridPosition;
+  /// Left spacer for this button's row, in kButtonGridUnitsPerKey units.
+  /// Zero for follow-ups. Every button in a row uses the same offset.
+  int buttonRowOffsetUnits = 0;
   std::array<EventId, kMaxFollowUpChildren> children{};
   int childCount = 0;
+};
+
+/// One horizontal row of the GameControls keyboard, top to bottom.
+/// Events are buttonGridNodeAt(firstEventIndex + column).
+struct ButtonGridRow {
+  int leftOffsetUnits = 0;
+  int firstEventIndex = 0;
+  int eventCount = 0;
 };
 
 int nodeCount();
@@ -162,5 +187,11 @@ bool switchesTeamForMainEvent(const QString& canonicalName);
 
 QStringList childCanonicalNames(const Node& node);
 const Node* childForCanonicalName(const Node& parent, const QString& canonicalName);
+
+/// Main events in GameControls keyboard order: increasing button row, then column.
+int buttonGridCount();
+const Node& buttonGridNodeAt(int index);
+int buttonGridRowCount();
+ButtonGridRow buttonGridRowAt(int rowIndex);
 
 }  // namespace EventCatalog
