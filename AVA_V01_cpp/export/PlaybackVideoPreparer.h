@@ -1,11 +1,14 @@
 #pragma once
 
 #include <QObject>
+#include <QPointer>
 #include <QProcess>
 #include <QString>
 
+#include <functional>
 #include <memory>
 
+class QProgressDialog;
 class QWidget;
 
 /// Prepares source videos for in-app playback via QMediaPlayer (AVFoundation on macOS).
@@ -24,7 +27,10 @@ public:
   void startPreparation(const QString& inputPath, const QString& outputDir);
   void cancel();
 
-  bool waitWithProgress(QWidget* parentWidget);
+  /// Shows a window-modal progress dialog and returns immediately. Calls
+  /// onFinished on the UI thread when preparation is already terminal or
+  /// after preparationFinished. Does not block on QProcess.
+  void waitWithProgress(QWidget* parentWidget, std::function<void(bool succeeded)> onFinished);
 
   QString outputPath() const { return outputPath_; }
   QString errorMessage() const { return errorMessage_; }
@@ -39,6 +45,9 @@ private slots:
 
 private:
   void stopAndDiscardProcess();
+  void openProgressDialog(QWidget* parentWidget);
+  void closeProgressDialog();
+  void deliverProgressWait();
 
   /// Unparented QObject; this unique_ptr is the only owner. Replace via
   /// stopAndDiscardProcess() (release + deleteLater) so finished() cannot
@@ -49,4 +58,8 @@ private:
   bool finished_ = false;
   bool succeeded_ = false;
   bool cancelled_ = false;
+  QPointer<QProgressDialog> progressDialog_;
+  QPointer<QWidget> progressParent_;
+  std::function<void(bool succeeded)> progressCompletion_;
+  bool progressWaitDelivered_ = false;
 };

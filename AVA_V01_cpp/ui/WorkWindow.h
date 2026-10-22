@@ -35,6 +35,7 @@ namespace EventCatalog {
 enum class EventId : int;
 }
 
+class PlaybackVideoPreparer;
 class VideoConcatenator;
 class VideoPlayer;
 class PlaybackTemporaryDirectoryController;
@@ -236,7 +237,15 @@ private:
   void onTagSessionTagsImported();
   void onTagSessionGameMetadataChanged();
 
-  std::optional<QString> preparePlaybackPath(const QString& filePath);
+  void finishOpeningVideo(const QString& filePath, const QString& playbackPath);
+  void applyConfirmedGameSetup(const QString& filePath,
+                               const QString& homeName,
+                               const QString& awayName,
+                               const QString& homeColor,
+                               const QString& awayColor,
+                               const QDate& gameDate,
+                               const QString& homeAbbrev,
+                               const QString& awayAbbrev);
   void resetSessionForOpenedVideo();
   void showPlayerForOpenedVideo(const QString& playbackPath);
   void showWorkChromeForOpenedVideo();
@@ -343,4 +352,13 @@ private:
   std::unique_ptr<TagsTableController> tagsTableController_;
   /// Presentation playback state, queue signals, clip bar, Tab shortcuts, and stage text.
   std::unique_ptr<PresentationPlaybackController> presentationPlaybackController_;
+
+  /// Bumps when a new open or concat replaces an in-flight one, so a queued
+  /// completion from the previous job does not apply.
+  int playbackPreparationGeneration_ = 0;
+  int videoConcatenationGeneration_ = 0;
+  std::unique_ptr<PlaybackVideoPreparer> activePlaybackPreparer_;
+  std::unique_ptr<QTemporaryDir> activePlaybackPrepDirectory_;
+  std::unique_ptr<VideoConcatenator> activeConcatenator_;
+  std::unique_ptr<QTemporaryDir> activeConcatTemporaryDirectory_;
 };

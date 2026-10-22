@@ -9,7 +9,9 @@
 class WelcomeWindow;
 class WorkWindow;
 class TagSession;
+class VideoConcatenator;
 class QStackedWidget;
+class QTemporaryDir;
 
 class MainWindow final : public QMainWindow {
   Q_OBJECT
@@ -32,4 +34,7 @@ private:
   WorkWindow* workWindow_ = nullptr;
   /// Unparented QObject; this unique_ptr is the only owner.
   std::unique_ptr<TagSession> tagSession_;
+  /// Lives until runFinished. The temporary directory holds concatenated.mp4.
+  std::unique_ptr<VideoConcatenator> importConcatenator_;
+  std::unique_ptr<QTemporaryDir> importTemporaryDirectory_;
 };
