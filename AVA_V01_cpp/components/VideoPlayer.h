@@ -110,6 +110,14 @@ private:
   void installWindowMoveTracking();
 
   void seekByMs(qint64 deltaMs);
+  void enqueueScrubSeek(qint64 positionMs);
+  void issueScrubSeek(qint64 positionMs);
+  void finishScrubSeekInFlight();
+  void schedulePendingScrubSeek();
+  void resumeScrubPlaybackIfRequested();
+  void cancelScrubSeekGate();
+  void noteScrubSeekPosition(qint64 positionMs);
+  void noteScrubSeekFrame(qint64 frameStartUs);
   void applyPlaybackRate(double rate);
   void setPlaybackRateAndPlay(double rate);
   void setupPlaybackReliabilityHooks();
@@ -174,6 +182,18 @@ private:
   // Settings or constants:
   double playbackRate_ = 1.0;
   bool wasPlayingBeforeScrub_ = false;
+
+  // Live scrub seeks are serialized. Only the newest target is kept, and the
+  // next setPosition waits until the in-flight seek presents or times out.
+  bool scrubSeekInFlight_ = false;
+  bool scrubSeekWatchingForFrame_ = false;
+  bool scrubResumePlayback_ = false;
+  bool scrubSeekIssuePosted_ = false;
+  qint64 scrubSeekInFlightTargetMs_ = -1;
+  qint64 scrubSeekPendingMs_ = -1;
+  qint64 scrubSeekPositionAtIssueMs_ = -1;
+  qint64 scrubSeekFrameStartAtIssueUs_ = -1;
+  QTimer* scrubSeekTimeoutTimer_ = nullptr;
 
   QTimer* playbackStallTimer_ = nullptr;
   QTimer* controlsIdleTimer_ = nullptr;

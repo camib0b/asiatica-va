@@ -164,6 +164,7 @@ void TimelineBar::wireSignals() {
     isScrubbing_ = true;
     clearSeekCommitWait();
     pendingScrubSeekMs_ = -1;
+    lastSliderMovedMs_ = -1;
     scrubSeekThrottleTimer_->stop();
     emit scrubStarted();
   });
@@ -172,6 +173,7 @@ void TimelineBar::wireSignals() {
     const qint64 posMs = positionMsForSliderValue(value, durationMs_);
     updateLabel(posMs, durationMs_);
 
+    lastSliderMovedMs_ = posMs;
     pendingScrubSeekMs_ = posMs;
     if (!scrubSeekThrottleTimer_->isActive()) {
       scrubSeekThrottleTimer_->start();
@@ -179,7 +181,22 @@ void TimelineBar::wireSignals() {
   });
 
   connect(slider_, &QSlider::sliderReleased, this, [this]() {
-    const qint64 releasedPosMs = positionMsForSliderValue(slider_->value(), durationMs_);
+    // Tracking is off. Qt emits sliderReleased, then triggerAction copies
+    // sliderPosition into value. value() is still the press position, or the
+    // groove-click point ClickSeekSlider applied in mousePressEvent. The drop
+    // is sliderPosition, which matches the last sliderMoved target when a drag
+    // happened. The throttle may already have cleared pendingScrubSeekMs_.
+    const int dropSliderValue = slider_->sliderPosition();
+    const qint64 dropFromSliderMs = positionMsForSliderValue(dropSliderValue, durationMs_);
+    const qint64 releasedPosMs = lastSliderMovedMs_ >= 0 ? lastSliderMovedMs_ : dropFromSliderMs;
+    lastSliderMovedMs_ = -1;
+
+    const int releasedSliderValue = sliderValueForPositionMs(releasedPosMs, durationMs_);
+    if (slider_->value() != releasedSliderValue) {
+      QSignalBlocker blockValueChanged(slider_);
+      slider_->setValue(releasedSliderValue);
+    }
+
     beginSeekCommitWait(releasedPosMs);
     pendingScrubSeekMs_ = -1;
     scrubSeekThrottleTimer_->stop();
@@ -211,6 +228,7 @@ void TimelineBar::reset() {
   isScrubbing_ = false;
   clearSeekCommitWait();
   pendingScrubSeekMs_ = -1;
+  lastSliderMovedMs_ = -1;
   lastDisplayedPosSeconds_ = -1;
   lastDisplayedDurSeconds_ = -1;
   if (scrubSeekThrottleTimer_) scrubSeekThrottleTimer_->stop();
