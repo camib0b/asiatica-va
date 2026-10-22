@@ -11,16 +11,21 @@ ShootoutState::Outcome outcomeFromChain(const TagEvent::FollowUpChain& chain) {
     bool found = false;
     const int used = chain.size();
     for (int index = 0; index < used; ++index) {
-        const EventCatalog::EventId id = chain.at(index);
-        if (id == EventCatalog::EventId::Converted) {
+        switch (EventCatalog::shootoutAttemptResult(chain.at(index))) {
+        case EventCatalog::ShootoutAttemptResult::Converted:
             matched = ShootoutState::Outcome::Converted;
             found = true;
-        } else if (id == EventCatalog::EventId::Missed) {
+            break;
+        case EventCatalog::ShootoutAttemptResult::Missed:
             matched = ShootoutState::Outcome::Missed;
             found = true;
-        } else if (id == EventCatalog::EventId::Replay) {
+            break;
+        case EventCatalog::ShootoutAttemptResult::Replay:
             matched = ShootoutState::Outcome::Replay;
             found = true;
+            break;
+        case EventCatalog::ShootoutAttemptResult::None:
+            break;
         }
     }
     if (!found) return ShootoutState::Outcome::Unknown;
@@ -219,7 +224,7 @@ ShootoutState ShootoutState::fromGameTags(const QVector<TagSession::GameTag>& ta
     events.reserve(tags.size());
     int sourceOrder = 0;
     for (const TagSession::GameTag& tag : tags) {
-        if (tag.mainEventId != EventCatalog::EventId::Shootout) continue;
+        if (!EventCatalog::isShootout(tag.mainEventId)) continue;
         SourceEvent event;
         event.tagId = tag.id;
         event.markMs = tag.markMs;

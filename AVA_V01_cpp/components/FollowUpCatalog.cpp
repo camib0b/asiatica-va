@@ -78,10 +78,6 @@ bool FollowUpCatalog::switchesTeamOnCommit(const QString& mainEvent) {
 }
 
 bool FollowUpCatalog::continuesAsGoal(const QString& mainEvent, const QStringList& selections) {
-  // Goal, penalty corner, and penalty stroke still chain into a Goal tag by name.
-  // That special case stays here until it is described on the catalog.
-  if (selections.isEmpty() || selections.last() != QStringLiteral("Goal")) return false;
-  if (mainEvent == QStringLiteral("PS") || mainEvent == QStringLiteral("PC")) return true;
-  return mainEvent == QStringLiteral("Shot") &&
-         selections.first() == QStringLiteral("On target");
+  const EventCatalog::Node* node = nodeAtPath(mainEvent, selections);
+  return node && node->continuesAsGoal;
 }

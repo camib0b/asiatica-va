@@ -11,9 +11,48 @@
 namespace EventCatalog {
 namespace {
 
+struct Behavior {
+  bool scoresGoal = false;
+  bool continuesAsGoal = false;
+  bool isShootout = false;
+  ShootoutAttemptResult shootoutAttemptResult = ShootoutAttemptResult::None;
+};
+
+constexpr Behavior goalScores() {
+  Behavior behavior;
+  behavior.scoresGoal = true;
+  return behavior;
+}
+
+constexpr Behavior goalContinuation() {
+  Behavior behavior;
+  behavior.scoresGoal = true;
+  behavior.continuesAsGoal = true;
+  return behavior;
+}
+
+constexpr Behavior shootoutEvent() {
+  Behavior behavior;
+  behavior.isShootout = true;
+  return behavior;
+}
+
+constexpr Behavior shootoutResult(ShootoutAttemptResult result) {
+  Behavior behavior;
+  behavior.shootoutAttemptResult = result;
+  return behavior;
+}
+
+constexpr void applyBehavior(Node* node, Behavior behavior) {
+  node->scoresGoal = behavior.scoresGoal;
+  node->continuesAsGoal = behavior.continuesAsGoal;
+  node->isShootout = behavior.isShootout;
+  node->shootoutAttemptResult = behavior.shootoutAttemptResult;
+}
+
 template <typename... ChildIds>
-constexpr Node makeFollowUp(EventId id, const char* canonicalName, const char* spanish,
-                            ChildIds... childIds) {
+constexpr Node makeFollowUpNode(EventId id, const char* canonicalName, const char* spanish,
+                                Behavior behavior, ChildIds... childIds) {
   static_assert(sizeof...(ChildIds) <= kMaxFollowUpChildren, "too many follow-ups");
   Node node{};
   node.id = id;
@@ -30,6 +69,7 @@ constexpr Node makeFollowUp(EventId id, const char* canonicalName, const char* s
   node.buttonRow = kNoButtonGridPosition;
   node.buttonColumn = kNoButtonGridPosition;
   node.buttonRowOffsetUnits = 0;
+  applyBehavior(&node, behavior);
   node.childCount = static_cast<int>(sizeof...(ChildIds));
   if constexpr (sizeof...(ChildIds) > 0) {
     const EventId packed[] = {childIds...};
@@ -41,11 +81,23 @@ constexpr Node makeFollowUp(EventId id, const char* canonicalName, const char* s
 }
 
 template <typename... ChildIds>
-constexpr Node makeMainEvent(EventId id, const char* canonicalName, Qt::Key shortcut,
-                             const char* xmlCode, qint64 leadMs, qint64 lagMs,
-                             const char* spanish, PayloadLayout payloadLayout, bool switchesTeam,
-                             const char* displayLabel, int buttonRow, int buttonColumn,
-                             int buttonRowOffsetUnits, ChildIds... childIds) {
+constexpr Node makeFollowUp(EventId id, const char* canonicalName, const char* spanish,
+                            ChildIds... childIds) {
+  return makeFollowUpNode(id, canonicalName, spanish, Behavior{}, childIds...);
+}
+
+template <typename... ChildIds>
+constexpr Node makeFollowUp(EventId id, const char* canonicalName, const char* spanish,
+                            Behavior behavior, ChildIds... childIds) {
+  return makeFollowUpNode(id, canonicalName, spanish, behavior, childIds...);
+}
+
+template <typename... ChildIds>
+constexpr Node makeMainEventNode(EventId id, const char* canonicalName, Qt::Key shortcut,
+                                 const char* xmlCode, qint64 leadMs, qint64 lagMs,
+                                 const char* spanish, PayloadLayout payloadLayout, bool switchesTeam,
+                                 const char* displayLabel, int buttonRow, int buttonColumn,
+                                 int buttonRowOffsetUnits, Behavior behavior, ChildIds... childIds) {
   static_assert(sizeof...(ChildIds) <= kMaxFollowUpChildren, "too many follow-ups");
   Node node{};
   node.id = id;
@@ -62,6 +114,7 @@ constexpr Node makeMainEvent(EventId id, const char* canonicalName, Qt::Key shor
   node.buttonRow = buttonRow;
   node.buttonColumn = buttonColumn;
   node.buttonRowOffsetUnits = buttonRowOffsetUnits;
+  applyBehavior(&node, behavior);
   node.childCount = static_cast<int>(sizeof...(ChildIds));
   if constexpr (sizeof...(ChildIds) > 0) {
     const EventId packed[] = {childIds...};
@@ -70,6 +123,28 @@ constexpr Node makeMainEvent(EventId id, const char* canonicalName, Qt::Key shor
     }
   }
   return node;
+}
+
+template <typename... ChildIds>
+constexpr Node makeMainEvent(EventId id, const char* canonicalName, Qt::Key shortcut,
+                             const char* xmlCode, qint64 leadMs, qint64 lagMs,
+                             const char* spanish, PayloadLayout payloadLayout, bool switchesTeam,
+                             const char* displayLabel, int buttonRow, int buttonColumn,
+                             int buttonRowOffsetUnits, ChildIds... childIds) {
+  return makeMainEventNode(id, canonicalName, shortcut, xmlCode, leadMs, lagMs, spanish,
+                           payloadLayout, switchesTeam, displayLabel, buttonRow, buttonColumn,
+                           buttonRowOffsetUnits, Behavior{}, childIds...);
+}
+
+template <typename... ChildIds>
+constexpr Node makeMainEvent(EventId id, const char* canonicalName, Qt::Key shortcut,
+                             const char* xmlCode, qint64 leadMs, qint64 lagMs,
+                             const char* spanish, PayloadLayout payloadLayout, bool switchesTeam,
+                             const char* displayLabel, int buttonRow, int buttonColumn,
+                             int buttonRowOffsetUnits, Behavior behavior, ChildIds... childIds) {
+  return makeMainEventNode(id, canonicalName, shortcut, xmlCode, leadMs, lagMs, spanish,
+                           payloadLayout, switchesTeam, displayLabel, buttonRow, buttonColumn,
+                           buttonRowOffsetUnits, behavior, childIds...);
 }
 
 // Column order for makeMainEvent: id, canonical name, key, XML code, lead ms,
@@ -86,7 +161,7 @@ constexpr Node makeMainEvent(EventId id, const char* canonicalName, Qt::Key shor
 const std::array<Node, 66>& catalogNodes() {
   static const std::array<Node, 66> nodes = {
       makeMainEvent(EventId::Goal, "Goal", Qt::Key_F, "GOAL", 10000, 2000, "Gol",
-                    PayloadLayout::TeamOnly, false, nullptr, 1, 3, 1),
+                    PayloadLayout::TeamOnly, false, nullptr, 1, 3, 1, goalScores()),
       makeMainEvent(EventId::Shot, "Shot", Qt::Key_D, "SHOT", 5000, 5000, "Tiro",
                     PayloadLayout::PlainChain, false, nullptr, 1, 2, 1, EventId::OnTarget,
                     EventId::OffTarget, EventId::Blocked),
@@ -123,8 +198,8 @@ const std::array<Node, 66>& catalogNodes() {
                     PayloadLayout::TeamThenChain, false, nullptr, 3, 0, 3, EventId::FollowUpGoal,
                     EventId::NoGoal),
       makeMainEvent(EventId::Shootout, "S.O.", Qt::Key_N, "SO", 2000, 9000, nullptr,
-                    PayloadLayout::TeamThenChain, false, nullptr, 3, 1, 3, EventId::Converted,
-                    EventId::Missed, EventId::Replay),
+                    PayloadLayout::TeamThenChain, false, nullptr, 3, 1, 3, shootoutEvent(),
+                    EventId::Converted, EventId::Missed, EventId::Replay),
 
       makeFollowUp(EventId::OnTarget, "On target", "Al arco", EventId::FollowUpGoal, EventId::Saved,
                    EventId::Post),
@@ -134,7 +209,7 @@ const std::array<Node, 66>& catalogNodes() {
       makeFollowUp(EventId::Post, "Post", "Poste"),
       makeFollowUp(EventId::Closeby, "Closeby", "Cerca"),
       makeFollowUp(EventId::NotClose, "Not close", "Lejos"),
-      makeFollowUp(EventId::FollowUpGoal, "Goal", "Gol"),
+      makeFollowUp(EventId::FollowUpGoal, "Goal", "Gol", goalContinuation()),
       makeFollowUp(EventId::NoGoal, "No Goal", nullptr),
       makeFollowUp(EventId::Dribbling, "Dribbling", "Conducción", EventId::Left, EventId::Middle,
                    EventId::Right),
@@ -183,9 +258,12 @@ const std::array<Node, 66>& catalogNodes() {
       makeFollowUp(EventId::Stick, "Stick", "Palo"),
       makeFollowUp(EventId::Danger, "Danger", "Peligro"),
       makeFollowUp(EventId::Other, "Other", "Otro"),
-      makeFollowUp(EventId::Converted, "Converted", "Convertido"),
-      makeFollowUp(EventId::Missed, "Missed", "No convertido"),
-      makeFollowUp(EventId::Replay, "Replay", "Repite"),
+      makeFollowUp(EventId::Converted, "Converted", "Convertido",
+                   shootoutResult(ShootoutAttemptResult::Converted)),
+      makeFollowUp(EventId::Missed, "Missed", "No convertido",
+                   shootoutResult(ShootoutAttemptResult::Missed)),
+      makeFollowUp(EventId::Replay, "Replay", "Repite",
+                   shootoutResult(ShootoutAttemptResult::Replay)),
   };
   return nodes;
 }
@@ -196,6 +274,7 @@ struct CatalogIndex {
   QHash<QString, QString> spanishByCanonicalName;
   QVector<int> buttonGridNodeIndexes;
   QVector<ButtonGridRow> buttonGridRows;
+  int scoringGoalNodeIndex = -1;
 };
 
 struct PlacedButton {
@@ -333,6 +412,20 @@ CatalogIndex buildCatalogIndex() {
       Q_ASSERT_X(false, "EventCatalog", "display label disagrees across rows that share a name");
     }
 
+    if (node.continuesAsGoal) {
+      Q_ASSERT_X(!node.mainEvent, "EventCatalog", "a main event continues as a goal");
+    }
+    if (node.shootoutAttemptResult != ShootoutAttemptResult::None) {
+      Q_ASSERT_X(!node.mainEvent, "EventCatalog", "a main event stores a shoot-out result");
+      Q_ASSERT_X(!node.scoresGoal, "EventCatalog", "a shoot-out result scores a match goal");
+      Q_ASSERT_X(!node.continuesAsGoal, "EventCatalog", "a shoot-out result continues as a goal");
+    }
+    if (node.isShootout) {
+      Q_ASSERT_X(node.mainEvent, "EventCatalog", "a follow-up is marked as a shoot-out");
+      Q_ASSERT_X(!node.scoresGoal, "EventCatalog", "a shoot-out scores a match goal");
+      Q_ASSERT_X(!node.continuesAsGoal, "EventCatalog", "a shoot-out continues as a goal");
+    }
+
     if (!node.mainEvent) continue;
 
     Q_ASSERT_X(!index.mainNameToNodeIndex.contains(name), "EventCatalog",
@@ -340,7 +433,13 @@ CatalogIndex buildCatalogIndex() {
     Q_ASSERT_X(node.xmlCode && node.xmlCode[0] != '\0', "EventCatalog",
                "main event is missing an XML code");
     index.mainNameToNodeIndex.insert(name, nodeIndex);
+    if (node.scoresGoal) {
+      Q_ASSERT_X(index.scoringGoalNodeIndex < 0, "EventCatalog", "two main events score a goal");
+      index.scoringGoalNodeIndex = nodeIndex;
+    }
   }
+
+  Q_ASSERT_X(index.scoringGoalNodeIndex >= 0, "EventCatalog", "no main event scores a goal");
 
   for (int nodeIndex = 0; nodeIndex < static_cast<int>(nodes.size()); ++nodeIndex) {
     const Node& node = nodes.at(static_cast<std::size_t>(nodeIndex));
@@ -466,6 +565,38 @@ PayloadLayout payloadLayoutForMainEvent(const QString& canonicalName) {
 bool switchesTeamForMainEvent(const QString& canonicalName) {
   const Node* node = mainEventForCanonicalName(canonicalName);
   return node && node->switchesTeam;
+}
+
+bool scoresGoal(EventId id) {
+  const Node* node = nodeForId(id);
+  return node && node->scoresGoal;
+}
+
+bool continuesAsGoal(EventId id) {
+  const Node* node = nodeForId(id);
+  return node && node->continuesAsGoal;
+}
+
+bool isShootout(EventId id) {
+  const Node* node = nodeForId(id);
+  return node && node->isShootout;
+}
+
+ShootoutAttemptResult shootoutAttemptResult(EventId id) {
+  const Node* node = nodeForId(id);
+  if (!node) return ShootoutAttemptResult::None;
+  return node->shootoutAttemptResult;
+}
+
+bool mainEventScoresGoal(EventId id) {
+  const Node* node = nodeForId(id);
+  return node && node->mainEvent && node->scoresGoal;
+}
+
+const Node* scoringGoalMainEvent() {
+  const int nodeIndex = catalogIndex().scoringGoalNodeIndex;
+  if (nodeIndex < 0) return nullptr;
+  return &nodeAt(nodeIndex);
 }
 
 QStringList childCanonicalNames(const Node& node) {

@@ -114,6 +114,15 @@ enum class PayloadLayout {
   TeamOnly,       ///< team label; ignores selections
 };
 
+/// Result stored on a shoot-out follow-up. None means this row is not one.
+/// Converted scores the shoot-out board only. It does not score the match.
+enum class ShootoutAttemptResult {
+  None,
+  Converted,
+  Missed,
+  Replay,
+};
+
 /// One catalog row. Main events and follow-ups share this shape.
 /// Follow-ups leave shortcut, XML code, lead/lag, payload, and the button grid unused.
 struct Node {
@@ -133,6 +142,15 @@ struct Node {
   PayloadLayout payloadLayout = PayloadLayout::PlainChain;
   bool switchesTeam = false;
   bool mainEvent = false;
+  /// Main event: this tag counts on the match scoreboard and in XML RESULTADO.
+  /// Follow-up: the chain records a scored goal, so export can write a synthetic
+  /// GOAL code. A shoot-out conversion does not set this flag.
+  bool scoresGoal = false;
+  /// Committing a chain that ends on this follow-up starts the scoring-goal event.
+  bool continuesAsGoal = false;
+  /// This main event is a shoot-out attempt. Its results stay off the match score.
+  bool isShootout = false;
+  ShootoutAttemptResult shootoutAttemptResult = ShootoutAttemptResult::None;
   /// GameControls keyboard row, top to bottom. kNoButtonGridPosition for follow-ups.
   int buttonRow = kNoButtonGridPosition;
   /// Left-to-right slot within buttonRow. kNoButtonGridPosition for follow-ups.
@@ -184,6 +202,18 @@ QString labelForId(EventId id, bool spanish);
 
 PayloadLayout payloadLayoutForMainEvent(const QString& canonicalName);
 bool switchesTeamForMainEvent(const QString& canonicalName);
+
+/// Raw catalog flags. False / None when \p id is not in the catalog.
+bool scoresGoal(EventId id);
+bool continuesAsGoal(EventId id);
+bool isShootout(EventId id);
+ShootoutAttemptResult shootoutAttemptResult(EventId id);
+
+/// True when \p id is a main event whose scoresGoal flag is set.
+bool mainEventScoresGoal(EventId id);
+
+/// The one main event with scoresGoal set. Null when the catalog has none.
+const Node* scoringGoalMainEvent();
 
 QStringList childCanonicalNames(const Node& node);
 const Node* childForCanonicalName(const Node& parent, const QString& canonicalName);

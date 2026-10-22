@@ -7,8 +7,8 @@
 
 /// Follow-up option tree and tag-payload policy for game events.
 /// Definitions live in EventCatalog. Adding an event means extending that
-/// catalog, not GameControls click handlers. Goal / penalty-corner /
-/// penalty-stroke continuation stays in continuesAsGoal().
+/// catalog, not GameControls click handlers. continuesAsGoal() reads the
+/// terminal follow-up's catalog flag.
 class FollowUpCatalog {
 public:
   using PayloadLayout = EventCatalog::PayloadLayout;

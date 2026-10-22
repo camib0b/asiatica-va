@@ -17,7 +17,7 @@
 
 ## Components
 
-- FollowUpCatalog reads the follow-up tree, payload layout, and team-switch flag from EventCatalog, formats the arrow path, and keeps the Goal / penalty-corner / penalty-stroke continuation special case.
+- FollowUpCatalog reads the follow-up tree, payload layout, team-switch flag, and goal-continuation flag from EventCatalog, and formats the arrow path.
 - GameControls is a complex Qt QWidget for sports event tagging, featuring team selection with color styling, game-phase management for quarters, a main grid of event buttons built from EventCatalog, dynamic multi-level follow-up prompts, extensive keyboard shortcuts, arrow-key focus navigation, and signal emission for tag commits. Period advance (G/H), follow-up number keys, and Escape stay in this widget.
 - MatchNotesEditor is a QTextEdit subclass providing rich-text editing for match notes with @mention autocomplete for tags via a QListWidget popup, inserting mentions as HTML anchors that emit activation signals on click while preserving scroll position and supporting HTML serialization.
 - TeamColorPicker is a compact Qt widget providing a clickable color well that opens a popup with a fixed localized palette, live hex editor, and system color picker fallback. Key design uses a custom-painted ColorCircleButton (with luminance-based borders), manual popup positioning, and tight state synchronization across the well, swatches, and text field via normalized hex strings.
@@ -26,7 +26,7 @@
 - VideoPlayer is a QWidget subclass that encapsulates QMediaPlayer, QVideoWidget, controls, and timeline for playback with seeking, rate control, keyboard shortcuts, stall detection/recovery, and macOS-specific system sleep/wake state restoration.
 
 ## State
-- EventCatalog is the single definition of each main event and follow-up: stable id, canonical English name, keyboard key, button-grid row and column, XML code, factory lead/lag, follow-up children, Spanish text, and an optional display label. Game tags store those ids. QSettings lead/lag keys, XML export, and .clips.json still use the canonical English name or short code.
+- EventCatalog is the single definition of each main event and follow-up: stable id, canonical English name, keyboard key, button-grid row and column, XML code, factory lead/lag, follow-up children, Spanish text, an optional display label, and the goal / shoot-out flags (scoresGoal, continuesAsGoal, isShootout, shootout attempt result). Game tags store those ids. QSettings lead/lag keys, XML export, and .clips.json still use the canonical English name or short code.
 - EventDefaults manages factory and user-overridable lead/lag clip durations. Play-event defaults and the configurable list come from EventCatalog. Start-anchor, timeout, and quarter codes stay here. QSettings overrides remain keyed by the canonical English name under the 'clipDurations' group.
 - EventCodeMap builds the canonical-name ↔ XML-code hashes from EventCatalog main events. Lookup trims and is case-insensitive.
 - PresentationQueue manages a sorted vector of selected clips synced bidirectionally with a TagSession, preserving current index across rebuilds, enforcing min durations and video bounds, and emitting Qt signals for UI updates.
@@ -45,7 +45,7 @@
 - PlaybackVideoPreparer transcodes MKV/WebM files to a standardized MP4 (using libx264/aac) via an external FFmpeg QProcess for playback compatibility. Key design centers on async process management, cancel flags, synchronous waitWithProgress via nested QEventLoop, and basic error forwarding from stderr.
 - VideoConcatenator orchestrates FFmpeg-based video concatenation via a generated concat_list.txt and QProcess with copy codec +faststart flags. Key design centers on async process management, modal QProgressDialog with QEventLoop synchronization, cancellation guards, and a drag/drop reordering dialog.
 - XaiConfig implements a namespace that retrieves an API key preferring XAI_API_KEY (or legacy AVA_XAI_API_KEY) environment variables over JSON files in Qt standard config locations, with bootstrap() to persist the env key to primary config.
-- XmlExporter converts TagSession game tags into a specific XML schema for video analysis tools (LongoMatch/Olympia), synthesizing extra Goal instances from follow-up paths, emitting dual +/− team codes with running scores, and producing an ordered palette in <ROWS>.
+- XmlExporter converts TagSession game tags into a specific XML schema for video analysis tools (LongoMatch/Olympia), synthesizing extra Goal instances when a follow-up has scoresGoal, emitting dual +/− team codes with running scores, and producing an ordered palette in <ROWS>. The match score counts the scoring-goal main event. Shoot-out attempts use isShootout and do not change that score.
 - XmlImporter parses a specific XML format for event instances (with start/end times, codes, and QUARTOS labels) using QXmlStreamReader driven by a manual state machine of boolean flags; it validates data, sorts by time+ID, and supplies an anchor-instance lookup with fallback logic.
 
 ## i18n
