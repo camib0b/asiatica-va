@@ -252,8 +252,8 @@ void PresentationQueue::rebuildClipsFromSession() {
     clip.markMs = tag.markMs;
     clip.startMs = tag.startMs;
     clip.endMs = tag.endMs;
-    clip.mainEvent = tag.mainEvent;
-    clip.followUpEvent = tag.followUpEvent;
+    clip.mainEvent = tag.mainEventKey();
+    clip.followUps = tag.followUpChain();
     clip.team = tag.team;
     clip.note = tag.note.trimmed();
     clampClipToVideo(clip);

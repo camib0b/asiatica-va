@@ -51,7 +51,7 @@ QString fitError(const QComboBox* combo, const QString& text) {
 
 TagSession::GameTag playTag(const QString& mainEvent, const QString& team) {
   TagSession::GameTag tag;
-  tag.mainEvent = mainEvent;
+  tag.setMainEventKey(TagEvent::keyFromCanonicalName(mainEvent));
   tag.team = team;
   tag.markMs = 1000;
   return tag;

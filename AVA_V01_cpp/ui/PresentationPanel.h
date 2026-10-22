@@ -2,8 +2,11 @@
 
 #include "PresentationInstancesModel.h"
 
+#include "../state/TagSession.h"
+
 #include <QPointer>
 #include <QSet>
+#include <QVariant>
 #include <QVector>
 #include <QWidget>
 #include <QtGlobal>
@@ -16,8 +19,6 @@ class QLabel;
 class QPushButton;
 class QTableView;
 class QToolButton;
-
-class TagSession;
 
 /// Side panel of presentation mode: filters the session's tagged events, lets the user select the
 /// instances to present, and edits the lead/lag times of the clip currently on screen.
@@ -78,6 +79,8 @@ private:
   PresentationInstancesModel::Row makeVisibleRow(int tagSessionIndex, quint64 tagId, qint64 markMs,
                                                  const QString& teamKey, const QString& mainEvent,
                                                  const QString& followUpEvent) const;
+  PresentationInstancesModel::Row makeSessionRow(int tagSessionIndex,
+                                                 const TagSession::GameTag& tag) const;
   void rebuildRows();
   void syncModelSelection();
   void updateSelectionSummary();
@@ -89,8 +92,8 @@ private:
   void pruneSelectionToExistingTags();
   bool resolveCurrentClip(int tagSessionIndex, int* resolvedIndex, quint64* resolvedTagId) const;
   quint64 tagIdAt(int tagSessionIndex) const;
-  bool passesFilters(const QString& mainEvent, const QString& team) const;
-  bool eventFilterValueIsValid(const QString& eventFilter) const;
+  bool passesFilters(const TagEvent::MainEventKey& mainEvent, const QString& team) const;
+  bool eventFilterValueIsValid(const QVariant& eventFilter) const;
   QString teamDisplayName(const QString& teamKey) const;
   QString teamFilterAbbreviation(const QString& teamKey) const;
   void addTeamFilterItem(const QString& teamKey);

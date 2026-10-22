@@ -50,7 +50,8 @@ public:
   void syncFilterMenu();
   void refreshTagsTableRows();
   void updatePlayheadHighlight(qint64 positionMs);
-  void onFilterByEventPathRequested(const QString& mainEvent, const QString& followUpEvent);
+  void onFilterByEventPathRequested(const TagEvent::MainEventKey& mainEvent,
+                                   const TagEvent::FollowUpChain& followUps);
 
 private:
   void onSelectAllFilters();
@@ -59,7 +60,8 @@ private:
   void onRemoveFilters();
   void onTagsFilterMenuAboutToHide();
   void applyDeferredFilterMenuStructureSync();
-  bool tagPassesEventFilter(const QString& mainEvent, const QString& followUpEvent) const;
+  bool tagPassesEventFilter(const TagEvent::MainEventKey& mainEvent,
+                            const TagEvent::FollowUpChain& followUps) const;
   bool hasAnyFilterActive() const;
   void updateRemoveFiltersButtonVisibility() const;
   void updateFilterIndicator() const;
@@ -69,8 +71,8 @@ private:
   TagsTableModel::Row tagsTableRowFor(const TagSession::GameTag& tag, int tagSessionIndex) const;
   void fitTagsTableColumns();
   void restoreTagsTableSelection(quint64 previouslySelectedTagId, int previousVerticalScroll);
-  QSet<QString> refreshFilterMenuActions(bool deferStructureChanges);
-  void hideRetiredFilterMenuActions(const QSet<QString>& liveMainEvents);
+  QSet<TagEvent::MainEventKey> refreshFilterMenuActions(bool deferStructureChanges);
+  void hideRetiredFilterMenuActions(const QSet<TagEvent::MainEventKey>& liveMainEvents);
 
   TagSession* tagSession_ = nullptr;
   NotesController* notesController_ = nullptr;
@@ -82,7 +84,7 @@ private:
   QPointer<QAction> filterSelectNoneAction_;
   QPointer<QLabel> tagsFilterIndicator_;
   QPointer<QToolButton> tagsRemoveFiltersButton_;
-  QHash<QString, QPointer<QAction>> filterActionByMainEvent_;
+  QHash<TagEvent::MainEventKey, QPointer<QAction>> filterActionByMainEvent_;
   TagFilter tagFilter_;
   bool rebuildingTagsTable_ = false;
   bool tagsTableRebuildRequested_ = false;

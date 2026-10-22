@@ -2,6 +2,7 @@
 #include "../style/StyleProps.h"
 #include "../style/WorkDataView.h"
 #include "../i18n/AppLocale.h"
+#include "../state/TagEvent.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -185,11 +186,12 @@ bool StatsWindow::tagMatchesTeamFilter(const TagSession::GameTag& tag, TeamStats
 
 void StatsWindow::onTreeItemDoubleClicked(QTreeWidgetItem* item, int /*column*/) {
     if (!item) return;
-    const QString mainEvent = item->data(0, Qt::UserRole).toString();
-    const QString followUpEvent = item->data(0, Qt::UserRole + 1).toString();
-    if (!mainEvent.isEmpty()) {
-        emit filterByEventPathRequested(mainEvent, followUpEvent);
-    }
+    const TagEvent::MainEventKey mainEvent =
+        item->data(0, Qt::UserRole).value<TagEvent::MainEventKey>();
+    if (mainEvent.isEmpty()) return;
+    const TagEvent::FollowUpChain followUps =
+        item->data(0, Qt::UserRole + 1).value<TagEvent::FollowUpChain>();
+    emit filterByEventPathRequested(mainEvent, followUps);
 }
 
 void StatsWindow::clearTree() {
@@ -203,54 +205,52 @@ void StatsWindow::rebuildTree() {
     if (!tagSession_) return;
 
     const TeamStatsFilter filter = currentTeamFilter();
-    QHash<QString, int> mainCounts;
-    QHash<QString, QHash<QString, int>> followUpCounts;
+    QHash<TagEvent::MainEventKey, int> mainCounts;
+    QHash<TagEvent::MainEventKey, QHash<TagEvent::FollowUpChain, int>> followUpCounts;
 
     for (const TagSession::GameTag& tag : tagSession_->tags()) {
         if (!tagMatchesTeamFilter(tag, filter)) continue;
-        mainCounts[tag.mainEvent] = mainCounts.value(tag.mainEvent, 0) + 1;
-        if (!tag.followUpEvent.isEmpty()) {
-            auto& inner = followUpCounts[tag.mainEvent];
-            inner[tag.followUpEvent] = inner.value(tag.followUpEvent, 0) + 1;
+        const TagEvent::MainEventKey mainEvent = tag.mainEventKey();
+        mainCounts[mainEvent] = mainCounts.value(mainEvent, 0) + 1;
+        const TagEvent::FollowUpChain chain = tag.followUpChain();
+        if (!chain.empty()) {
+            auto& inner = followUpCounts[mainEvent];
+            inner[chain] = inner.value(chain, 0) + 1;
         }
     }
 
-    QStringList mains = mainCounts.keys();
-    std::sort(mains.begin(), mains.end(), [](const QString& a, const QString& b) {
-        return a.compare(b, Qt::CaseInsensitive) < 0;
-    });
+    const QList<TagEvent::MainEventKey> mains =
+        TagEvent::sortedByCanonicalName(mainCounts.keys());
 
-    const QString homeName = tagSession_->homeTeamName();
-    const QString awayName = tagSession_->awayTeamName();
-
-    for (const QString& mainEvent : mains) {
+    for (const TagEvent::MainEventKey& mainEvent : mains) {
         const int mainCount = mainCounts.value(mainEvent, 0);
 
         auto* mainItem = new QTreeWidgetItem(tree_);
-        mainItem->setText(0, AppLocale::trEvent(mainEvent));
+        mainItem->setText(0, TagEvent::displayLabel(mainEvent));
         mainItem->setText(1, QString::number(mainCount));
-        mainItem->setData(0, Qt::UserRole, mainEvent);
-        mainItem->setData(0, Qt::UserRole + 1, QString());
+        mainItem->setData(0, Qt::UserRole, QVariant::fromValue(mainEvent));
+        mainItem->setData(0, Qt::UserRole + 1, QVariant::fromValue(TagEvent::FollowUpChain{}));
 
         const auto followUpsIt = followUpCounts.find(mainEvent);
         if (followUpsIt == followUpCounts.end()) continue;
 
-        QStringList followUps = followUpsIt.value().keys();
-        std::sort(followUps.begin(), followUps.end(), [](const QString& a, const QString& b) {
-            return a.compare(b, Qt::CaseInsensitive) < 0;
-        });
+        QList<TagEvent::FollowUpChain> followUps = followUpsIt.value().keys();
+        std::sort(followUps.begin(), followUps.end(),
+                  [](const TagEvent::FollowUpChain& left, const TagEvent::FollowUpChain& right) {
+                      return TagEvent::canonicalFollowUpPath(left).compare(
+                                 TagEvent::canonicalFollowUpPath(right), Qt::CaseInsensitive) < 0;
+                  });
 
-        for (const QString& followUp : followUps) {
+        for (const TagEvent::FollowUpChain& followUp : followUps) {
             const int followUpCount = followUpsIt.value().value(followUp, 0);
-            const QString stripped =
-                AppLocale::followUpPathWithoutTeamSegments(followUp, homeName, awayName);
-            if (stripped.isEmpty()) continue;
+            const QString followUpLabel = TagEvent::displayFollowUpPath(followUp);
+            if (followUpLabel.isEmpty()) continue;
 
             auto* child = new QTreeWidgetItem(mainItem);
-            child->setText(0, QStringLiteral("  ") + AppLocale::translateCompoundPath(stripped));
+            child->setText(0, QStringLiteral("  ") + followUpLabel);
             child->setText(1, formatCountAndPercent(followUpCount, mainCount));
-            child->setData(0, Qt::UserRole, mainEvent);
-            child->setData(0, Qt::UserRole + 1, followUp);
+            child->setData(0, Qt::UserRole, QVariant::fromValue(mainEvent));
+            child->setData(0, Qt::UserRole + 1, QVariant::fromValue(followUp));
         }
 
         mainItem->setExpanded(true);

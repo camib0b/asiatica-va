@@ -3,7 +3,6 @@
 #include "../components/MatchNotesEditor.h"
 #include "../components/VideoPlayer.h"
 #include "../i18n/AppLocale.h"
-#include "../state/EventDefaults.h"
 #include "../state/TagSession.h"
 #include "TagRowDisplay.h"
 #include "TagsTableModel.h"
@@ -175,9 +174,8 @@ void NotesController::refreshMatchNoteMentionCandidates() {
   if (tagSession_) {
     for (const TagSession::GameTag& tag : tagSession_->tags()) {
       if (tag.id == 0) continue;
-      if (EventDefaults::isTimeControlEvent(tag.mainEvent)) continue;
-      const QString followUp = TagRowDisplay::followUpPathForDisplay(tag.followUpEvent, tagSession_);
-      const QString eventLine = AppLocale::trDisplayTagLine(tag.mainEvent, followUp);
+      if (tag.mainEventKey().isTimeControl()) continue;
+      const QString eventLine = TagRowDisplay::eventLineForTag(tag);
       const QString teamName = TagRowDisplay::displayTeamForTag(tag, tagSession_);
       MatchNotesEditor::MentionCandidate candidate;
       candidate.tagId = tag.id;

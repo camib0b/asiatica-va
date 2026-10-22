@@ -17,11 +17,6 @@ using Marker = ShootoutState::MarkerKind;
 const QString kConverted = QStringLiteral("Converted");
 const QString kMissed = QStringLiteral("Missed");
 
-QString outcomeChain(const QString& outcome) {
-    if (outcome.isEmpty()) return {};
-    return QStringLiteral("Side \u2192 ") + outcome;
-}
-
 ShootoutState::SourceEvent attempt(int order,
                                    qint64 markMs,
                                    const char* team,
@@ -30,7 +25,12 @@ ShootoutState::SourceEvent attempt(int order,
     event.tagId = static_cast<quint64>(order + 1);
     event.markMs = markMs;
     event.teamKey = QString::fromLatin1(team);
-    event.followUpEvent = outcomeChain(outcome);
+    if (!outcome.isEmpty()) {
+        const std::optional<TagEvent::FollowUpChain> parsed = TagEvent::parseLegacyFollowUpPayload(
+            EventCatalog::EventId::Shootout, QStringLiteral("Side \u2192 ") + outcome,
+            QStringLiteral("Side"), QString());
+        if (parsed.has_value()) event.followUps = *parsed;
+    }
     event.sourceOrder = order;
     return event;
 }
@@ -89,8 +89,8 @@ PresentationQueue::Clip presentationClip(const TagSession::GameTag& tag) {
     clip.markMs = tag.markMs;
     clip.startMs = tag.startMs;
     clip.endMs = tag.endMs;
-    clip.mainEvent = tag.mainEvent;
-    clip.followUpEvent = tag.followUpEvent;
+    clip.mainEvent = tag.mainEventKey();
+    clip.followUps = tag.followUpChain();
     clip.team = tag.team;
     return clip;
 }
@@ -436,10 +436,10 @@ void ShootoutStateTest::missingResultsReplaysAndBrokenAlternationStayHonest() {
     ignored.append(attempt(0, 1000, "Neutral", kConverted));
     ignored.append(attempt(1, 2000, "Home", kMissed));
     TagSession::GameTag goal;
-    goal.mainEvent = QStringLiteral("Goal");
+    goal.setMainEventKey(TagEvent::catalogKey(EventCatalog::EventId::Goal));
     goal.team = QStringLiteral("Home");
     goal.markMs = 500;
-    goal.followUpEvent = QStringLiteral("Converted");
+    goal.setFollowUpChain(TagEvent::chainOf(EventCatalog::EventId::Converted));
     TagSession session;
     session.addTag(goal);
     const ShootoutState fromTags = ShootoutState::fromGameTags(session.tags());
@@ -521,7 +521,7 @@ void ShootoutStateTest::laterClipsKeepShootoutGoalsOffTheMatchScoreboard() {
                          QStringLiteral("#c83c3c"));
 
     TagSession::GameTag goal;
-    goal.mainEvent = QStringLiteral("Goal");
+    goal.setMainEventKey(TagEvent::catalogKey(EventCatalog::EventId::Goal));
     goal.team = QStringLiteral("Home");
     goal.markMs = 8000;
     goal.startMs = 6000;
@@ -530,9 +530,9 @@ void ShootoutStateTest::laterClipsKeepShootoutGoalsOffTheMatchScoreboard() {
     const TagSession::GameTag storedGoal = storedTag(session, goal);
 
     TagSession::GameTag shootout;
-    shootout.mainEvent = QStringLiteral("S.O.");
+    shootout.setMainEventKey(TagEvent::catalogKey(EventCatalog::EventId::Shootout));
     shootout.team = QStringLiteral("Home");
-    shootout.followUpEvent = QStringLiteral("Universidad Católica \u2192 Converted");
+    shootout.setFollowUpChain(TagEvent::chainOf(EventCatalog::EventId::Converted));
     shootout.markMs = 50000;
     shootout.startMs = 48000;
     shootout.endMs = 59000;
@@ -540,7 +540,7 @@ void ShootoutStateTest::laterClipsKeepShootoutGoalsOffTheMatchScoreboard() {
     const TagSession::GameTag storedShootout = storedTag(session, shootout);
 
     TagSession::GameTag laterShot;
-    laterShot.mainEvent = QStringLiteral("Shot");
+    laterShot.setMainEventKey(TagEvent::catalogKey(EventCatalog::EventId::Shot));
     laterShot.team = QStringLiteral("Away");
     laterShot.markMs = 80000;
     laterShot.startMs = 78000;

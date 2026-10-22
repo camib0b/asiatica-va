@@ -69,7 +69,7 @@ void scheduleDialogClick(const QString& buttonText, DialogSnapshot* snapshot) {
 
 TagSession::GameTag playTag(const QString& mainEvent, qint64 markMs) {
     TagSession::GameTag tag;
-    tag.mainEvent = mainEvent;
+    tag.setMainEventKey(TagEvent::keyFromCanonicalName(mainEvent));
     tag.markMs = markMs;
     tag.startMs = markMs;
     tag.endMs = markMs + 1000;
@@ -84,7 +84,7 @@ PresentationQueue::Clip clipFrom(const TagSession::GameTag& tag) {
     clip.markMs = tag.markMs;
     clip.startMs = tag.startMs;
     clip.endMs = tag.endMs;
-    clip.mainEvent = tag.mainEvent;
+    clip.mainEvent = tag.mainEventKey();
     clip.team = tag.team;
     clip.note = tag.note;
     return clip;

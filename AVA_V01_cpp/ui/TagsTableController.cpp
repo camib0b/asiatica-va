@@ -2,6 +2,7 @@
 
 #include "../components/VideoPlayer.h"
 #include "../i18n/AppLocale.h"
+#include "../state/TagEvent.h"
 #include "../state/TagSession.h"
 #include "NotesController.h"
 #include "TagRowDisplay.h"
@@ -16,6 +17,7 @@
 #include <QSignalBlocker>
 #include <QStringList>
 #include <QTableView>
+#include <QVariant>
 #include <QTimer>
 #include <QToolButton>
 
@@ -116,7 +118,8 @@ void TagsTableController::syncFilterMenu() {
   filterSelectAllAction_->setText(AppLocale::trUi("filter.select_all"));
   filterSelectNoneAction_->setText(AppLocale::trUi("filter.select_none"));
 
-  const QSet<QString> liveMainEvents = refreshFilterMenuActions(deferStructureChanges);
+  const QSet<TagEvent::MainEventKey> liveMainEvents =
+      refreshFilterMenuActions(deferStructureChanges);
   if (deferStructureChanges) return;
 
   hideRetiredFilterMenuActions(liveMainEvents);
@@ -141,10 +144,10 @@ void TagsTableController::updatePlayheadHighlight(qint64 positionMs) {
   if (tagsModel_) tagsModel_->setPlayheadMs(positionMs);
 }
 
-void TagsTableController::onFilterByEventPathRequested(const QString& mainEvent,
-                                                       const QString& followUpEvent) {
+void TagsTableController::onFilterByEventPathRequested(const TagEvent::MainEventKey& mainEvent,
+                                                       const TagEvent::FollowUpChain& followUps) {
   if (mainEvent.isEmpty()) tagFilter_.clearEventPath();
-  else tagFilter_.eventPath = EventPathFilter{mainEvent, followUpEvent};
+  else tagFilter_.eventPath = EventPathFilter{mainEvent, followUps};
   syncFilterMenu();
   refreshTagsTableRows();
 }
@@ -156,7 +159,7 @@ void TagsTableController::onSelectAllFilters() {
 }
 
 void TagsTableController::onSelectNoneFilters() {
-  QStringList mainEvents;
+  QList<TagEvent::MainEventKey> mainEvents;
   if (tagSession_) mainEvents = tagSession_->mainEventCounts().keys();
   tagFilter_.hideAllMainEvents(mainEvents);
   syncFilterMenu();
@@ -166,7 +169,7 @@ void TagsTableController::onSelectNoneFilters() {
 void TagsTableController::onFilterActionToggled(bool checked) {
   auto* action = qobject_cast<QAction*>(sender());
   if (!action) return;
-  const QString mainEvent = action->data().toString();
+  const TagEvent::MainEventKey mainEvent = action->data().value<TagEvent::MainEventKey>();
   if (mainEvent.isEmpty()) return;
   if (checked) tagFilter_.hiddenMainEvents.remove(mainEvent);
   else tagFilter_.hiddenMainEvents.insert(mainEvent);
@@ -192,8 +195,9 @@ void TagsTableController::applyDeferredFilterMenuStructureSync() {
   filterMenuForceStructureSync_ = false;
 }
 
-bool TagsTableController::tagPassesEventFilter(const QString& mainEvent, const QString& followUpEvent) const {
-  return tagFilter_.allows(mainEvent, followUpEvent);
+bool TagsTableController::tagPassesEventFilter(const TagEvent::MainEventKey& mainEvent,
+                                              const TagEvent::FollowUpChain& followUps) const {
+  return tagFilter_.allows(mainEvent, followUps);
 }
 
 bool TagsTableController::hasAnyFilterActive() const {
@@ -213,25 +217,21 @@ void TagsTableController::updateFilterIndicator() const {
   if (!tagsFilterIndicator_) return;
 
   if (tagFilter_.eventPath.has_value() && !tagFilter_.eventPath->mainEvent.isEmpty()) {
-    QString pathText = AppLocale::trEvent(tagFilter_.eventPath->mainEvent);
-    if (!tagFilter_.eventPath->followUpEvent.isEmpty()) {
-      pathText += QStringLiteral(" → ")
-          + AppLocale::translateCompoundPath(tagFilter_.eventPath->followUpEvent);
-    }
+    const QString pathText = TagEvent::displayTagLine(tagFilter_.eventPath->mainEvent,
+                                                      tagFilter_.eventPath->followUps);
     tagsFilterIndicator_->setText(AppLocale::trUi("filter.indicator") + pathText);
     tagsFilterIndicator_->show();
     return;
   }
 
-  QStringList visibleMainEvents;
+  QList<TagEvent::MainEventKey> visibleMainEvents;
   if (tagSession_) {
-    visibleMainEvents = tagSession_->mainEventCounts().keys();
-    visibleMainEvents.sort(Qt::CaseInsensitive);
+    visibleMainEvents = TagEvent::sortedByCanonicalName(tagSession_->mainEventCounts().keys());
   }
   QStringList shownLabels;
-  for (const QString& mainEvent : visibleMainEvents) {
+  for (const TagEvent::MainEventKey& mainEvent : visibleMainEvents) {
     if (tagFilter_.hiddenMainEvents.contains(mainEvent)) continue;
-    shownLabels.append(AppLocale::trEvent(mainEvent));
+    shownLabels.append(TagEvent::displayLabel(mainEvent));
   }
 
   if (shownLabels.isEmpty() || shownLabels.size() == visibleMainEvents.size()) {
@@ -288,7 +288,7 @@ QVector<TagsTableModel::Row> TagsTableController::visibleTagRowsSortedByMark() c
   QVector<VisibleTag> visibleTags;
   int tagSessionIndex = 0;
   for (const TagSession::GameTag& tag : tagSession_->tags()) {
-    if (tagPassesEventFilter(tag.mainEvent, tag.followUpEvent)) {
+    if (tagPassesEventFilter(tag.mainEventKey(), tag.followUpChain())) {
       visibleTags.append({tag, tagSessionIndex});
     }
     tagSessionIndex++;
@@ -315,8 +315,7 @@ TagsTableModel::Row TagsTableController::tagsTableRowFor(const TagSession::GameT
   row.teamKey = tag.team;
   row.timeText = TagRowDisplay::formatTimestampMs(tag.markMs);
   row.teamText = TagRowDisplay::displayTeamForTag(tag, tagSession_);
-  row.eventText = AppLocale::trDisplayTagLine(
-      tag.mainEvent, TagRowDisplay::followUpPathForDisplay(tag.followUpEvent, tagSession_));
+  row.eventText = TagRowDisplay::eventLineForTag(tag);
   row.teamBackground = TagRowDisplay::teamBackgroundForTag(tag, tagSession_);
   return row;
 }
@@ -340,24 +339,24 @@ void TagsTableController::restoreTagsTableSelection(quint64 previouslySelectedTa
   }
 }
 
-QSet<QString> TagsTableController::refreshFilterMenuActions(bool deferStructureChanges) {
-  QSet<QString> liveMainEvents;
+QSet<TagEvent::MainEventKey> TagsTableController::refreshFilterMenuActions(bool deferStructureChanges) {
+  QSet<TagEvent::MainEventKey> liveMainEvents;
   if (!tagSession_) return liveMainEvents;
 
-  QStringList mainEvents = tagSession_->mainEventCounts().keys();
-  mainEvents.sort(Qt::CaseInsensitive);
-  for (const QString& mainEvent : mainEvents) {
+  const QList<TagEvent::MainEventKey> mainEvents =
+      TagEvent::sortedByCanonicalName(tagSession_->mainEventCounts().keys());
+  for (const TagEvent::MainEventKey& mainEvent : mainEvents) {
     liveMainEvents.insert(mainEvent);
     QAction* action = filterActionByMainEvent_.value(mainEvent, nullptr);
     if (!action) {
       if (deferStructureChanges) continue;
-      action = tagsFilterMenu_->addAction(AppLocale::trEvent(mainEvent));
+      action = tagsFilterMenu_->addAction(TagEvent::displayLabel(mainEvent));
       action->setCheckable(true);
-      action->setData(mainEvent);
+      action->setData(QVariant::fromValue(mainEvent));
       connect(action, &QAction::toggled, this, &TagsTableController::onFilterActionToggled);
       filterActionByMainEvent_.insert(mainEvent, action);
     } else {
-      action->setText(AppLocale::trEvent(mainEvent));
+      action->setText(TagEvent::displayLabel(mainEvent));
     }
     const bool checked = !tagFilter_.hiddenMainEvents.contains(mainEvent);
     if (action->isChecked() != checked) {
@@ -369,7 +368,8 @@ QSet<QString> TagsTableController::refreshFilterMenuActions(bool deferStructureC
   return liveMainEvents;
 }
 
-void TagsTableController::hideRetiredFilterMenuActions(const QSet<QString>& liveMainEvents) {
+void TagsTableController::hideRetiredFilterMenuActions(
+    const QSet<TagEvent::MainEventKey>& liveMainEvents) {
   for (auto iterator = filterActionByMainEvent_.cbegin(); iterator != filterActionByMainEvent_.cend(); ++iterator) {
     if (!liveMainEvents.contains(iterator.key())) iterator.value()->setVisible(false);
   }

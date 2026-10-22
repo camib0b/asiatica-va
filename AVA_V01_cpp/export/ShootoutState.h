@@ -17,14 +17,14 @@
 /// this one is. A missing opponent attempt is not invented, so two Home attempts
 /// in a row are Ronda 1 then Ronda 2 for Home while Away is still on Ronda 1.
 ///
-/// Follow-up tokens (canonical or the Spanish display word, last matching segment
-/// wins):
-/// - Converted / Convertido — goal, takes a slot
-/// - Missed / No convertido — miss, takes a slot
-/// - Replay / Repite — void, does not take a slot and does not score; the retake
-///   is the next slot-taking attempt by that side
-/// - anything else, including an empty follow-up — Unknown: takes a slot, does
-///   not score, drawn as a neutral dash once revealed
+/// The model reads follow-up ids. Spanish words are parsed into those ids before
+/// a tag is stored. The last matching id wins:
+/// - Converted — goal, takes a slot
+/// - Missed — miss, takes a slot
+/// - Replay — void, does not take a slot and does not score; the retake is the
+///   next slot-taking attempt by that side
+/// - anything else, including an empty chain — Unknown: takes a slot, does not
+///   score, drawn as a neutral dash once revealed
 ///
 /// Tags whose team is not Home or Away are ignored.
 ///
@@ -71,7 +71,7 @@ public:
         quint64 tagId = 0;
         qint64 markMs = 0;
         QString teamKey;
-        QString followUpEvent;
+        TagEvent::FollowUpChain followUps;
         int sourceOrder = 0;
     };
 

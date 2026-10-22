@@ -314,11 +314,8 @@ void PresentationPlaybackController::showEmptyPresentationStage() {
 
 void PresentationPlaybackController::showCurrentPresentationClip(
     const PresentationQueue::Clip& clip) {
-  const QString followUpForDisplay =
-      TagRowDisplay::followUpPathForDisplay(clip.followUpEvent, tagSession_);
-
   presentationEventLabel_->setText(
-      AppLocale::trDisplayTagLine(clip.mainEvent, followUpForDisplay));
+      TagEvent::displayTagLine(clip.mainEvent, clip.followUps));
   presentationContextLabel_->setText(presentationContextText(clip));
 
   const bool showNote =

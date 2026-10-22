@@ -9,7 +9,7 @@ namespace {
 
 TagSession::GameTag playTag(const QString& mainEvent, qint64 markMs) {
     TagSession::GameTag tag;
-    tag.mainEvent = mainEvent;
+    tag.setMainEventKey(TagEvent::keyFromCanonicalName(mainEvent));
     tag.markMs = markMs;
     tag.team = TagSession::teamSideKey(TagSession::TeamSide::Home);
     return tag;
@@ -86,7 +86,7 @@ void WorkStateTest::replaceImportBumpsEpochAfterTheFlushSignal() {
     QVERIFY(flushSawOriginalTag);
     QCOMPARE(session.tagIdEpoch(), epochBeforeImport + 1);
     QCOMPARE(session.tags().size(), 1);
-    QCOMPARE(session.tags().constFirst().mainEvent, QStringLiteral("Shot"));
+    QCOMPARE(session.tags().constFirst().mainEventId, EventCatalog::EventId::Shot);
 }
 
 void WorkStateTest::mergeImportKeepsTheEpoch() {
@@ -117,7 +117,8 @@ void WorkStateTest::currentPeriodFollowsQuarterTags() {
     QCOMPARE(session.currentQuarterStartMs(), qint64{1000});
     QCOMPARE(session.currentPeriodLabel(), EventDefaults::quarterCode(0));
     QCOMPARE(session.tags().size(), 1);
-    QCOMPARE(session.tags().constFirst().mainEvent,
+    QCOMPARE(session.tags().constFirst().mainEventId, EventCatalog::EventId::None);
+    QCOMPARE(session.tags().constFirst().unlistedName,
              QString::fromLatin1(EventDefaults::TimeCodes::kStartAnchor));
     QCOMPARE(session.tags().constFirst().startMs, qint64{1000});
     QCOMPARE(session.tags().constFirst().endMs, qint64{3000});
@@ -144,7 +145,10 @@ void WorkStateTest::advanceQuarterDerivesTheNextQuarterFromTheTag() {
 
     const TagSession::GameTag* closedQuarter = nullptr;
     for (const TagSession::GameTag& tag : session.tags()) {
-        if (tag.mainEvent == EventDefaults::quarterCode(0)) closedQuarter = &tag;
+        if (tag.mainEventId == EventCatalog::EventId::None &&
+            tag.unlistedName == EventDefaults::quarterCode(0)) {
+            closedQuarter = &tag;
+        }
     }
     QVERIFY(closedQuarter != nullptr);
     QCOMPARE(closedQuarter->startMs, qint64{0});
@@ -178,61 +182,77 @@ void WorkStateTest::advanceQuarterRejectsAGameThatIsNotInProgress() {
 }
 
 void WorkStateTest::eventPathTakesPrecedenceOverHiddenMains() {
+    const TagEvent::MainEventKey circleEntry =
+        TagEvent::catalogKey(EventCatalog::EventId::CircleEntry);
+    const TagEvent::MainEventKey shot = TagEvent::catalogKey(EventCatalog::EventId::Shot);
+    const TagEvent::MainEventKey penaltyCorner =
+        TagEvent::catalogKey(EventCatalog::EventId::PenaltyCorner);
+    const TagEvent::FollowUpChain dribbling =
+        TagEvent::chainOf(EventCatalog::EventId::Dribbling);
+    const TagEvent::FollowUpChain dribblingLeft =
+        TagEvent::chainOf(EventCatalog::EventId::Dribbling, EventCatalog::EventId::Left);
+    const TagEvent::FollowUpChain circlePass =
+        TagEvent::chainOf(EventCatalog::EventId::CircleEntryPass);
+
     TagFilter filter;
-    filter.hiddenMainEvents.insert(QStringLiteral("Shot"));
-    filter.eventPath = EventPathFilter{QStringLiteral("Circle Entry"), QStringLiteral("Goal")};
+    filter.hiddenMainEvents.insert(shot);
+    filter.eventPath = EventPathFilter{circleEntry, dribbling};
 
-    QVERIFY(filter.allows(QStringLiteral("Circle Entry"), QStringLiteral("Goal")));
-    QVERIFY(filter.allows(QStringLiteral("Circle Entry"), QStringLiteral("Goal → Far")));
-    QVERIFY(!filter.allows(QStringLiteral("Circle Entry"), QStringLiteral("No Goal")));
-    QVERIFY(!filter.allows(QStringLiteral("Circle Entry"), QStringLiteral("Goal Extra")));
-    QVERIFY(!filter.allows(QStringLiteral("Shot"), QString()));
-    QVERIFY(!filter.allows(QStringLiteral("PC"), QString()));
+    QVERIFY(filter.allows(circleEntry, dribbling));
+    QVERIFY(filter.allows(circleEntry, dribblingLeft));
+    QVERIFY(!filter.allows(circleEntry, circlePass));
+    QVERIFY(!filter.allows(shot, {}));
+    QVERIFY(!filter.allows(penaltyCorner, {}));
 
-    filter.hiddenMainEvents.insert(QStringLiteral("Circle Entry"));
-    QVERIFY(filter.allows(QStringLiteral("Circle Entry"), QStringLiteral("Goal")));
+    filter.hiddenMainEvents.insert(circleEntry);
+    QVERIFY(filter.allows(circleEntry, dribbling));
     QVERIFY(filter.isActive());
 
-    filter.eventPath->followUpEvent.clear();
-    QVERIFY(filter.allows(QStringLiteral("Circle Entry"), QStringLiteral("No Goal")));
-    QVERIFY(!filter.allows(QStringLiteral("PC"), QStringLiteral("Goal")));
+    filter.eventPath->followUps = {};
+    QVERIFY(filter.allows(circleEntry, circlePass));
+    QVERIFY(!filter.allows(penaltyCorner, TagEvent::chainOf(EventCatalog::EventId::FollowUpGoal)));
 
     filter.clearEventPath();
-    QVERIFY(!filter.allows(QStringLiteral("Shot"), QString()));
-    QVERIFY(!filter.allows(QStringLiteral("Circle Entry"), QStringLiteral("Goal")));
-    QVERIFY(filter.allows(QStringLiteral("PC"), QString()));
+    QVERIFY(!filter.allows(shot, {}));
+    QVERIFY(!filter.allows(circleEntry, dribbling));
+    QVERIFY(filter.allows(penaltyCorner, {}));
 }
 
 void WorkStateTest::selectAllAndSelectNoneAreSymmetric() {
-    const QStringList mainEvents{QStringLiteral("Shot"), QStringLiteral("Goal"), QStringLiteral("PC")};
+    const QList<TagEvent::MainEventKey> mainEvents{
+        TagEvent::catalogKey(EventCatalog::EventId::Shot),
+        TagEvent::catalogKey(EventCatalog::EventId::Goal),
+        TagEvent::catalogKey(EventCatalog::EventId::PenaltyCorner),
+    };
 
     TagFilter showAll;
     showAll.hideAllMainEvents(mainEvents);
-    showAll.eventPath = EventPathFilter{QStringLiteral("Shot"), QString()};
+    showAll.eventPath = EventPathFilter{TagEvent::catalogKey(EventCatalog::EventId::Shot), {}};
     showAll.showAllMainEvents();
     QVERIFY(showAll.hiddenMainEvents.isEmpty());
     QVERIFY(showAll.eventPath.has_value());
     QVERIFY(showAll.isActive());
-    QVERIFY(showAll.allows(QStringLiteral("Shot"), QStringLiteral("Saved")));
-    QVERIFY(!showAll.allows(QStringLiteral("Goal"), QString()));
+    QVERIFY(showAll.allows(TagEvent::catalogKey(EventCatalog::EventId::Shot),
+                           TagEvent::chainOf(EventCatalog::EventId::Saved)));
+    QVERIFY(!showAll.allows(TagEvent::catalogKey(EventCatalog::EventId::Goal), {}));
 
     showAll.clearEventPath();
     QVERIFY(!showAll.isActive());
-    QVERIFY(showAll.allows(QStringLiteral("Goal"), QString()));
+    QVERIFY(showAll.allows(TagEvent::catalogKey(EventCatalog::EventId::Goal), {}));
 
     TagFilter showNone;
     showNone.hideAllMainEvents(mainEvents);
     QVERIFY(showNone.isActive());
-    for (const QString& mainEvent : mainEvents) {
-        QVERIFY(!showNone.allows(mainEvent, QString()));
+    for (const TagEvent::MainEventKey& mainEvent : mainEvents) {
+        QVERIFY(!showNone.allows(mainEvent, {}));
     }
-    QVERIFY(showNone.allows(QStringLiteral("Circle Entry"), QString()));
+    QVERIFY(showNone.allows(TagEvent::catalogKey(EventCatalog::EventId::CircleEntry), {}));
 
     showNone.showAllMainEvents();
     QVERIFY(!showNone.isActive());
     QVERIFY(showNone.hiddenMainEvents.isEmpty());
-    for (const QString& mainEvent : mainEvents) {
-        QVERIFY(showNone.allows(mainEvent, QString()));
+    for (const TagEvent::MainEventKey& mainEvent : mainEvents) {
+        QVERIFY(showNone.allows(mainEvent, {}));
     }
 }
 

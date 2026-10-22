@@ -40,6 +40,7 @@ qt_add_executable(AVA
   state/EventDefaults.cpp
   state/EventCatalog.cpp
   state/EventCodeMap.cpp
+  state/TagEvent.cpp
   state/PresentationQueue.cpp
   state/PresentationPlayback.cpp
   state/TagFilter.cpp
@@ -162,6 +163,7 @@ find_package(Qt6 REQUIRED COMPONENTS Test)
 qt_add_executable(AVAExportTests
   tests/CompilationSidecarTests.cpp
   tests/EventCatalogTests.cpp
+  tests/TagEventRoundTripTests.cpp
   tests/InteractionGuardTests.cpp
   tests/PresentationPlaybackTests.cpp
   tests/VideoClipSequenceTests.cpp
@@ -207,6 +209,7 @@ qt_add_executable(AVAExportTests
   state/EventDefaults.cpp
   state/EventCatalog.cpp
   state/EventCodeMap.cpp
+  state/TagEvent.cpp
   state/TagSession.cpp
   components/FollowUpCatalog.cpp
   components/GameControls.cpp

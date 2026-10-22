@@ -130,13 +130,13 @@ void XmlEventMappingDialogTest::caseAndSurroundingWhitespaceShareOneMapping() {
     const XmlEventMappingDialog::ImportMappingResult imported = dialog.importResult();
     QCOMPARE(imported.skippedInstanceCount, 0);
     QCOMPARE(imported.tags.size(), 3);
-    QCOMPARE(imported.tags.at(0).mainEvent, QStringLiteral("Goal"));
+    QCOMPARE(imported.tags.at(0).mainEventId, EventCatalog::EventId::Goal);
     QCOMPARE(imported.tags.at(0).team, QStringLiteral("Home"));
     QCOMPARE(imported.tags.at(0).startMs, qint64{0});
-    QCOMPARE(imported.tags.at(1).mainEvent, QStringLiteral("Goal"));
+    QCOMPARE(imported.tags.at(1).mainEventId, EventCatalog::EventId::Goal);
     QCOMPARE(imported.tags.at(1).team, QStringLiteral("Home"));
     QCOMPARE(imported.tags.at(1).startMs, qint64{30000});
-    QCOMPARE(imported.tags.at(2).mainEvent, QStringLiteral("Shot"));
+    QCOMPARE(imported.tags.at(2).mainEventId, EventCatalog::EventId::Shot);
     QCOMPARE(imported.tags.at(2).team, QStringLiteral("Away"));
     QCOMPARE(imported.tags.at(2).startMs, qint64{60000});
 }

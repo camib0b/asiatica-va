@@ -47,7 +47,7 @@ QToolButton* toolButtonByText(QWidget* parent, const QString& text) {
 
 TagSession::GameTag playTag(const QString& mainEvent, const QString& team, qint64 markMs) {
   TagSession::GameTag tag;
-  tag.mainEvent = mainEvent;
+  tag.setMainEventKey(TagEvent::keyFromCanonicalName(mainEvent));
   tag.team = team;
   tag.markMs = markMs;
   tag.startMs = markMs;
@@ -191,7 +191,7 @@ void WorkDataViewTest::presentationListKeepsSelectionAndFitsTheSideColumn() {
   const QList<QComboBox*> combos = panel.findChildren<QComboBox*>();
   QCOMPARE(combos.size(), 2);
   for (QComboBox* combo : combos) {
-    if (combo->findData(QStringLiteral("Circle Entry")) >= 0) eventFilter = combo;
+    if (combo->findData(static_cast<int>(EventCatalog::EventId::CircleEntry)) >= 0) eventFilter = combo;
     if (combo->findData(QStringLiteral("Home")) >= 0) teamFilter = combo;
   }
   QVERIFY(eventFilter);
@@ -227,7 +227,7 @@ void WorkDataViewTest::presentationListKeepsSelectionAndFitsTheSideColumn() {
   showPanel(panel, 1200);
   expectColumnsFit(table);
 
-  const int goalIndex = eventFilter->findData(QStringLiteral("Goal"));
+  const int goalIndex = eventFilter->findData(static_cast<int>(EventCatalog::EventId::Goal));
   QVERIFY(goalIndex >= 0);
   eventFilter->setCurrentIndex(goalIndex);
   QCOMPARE(table->model()->rowCount(), 1);
@@ -440,7 +440,7 @@ void WorkDataViewTest::applyLabelAbbreviationsAndSteadyTimeDigits() {
   QComboBox* eventFilter = nullptr;
   QComboBox* teamFilter = nullptr;
   for (QComboBox* combo : panel.findChildren<QComboBox*>()) {
-    if (combo->findData(QStringLiteral("Circle Entry")) >= 0) eventFilter = combo;
+    if (combo->findData(static_cast<int>(EventCatalog::EventId::CircleEntry)) >= 0) eventFilter = combo;
     if (combo->findData(QStringLiteral("Home")) >= 0) teamFilter = combo;
   }
   QVERIFY(eventFilter);

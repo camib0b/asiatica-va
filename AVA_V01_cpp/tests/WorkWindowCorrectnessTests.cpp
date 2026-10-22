@@ -22,7 +22,7 @@ namespace {
 
 TagSession::GameTag playTag(const QString& mainEvent, qint64 markMs) {
   TagSession::GameTag tag;
-  tag.mainEvent = mainEvent;
+  tag.setMainEventKey(TagEvent::keyFromCanonicalName(mainEvent));
   tag.markMs = markMs;
   tag.team = TagSession::teamSideKey(TagSession::TeamSide::Home);
   return tag;
@@ -209,7 +209,8 @@ void WorkWindowCorrectnessTest::filterMenuKeepsTheSameMenuWhenEventsChange() {
 
   bool sawGoal = false;
   for (QAction* action : menu->actions()) {
-    if (action->data().toString() == QStringLiteral("Goal")) sawGoal = true;
+    const TagEvent::MainEventKey key = action->data().value<TagEvent::MainEventKey>();
+    if (key.id == EventCatalog::EventId::Goal) sawGoal = true;
   }
   QVERIFY(sawGoal);
 }
@@ -241,7 +242,10 @@ void WorkWindowCorrectnessTest::filterMenuDefersNewActionsUntilItCloses() {
 
   bool sawCircle = false;
   for (QAction* action : menu->actions()) {
-    if (action->data().toString() == QStringLiteral("Circle")) sawCircle = true;
+    const TagEvent::MainEventKey key = action->data().value<TagEvent::MainEventKey>();
+    if (key.id == EventCatalog::EventId::None && key.unlistedName == QStringLiteral("Circle")) {
+      sawCircle = true;
+    }
   }
   QVERIFY(sawCircle);
 }

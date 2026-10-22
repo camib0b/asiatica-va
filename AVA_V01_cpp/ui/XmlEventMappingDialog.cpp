@@ -221,11 +221,14 @@ void inferPeriods(QVector<TagSession::GameTag>& tags) {
   qint64 gameStartAnchorMs = -1;
 
   for (const TagSession::GameTag& tag : tags) {
-    if (tag.mainEvent == QLatin1String(EventDefaults::TimeCodes::kStartAnchor)) {
+    if (tag.mainEventId == EventCatalog::EventId::None &&
+        tag.unlistedName == QLatin1String(EventDefaults::TimeCodes::kStartAnchor)) {
       if (gameStartAnchorMs < 0) gameStartAnchorMs = tag.startMs;
       continue;
     }
-    const int quarterIndex = quarterIndexForMainEvent(tag.mainEvent);
+    const int quarterIndex = tag.mainEventId == EventCatalog::EventId::None
+                                 ? quarterIndexForMainEvent(tag.unlistedName)
+                                 : -1;
     if (quarterIndex < 0) continue;
     ClosedQuarterSpan& span = closedQuarters[quarterIndex];
     span.present = true;
@@ -235,11 +238,12 @@ void inferPeriods(QVector<TagSession::GameTag>& tags) {
 
   for (TagSession::GameTag& tag : tags) {
     if (!tag.period.isEmpty()) continue;
-    if (EventDefaults::isQuarterEvent(tag.mainEvent)) {
-      tag.period = tag.mainEvent;
+    if (tag.mainEventId == EventCatalog::EventId::None &&
+        EventDefaults::isQuarterEvent(tag.unlistedName)) {
+      tag.period = tag.unlistedName;
       continue;
     }
-    if (EventDefaults::isTimeControlEvent(tag.mainEvent)) continue;
+    if (tag.mainEventKey().isTimeControl()) continue;
     tag.period = periodLabelAtMarkMs(tag.markMs, closedQuarters, gameStartAnchorMs);
   }
 }
@@ -733,7 +737,7 @@ TagSession::GameTag XmlEventMappingDialog::gameTagFromInstance(
     const XmlImporter::ParsedInstance& instance,
     const CodeMapping& mapping) const {
   TagSession::GameTag tag;
-  tag.mainEvent = mapping.canonicalMainEvent;
+  tag.setMainEventKey(TagEvent::keyFromCanonicalName(mapping.canonicalMainEvent));
   tag.team = mapping.team;
   tag.period = instance.periodLabel;
   tag.intervalManuallyEdited = true;
@@ -743,10 +747,11 @@ TagSession::GameTag XmlEventMappingDialog::gameTagFromInstance(
   tag.startMs = interval.startMs;
   tag.endMs = interval.endMs;
 
-  if (EventDefaults::isTimeControlEvent(tag.mainEvent)) {
+  if (tag.mainEventKey().isTimeControl()) {
     tag.markMs = tag.startMs;
   } else {
-    const EventDefaults::EventDuration duration = EventDefaults::defaultFor(tag.mainEvent);
+    const EventDefaults::EventDuration duration =
+        EventDefaults::defaultFor(TagEvent::canonicalName(tag.mainEventKey()));
     tag.markMs = tag.startMs + duration.leadMs;
     if (tag.markMs > tag.endMs) tag.markMs = tag.endMs;
     if (tag.markMs < tag.startMs) tag.markMs = tag.startMs;
