@@ -1473,15 +1473,34 @@ void WorkWindow::onGameSetupConfirmed(const QString& filePath,
                                        const QString& awayAbbrev) {
     if (VideoConcatenator* pendingConcatenator = playbackTemporaryDirectoryController_->pendingConcatenator()) {
         notesController_->suspendNoteDebounceTimers();
-        const bool concatOk = pendingConcatenator->waitWithProgress(this);
-        const QString errorMessage = pendingConcatenator->errorMessage();
-        if (!concatOk) {
-            abortVideoOpen(errorMessage);
-            return;
-        }
-        playbackTemporaryDirectoryController_->cleanupPendingConcatenation();
+        pendingConcatenator->waitWithProgress(
+            this,
+            [this, filePath, homeName, awayName, homeColor, awayColor, gameDate, homeAbbrev, awayAbbrev](
+                bool concatOk) {
+                VideoConcatenator* concatenator =
+                    playbackTemporaryDirectoryController_->pendingConcatenator();
+                const QString errorMessage = concatenator ? concatenator->errorMessage() : QString();
+                if (!concatOk) {
+                    abortVideoOpen(errorMessage);
+                    return;
+                }
+                playbackTemporaryDirectoryController_->cleanupPendingConcatenation();
+                applyConfirmedGameSetup(filePath, homeName, awayName, homeColor, awayColor,
+                                        gameDate, homeAbbrev, awayAbbrev);
+            });
+        return;
     }
 
+    applyConfirmedGameSetup(filePath, homeName, awayName, homeColor, awayColor,
+                            gameDate, homeAbbrev, awayAbbrev);
+}
+
+void WorkWindow::applyConfirmedGameSetup(const QString& filePath,
+                                         const QString& homeName, const QString& awayName,
+                                         const QString& homeColor, const QString& awayColor,
+                                         const QDate& gameDate,
+                                         const QString& homeAbbrev,
+                                         const QString& awayAbbrev) {
     if (tagSession_) {
         tagSession_->setGameTeams(homeName, awayName, homeColor, awayColor);
         tagSession_->setGameMetadata(gameDate, homeAbbrev, awayAbbrev);
@@ -1515,47 +1534,56 @@ void WorkWindow::onGameSetupCancelled() {
 void WorkWindow::loadVideoFromFile(const QString& filePath) {
     if (filePath.isEmpty()) return;
 
-    const std::optional<QString> playbackPath = preparePlaybackPath(filePath);
-    if (!playbackPath.has_value()) return;
-
-    sourceVideoPath_ = filePath;
-    workStage_ = WorkStage::VideoOpen;
-    resetSessionForOpenedVideo();
-    showPlayerForOpenedVideo(*playbackPath);
-    showWorkChromeForOpenedVideo();
-    resetPresentationForOpenedVideo();
-    refreshSurfacesForOpenedVideo();
-}
-
-std::optional<QString> WorkWindow::preparePlaybackPath(const QString& filePath) {
+    ++playbackPreparationGeneration_;
+    activePlaybackPreparer_.reset();
+    activePlaybackPrepDirectory_.reset();
     notesController_->suspendNoteDebounceTimers();
-    QString playbackPath = filePath;
     playbackTemporaryDirectoryController_->releasePlaybackPrepTemporaryDirectory();
 
     if (!PlaybackVideoPreparer::requiresTranscodeForPlayback(filePath)) {
-        return playbackPath;
+        finishOpeningVideo(filePath, filePath);
+        return;
     }
 
     auto tempDir = std::make_unique<QTemporaryDir>();
     if (!tempDir->isValid()) {
         abortVideoOpen(AppLocale::trUi("playback_prep.error_failed"));
-        return std::nullopt;
+        return;
     }
 
-    auto preparer = std::make_unique<PlaybackVideoPreparer>();
-    preparer->startPreparation(filePath, tempDir->path());
-    const bool prepOk = preparer->waitWithProgress(this);
-    const QString errorMessage = preparer->errorMessage();
-    const QString preparedPath = preparer->outputPath();
-    preparer.reset();
+    const int generation = playbackPreparationGeneration_;
+    activePlaybackPrepDirectory_ = std::move(tempDir);
+    activePlaybackPreparer_ = std::make_unique<PlaybackVideoPreparer>();
+    PlaybackVideoPreparer* preparer = activePlaybackPreparer_.get();
+    preparer->startPreparation(filePath, activePlaybackPrepDirectory_->path());
+    preparer->waitWithProgress(this, [this, filePath, generation](bool prepOk) {
+        if (generation != playbackPreparationGeneration_) return;
+        const QString errorMessage = activePlaybackPreparer_
+            ? activePlaybackPreparer_->errorMessage()
+            : QString();
+        const QString preparedPath = activePlaybackPreparer_
+            ? activePlaybackPreparer_->outputPath()
+            : QString();
+        std::unique_ptr<QTemporaryDir> preparedDirectory = std::move(activePlaybackPrepDirectory_);
+        activePlaybackPreparer_.reset();
+        if (!prepOk) {
+            abortVideoOpen(errorMessage);
+            return;
+        }
+        playbackTemporaryDirectoryController_->setPlaybackPrepTemporaryDirectory(
+            std::move(preparedDirectory));
+        finishOpeningVideo(filePath, preparedPath);
+    });
+}
 
-    if (!prepOk) {
-        abortVideoOpen(errorMessage);
-        return std::nullopt;
-    }
-
-    playbackTemporaryDirectoryController_->setPlaybackPrepTemporaryDirectory(std::move(tempDir));
-    return preparedPath;
+void WorkWindow::finishOpeningVideo(const QString& filePath, const QString& playbackPath) {
+    sourceVideoPath_ = filePath;
+    workStage_ = WorkStage::VideoOpen;
+    resetSessionForOpenedVideo();
+    showPlayerForOpenedVideo(playbackPath);
+    showWorkChromeForOpenedVideo();
+    resetPresentationForOpenedVideo();
+    refreshSurfacesForOpenedVideo();
 }
 
 void WorkWindow::resetSessionForOpenedVideo() {
@@ -1711,6 +1739,10 @@ void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
     }
     setExportDefaultDirectoryFromVideoPath(filePaths.first());
 
+    ++videoConcatenationGeneration_;
+    activeConcatenator_.reset();
+    activeConcatTemporaryDirectory_.reset();
+
     auto tempDir = std::make_unique<QTemporaryDir>();
     if (!tempDir->isValid()) {
         QMessageBox::warning(this,
@@ -1720,23 +1752,30 @@ void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
         return;
     }
 
-    VideoConcatenator concatenator;
-    const VideoConcatenationResult result =
-        concatenator.runWithProgress(filePaths, tempDir->path(), this);
-    if (!result.succeeded) {
-        tempDir.reset();
-        if (!result.errorMessage.isEmpty()) {
-            QMessageBox::warning(this, AppLocale::trUi("app.title"), result.errorMessage);
-        }
-        notesController_->resumeNoteDebounceTimers();
-        return;
-    }
-
-    const QString outputPath = result.outputPath;
-
-    releaseTransientResources();
-    setConcatenatedVideoTemporaryDirectory(std::move(tempDir));
-    loadVideoFromFile(outputPath);
+    const int generation = videoConcatenationGeneration_;
+    activeConcatTemporaryDirectory_ = std::move(tempDir);
+    activeConcatenator_ = std::make_unique<VideoConcatenator>();
+    connect(activeConcatenator_.get(), &VideoConcatenator::runFinished, this,
+            [this, generation](const VideoConcatenationResult& result) {
+                if (generation != videoConcatenationGeneration_) return;
+                std::unique_ptr<QTemporaryDir> finishedDirectory =
+                    std::move(activeConcatTemporaryDirectory_);
+                activeConcatenator_.reset();
+                if (!result.succeeded) {
+                    if (!result.errorMessage.isEmpty()) {
+                        QMessageBox::warning(this, AppLocale::trUi("app.title"), result.errorMessage);
+                    }
+                    notesController_->resumeNoteDebounceTimers();
+                    return;
+                }
+                const QString outputPath = result.outputPath;
+                releaseTransientResources();
+                setConcatenatedVideoTemporaryDirectory(std::move(finishedDirectory));
+                loadVideoFromFile(outputPath);
+            },
+            Qt::QueuedConnection);
+    activeConcatenator_->runWithProgress(
+        filePaths, activeConcatTemporaryDirectory_->path(), this);
 }
 
 void WorkWindow::onCloseVideo() {

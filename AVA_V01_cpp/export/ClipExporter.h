@@ -105,9 +105,23 @@ private:
     void stopAndDiscardProcess();
     void finishExport(bool success, const QString& message);
     void startFfmpegJob(const QStringList& arguments, bool concatenating);
+    /// Probe callbacks land after cancelExport() has set cancelled_. Finish the
+    /// export once, with the same cancelled message as the encode path.
+    bool stopIfExportInactive();
+    void applyMeasuredSource(const QSize& displaySize, int rotationDegrees);
+    void acceptSegmentDuration(const QString& tempPath,
+                               int clipNumber,
+                               bool hasDuration,
+                               double seconds);
+    void probeFinalSidecarDuration(CompilationSidecar::SidecarBuildInput input,
+                                   qint64 summedEndMilliseconds);
+    void probeFinalSidecarFrameRate(CompilationSidecar::SidecarBuildInput input,
+                                    qint64 summedEndMilliseconds);
+    void writeCompilationSidecar(CompilationSidecar::SidecarBuildInput input,
+                                 qint64 summedEndMilliseconds);
     bool event(QEvent* event) override;
 
-    /// Swallows DeferredDelete while commit/sidecar steps pump the event loop,
+    /// Swallows DeferredDelete while commit/sidecar steps are still on the stack,
     /// then posts it again when those steps return.
     class SuppressDeferredDelete {
     public:

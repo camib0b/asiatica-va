@@ -92,6 +92,8 @@ void MainWindow::onVideoImportRequested() {
         return;
     }
 
+    if (importConcatenator_) return;
+
     auto tempDir = std::make_unique<QTemporaryDir>();
     if (!tempDir->isValid()) {
         QMessageBox::warning(this,
@@ -100,21 +102,26 @@ void MainWindow::onVideoImportRequested() {
         return;
     }
 
-    VideoConcatenator concatenator;
-    const VideoConcatenationResult result =
-        concatenator.runWithProgress(filePaths, tempDir->path(), this);
-    if (!result.succeeded) {
-        if (!result.errorMessage.isEmpty()) {
-            QMessageBox::warning(this, AppLocale::trUi("app.title"), result.errorMessage);
-        }
-        return;
-    }
-
-    const QString concatenatedPath = result.outputPath;
-
-    workWindow_->setConcatenatedVideoTemporaryDirectory(std::move(tempDir));
-    workWindow_->setPendingConcatenation(nullptr);
-    showWorkWindowWithSetup(concatenatedPath, filePaths);
+    importTemporaryDirectory_ = std::move(tempDir);
+    importConcatenator_ = std::make_unique<VideoConcatenator>();
+    // Queued so the slot can destroy the concatenator. runFinished is emitted
+    // from the concatenator's own timer after resetToIdle.
+    connect(importConcatenator_.get(), &VideoConcatenator::runFinished, this,
+            [this, filePaths](const VideoConcatenationResult& result) {
+                std::unique_ptr<QTemporaryDir> finishedDirectory = std::move(importTemporaryDirectory_);
+                importConcatenator_.reset();
+                if (!result.succeeded) {
+                    if (!result.errorMessage.isEmpty()) {
+                        QMessageBox::warning(this, AppLocale::trUi("app.title"), result.errorMessage);
+                    }
+                    return;
+                }
+                workWindow_->setConcatenatedVideoTemporaryDirectory(std::move(finishedDirectory));
+                workWindow_->setPendingConcatenation(nullptr);
+                showWorkWindowWithSetup(result.outputPath, filePaths);
+            },
+            Qt::QueuedConnection);
+    importConcatenator_->runWithProgress(filePaths, importTemporaryDirectory_->path(), this);
 }
 
 void MainWindow::onVideoClosed() {
