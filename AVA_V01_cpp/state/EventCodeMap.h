@@ -9,8 +9,8 @@ namespace EventCodeMap {
 /// Short XML code for a canonical main-event name. `nullopt` when the event is not in the
 /// team-affiliated map (neutral / pass-through / unknown).
 ///
-/// Lookup trims surrounding whitespace and is case-insensitive. The returned code is the
-/// canonical short form from the table (e.g. "ENTRY"), not the caller's spelling.
+/// Codes come from EventCatalog. Lookup trims surrounding whitespace and is case-insensitive.
+/// The returned code is the canonical short form (e.g. "ENTRY"), not the caller's spelling.
 std::optional<QString> shortCodeForMainEvent(const QString& canonicalMainEvent);
 
 /// Canonical main-event name for a short XML code. `nullopt` when the code is unknown.

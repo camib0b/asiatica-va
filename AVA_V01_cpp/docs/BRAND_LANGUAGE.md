@@ -5,7 +5,7 @@ Agent-facing guide for UI wording. Use this when adding or editing labels, toolt
 **Source of truth for strings:** `[i18n/AppLocale.cpp](../i18n/AppLocale.cpp)`
 This document explains *how* to choose wording. Prefer existing `trUi("…")` keys. If you need new copy, match the tone and glossary below, then add **both** English and Spanish entries in `AppLocale.cpp`.
 
-Canonical field-hockey **event tokens stay English** in session data and code. Spanish display comes from `spanishEventMap()` / `trEvent()` / `trDisplayTagLine()`.
+Canonical field-hockey **event tokens stay English** in session data and code. Spanish display comes from `EventCatalog` via `trEvent()` / `trDisplayTagLine()`.
 
 ---
 
@@ -119,7 +119,7 @@ Flick, Push, S.O.
 | home / away (default follow-up labels) | Local / Visita             |
 
 
-Full map: `spanishEventMap()` in `AppLocale.cpp`. Prefer that map over inventing a new translation.
+Full map: `EventCatalog` in `state/EventCatalog.cpp` (and the small residual table in `AppLocale.cpp` for home/away and retired words). Prefer that catalog over inventing a new translation.
 
 ---
 

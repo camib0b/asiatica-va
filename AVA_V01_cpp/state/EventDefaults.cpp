@@ -1,5 +1,7 @@
 #include "EventDefaults.h"
 
+#include "EventCatalog.h"
+
 #include <QByteArray>
 #include <QHash>
 #include <QSettings>
@@ -20,7 +22,7 @@ constexpr char kLagSettingsKey[] = "postMs";
 
 constexpr EventDuration kFallback{3000, 4000};
 
-enum class EventKind { Play, StartAnchor, Timeout, Quarter };
+enum class EventKind { StartAnchor, Timeout, Quarter };
 
 struct EventSpec {
   const char* canonical;
@@ -29,35 +31,23 @@ struct EventSpec {
   int quarterIndex;  ///< 0..3 for quarters; -1 otherwise.
 };
 
-constexpr bool isPlayEvent(EventKind kind) { return kind == EventKind::Play; }
-
-constexpr bool isTimeControlKind(EventKind kind) { return kind != EventKind::Play; }
-
-constexpr std::array<EventSpec, 20> kEventCatalog{{
-    { "Goal", {10000, 2000}, EventKind::Play, -1 },
-    { "Shot", {5000, 5000}, EventKind::Play, -1 },
-    { "PC", {2000, 8000}, EventKind::Play, -1 },
-    { "PC Foul", {5000, 2000}, EventKind::Play, -1 },
-    { "Card", {6000, 3000}, EventKind::Play, -1 },
-    { "Pass", {3000, 5000}, EventKind::Play, -1 },
-    { "Circle Entry", {8000, 6000}, EventKind::Play, -1 },
-    { "16-yd", {3000, 10000}, EventKind::Play, -1 },
-    { "50-yd", {3000, 8000}, EventKind::Play, -1 },
-    { "75-yd", {3000, 8000}, EventKind::Play, -1 },
-    { "Turnover", {4000, 4000}, EventKind::Play, -1 },
-    { "Special", {4000, 4000}, EventKind::Play, -1 },
-    { "PS", {3000, 4000}, EventKind::Play, -1 },
-    { "S.O.", {2000, 9000}, EventKind::Play, -1 },
-    { TimeCodes::kStartAnchor, {0, 2000}, EventKind::StartAnchor, -1 },
-    { TimeCodes::kTimeout, {0, 0}, EventKind::Timeout, -1 },
-    { TimeCodes::kQuarter1, {0, 0}, EventKind::Quarter, 0 },
-    { TimeCodes::kQuarter2, {0, 0}, EventKind::Quarter, 1 },
-    { TimeCodes::kQuarter3, {0, 0}, EventKind::Quarter, 2 },
-    { TimeCodes::kQuarter4, {0, 0}, EventKind::Quarter, 3 },
+// Play-event lead/lag lives on EventCatalog. These codes are not grid events.
+// Their XML <code> is the canonical name itself.
+constexpr std::array<EventSpec, 6> kTimeControlEvents{{
+    {TimeCodes::kStartAnchor, {0, 2000}, EventKind::StartAnchor, -1},
+    {TimeCodes::kTimeout, {0, 0}, EventKind::Timeout, -1},
+    {TimeCodes::kQuarter1, {0, 0}, EventKind::Quarter, 0},
+    {TimeCodes::kQuarter2, {0, 0}, EventKind::Quarter, 1},
+    {TimeCodes::kQuarter3, {0, 0}, EventKind::Quarter, 2},
+    {TimeCodes::kQuarter4, {0, 0}, EventKind::Quarter, 3},
 }};
 
-const EventSpec* specForCanonicalName(const QString& canonicalMainEvent) {
-  for (const EventSpec& spec : kEventCatalog) {
+const EventCatalog::Node* playEvent(const QString& canonicalMainEvent) {
+  return EventCatalog::mainEventForCanonicalName(canonicalMainEvent);
+}
+
+const EventSpec* timeControlEvent(const QString& canonicalMainEvent) {
+  for (const EventSpec& spec : kTimeControlEvents) {
     if (canonicalMainEvent == QLatin1String(spec.canonical)) return &spec;
   }
   return nullptr;
@@ -69,6 +59,7 @@ EventDuration clampDuration(qint64 leadMs, qint64 lagMs) {
 }
 
 /// QSettings INI groups treat '.' as a path separator, so "S.O." must be encoded.
+/// The group name is the canonical English event name, not the catalog id.
 QString settingsGroupForEvent(const QString& canonicalMainEvent) {
   return QString::fromLatin1(canonicalMainEvent.toUtf8().toPercentEncoding("-_"));
 }
@@ -121,10 +112,12 @@ void loadOverridesFromSettings(UserOverrideState& state) {
 
   QSettings settings;
   settings.beginGroup(QLatin1String(kSettingsGroup));
-  for (const EventSpec& spec : kEventCatalog) {
-    if (!isPlayEvent(spec.kind)) continue;
+  const int nodeCount = EventCatalog::nodeCount();
+  for (int index = 0; index < nodeCount; ++index) {
+    const EventCatalog::Node& node = EventCatalog::nodeAt(index);
+    if (!node.mainEvent || !node.canonicalName) continue;
 
-    const QString canonicalName = QString::fromLatin1(spec.canonical);
+    const QString canonicalName = QString::fromLatin1(node.canonicalName);
     EventDuration duration;
     const bool loadedEncoded =
         readOverrideDuration(settings, settingsGroupForEvent(canonicalName), &duration);
@@ -136,31 +129,35 @@ void loadOverridesFromSettings(UserOverrideState& state) {
   settings.endGroup();
 }
 
-} // namespace
+}  // namespace
 
 bool isQuarterEvent(const QString& canonicalMainEvent) {
-  const EventSpec* spec = specForCanonicalName(canonicalMainEvent);
+  const EventSpec* spec = timeControlEvent(canonicalMainEvent);
   return spec != nullptr && spec->kind == EventKind::Quarter;
 }
 
 bool isTimeControlEvent(const QString& canonicalMainEvent) {
-  const EventSpec* spec = specForCanonicalName(canonicalMainEvent);
-  return spec != nullptr && isTimeControlKind(spec->kind);
+  return timeControlEvent(canonicalMainEvent) != nullptr;
 }
 
 QStringList allConfigurableEventTypes() {
   QStringList names;
-  names.reserve(static_cast<int>(kEventCatalog.size()));
-  for (const EventSpec& spec : kEventCatalog) {
-    if (isPlayEvent(spec.kind)) names.append(QString::fromLatin1(spec.canonical));
+  const int nodeCount = EventCatalog::nodeCount();
+  names.reserve(nodeCount);
+  for (int index = 0; index < nodeCount; ++index) {
+    const EventCatalog::Node& node = EventCatalog::nodeAt(index);
+    if (!node.mainEvent || !node.canonicalName) continue;
+    names.append(QString::fromLatin1(node.canonicalName));
   }
   return names;
 }
 
 EventDuration factoryDefaultFor(const QString& canonicalMainEvent) {
-  const EventSpec* spec = specForCanonicalName(canonicalMainEvent);
-  if (spec == nullptr) return kFallback;
-  return spec->factoryDuration;
+  if (const EventCatalog::Node* node = playEvent(canonicalMainEvent)) {
+    return EventDuration{node->leadMs, node->lagMs};
+  }
+  if (const EventSpec* spec = timeControlEvent(canonicalMainEvent)) return spec->factoryDuration;
+  return kFallback;
 }
 
 EventDuration defaultFor(const QString& canonicalMainEvent) {
@@ -175,7 +172,7 @@ EventDuration defaultFor(const QString& canonicalMainEvent) {
 }
 
 QString quarterCode(int quarterIndex) {
-  for (const EventSpec& spec : kEventCatalog) {
+  for (const EventSpec& spec : kTimeControlEvents) {
     if (spec.kind == EventKind::Quarter && spec.quarterIndex == quarterIndex) {
       return QString::fromLatin1(spec.canonical);
     }
@@ -184,8 +181,7 @@ QString quarterCode(int quarterIndex) {
 }
 
 void setUserOverride(const QString& canonicalMainEvent, qint64 leadMs, qint64 lagMs) {
-  const EventSpec* spec = specForCanonicalName(canonicalMainEvent);
-  if (spec == nullptr || !isPlayEvent(spec->kind)) return;
+  if (playEvent(canonicalMainEvent) == nullptr) return;
 
   const EventDuration clamped = clampDuration(leadMs, lagMs);
 
@@ -212,4 +208,4 @@ void loadFromSettings() {
   loadOverridesFromSettings(state);
 }
 
-} // namespace EventDefaults
+}  // namespace EventDefaults

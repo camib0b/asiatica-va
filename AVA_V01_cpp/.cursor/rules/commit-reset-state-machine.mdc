@@ -26,4 +26,4 @@ if (FollowUpCatalog::optionsAfter(followUpState_.mainEvent(),
 }
 ```
 
-Adding a follow-up event means extending `FollowUpCatalog`, not `onFollowUpButtonClicked()`.
+Adding a follow-up event means extending `EventCatalog`, not `onFollowUpButtonClicked()`. `FollowUpCatalog` reads that catalog.

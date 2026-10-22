@@ -1,5 +1,6 @@
 #include "GameControls.h"
 #include "FollowUpCatalog.h"
+#include "../state/EventCatalog.h"
 #include "../style/Motion.h"
 #include "../style/StyleProps.h"
 #include "../style/TextFit.h"
@@ -685,6 +686,21 @@ void GameControls::clearActiveMainButton() {
   refreshGameButtonMotion(previous, nullptr);
 }
 
+void GameControls::bindMainEventButton(QPushButton* button, EventCatalog::EventId eventId) {
+  const QString eventName = EventCatalog::canonicalName(eventId);
+  const QString shortcutHint = EventCatalog::shortcutLabel(eventId);
+  Q_ASSERT_X(!eventName.isEmpty(), "GameControls", "main event is missing a canonical name");
+  configureMainGameControlButton(button, eventName, shortcutHint);
+
+  const Qt::Key shortcutKey = EventCatalog::shortcutKey(eventId);
+  Q_ASSERT_X(shortcutKey != Qt::Key_unknown, "GameControls",
+             "main event button is missing a keyboard key");
+  const int key = static_cast<int>(shortcutKey);
+  Q_ASSERT_X(!mainEventButtonsByKey_.contains(key), "GameControls",
+             "two main events share a keyboard key");
+  mainEventButtonsByKey_.insert(key, button);
+}
+
 void GameControls::configureMainGameControlButton(QPushButton* button, const QString& eventName,
                                                   const QString& shortcutHint) {
   if (!button) return;
@@ -818,40 +834,40 @@ void GameControls::buildUi() {
   keyboardRowsLayout->setContentsMargins(0, 0, 0, 0);
   keyboardRowsLayout->setSpacing(4);
 
-  // Create main event buttons (title + keyboard hint on second line)
+  // Names and letter keys come from EventCatalog. Rows stay explicit.
   sixteenYardButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(sixteenYardButton_, QStringLiteral("16-yd"), QStringLiteral("Q"));
+  bindMainEventButton(sixteenYardButton_, EventCatalog::EventId::SixteenYard);
   fiftyYardButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(fiftyYardButton_, QStringLiteral("50-yd"), QStringLiteral("W"));
+  bindMainEventButton(fiftyYardButton_, EventCatalog::EventId::FiftyYard);
   seventyFiveYardButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(seventyFiveYardButton_, QStringLiteral("75-yd"), QStringLiteral("E"));
+  bindMainEventButton(seventyFiveYardButton_, EventCatalog::EventId::SeventyFiveYard);
   pcButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(pcButton_, QStringLiteral("PC"), QStringLiteral("R"));
+  bindMainEventButton(pcButton_, EventCatalog::EventId::PenaltyCorner);
 
   circleEntryButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(circleEntryButton_, QStringLiteral("Circle Entry"), QStringLiteral("A"));
+  bindMainEventButton(circleEntryButton_, EventCatalog::EventId::CircleEntry);
   pcFoulButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(pcFoulButton_, QStringLiteral("PC Foul"), QStringLiteral("S"));
+  bindMainEventButton(pcFoulButton_, EventCatalog::EventId::PenaltyCornerFoul);
   shotButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(shotButton_, QStringLiteral("Shot"), QStringLiteral("D"));
+  bindMainEventButton(shotButton_, EventCatalog::EventId::Shot);
   goalButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(goalButton_, QStringLiteral("Goal"), QStringLiteral("F"));
+  bindMainEventButton(goalButton_, EventCatalog::EventId::Goal);
 
   passButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(passButton_, QStringLiteral("Pass"), QStringLiteral("Z"));
-  // Visible title is ☆ in all locales (AppLocale::trEvent); canonical key stays "Special".
+  bindMainEventButton(passButton_, EventCatalog::EventId::Pass);
+  // Visible title is ☆ in all locales (catalog display label); canonical key stays "Special".
   specialButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(specialButton_, QStringLiteral("Special"), QStringLiteral("X"));
+  bindMainEventButton(specialButton_, EventCatalog::EventId::Special);
   turnoverButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(turnoverButton_, QStringLiteral("Turnover"), QStringLiteral("C"));
+  bindMainEventButton(turnoverButton_, EventCatalog::EventId::Turnover);
   cardButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(cardButton_, QStringLiteral("Card"), QStringLiteral("V"));
+  bindMainEventButton(cardButton_, EventCatalog::EventId::Card);
 
   shootoutButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(shootoutButton_, QStringLiteral("S.O."), QStringLiteral("N"));
+  bindMainEventButton(shootoutButton_, EventCatalog::EventId::Shootout);
 
   psButton_ = new QPushButton(mainGridWidget);
-  configureMainGameControlButton(psButton_, QStringLiteral("PS"), QStringLiteral("B"));
+  bindMainEventButton(psButton_, EventCatalog::EventId::PenaltyStroke);
 
   QList<QPushButton*> mainButtons = {
     sixteenYardButton_, fiftyYardButton_, seventyFiveYardButton_, pcButton_,
@@ -959,35 +975,12 @@ bool GameControls::handleApplicationShortcut(QKeyEvent* event) {
     return true;
   };
 
+  const auto mainEventButton = mainEventButtonsByKey_.constFind(event->key());
+  if (mainEventButton != mainEventButtonsByKey_.cend()) {
+    return clickIfReady(mainEventButton.value());
+  }
+
   switch (event->key()) {
-    case Qt::Key_Q:
-      return clickIfReady(sixteenYardButton_);
-    case Qt::Key_W:
-      return clickIfReady(fiftyYardButton_);
-    case Qt::Key_E:
-      return clickIfReady(seventyFiveYardButton_);
-    case Qt::Key_R:
-      return clickIfReady(pcButton_);
-    case Qt::Key_A:
-      return clickIfReady(circleEntryButton_);
-    case Qt::Key_S:
-      return clickIfReady(pcFoulButton_);
-    case Qt::Key_D:
-      return clickIfReady(shotButton_);
-    case Qt::Key_F:
-      return clickIfReady(goalButton_);
-    case Qt::Key_Z:
-      return clickIfReady(passButton_);
-    case Qt::Key_X:
-      return clickIfReady(specialButton_);
-    case Qt::Key_C:
-      return clickIfReady(turnoverButton_);
-    case Qt::Key_V:
-      return clickIfReady(cardButton_);
-    case Qt::Key_N:
-      return clickIfReady(shootoutButton_);
-    case Qt::Key_B:
-      return clickIfReady(psButton_);
     case Qt::Key_G:
     case Qt::Key_H:
       return clickIfReady(periodAdvanceButton_);

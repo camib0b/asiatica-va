@@ -1052,6 +1052,7 @@ void CompilationSidecarExportTest::cancelAfterJoinedOutputCommittedRemovesIt() {
 
 #include "CompilationSidecarTests.moc"
 
+int runEventCatalogTests(int argc, char** argv);
 int runPresentationPlaybackTests(int argc, char** argv);
 int runWorkStateTests(int argc, char** argv);
 int runTaggingToastTests(int argc, char** argv);
@@ -1067,6 +1068,10 @@ int runShootoutStateTests(int argc, char** argv);
 
 int main(int argc, char** argv) {
     QApplication application(argc, argv);
+    const int catalogStatus = runEventCatalogTests(argc, argv);
+    if (catalogStatus != 0) {
+        return catalogStatus;
+    }
     const int playbackStatus = runPresentationPlaybackTests(argc, argv);
     if (playbackStatus != 0) {
         return playbackStatus;

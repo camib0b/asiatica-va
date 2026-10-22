@@ -17,7 +17,7 @@
 
 ## Components
 
-- FollowUpCatalog maintains static QHash tables of first-, second-, and third-level follow-up options for game events, plus payload-layout policy (team-only, team-then-chain, chain-then-team, or plain chain), arrow-path formatting, and helpers for team-switch-on-commit and goal-continuation.
+- FollowUpCatalog reads the follow-up tree, payload layout, and team-switch flag from EventCatalog, formats the arrow path, and keeps the Goal / penalty-corner / penalty-stroke continuation special case.
 - GameControls is a complex Qt QWidget for sports event tagging, featuring team selection with color styling, game-phase management for quarters, a main grid of event buttons with dynamic multi-level follow-up prompts, extensive keyboard shortcuts, arrow-key focus navigation, and signal emission for tag commits.
 - MatchNotesEditor is a QTextEdit subclass providing rich-text editing for match notes with @mention autocomplete for tags via a QListWidget popup, inserting mentions as HTML anchors that emit activation signals on click while preserving scroll position and supporting HTML serialization.
 - TeamColorPicker is a compact Qt widget providing a clickable color well that opens a popup with a fixed localized palette, live hex editor, and system color picker fallback. Key design uses a custom-painted ColorCircleButton (with luminance-based borders), manual popup positioning, and tight state synchronization across the well, swatches, and text field via normalized hex strings.
@@ -26,10 +26,11 @@
 - VideoPlayer is a QWidget subclass that encapsulates QMediaPlayer, QVideoWidget, controls, and timeline for playback with seeking, rate control, keyboard shortcuts, stall detection/recovery, and macOS-specific system sleep/wake state restoration.
 
 ## State
-- EventDefaults implements a namespace for managing factory-default and user-overridable lead/lag clip durations (in ms) for canonical game events, backed by a static QHash table and QSettings persistence under the 'clipDurations' group. Key design uses lazy loading of overrides via a static flag, special-casing for non-overridable time-control events, and historical settings key compatibility.
+- EventCatalog is the single definition of each main event and follow-up: stable id, canonical English name, keyboard key, XML code, factory lead/lag, follow-up children, Spanish text, and an optional display label. Tags and QSettings still store the canonical name.
+- EventDefaults manages factory and user-overridable lead/lag clip durations. Play-event defaults and the configurable list come from EventCatalog. Start-anchor, timeout, and quarter codes stay here. QSettings overrides remain keyed by the canonical English name under the 'clipDurations' group.
+- EventCodeMap builds the canonical-name ↔ XML-code hashes from EventCatalog main events. Lookup trims and is case-insensitive.
 - PresentationQueue manages a sorted vector of selected clips synced bidirectionally with a TagSession, preserving current index across rebuilds, enforcing min durations and video bounds, and emitting Qt signals for UI updates.
 - TagSession manages a mutable list of timed GameTags for event marking in game video, maintains derived counts per main/follow-up event, automatically derives quarter/period state from special anchor tags, and supports import with clamping, defaults, and Qt signals for UI reactivity. Core design centers on manual cache maintenance for counts and multi-path state reconstruction for game timing.
-- EventCodeMap maintains two static QHash lookup tables for bidirectional conversion between canonical event names and short codes, with the reverse map built via immediate lambda inversion of the primary table.
 
 ## Export
 
@@ -49,7 +50,7 @@
 
 ## i18n
 
-- AppLocale implements bilingual (EN/ES) localization for UI strings and field-hockey event taxonomy using static QHash lookup tables, global language state persisted via QSettings, and helper functions that compose/translate compound event paths while stripping team labels.
+- AppLocale implements bilingual (EN/ES) localization. UI chrome stays in one `{english, spanish}` table. Event tokens are translated from EventCatalog, with a residual table for home/away and retired follow-up words. Language state is persisted via QSettings. Compound paths are translated segment by segment, and team labels can be stripped.
 - LocaleNotifier implements a Qt QObject-based singleton for broadcasting language change notifications via signals. Uses static local variable for lazy-initialized instance and a simple notify method to emit the signal.
 
 ## Style

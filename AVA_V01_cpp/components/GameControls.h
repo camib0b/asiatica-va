@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QColor>
+#include <QHash>
 #include <QWidget>
 #include <QStringList>
 #include <QList>
@@ -8,6 +9,7 @@
 #include <array>
 
 #include "FollowUpState.h"
+#include "../state/EventCatalog.h"
 #include "../state/TagSession.h"
 
 class QPushButton;
@@ -84,6 +86,7 @@ private:
   void hideFollowUpButtons();
   void configureMainGameControlButton(QPushButton* button, const QString& eventName,
                                       const QString& shortcutHint);
+  void bindMainEventButton(QPushButton* button, EventCatalog::EventId eventId);
   void configurePeriodAdvanceButton(QPushButton* button, const QString& shortcutHint);
   void advanceFollowUpFlow(const QString& choice);
   void commitFollowUpFlow();
@@ -146,6 +149,7 @@ protected:
   QPushButton* cardButton_ = nullptr;
   QPushButton* shootoutButton_ = nullptr;
   QPushButton* psButton_ = nullptr;
+  QHash<int, QPushButton*> mainEventButtonsByKey_;
 
   FollowUpState followUpState_{};
   GamePhase gamePhase_ = GamePhase::NotStarted;
