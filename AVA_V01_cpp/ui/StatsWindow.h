@@ -22,7 +22,8 @@ public:
   void applyUiStrings();
 
 signals:
-  void filterByEventPathRequested(const QString& mainEvent, const QString& followUpEvent);
+  void filterByEventPathRequested(const TagEvent::MainEventKey& mainEvent,
+                                 const TagEvent::FollowUpChain& followUps);
 
 private slots:
   void onTreeItemDoubleClicked(QTreeWidgetItem* item, int column);

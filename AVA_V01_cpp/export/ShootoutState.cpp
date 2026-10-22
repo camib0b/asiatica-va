@@ -1,49 +1,30 @@
 #include "ShootoutState.h"
 
+#include "EventCatalog.h"
+
 #include <algorithm>
-#include <optional>
 
 namespace {
 
-bool equalsIgnoreCase(const QString& lhs, const QString& rhs) {
-    return lhs.compare(rhs, Qt::CaseInsensitive) == 0;
-}
-
-std::optional<ShootoutState::Outcome> outcomeFromToken(const QString& token) {
-    const QString trimmed = token.trimmed();
-    if (trimmed.isEmpty()) return std::nullopt;
-    if (equalsIgnoreCase(trimmed, QStringLiteral("Converted"))
-        || equalsIgnoreCase(trimmed, QStringLiteral("Convertido"))) {
-        return ShootoutState::Outcome::Converted;
+ShootoutState::Outcome outcomeFromChain(const TagEvent::FollowUpChain& chain) {
+    ShootoutState::Outcome matched = ShootoutState::Outcome::Unknown;
+    bool found = false;
+    const int used = chain.size();
+    for (int index = 0; index < used; ++index) {
+        const EventCatalog::EventId id = chain.at(index);
+        if (id == EventCatalog::EventId::Converted) {
+            matched = ShootoutState::Outcome::Converted;
+            found = true;
+        } else if (id == EventCatalog::EventId::Missed) {
+            matched = ShootoutState::Outcome::Missed;
+            found = true;
+        } else if (id == EventCatalog::EventId::Replay) {
+            matched = ShootoutState::Outcome::Replay;
+            found = true;
+        }
     }
-    if (equalsIgnoreCase(trimmed, QStringLiteral("Missed"))
-        || equalsIgnoreCase(trimmed, QStringLiteral("No convertido"))) {
-        return ShootoutState::Outcome::Missed;
-    }
-    if (equalsIgnoreCase(trimmed, QStringLiteral("Replay"))
-        || equalsIgnoreCase(trimmed, QStringLiteral("Repite"))) {
-        return ShootoutState::Outcome::Replay;
-    }
-    return std::nullopt;
-}
-
-ShootoutState::Outcome outcomeFromFollowUp(const QString& followUpEvent) {
-    const QString trimmed = followUpEvent.trimmed();
-    if (trimmed.isEmpty()) return ShootoutState::Outcome::Unknown;
-
-    QStringList segments =
-        trimmed.split(AppLocale::kCompoundPathSeparator, Qt::SkipEmptyParts);
-    if (segments.size() == 1 && segments.first().contains(QStringLiteral("\u2192"))) {
-        segments = segments.first().split(QStringLiteral("\u2192"), Qt::SkipEmptyParts);
-    }
-    if (segments.isEmpty()) segments.append(trimmed);
-
-    std::optional<ShootoutState::Outcome> matched;
-    for (const QString& segment : segments) {
-        const std::optional<ShootoutState::Outcome> parsed = outcomeFromToken(segment);
-        if (parsed.has_value()) matched = parsed;
-    }
-    return matched.value_or(ShootoutState::Outcome::Unknown);
+    if (!found) return ShootoutState::Outcome::Unknown;
+    return matched;
 }
 
 bool isKnownResult(ShootoutState::Outcome outcome) {
@@ -200,7 +181,7 @@ QVector<ShootoutState::AnnotatedAttempt> ShootoutState::annotate(
         const TagSession::TeamSide team = TagSession::teamSideFromKey(event.teamKey);
         if (team == TagSession::TeamSide::Unspecified) continue;
 
-        const ShootoutState::Outcome outcome = outcomeFromFollowUp(event.followUpEvent);
+        const ShootoutState::Outcome outcome = outcomeFromChain(event.followUps);
         QVector<ShootoutState::Outcome>& ownSlots =
             team == TagSession::TeamSide::Home ? homeSlots : awaySlots;
         const int openSlot = ownSlots.size();
@@ -238,12 +219,12 @@ ShootoutState ShootoutState::fromGameTags(const QVector<TagSession::GameTag>& ta
     events.reserve(tags.size());
     int sourceOrder = 0;
     for (const TagSession::GameTag& tag : tags) {
-        if (tag.mainEvent != QStringLiteral("S.O.")) continue;
+        if (tag.mainEventId != EventCatalog::EventId::Shootout) continue;
         SourceEvent event;
         event.tagId = tag.id;
         event.markMs = tag.markMs;
         event.teamKey = tag.team;
-        event.followUpEvent = tag.followUpEvent;
+        event.followUps = tag.followUpChain();
         event.sourceOrder = sourceOrder;
         ++sourceOrder;
         events.append(event);

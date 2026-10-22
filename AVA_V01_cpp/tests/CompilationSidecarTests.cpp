@@ -48,7 +48,7 @@ TagSession::GameTag makeTag(const QString& mainEvent,
                             qint64 markMs,
                             const QString& period) {
     TagSession::GameTag tag;
-    tag.mainEvent = mainEvent;
+    tag.setMainEventKey(TagEvent::keyFromCanonicalName(mainEvent));
     tag.team = team;
     tag.startMs = startMs;
     tag.endMs = endMs;
@@ -70,8 +70,8 @@ PresentationQueue::Clip presentationClipFrom(const TagSession::GameTag& tag, int
     clip.markMs = tag.markMs;
     clip.startMs = tag.startMs;
     clip.endMs = tag.endMs;
-    clip.mainEvent = tag.mainEvent;
-    clip.followUpEvent = tag.followUpEvent;
+    clip.mainEvent = tag.mainEventKey();
+    clip.followUps = tag.followUpChain();
     clip.team = tag.team;
     clip.note = tag.note;
     return clip;
@@ -436,7 +436,8 @@ void CompilationSidecarOffsetTest::xmlInstanceIdMatchesCatalogNotCompilationInde
     const QVector<XmlExporter::ExportedXmlInstance> catalog =
         XmlExporter::buildExportedInstances(&session);
     const std::optional<XmlExporter::ExportedXmlInstance> lateInstance =
-        XmlExporter::taggedTeamInstanceFor(catalog, late.id, QStringLiteral("16-yd"));
+        XmlExporter::taggedTeamInstanceFor(
+            catalog, late.id, TagEvent::keyFromCanonicalName(QStringLiteral("16-yd")));
     QVERIFY(lateInstance.has_value());
     QCOMPARE(lateInstance->code, QStringLiteral("OR 16YD+"));
     QCOMPARE(segments.at(0).compilation.xmlInstanceId, lateInstance->id);
@@ -520,9 +521,11 @@ void CompilationSidecarOffsetTest::quartosLabelUsesQuarterSpanContainingMark() {
     const QVector<XmlExporter::ExportedXmlInstance> catalog =
         XmlExporter::buildExportedInstances(&session);
     const std::optional<XmlExporter::ExportedXmlInstance> goalInstance =
-        XmlExporter::taggedTeamInstanceFor(catalog, retrospectiveGoal.id, QStringLiteral("Goal"));
+        XmlExporter::taggedTeamInstanceFor(
+            catalog, retrospectiveGoal.id, TagEvent::keyFromCanonicalName(QStringLiteral("Goal")));
     const std::optional<XmlExporter::ExportedXmlInstance> shotInstance =
-        XmlExporter::taggedTeamInstanceFor(catalog, fourthQuarterShot.id, QStringLiteral("Shot"));
+        XmlExporter::taggedTeamInstanceFor(
+            catalog, fourthQuarterShot.id, TagEvent::keyFromCanonicalName(QStringLiteral("Shot")));
     QVERIFY(goalInstance.has_value());
     QVERIFY(shotInstance.has_value());
     QCOMPARE(quartosLabel(*goalInstance), QStringLiteral("Q1"));
@@ -1053,6 +1056,7 @@ void CompilationSidecarExportTest::cancelAfterJoinedOutputCommittedRemovesIt() {
 #include "CompilationSidecarTests.moc"
 
 int runEventCatalogTests(int argc, char** argv);
+int runTagEventRoundTripTests(int argc, char** argv);
 int runPresentationPlaybackTests(int argc, char** argv);
 int runWorkStateTests(int argc, char** argv);
 int runTaggingToastTests(int argc, char** argv);
@@ -1071,6 +1075,10 @@ int main(int argc, char** argv) {
     const int catalogStatus = runEventCatalogTests(argc, argv);
     if (catalogStatus != 0) {
         return catalogStatus;
+    }
+    const int tagEventStatus = runTagEventRoundTripTests(argc, argv);
+    if (tagEventStatus != 0) {
+        return tagEventStatus;
     }
     const int playbackStatus = runPresentationPlaybackTests(argc, argv);
     if (playbackStatus != 0) {

@@ -17,8 +17,8 @@ inline constexpr int kMaxFollowUpChildren = 4;
 /// Stable identity for a main event or a follow-up.
 ///
 /// Values are part of the catalog contract. Do not renumber or reuse them.
-/// Game tags, .clips.json, and QSettings still store the canonical English
-/// name; these ids are not written yet.
+/// Game tags store these ids. XML export, .clips.json, and clip-duration
+/// QSettings still use the canonical English name.
 enum class EventId : int {
   None = 0,
 
@@ -108,7 +108,8 @@ enum class PayloadLayout {
 /// Follow-ups leave shortcut, XML code, lead/lag, and payload unused.
 struct Node {
   EventId id = EventId::None;
-  /// English token stored on tags, buttons, and clip-duration QSettings.
+  /// English token. XML export, .clips.json, and clip-duration QSettings still
+  /// write this name. Game tags store EventId instead.
   const char* canonicalName = nullptr;
   Qt::Key shortcut = Qt::Key_unknown;
   /// Short XML code for a main event. Null for follow-ups.
@@ -149,6 +150,12 @@ QString spanishForCanonicalName(const QString& canonicalName);
 /// Display override for a token, compared without case after trimming.
 /// Empty when the token has no override. "special" resolves to the star.
 QString displayLabelForToken(const QString& token);
+
+/// UI label for one id. A display override wins in every language. Spanish
+/// uses the Spanish text when that text is set; otherwise the canonical name.
+/// Empty when \p id is not in the catalog. Main Goal and outcome Goal stay
+/// distinct ids and share the same label.
+QString labelForId(EventId id, bool spanish);
 
 PayloadLayout payloadLayoutForMainEvent(const QString& canonicalName);
 bool switchesTeamForMainEvent(const QString& canonicalName);

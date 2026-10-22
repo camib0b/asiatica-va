@@ -1,5 +1,6 @@
 #include "TagSession.h"
 
+#include "EventCatalog.h"
 #include "EventDefaults.h"
 
 #include <algorithm>
@@ -26,6 +27,11 @@ bool isGameTimeMainEvent(const QString& mainEvent, int* quarterIndexOut = nullpt
   if (quarterIndex < 0) return false;
   if (quarterIndexOut) *quarterIndexOut = quarterIndex;
   return true;
+}
+
+bool isGameTimeTag(const TagSession::GameTag& tag, int* quarterIndexOut = nullptr) {
+  if (tag.mainEventId != EventCatalog::EventId::None) return false;
+  return isGameTimeMainEvent(tag.unlistedName, quarterIndexOut);
 }
 
 /// Enforces start >= 0, end >= start, and start <= mark <= end.
@@ -163,7 +169,8 @@ void TagSession::addTag(const GameTag& tag) {
   assignStableId(stored);
   if (stored.startMs == 0 && stored.endMs == 0) {
     // Caller did not provide an explicit interval; seed from per-event-type defaults.
-    const auto duration = EventDefaults::defaultFor(stored.mainEvent);
+    const auto duration =
+        EventDefaults::defaultFor(TagEvent::canonicalName(stored.mainEventKey()));
     qint64 start = stored.markMs - duration.leadMs;
     qint64 end = stored.markMs + duration.lagMs;
     stored.startMs = start;
@@ -174,7 +181,7 @@ void TagSession::addTag(const GameTag& tag) {
 
   rebuildEventCountsFromTags();
   int gameTimeQuarterIndex = -1;
-  if (isGameTimeMainEvent(stored.mainEvent, &gameTimeQuarterIndex)) {
+  if (isGameTimeTag(stored, &gameTimeQuarterIndex)) {
     gameTimeTags_.push_back(
         {stored.id, gameTimeQuarterIndex, stored.startMs, stored.endMs});
     restoreGameTimeStateFromTags();
@@ -223,12 +230,14 @@ void TagSession::rebuildEventCountsFromTags() {
   mainEventCounts_.clear();
   followUpCountsByMainEvent_.clear();
   for (const GameTag& tag : tags_) {
-    const int nextMainCount = mainEventCounts_.value(tag.mainEvent, 0) + 1;
-    mainEventCounts_.insert(tag.mainEvent, nextMainCount);
-    if (!tag.followUpEvent.isEmpty()) {
-      auto& followUps = followUpCountsByMainEvent_[tag.mainEvent];
-      const int nextFollowUpCount = followUps.value(tag.followUpEvent, 0) + 1;
-      followUps.insert(tag.followUpEvent, nextFollowUpCount);
+    const TagEvent::MainEventKey key = tag.mainEventKey();
+    const int nextMainCount = mainEventCounts_.value(key, 0) + 1;
+    mainEventCounts_.insert(key, nextMainCount);
+    const TagEvent::FollowUpChain chain = tag.followUpChain();
+    if (!chain.empty()) {
+      auto& followUps = followUpCountsByMainEvent_[key];
+      const int nextFollowUpCount = followUps.value(chain, 0) + 1;
+      followUps.insert(chain, nextFollowUpCount);
     }
   }
 }
@@ -237,14 +246,14 @@ void TagSession::rebuildGameTimeIndexFromTags() {
   gameTimeTags_.clear();
   for (const GameTag& tag : tags_) {
     int gameTimeQuarterIndex = -1;
-    if (!isGameTimeMainEvent(tag.mainEvent, &gameTimeQuarterIndex)) continue;
+    if (!isGameTimeTag(tag, &gameTimeQuarterIndex)) continue;
     gameTimeTags_.push_back({tag.id, gameTimeQuarterIndex, tag.startMs, tag.endMs});
   }
 }
 
 void TagSession::upsertGameTimeTag(const GameTag& tag) {
   int gameTimeQuarterIndex = -1;
-  if (!isGameTimeMainEvent(tag.mainEvent, &gameTimeQuarterIndex)) return;
+  if (!isGameTimeTag(tag, &gameTimeQuarterIndex)) return;
   for (GameTimeTagRecord& existing : gameTimeTags_) {
     if (existing.id != tag.id) continue;
     existing.quarterIndex = gameTimeQuarterIndex;
@@ -307,7 +316,7 @@ bool TagSession::removeTag(int index) {
   const GameTag removedTag = tags_.at(index);
   tags_.removeAt(index);
   rebuildEventCountsFromTags();
-  if (isGameTimeMainEvent(removedTag.mainEvent)) {
+  if (isGameTimeTag(removedTag)) {
     removeGameTimeTagId(removedTag.id);
     restoreGameTimeStateFromTags();
   }
@@ -361,7 +370,7 @@ bool TagSession::setTagInterval(int index, qint64 startMs, qint64 endMs) {
   tag.endMs = endMs;
   tag.intervalManuallyEdited = true;
   clampTagInterval(tag);
-  if (isGameTimeMainEvent(tag.mainEvent)) {
+  if (isGameTimeTag(tag)) {
     upsertGameTimeTag(tag);
     restoreGameTimeStateFromTags();
   }
@@ -370,13 +379,13 @@ bool TagSession::setTagInterval(int index, qint64 startMs, qint64 endMs) {
 }
 
 void TagSession::applyDefaultsToUntrimmedTags(const QString& mainEvent, qint64 leadMs, qint64 lagMs) {
-  if (mainEvent.isEmpty()) return;
-  if (EventDefaults::isTimeControlEvent(mainEvent)) return;
+  const TagEvent::MainEventKey key = TagEvent::keyFromCanonicalName(mainEvent);
+  if (key.isEmpty() || key.isTimeControl()) return;
   if (leadMs < 0) leadMs = 0;
   if (lagMs < 0) lagMs = 0;
   for (int i = 0; i < tags_.size(); ++i) {
     GameTag& tag = tags_[i];
-    if (tag.mainEvent != mainEvent) continue;
+    if (tag.mainEventKey() != key) continue;
     // Manually trimmed clips (export review or fixed game-time spans) are never touched.
     if (tag.intervalManuallyEdited) continue;
     qint64 start = tag.markMs - leadMs;
@@ -442,7 +451,8 @@ bool TagSession::startGame(qint64 anchorMs) {
   if (anchorMs < 0) anchorMs = 0;
 
   GameTag anchorTag;
-  anchorTag.mainEvent = QString::fromLatin1(EventDefaults::TimeCodes::kStartAnchor);
+  anchorTag.setMainEventKey(TagEvent::unlistedKey(
+      QString::fromLatin1(EventDefaults::TimeCodes::kStartAnchor)));
   anchorTag.markMs = anchorMs;
   anchorTag.startMs = anchorMs;
   anchorTag.endMs = anchorMs + kStartAnchorDurationMs;
@@ -461,11 +471,12 @@ bool TagSession::advanceQuarter(qint64 nowMs) {
   const qint64 endMs = nowMs >= quarterStartMs ? nowMs : quarterStartMs;
 
   GameTag quarterTag;
-  quarterTag.mainEvent = EventDefaults::quarterCode(closingIndex);
+  const QString quarterCode = EventDefaults::quarterCode(closingIndex);
+  quarterTag.setMainEventKey(TagEvent::unlistedKey(quarterCode));
   quarterTag.markMs = quarterStartMs;
   quarterTag.startMs = quarterStartMs;
   quarterTag.endMs = endMs;
-  quarterTag.period = quarterTag.mainEvent;
+  quarterTag.period = quarterCode;
   quarterTag.intervalManuallyEdited = true;
   addTag(quarterTag);
   return true;

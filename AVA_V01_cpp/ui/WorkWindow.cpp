@@ -1315,8 +1315,17 @@ void WorkWindow::commitTagFromGameControls(const QString& mainEvent, const QStri
     if (!tagSession_) return;
     const PendingTagPeriodAndTeam context = pendingTagPeriodAndTeam();
     TagSession::GameTag tag;
-    tag.mainEvent = mainEvent;
-    tag.followUpEvent = followUpEvent;
+    const TagEvent::MainEventKey key = TagEvent::keyFromCanonicalName(mainEvent);
+    tag.setMainEventKey(key);
+    const std::optional<TagEvent::FollowUpChain> parsedFollowUps =
+        TagEvent::parseLegacyFollowUpPayload(key.id, followUpEvent, tagSession_->homeTeamName(),
+                                             tagSession_->awayTeamName());
+    if (parsedFollowUps.has_value()) {
+        tag.setFollowUpChain(*parsedFollowUps);
+    } else {
+        Q_ASSERT_X(false, "WorkWindow::commitTagFromGameControls",
+                   "follow-up payload is not in the catalog");
+    }
     tag.markMs = markMs;
     tag.period = context.period;
     tag.team = TagSession::teamSideKey(context.team);

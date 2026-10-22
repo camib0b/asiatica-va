@@ -26,7 +26,7 @@
 - VideoPlayer is a QWidget subclass that encapsulates QMediaPlayer, QVideoWidget, controls, and timeline for playback with seeking, rate control, keyboard shortcuts, stall detection/recovery, and macOS-specific system sleep/wake state restoration.
 
 ## State
-- EventCatalog is the single definition of each main event and follow-up: stable id, canonical English name, keyboard key, XML code, factory lead/lag, follow-up children, Spanish text, and an optional display label. Tags and QSettings still store the canonical name.
+- EventCatalog is the single definition of each main event and follow-up: stable id, canonical English name, keyboard key, XML code, factory lead/lag, follow-up children, Spanish text, and an optional display label. Game tags store those ids. QSettings lead/lag keys, XML export, and .clips.json still use the canonical English name or short code.
 - EventDefaults manages factory and user-overridable lead/lag clip durations. Play-event defaults and the configurable list come from EventCatalog. Start-anchor, timeout, and quarter codes stay here. QSettings overrides remain keyed by the canonical English name under the 'clipDurations' group.
 - EventCodeMap builds the canonical-name ↔ XML-code hashes from EventCatalog main events. Lookup trims and is case-insensitive.
 - PresentationQueue manages a sorted vector of selected clips synced bidirectionally with a TagSession, preserving current index across rebuilds, enforcing min durations and video bounds, and emitting Qt signals for UI updates.
@@ -50,7 +50,7 @@
 
 ## i18n
 
-- AppLocale implements bilingual (EN/ES) localization. UI chrome stays in one `{english, spanish}` table. Event tokens are translated from EventCatalog, with a residual table for home/away and retired follow-up words. Language state is persisted via QSettings. Compound paths are translated segment by segment, and team labels can be stripped.
+- AppLocale implements bilingual (EN/ES) localization. UI chrome stays in one `{english, spanish}` table. Stored tags take their labels from catalog ids. Residual token translation still covers home/away, retired follow-up words, and fixture strings that are not in the catalog. Language state is persisted via QSettings.
 - LocaleNotifier implements a Qt QObject-based singleton for broadcasting language change notifications via signals. Uses static local variable for lazy-initialized instance and a simple notify method to emit the signal.
 
 ## Style

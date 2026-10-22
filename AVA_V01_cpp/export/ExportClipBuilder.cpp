@@ -1,7 +1,9 @@
 #include "ExportClipBuilder.h"
 
+#include "EventCatalog.h"
 #include "ShootoutOverlay.h"
 #include "ShootoutState.h"
+#include "TagEvent.h"
 #include "TagSession.h"
 #include "XmlExporter.h"
 
@@ -81,7 +83,7 @@ QString compilationBaseName(const TagSession* session,
     const QString awaySegment =
         sanitizedFileNamePart(teamDisplayName(session, QStringLiteral("Away")));
 
-    QString sharedEvent;
+    TagEvent::MainEventKey sharedEvent;
     QString sharedTeam;
     bool mixedEvents = false;
     bool mixedTeams = false;
@@ -98,7 +100,7 @@ QString compilationBaseName(const TagSession* session,
 
     const QString eventSegment = (clips.isEmpty() || mixedEvents || sharedEvent.isEmpty())
         ? sanitizedFileNamePart(AppLocale::trUi("export.mixed_events_filename"))
-        : sanitizedFileNamePart(eventLabelForExportFileName(sharedEvent));
+        : sanitizedFileNamePart(eventLabelForExportFileName(TagEvent::canonicalName(sharedEvent)));
     const QString teamSegment = (clips.isEmpty() || mixedTeams || sharedTeam.isEmpty())
         ? sanitizedFileNamePart(AppLocale::trUi("export.team_all"))
         : sanitizedFileNamePart(teamDisplayName(session, sharedTeam));
@@ -159,7 +161,7 @@ QVector<ClipSegment> buildClipSegments(const TagSession* session,
         QString secondary;
         if (options.includeBottomOverlay) {
             const QString translatedEvent =
-                AppLocale::trEventForLanguage(clip.mainEvent, options.language);
+                TagEvent::displayLabel(clip.mainEvent, options.language);
             overlayLabel = QStringLiteral("%1 - %2")
                 .arg(teamDisplayName(session, clip.team), translatedEvent);
             // Two spaces before the counter: "{label}  {n} / {N}".
@@ -206,7 +208,7 @@ QVector<ClipSegment> buildClipSegments(const TagSession* session,
             QVector<InClipGoal> inClipGoals;
 
             for (const auto& tag : allTags) {
-                if (tag.mainEvent != QStringLiteral("Goal")) continue;
+                if (tag.mainEventId != EventCatalog::EventId::Goal) continue;
                 if (tag.markMs <= clip.startMs) {
                     if (tag.team == QStringLiteral("Home")) ++initialHomeGoals;
                     else if (tag.team == QStringLiteral("Away")) ++initialAwayGoals;
@@ -259,7 +261,8 @@ QVector<ClipSegment> buildClipSegments(const TagSession* session,
             shootoutWindow.startMs = clip.startMs;
             shootoutWindow.endMs = clip.endMs;
             shootoutWindow.tagId = clip.tagId;
-            shootoutWindow.isShootoutClip = clip.mainEvent == QStringLiteral("S.O.");
+            shootoutWindow.isShootoutClip =
+                clip.mainEvent.id == EventCatalog::EventId::Shootout;
             segment.shootouts = ShootoutOverlay::framesForClip(
                 shootoutState, shootoutWindow, options.language,
                 homeName, awayName, homeColorHex, awayColorHex);

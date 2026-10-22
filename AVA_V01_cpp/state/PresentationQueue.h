@@ -1,5 +1,7 @@
 #pragma once
 
+#include "TagEvent.h"
+
 #include <QObject>
 #include <QString>
 #include <QVector>
@@ -25,8 +27,8 @@ public:
     qint64 markMs = 0;   ///< Event mark (GameTag::markMs).
     qint64 startMs = 0;  ///< Mark minus lead time.
     qint64 endMs = 0;    ///< Mark plus lag time.
-    QString mainEvent;
-    QString followUpEvent;
+    TagEvent::MainEventKey mainEvent;
+    TagEvent::FollowUpChain followUps;
     QString team;
     QString note;
 

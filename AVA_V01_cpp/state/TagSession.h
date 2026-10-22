@@ -1,5 +1,7 @@
 #pragma once
 
+#include "TagEvent.h"
+
 #include <QDate>
 #include <QObject>
 #include <QHash>
@@ -15,8 +17,12 @@ class TagSession final : public QObject {
 public:
   struct GameTag {
     quint64 id = 0;         // Stable mention identity; assigned on add/import.
-    QString mainEvent;
-    QString followUpEvent;
+    EventCatalog::EventId mainEventId = EventCatalog::EventId::None;
+    /// Time-control code or any other token that is not a catalog main event.
+    /// Empty when mainEventId is set.
+    QString unlistedName;
+    std::array<EventCatalog::EventId, EventCatalog::kMaxFollowUpDepth> followUpIds{};
+    int followUpCount = 0;
     qint64 markMs = 0;      // Event mark (click moment): the anchor used for table seek/highlight.
     qint64 startMs = 0;     // Clip interval start (used by exporters).
     qint64 endMs = 0;       // Clip interval end (used by exporters).
@@ -24,6 +30,44 @@ public:
     QString period;   // e.g. "Q1", "Q2", "Q3", "Q4"
     QString team;  ///< TeamSide key: "Home" or "Away" (see teamSideFromKey).
     bool intervalManuallyEdited = false; // true when the user trimmed start/end away from defaults
+
+    TagEvent::MainEventKey mainEventKey() const {
+      if (mainEventId != EventCatalog::EventId::None) return TagEvent::catalogKey(mainEventId);
+      return TagEvent::unlistedKey(unlistedName);
+    }
+
+    void setMainEventKey(const TagEvent::MainEventKey& key) {
+      if (key.id != EventCatalog::EventId::None) {
+        mainEventId = key.id;
+        unlistedName.clear();
+        return;
+      }
+      mainEventId = EventCatalog::EventId::None;
+      unlistedName = key.unlistedName;
+    }
+
+    TagEvent::FollowUpChain followUpChain() const {
+      TagEvent::FollowUpChain chain;
+      const int used = followUpCount < 0
+                           ? 0
+                           : (followUpCount > EventCatalog::kMaxFollowUpDepth
+                                  ? EventCatalog::kMaxFollowUpDepth
+                                  : followUpCount);
+      chain.count = used;
+      for (int index = 0; index < used; ++index) {
+        chain.ids[static_cast<std::size_t>(index)] = followUpIds[static_cast<std::size_t>(index)];
+      }
+      return chain;
+    }
+
+    void setFollowUpChain(const TagEvent::FollowUpChain& chain) {
+      const int used = chain.size();
+      followUpCount = used;
+      followUpIds = {};
+      for (int index = 0; index < used; ++index) {
+        followUpIds[static_cast<std::size_t>(index)] = chain.at(index);
+      }
+    }
   };
 
   enum class QuarterPhase {
@@ -147,8 +191,11 @@ public:
   QString currentPeriodLabel() const;
 
   const QVector<GameTag>& tags() const { return tags_; }
-  const QHash<QString, int>& mainEventCounts() const { return mainEventCounts_; }
-  const QHash<QString, QHash<QString, int>>& followUpCountsByMainEvent() const { return followUpCountsByMainEvent_; }
+  const QHash<TagEvent::MainEventKey, int>& mainEventCounts() const { return mainEventCounts_; }
+  const QHash<TagEvent::MainEventKey, QHash<TagEvent::FollowUpChain, int>>& followUpCountsByMainEvent()
+      const {
+    return followUpCountsByMainEvent_;
+  }
 
 signals:
   /// Emitted before clear() drops tags or restarts ids. Flush pending notes here.
@@ -206,8 +253,8 @@ private:
   QString matchNote_;
   quint64 nextTagId_ = 1;
   quint64 tagIdEpoch_ = 1;
-  QHash<QString, int> mainEventCounts_;
-  QHash<QString, QHash<QString, int>> followUpCountsByMainEvent_;
+  QHash<TagEvent::MainEventKey, int> mainEventCounts_;
+  QHash<TagEvent::MainEventKey, QHash<TagEvent::FollowUpChain, int>> followUpCountsByMainEvent_;
   QString homeTeamName_;
   QString awayTeamName_;
   QString homeTeamColor_;

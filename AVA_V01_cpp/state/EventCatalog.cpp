@@ -346,6 +346,18 @@ QString spanishForCanonicalName(const QString& canonicalName) {
   return iterator.value();
 }
 
+QString labelForId(EventId id, bool spanish) {
+  const Node* node = nodeForId(id);
+  if (!node || !node->canonicalName) return {};
+  if (node->displayLabel && node->displayLabel[0] != '\0') {
+    return QString::fromUtf8(node->displayLabel);
+  }
+  if (spanish && node->spanish && node->spanish[0] != '\0') {
+    return QString::fromUtf8(node->spanish);
+  }
+  return QString::fromLatin1(node->canonicalName);
+}
+
 QString displayLabelForToken(const QString& token) {
   const QString key = token.trimmed();
   if (key.isEmpty()) return {};

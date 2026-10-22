@@ -1,5 +1,6 @@
 #include "XmlExporter.h"
 
+#include "EventCatalog.h"
 #include "EventCodeMap.h"
 #include "EventDefaults.h"
 #include "TagSession.h"
@@ -19,6 +20,14 @@
 namespace XmlExporter {
 
 namespace {
+
+QString exportedEventName(const TagSession::GameTag& tag) {
+  return TagEvent::canonicalName(tag.mainEventKey());
+}
+
+bool tagIsGoal(const TagSession::GameTag& tag) {
+  return tag.mainEventId == EventCatalog::EventId::Goal;
+}
 
 /// Time-control codes are written verbatim as the <code>: Q1, Q2, Q3, Q4, Inicio, TM.
 QString neutralPassThroughCode(const QString& canonicalMainEvent) {
@@ -89,11 +98,11 @@ QPair<qint64, qint64> exportIntervalFor(const TagSession::GameTag& tag) {
     return clampInterval(tag.startMs, tag.endMs);
   }
 
-  if (EventDefaults::isTimeControlEvent(tag.mainEvent)) {
+  if (tag.mainEventKey().isTimeControl()) {
     return clampInterval(tag.startMs, tag.endMs);
   }
 
-  const EventDefaults::EventDuration duration = EventDefaults::defaultFor(tag.mainEvent);
+  const EventDefaults::EventDuration duration = EventDefaults::defaultFor(exportedEventName(tag));
   qint64 startMs = tag.markMs - duration.leadMs;
   qint64 endMs = tag.markMs + duration.lagMs;
   return clampInterval(startMs, endMs);
@@ -169,17 +178,6 @@ struct EmittedInstance {
   bool includeMatchLabels = true;
 };
 
-/// True when a follow-up path records a scored goal (segment "Goal", not "No Goal").
-bool followUpPathContainsScoredGoal(const QString& followUpEvent) {
-  if (followUpEvent.trimmed().isEmpty()) return false;
-  const QStringList segments =
-      followUpEvent.split(QStringLiteral(" → "), Qt::KeepEmptyParts);
-  for (const QString& segment : segments) {
-    if (segment.trimmed() == QStringLiteral("Goal")) return true;
-  }
-  return false;
-}
-
 /// Clip span used to decide whether an explicit Goal belongs to \p tag. Manually trimmed
 /// tags keep their export interval for <start>/<end>, but goal association must stay near
 /// markMs so a wide trim does not treat every Goal in the clip as confirmation.
@@ -188,7 +186,7 @@ QPair<qint64, qint64> goalAssociationIntervalFor(const TagSession::GameTag& tag)
     return exportIntervalFor(tag);
   }
 
-  const EventDefaults::EventDuration duration = EventDefaults::defaultFor(tag.mainEvent);
+  const EventDefaults::EventDuration duration = EventDefaults::defaultFor(exportedEventName(tag));
   qint64 startMs = tag.markMs - duration.leadMs;
   qint64 endMs = tag.markMs + duration.lagMs;
   if (startMs < 0) startMs = 0;
@@ -208,7 +206,7 @@ struct ExplicitGoal {
 QVector<ExplicitGoal> collectExplicitGoals(const QVector<TagSession::GameTag>& tags) {
   QVector<ExplicitGoal> goals;
   for (const auto& tag : tags) {
-    if (tag.mainEvent != QStringLiteral("Goal")) continue;
+    if (!tagIsGoal(tag)) continue;
     const QPair<qint64, qint64> interval = goalAssociationIntervalFor(tag);
     ExplicitGoal goal;
     goal.team = tag.team;
@@ -246,8 +244,8 @@ bool hasExplicitGoalTagForTeam(const QVector<ExplicitGoal>& explicitGoals,
 /// (Goal defaults are a longer lead than Shot/PC).
 bool exportTagComesBefore(const TagSession::GameTag& a, const TagSession::GameTag& b) {
   if (a.markMs != b.markMs) return a.markMs < b.markMs;
-  const bool aIsGoal = a.mainEvent == QStringLiteral("Goal");
-  const bool bIsGoal = b.mainEvent == QStringLiteral("Goal");
+  const bool aIsGoal = tagIsGoal(a);
+  const bool bIsGoal = tagIsGoal(b);
   if (aIsGoal != bIsGoal) return bIsGoal;
   if (a.startMs != b.startMs) return a.startMs < b.startMs;
   return false;
@@ -262,13 +260,13 @@ QVector<TagSession::GameTag> tagsForExport(const QVector<TagSession::GameTag>& t
   QVector<TagSession::GameTag> expanded = tags;
   expanded.reserve(tags.size() + 8);
   for (const auto& tag : tags) {
-    if (tag.mainEvent == QStringLiteral("Goal")) continue;
-    if (!followUpPathContainsScoredGoal(tag.followUpEvent)) continue;
+    if (tagIsGoal(tag)) continue;
+    if (!TagEvent::containsScoredGoal(tag.followUpChain())) continue;
     if (hasExplicitGoalTagForTeam(explicitGoals, tag)) continue;
 
     TagSession::GameTag goalTag = tag;
-    goalTag.mainEvent = QStringLiteral("Goal");
-    goalTag.followUpEvent.clear();
+    goalTag.setMainEventKey(TagEvent::catalogKey(EventCatalog::EventId::Goal));
+    goalTag.setFollowUpChain({});
     // Synthetic Goals always use Goal lead/lag from EventDefaults around markMs.
     // Never inherit the originating tag's intervalManuallyEdited flag or trimmed span.
     goalTag.intervalManuallyEdited = false;
@@ -296,7 +294,7 @@ QPair<int, int> runningScoreAt(const QVector<TagSession::GameTag>& tags, int thr
   int away = 0;
   for (int index = 0; index <= throughIndex && index < tags.size(); ++index) {
     const TagSession::GameTag& tag = tags.at(index);
-    if (tag.mainEvent != QStringLiteral("Goal")) continue;
+    if (!tagIsGoal(tag)) continue;
     if (tag.team == QStringLiteral("Home")) ++home;
     else if (tag.team == QStringLiteral("Away")) ++away;
   }
@@ -316,7 +314,7 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
   const qint64 exportEndMs = interval.second;
 
   // Neutral / pass-through code (Q1..Q4, Inicio, TM): one <instance>, no team affiliation.
-  const QString neutralCode = neutralPassThroughCode(tag.mainEvent);
+  const QString neutralCode = neutralPassThroughCode(exportedEventName(tag));
   if (!neutralCode.isEmpty()) {
     EmittedInstance instance;
     instance.startMs = exportStartMs;
@@ -333,7 +331,8 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
   // Team-affiliated code: requires both team abbreviation and a short code mapping. When
   // either is missing we still emit a single neutral <code> using the canonical event name
   // so the user does not silently lose information.
-  const std::optional<QString> shortCode = EventCodeMap::shortCodeForMainEvent(tag.mainEvent);
+  const std::optional<QString> shortCode =
+      EventCodeMap::shortCodeForMainEvent(exportedEventName(tag));
   const QString taggedAbbrev = teams.abbrevForTeam(tag.team);
   const QString opposingAbbrev = teams.opposingAbbrevForTeam(tag.team);
 
@@ -341,7 +340,7 @@ QVector<EmittedInstance> emittedInstancesFor(const TagSession::GameTag& tag,
     EmittedInstance instance;
     instance.startMs = exportStartMs;
     instance.endMs = exportEndMs;
-    instance.code = tag.mainEvent;
+    instance.code = exportedEventName(tag);
     instance.period = periodLabel;
     result.append(instance);
     return result;
@@ -443,7 +442,7 @@ QVector<ExportedXmlInstance> buildExportedInstances(const TagSession* session) {
       ExportedXmlInstance record;
       record.id = nextInstanceId++;
       record.sourceTagId = tag.id;
-      record.mainEvent = tag.mainEvent;
+      record.mainEvent = tag.mainEventKey();
       record.team = tag.team;
       record.startMs = instance.startMs;
       record.endMs = instance.endMs;
@@ -476,7 +475,7 @@ QVector<ExportedXmlInstance> buildExportedInstances(const TagSession* session) {
 
 std::optional<ExportedXmlInstance> taggedTeamInstanceFor(const QVector<ExportedXmlInstance>& instances,
                                                           quint64 sourceTagId,
-                                                          const QString& mainEvent) {
+                                                          const TagEvent::MainEventKey& mainEvent) {
   for (const ExportedXmlInstance& instance : instances) {
     if (instance.sourceTagId != sourceTagId) continue;
     if (instance.mainEvent != mainEvent) continue;

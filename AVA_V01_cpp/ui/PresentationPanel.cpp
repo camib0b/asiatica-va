@@ -2,6 +2,7 @@
 
 #include "../i18n/AppLocale.h"
 #include "../state/EventDefaults.h"
+#include "../state/TagEvent.h"
 #include "../state/TagSession.h"
 #include "../state/TeamAbbreviation.h"
 #include "../state/TimeConvert.h"
@@ -9,6 +10,7 @@
 #include "../style/TabularDigits.h"
 #include "../style/WorkDataView.h"
 #include "QtPtr.h"
+#include "TagRowDisplay.h"
 
 #include <QAbstractItemView>
 #include <QAbstractSpinBox>
@@ -38,6 +40,7 @@
 #include <QStylePainter>
 #include <QTableView>
 #include <QTimer>
+#include <QVariant>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -150,6 +153,25 @@ struct FixtureTag {
 };
 
 constexpr quint64 kFixtureTagIdBase = 0x7FFF0000ull;
+
+TagEvent::MainEventKey mainEventKeyFromFilterData(const QVariant& data) {
+  if (data.typeId() == QMetaType::QString) {
+    const QString name = data.toString();
+    if (name.isEmpty()) return {};
+    return TagEvent::unlistedKey(name);
+  }
+  if (data.typeId() == QMetaType::Int || data.typeId() == QMetaType::UInt ||
+      data.typeId() == QMetaType::LongLong) {
+    const int idValue = data.toInt();
+    if (idValue == static_cast<int>(EventCatalog::EventId::None)) return {};
+    return TagEvent::catalogKey(static_cast<EventCatalog::EventId>(idValue));
+  }
+  return {};
+}
+
+bool filterDataMeansAllEvents(const QVariant& data) {
+  return !data.isValid() || (data.typeId() == QMetaType::QString && data.toString().isEmpty());
+}
 
 bool presentationListBreakUiEnabled() {
   const QByteArray value = qgetenv("AVA_BREAK_UI");
@@ -741,29 +763,35 @@ void PresentationPanel::refreshFromSession() {
   }
 }
 
-bool PresentationPanel::eventFilterValueIsValid(const QString& eventFilter) const {
-  if (eventFilter.isEmpty()) return true;
-  if (EventDefaults::isTimeControlEvent(eventFilter)) return false;
+bool PresentationPanel::eventFilterValueIsValid(const QVariant& eventFilter) const {
+  if (filterDataMeansAllEvents(eventFilter)) return true;
+  const TagEvent::MainEventKey key = mainEventKeyFromFilterData(eventFilter);
+  if (key.isEmpty() || key.isTimeControl()) return false;
   if (!tagSession_) return false;
-  return tagSession_->mainEventCounts().value(eventFilter, 0) > 0;
+  return tagSession_->mainEventCounts().value(key, 0) > 0;
 }
 
 void PresentationPanel::rebuildEventFilterOptions() {
-  const QString previousEvent = eventFilterCombo_->currentData().toString();
+  const QVariant previousEvent = eventFilterCombo_->currentData();
   const QSignalBlocker eventBlocker(eventFilterCombo_);
   eventFilterCombo_->clear();
   eventFilterCombo_->addItem(AppLocale::trUi("presentation.all_events"), QString());
 
   if (tagSession_) {
     const auto& counts = tagSession_->mainEventCounts();
-    QStringList mainEvents = counts.keys();
-    mainEvents.sort(Qt::CaseInsensitive);
-    for (const QString& mainEvent : mainEvents) {
-      if (EventDefaults::isTimeControlEvent(mainEvent)) continue;
+    const QList<TagEvent::MainEventKey> mainEvents =
+        TagEvent::sortedByCanonicalName(counts.keys());
+    for (const TagEvent::MainEventKey& mainEvent : mainEvents) {
+      if (mainEvent.isTimeControl()) continue;
       const int count = counts.value(mainEvent, 0);
       if (count <= 0) continue;
-      eventFilterCombo_->addItem(
-          QStringLiteral("%1  (%2)").arg(AppLocale::trEvent(mainEvent)).arg(count), mainEvent);
+      const QString label =
+          QStringLiteral("%1  (%2)").arg(TagEvent::displayLabel(mainEvent)).arg(count);
+      if (mainEvent.id != EventCatalog::EventId::None) {
+        eventFilterCombo_->addItem(label, static_cast<int>(mainEvent.id));
+      } else {
+        eventFilterCombo_->addItem(label, mainEvent.unlistedName);
+      }
     }
   }
 
@@ -795,6 +823,12 @@ PresentationInstancesModel::Row PresentationPanel::makeVisibleRow(int tagSession
       AppLocale::followUpPathWithoutTeamSegments(followUpEvent, homeName, awayName);
   return {tagSessionIndex, tagId, markMs, teamDisplayName(teamKey),
           AppLocale::trDisplayTagLine(mainEvent, followUpForDisplay)};
+}
+
+PresentationInstancesModel::Row PresentationPanel::makeSessionRow(
+    int tagSessionIndex, const TagSession::GameTag& tag) const {
+  return {tagSessionIndex, tag.id, tag.markMs, teamDisplayName(tag.team),
+          TagRowDisplay::eventLineForTag(tag)};
 }
 
 QVector<PresentationInstancesModel::Row> PresentationPanel::buildFixtureRows() const {
@@ -835,11 +869,10 @@ QVector<PresentationInstancesModel::Row> PresentationPanel::buildVisibleRows() c
   visibleRows.reserve(tags.size());
   for (int tagIndex = 0; tagIndex < tags.size(); ++tagIndex) {
     const TagSession::GameTag& tag = tags.at(tagIndex);
-    if (EventDefaults::isTimeControlEvent(tag.mainEvent)) continue;
-    if (!passesFilters(tag.mainEvent, tag.team)) continue;
+    if (tag.mainEventKey().isTimeControl()) continue;
+    if (!passesFilters(tag.mainEventKey(), tag.team)) continue;
 
-    visibleRows.append(makeVisibleRow(tagIndex, tag.id, tag.markMs, tag.team, tag.mainEvent,
-                                      tag.followUpEvent));
+    visibleRows.append(makeSessionRow(tagIndex, tag));
   }
 
   std::sort(visibleRows.begin(), visibleRows.end(),
@@ -925,7 +958,7 @@ void PresentationPanel::pruneSelectionToExistingTags() {
 
   if (currentTagSessionIndex_ >= 0) {
     const TagSession::GameTag& currentTag = tags.at(currentTagSessionIndex_);
-    if (EventDefaults::isTimeControlEvent(currentTag.mainEvent)) {
+    if (currentTag.mainEventKey().isTimeControl()) {
       currentTagId_ = 0;
       currentTagSessionIndex_ = -1;
     }
@@ -947,7 +980,7 @@ bool PresentationPanel::resolveCurrentClip(int tagSessionIndex, int* resolvedInd
 
   const TagSession::GameTag& tag = tagSession_->tags().at(tagSessionIndex);
   if (tag.id == 0) return false;
-  if (EventDefaults::isTimeControlEvent(tag.mainEvent)) return false;
+  if (tag.mainEventKey().isTimeControl()) return false;
 
   *resolvedIndex = tagSessionIndex;
   *resolvedTagId = tag.id;
@@ -1180,9 +1213,13 @@ bool PresentationPanel::eventFilter(QObject* watched, QEvent* event) {
   return QWidget::eventFilter(watched, event);
 }
 
-bool PresentationPanel::passesFilters(const QString& mainEvent, const QString& team) const {
-  const QString eventFilter = eventFilterCombo_->currentData().toString();
-  if (!eventFilter.isEmpty() && mainEvent != eventFilter) return false;
+bool PresentationPanel::passesFilters(const TagEvent::MainEventKey& mainEvent,
+                                      const QString& team) const {
+  const QVariant eventFilter = eventFilterCombo_->currentData();
+  if (!filterDataMeansAllEvents(eventFilter) &&
+      mainEvent != mainEventKeyFromFilterData(eventFilter)) {
+    return false;
+  }
 
   const QString teamFilter = teamFilterCombo_->currentData().toString();
   if (!teamFilter.isEmpty() && team != teamFilter) return false;

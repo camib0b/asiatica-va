@@ -1,5 +1,7 @@
 #pragma once
 
+#include "TagEvent.h"
+
 #include <QString>
 #include <QVector>
 #include <QtGlobal>
@@ -58,7 +60,7 @@ struct ExportedXmlLabel {
 struct ExportedXmlInstance {
   int id = 0;
   quint64 sourceTagId = 0;
-  QString mainEvent;
+  TagEvent::MainEventKey mainEvent;
   QString team;
   qint64 startMs = 0;
   qint64 endMs = 0;
@@ -74,7 +76,7 @@ QVector<ExportedXmlInstance> buildExportedInstances(const TagSession* session);
 /// tag id and main event. That is the "+" code when the event emits a +/- pair.
 std::optional<ExportedXmlInstance> taggedTeamInstanceFor(const QVector<ExportedXmlInstance>& instances,
                                                           quint64 sourceTagId,
-                                                          const QString& mainEvent);
+                                                          const TagEvent::MainEventKey& mainEvent);
 
 /// Writes the entire session to \p filePath. Returns true on success; on failure populates
 /// \p errorMessage (when non-null) with a human-readable explanation.

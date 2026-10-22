@@ -1,16 +1,17 @@
 #pragma once
 
+#include "TagEvent.h"
+
+#include <QList>
 #include <QSet>
-#include <QString>
-#include <QStringList>
 
 #include <optional>
 
-/// Drill-down filter from the stats tree. `followUpEvent` empty means every
+/// Drill-down filter from the stats tree. An empty follow-up chain means every
 /// follow-up of `mainEvent`.
 struct EventPathFilter {
-  QString mainEvent;
-  QString followUpEvent;
+  TagEvent::MainEventKey mainEvent;
+  TagEvent::FollowUpChain followUps;
 };
 
 /// Which tags the work table shows.
@@ -19,13 +20,14 @@ struct EventPathFilter {
 /// `hiddenMainEvents` applies only while no event path is set. Checkbox state
 /// in the menu is a rendering of this value, not a second copy of it.
 struct TagFilter {
-  QSet<QString> hiddenMainEvents;
+  QSet<TagEvent::MainEventKey> hiddenMainEvents;
   std::optional<EventPathFilter> eventPath;
 
-  bool allows(const QString& mainEvent, const QString& followUpEvent) const;
+  bool allows(const TagEvent::MainEventKey& mainEvent,
+              const TagEvent::FollowUpChain& followUps) const;
   bool isActive() const;
 
   void showAllMainEvents();
-  void hideAllMainEvents(const QStringList& mainEvents);
+  void hideAllMainEvents(const QList<TagEvent::MainEventKey>& mainEvents);
   void clearEventPath();
 };

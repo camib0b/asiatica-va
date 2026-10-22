@@ -1,20 +1,10 @@
 #include "TagFilter.h"
 
-namespace {
-
-bool followUpMatchesPath(const QString& followUpEvent, const QString& filterFollowUp) {
-  if (filterFollowUp.isEmpty()) return true;
-  if (followUpEvent == filterFollowUp) return true;
-  const QString pathPrefix = filterFollowUp + QStringLiteral(" → ");
-  return followUpEvent.startsWith(pathPrefix);
-}
-
-}  // namespace
-
-bool TagFilter::allows(const QString& mainEvent, const QString& followUpEvent) const {
+bool TagFilter::allows(const TagEvent::MainEventKey& mainEvent,
+                       const TagEvent::FollowUpChain& followUps) const {
   if (eventPath.has_value() && !eventPath->mainEvent.isEmpty()) {
     if (mainEvent != eventPath->mainEvent) return false;
-    return followUpMatchesPath(followUpEvent, eventPath->followUpEvent);
+    return followUps.startsWith(eventPath->followUps);
   }
   return !hiddenMainEvents.contains(mainEvent);
 }
@@ -28,9 +18,9 @@ void TagFilter::showAllMainEvents() {
   hiddenMainEvents.clear();
 }
 
-void TagFilter::hideAllMainEvents(const QStringList& mainEvents) {
+void TagFilter::hideAllMainEvents(const QList<TagEvent::MainEventKey>& mainEvents) {
   hiddenMainEvents.clear();
-  for (const QString& mainEvent : mainEvents) {
+  for (const TagEvent::MainEventKey& mainEvent : mainEvents) {
     if (!mainEvent.isEmpty()) hiddenMainEvents.insert(mainEvent);
   }
 }

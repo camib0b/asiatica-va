@@ -25,7 +25,7 @@ QString teamLabel(const TagSession& session, const QString& teamKey) {
 
 QString clipNoteHeading(const TagSession& session, const TagSession::GameTag& tag) {
   QString heading = TagRowDisplay::formatTimestampMs(tag.markMs);
-  const QString eventLine = AppLocale::trDisplayTagLine(tag.mainEvent, tag.followUpEvent);
+  const QString eventLine = TagRowDisplay::eventLineForTag(tag);
   if (!eventLine.isEmpty()) {
     heading += QStringLiteral("  ");
     heading += eventLine;
