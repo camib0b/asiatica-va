@@ -2,9 +2,15 @@
 #include "EventCatalog.h"
 #include "EventCodeMap.h"
 #include "EventDefaults.h"
+#include "ExportClipBuilder.h"
 #include "FollowUpCatalog.h"
 #include "GameControls.h"
+#include "ShootoutState.h"
+#include "TagEvent.h"
+#include "TagSession.h"
+#include "XmlExporter.h"
 
+#include <QDate>
 #include <QHBoxLayout>
 #include <QLayout>
 #include <QPushButton>
@@ -12,6 +18,7 @@
 #include <QSignalSpy>
 #include <QSizePolicy>
 #include <QTest>
+#include <QVector>
 
 #include <algorithm>
 #include <array>
@@ -250,6 +257,66 @@ int followUpDepth(EventCatalog::EventId id, QSet<int>* stack, QString* error) {
   return deepest;
 }
 
+bool findContinuation(const EventCatalog::Node& node, QVector<EventCatalog::EventId>* path) {
+  if (node.continuesAsGoal) return true;
+  for (int childIndex = 0; childIndex < node.childCount; ++childIndex) {
+    const EventCatalog::Node* child =
+        EventCatalog::nodeForId(node.children.at(static_cast<std::size_t>(childIndex)));
+    if (!child) return false;
+    path->append(child->id);
+    if (findContinuation(*child, path)) return true;
+    path->removeLast();
+  }
+  return false;
+}
+
+void expectLeafContinuationMatchesFlag(const EventCatalog::Node& mainEvent,
+                                       const EventCatalog::Node& node, QStringList* selections) {
+  if (node.childCount == 0) {
+    QCOMPARE(FollowUpCatalog::continuesAsGoal(QString::fromLatin1(mainEvent.canonicalName),
+                                              *selections),
+             node.continuesAsGoal);
+    return;
+  }
+  for (int childIndex = 0; childIndex < node.childCount; ++childIndex) {
+    const EventCatalog::Node* child =
+        EventCatalog::nodeForId(node.children.at(static_cast<std::size_t>(childIndex)));
+    QVERIFY(child != nullptr);
+    if (!child) return;
+    selections->append(QString::fromLatin1(child->canonicalName));
+    expectLeafContinuationMatchesFlag(mainEvent, *child, selections);
+    selections->removeLast();
+  }
+}
+
+TagEvent::FollowUpChain chainFromIds(const QVector<EventCatalog::EventId>& ids) {
+  TagEvent::FollowUpChain chain;
+  chain.count = ids.size();
+  for (int index = 0; index < ids.size(); ++index) {
+    chain.ids[static_cast<std::size_t>(index)] = ids.at(index);
+  }
+  return chain;
+}
+
+TagSession::GameTag playedTag(EventCatalog::EventId id, const QString& team, qint64 markMs,
+                              const TagEvent::FollowUpChain& chain = {}) {
+  TagSession::GameTag tag;
+  tag.setMainEventKey(TagEvent::catalogKey(id));
+  tag.setFollowUpChain(chain);
+  tag.team = team;
+  tag.markMs = markMs;
+  tag.startMs = markMs > 2000 ? markMs - 2000 : 0;
+  tag.endMs = markMs + 2000;
+  tag.intervalManuallyEdited = true;
+  return tag;
+}
+
+void configureMatch(TagSession* session) {
+  session->setGameTeams(QStringLiteral("UC"), QStringLiteral("OR"), QStringLiteral("#3c5ac8"),
+                        QStringLiteral("#c83c3c"));
+  session->setGameMetadata(QDate(2026, 9, 27), QStringLiteral("UC"), QStringLiteral("OR"));
+}
+
 }  // namespace
 
 class EventCatalogTest : public QObject {
@@ -266,6 +333,7 @@ class EventCatalogTest : public QObject {
   void gameControlButtonsUseCatalogShortcuts();
   void buttonGridMatchesTheHandLaidKeyboard();
   void gameControlsGridMatchesTheCatalogOrder();
+  void goalPenaltyAndShootoutUseCatalogFlags();
 };
 
 void EventCatalogTest::everyMainEventHasAnXmlCode() {
@@ -735,6 +803,307 @@ void EventCatalogTest::gameControlsGridMatchesTheCatalogOrder() {
   QTest::keyClick(&controls, Qt::Key_H);
   QCOMPARE(captured.count(), 0);
   QCOMPARE(nextQuarter.count(), 1);
+}
+
+void EventCatalogTest::goalPenaltyAndShootoutUseCatalogFlags() {
+  const EventCatalog::Node* scoringGoal = EventCatalog::scoringGoalMainEvent();
+  QVERIFY(scoringGoal != nullptr);
+  QCOMPARE(scoringGoal->id, EventCatalog::EventId::Goal);
+  QVERIFY(scoringGoal->mainEvent);
+  QVERIFY(scoringGoal->scoresGoal);
+  QVERIFY(!scoringGoal->continuesAsGoal);
+  QVERIFY(!scoringGoal->isShootout);
+  QCOMPARE(EventCatalog::shootoutAttemptResult(scoringGoal->id),
+           EventCatalog::ShootoutAttemptResult::None);
+  QCOMPARE(QLatin1String(scoringGoal->xmlCode), QLatin1String("GOAL"));
+  QVERIFY(EventCatalog::mainEventScoresGoal(scoringGoal->id));
+  QVERIFY(EventCatalog::scoresGoal(scoringGoal->id));
+
+  const EventCatalog::Node* shootout = nullptr;
+  const EventCatalog::Node* scoringFollowUp = nullptr;
+  EventCatalog::EventId convertedAttempt = EventCatalog::EventId::None;
+  int scoringMainEvents = 0;
+  int scoringFollowUps = 0;
+  int continuingFollowUps = 0;
+  int shootoutMainEvents = 0;
+  QSet<int> attemptResults;
+  for (int index = 0; index < EventCatalog::nodeCount(); ++index) {
+    const EventCatalog::Node& node = EventCatalog::nodeAt(index);
+    QCOMPARE(EventCatalog::scoresGoal(node.id), node.scoresGoal);
+    QCOMPARE(EventCatalog::continuesAsGoal(node.id), node.continuesAsGoal);
+    QCOMPARE(EventCatalog::isShootout(node.id), node.isShootout);
+    QCOMPARE(EventCatalog::shootoutAttemptResult(node.id), node.shootoutAttemptResult);
+
+    if (node.mainEvent && node.scoresGoal) ++scoringMainEvents;
+    if (!node.mainEvent && node.scoresGoal) {
+      ++scoringFollowUps;
+      scoringFollowUp = &node;
+      QCOMPARE(node.id, EventCatalog::EventId::FollowUpGoal);
+      QVERIFY(node.continuesAsGoal);
+    }
+    if (node.continuesAsGoal) {
+      ++continuingFollowUps;
+      QVERIFY(!node.mainEvent);
+      QVERIFY(node.scoresGoal);
+    }
+    if (node.isShootout) {
+      ++shootoutMainEvents;
+      shootout = &node;
+      QCOMPARE(node.id, EventCatalog::EventId::Shootout);
+      QVERIFY(node.mainEvent);
+      QVERIFY(!node.scoresGoal);
+    }
+    if (node.shootoutAttemptResult != EventCatalog::ShootoutAttemptResult::None) {
+      QVERIFY(!node.mainEvent);
+      QVERIFY(!node.scoresGoal);
+      QVERIFY(!node.continuesAsGoal);
+      QVERIFY(!node.isShootout);
+      const int result = static_cast<int>(node.shootoutAttemptResult);
+      QVERIFY(!attemptResults.contains(result));
+      attemptResults.insert(result);
+      if (node.shootoutAttemptResult == EventCatalog::ShootoutAttemptResult::Converted) {
+        convertedAttempt = node.id;
+      }
+    }
+  }
+  QCOMPARE(scoringMainEvents, 1);
+  QCOMPARE(scoringFollowUps, 1);
+  QCOMPARE(continuingFollowUps, 1);
+  QCOMPARE(shootoutMainEvents, 1);
+  QCOMPARE(attemptResults.size(), 3);
+  QVERIFY(scoringFollowUp != nullptr);
+  QVERIFY(shootout != nullptr);
+  QCOMPARE(convertedAttempt, EventCatalog::EventId::Converted);
+  QVERIFY(TagEvent::containsScoredGoal(TagEvent::chainOf(scoringFollowUp->id)));
+  QVERIFY(!TagEvent::containsScoredGoal(TagEvent::chainOf(EventCatalog::EventId::Converted)));
+  QVERIFY(!TagEvent::containsScoredGoal(TagEvent::chainOf(EventCatalog::EventId::NoGoal)));
+  QVERIFY(!TagEvent::containsScoredGoal({}));
+
+  const EventCatalog::EventId plainMains[] = {
+      EventCatalog::EventId::PenaltyCorner, EventCatalog::EventId::PenaltyStroke,
+      EventCatalog::EventId::Shot,          EventCatalog::EventId::Pass,
+      EventCatalog::EventId::CircleEntry,
+  };
+  for (const EventCatalog::EventId id : plainMains) {
+    const EventCatalog::Node* node = EventCatalog::nodeForId(id);
+    QVERIFY(node != nullptr);
+    QVERIFY(node->mainEvent);
+    QVERIFY(!node->scoresGoal);
+    QVERIFY(!node->continuesAsGoal);
+    QVERIFY(!node->isShootout);
+    QVERIFY(!EventCatalog::mainEventScoresGoal(id));
+  }
+
+  for (int index = 0; index < EventCatalog::nodeCount(); ++index) {
+    const EventCatalog::Node& node = EventCatalog::nodeAt(index);
+    if (!node.mainEvent) continue;
+    QStringList selections;
+    QCOMPARE(FollowUpCatalog::continuesAsGoal(QString::fromLatin1(node.canonicalName), selections),
+             false);
+    expectLeafContinuationMatchesFlag(node, node, &selections);
+  }
+
+  const EventCatalog::EventId chainingMains[] = {
+      EventCatalog::EventId::PenaltyCorner,
+      EventCatalog::EventId::PenaltyStroke,
+      EventCatalog::EventId::Shot,
+  };
+  QVector<EventCatalog::EventId> shotPath;
+  for (const EventCatalog::EventId id : chainingMains) {
+    const EventCatalog::Node* node = EventCatalog::nodeForId(id);
+    QVERIFY(node != nullptr);
+    QVector<EventCatalog::EventId> path;
+    QVERIFY(findContinuation(*node, &path));
+    QVERIFY(!path.isEmpty());
+    QCOMPARE(path.constLast(), scoringFollowUp->id);
+    QVERIFY(TagEvent::containsScoredGoal(chainFromIds(path)));
+    if (id == EventCatalog::EventId::Shot) shotPath = path;
+  }
+  QCOMPARE(shotPath.size(), 2);
+  QVector<EventCatalog::EventId> shootoutPath;
+  QVERIFY(!findContinuation(*shootout, &shootoutPath));
+  QVERIFY(shootoutPath.isEmpty());
+
+  QVERIFY(FollowUpCatalog::continuesAsGoal(QStringLiteral("PS"), {QStringLiteral("Goal")}));
+  QVERIFY(FollowUpCatalog::continuesAsGoal(
+      QStringLiteral("PC"),
+      {QStringLiteral("Direct shot"), QStringLiteral("Hit"), QStringLiteral("Goal")}));
+  QVERIFY(FollowUpCatalog::continuesAsGoal(QStringLiteral("PC"),
+                                           {QStringLiteral("Variant"), QStringLiteral("Goal")}));
+  QVERIFY(FollowUpCatalog::continuesAsGoal(QStringLiteral("PC"),
+                                           {QStringLiteral("Ruined"), QStringLiteral("Goal")}));
+  QVERIFY(!FollowUpCatalog::continuesAsGoal(QStringLiteral("PC"),
+                                            {QStringLiteral("Ruined"), QStringLiteral("No Goal")}));
+  QVERIFY(!FollowUpCatalog::continuesAsGoal(
+      QStringLiteral("PC"), {QStringLiteral("Ruined"), QStringLiteral("New PC")}));
+  QVERIFY(FollowUpCatalog::continuesAsGoal(
+      QStringLiteral("Shot"), {QStringLiteral("On target"), QStringLiteral("Goal")}));
+  QVERIFY(!FollowUpCatalog::continuesAsGoal(
+      QStringLiteral("Shot"), {QStringLiteral("On target"), QStringLiteral("Saved")}));
+  QVERIFY(!FollowUpCatalog::continuesAsGoal(QStringLiteral("Shot"), {QStringLiteral("On target")}));
+  QVERIFY(!FollowUpCatalog::continuesAsGoal(QStringLiteral("S.O."), {QStringLiteral("Converted")}));
+  QVERIFY(!FollowUpCatalog::continuesAsGoal(QStringLiteral("PS"), {QStringLiteral("No Goal")}));
+  QVERIFY(!FollowUpCatalog::continuesAsGoal(QStringLiteral("PS"), {}));
+
+  TagSession exportSession;
+  configureMatch(&exportSession);
+  exportSession.addTag(playedTag(EventCatalog::EventId::Shot, QStringLiteral("Home"), 30000,
+                                 chainFromIds(shotPath)));
+  exportSession.addTag(playedTag(shootout->id, QStringLiteral("Home"), 90000,
+                                 TagEvent::chainOf(convertedAttempt)));
+  const QVector<XmlExporter::ExportedXmlInstance> exported =
+      XmlExporter::buildExportedInstances(&exportSession);
+  int goalPlusCount = 0;
+  int shootoutPlusCount = 0;
+  const QString goalPlus =
+      QStringLiteral("UC %1+").arg(QLatin1String(scoringGoal->xmlCode));
+  const QString shootoutPlus = QStringLiteral("UC %1+").arg(QLatin1String(shootout->xmlCode));
+  const QString shotPlus = QStringLiteral("UC SHOT+");
+  bool shootoutScoreIsOneNil = false;
+  for (const XmlExporter::ExportedXmlInstance& instance : exported) {
+    if (instance.code == goalPlus) ++goalPlusCount;
+    if (instance.code == shootoutPlus) {
+      ++shootoutPlusCount;
+      for (const XmlExporter::ExportedXmlLabel& label : instance.labels) {
+        if (label.group == QStringLiteral("RESULTADO") &&
+            label.text == QStringLiteral("UC 1 - 0 OR")) {
+          shootoutScoreIsOneNil = true;
+        }
+      }
+    }
+    QVERIFY(instance.code != QStringLiteral("UC GOAL"));
+  }
+  int shotPlusCount = 0;
+  for (const XmlExporter::ExportedXmlInstance& instance : exported) {
+    if (instance.code == shotPlus) ++shotPlusCount;
+  }
+  QCOMPARE(shotPlusCount, 1);
+  QCOMPARE(goalPlusCount, 1);
+  QCOMPARE(shootoutPlusCount, 1);
+  QVERIFY(shootoutScoreIsOneNil);
+  QVERIFY(!exported.isEmpty());
+
+  TagSession confirmedGoal;
+  configureMatch(&confirmedGoal);
+  confirmedGoal.addTag(playedTag(EventCatalog::EventId::Shot, QStringLiteral("Home"), 30000,
+                                 chainFromIds(shotPath)));
+  confirmedGoal.addTag(playedTag(scoringGoal->id, QStringLiteral("Home"), 31000));
+  const QVector<XmlExporter::ExportedXmlInstance> withExplicitGoal =
+      XmlExporter::buildExportedInstances(&confirmedGoal);
+  int confirmedGoalCount = 0;
+  for (const XmlExporter::ExportedXmlInstance& instance : withExplicitGoal) {
+    if (instance.code == goalPlus) ++confirmedGoalCount;
+  }
+  QCOMPARE(confirmedGoalCount, 1);
+
+  const ShootoutState shootoutState = ShootoutState::fromGameTags(exportSession.tags());
+  QVERIFY(shootoutState.hasAttempts());
+  const ShootoutState::Snapshot revealed =
+      shootoutState.snapshotRevealedThrough(90000, AppLocale::Language::English);
+  QCOMPARE(revealed.homeConverted, 1);
+  QCOMPARE(revealed.awayConverted, 0);
+
+  TagSession scoreboardSession;
+  configureMatch(&scoreboardSession);
+  scoreboardSession.addTag(playedTag(scoringGoal->id, QStringLiteral("Home"), 8000));
+  const TagSession::GameTag storedGoal = scoreboardSession.tags().constLast();
+  scoreboardSession.addTag(
+      playedTag(shootout->id, QStringLiteral("Home"), 50000, TagEvent::chainOf(convertedAttempt)));
+  const TagSession::GameTag storedShootout = scoreboardSession.tags().constLast();
+  scoreboardSession.addTag(playedTag(EventCatalog::EventId::Pass, QStringLiteral("Away"), 80000));
+  const TagSession::GameTag storedLater = scoreboardSession.tags().constLast();
+
+  auto presentationClip = [](const TagSession::GameTag& tag) {
+    PresentationQueue::Clip clip;
+    clip.tagId = tag.id;
+    clip.markMs = tag.markMs;
+    clip.startMs = tag.startMs;
+    clip.endMs = tag.endMs;
+    clip.mainEvent = tag.mainEventKey();
+    clip.followUps = tag.followUpChain();
+    clip.team = tag.team;
+    return clip;
+  };
+  ExportClipBuilder::OverlayOptions options;
+  options.includeBottomOverlay = false;
+  options.includeNotesOverlay = false;
+  options.includeScoreboardOverlay = true;
+  const QVector<ClipSegment> segments = ExportClipBuilder::buildClipSegments(
+      &scoreboardSession,
+      {presentationClip(storedGoal), presentationClip(storedShootout),
+       presentationClip(storedLater)},
+      options);
+  QCOMPARE(segments.size(), 3);
+  QCOMPARE(segments.at(0).scoreboards.at(1).scoreboard.homeGoals, 1);
+  QVERIFY(segments.at(0).shootouts.isEmpty());
+  QCOMPARE(segments.at(1).scoreboards.at(0).scoreboard.homeGoals, 1);
+  QCOMPARE(segments.at(1).scoreboards.at(0).scoreboard.awayGoals, 0);
+  QCOMPARE(segments.at(1).shootouts.size(), 2);
+  QCOMPARE(segments.at(1).shootouts.at(1).frame.homeConverted, 1);
+  QCOMPARE(segments.at(2).scoreboards.at(0).scoreboard.homeGoals, 1);
+  QCOMPARE(segments.at(2).scoreboards.at(0).scoreboard.awayGoals, 0);
+  QCOMPARE(segments.at(2).shootouts.at(0).frame.homeConverted, 1);
+
+  GameControls controls;
+  controls.setTeamSide(TagSession::TeamSide::Home);
+  controls.resize(420, 780);
+  controls.show();
+  QSignalSpy captured(&controls, &GameControls::mainEventTimestampCaptured);
+  QSignalSpy committed(&controls, &GameControls::tagCommitted);
+  const QString arrow = AppLocale::kCompoundPathSeparator;
+
+  const EventCatalog::Node* penaltyStroke =
+      EventCatalog::nodeForId(EventCatalog::EventId::PenaltyStroke);
+  QVERIFY(penaltyStroke != nullptr);
+  int penaltyStrokeGoalIndex = -1;
+  for (int childIndex = 0; childIndex < penaltyStroke->childCount; ++childIndex) {
+    if (EventCatalog::continuesAsGoal(
+            penaltyStroke->children.at(static_cast<std::size_t>(childIndex)))) {
+      penaltyStrokeGoalIndex = childIndex;
+    }
+  }
+  QCOMPARE(penaltyStrokeGoalIndex, 0);
+  QTest::keyClick(&controls, penaltyStroke->shortcut);
+  QCOMPARE(captured.count(), 1);
+  QCOMPARE(captured.at(0).at(0).toString(), QStringLiteral("PS"));
+  QCOMPARE(committed.count(), 0);
+  QTest::keyClick(&controls, static_cast<Qt::Key>(Qt::Key_1 + penaltyStrokeGoalIndex));
+  QCOMPARE(committed.count(), 2);
+  QCOMPARE(committed.at(0).at(0).toString(), QStringLiteral("PS"));
+  QCOMPARE(committed.at(0).at(1).toString(), QStringLiteral("home") + arrow + QStringLiteral("Goal"));
+  QCOMPARE(committed.at(1).at(0).toString(), QString::fromLatin1(scoringGoal->canonicalName));
+  QCOMPARE(committed.at(1).at(1).toString(), QStringLiteral("home"));
+  QCOMPARE(captured.count(), 2);
+  QCOMPARE(captured.at(1).at(0).toString(), QString::fromLatin1(scoringGoal->canonicalName));
+
+  captured.clear();
+  committed.clear();
+  const EventCatalog::Node* penaltyCorner =
+      EventCatalog::nodeForId(EventCatalog::EventId::PenaltyCorner);
+  QVERIFY(penaltyCorner != nullptr);
+  QTest::keyClick(&controls, penaltyCorner->shortcut);
+  QTest::keyClick(&controls, Qt::Key_1);
+  QTest::keyClick(&controls, Qt::Key_1);
+  QCOMPARE(committed.count(), 0);
+  QTest::keyClick(&controls, Qt::Key_1);
+  QCOMPARE(committed.count(), 2);
+  QCOMPARE(committed.at(0).at(0).toString(), QStringLiteral("PC"));
+  QCOMPARE(committed.at(0).at(1).toString(),
+           QStringLiteral("home") + arrow + QStringLiteral("Direct shot") + arrow +
+               QStringLiteral("Hit") + arrow + QStringLiteral("Goal"));
+  QCOMPARE(committed.at(1).at(0).toString(), QString::fromLatin1(scoringGoal->canonicalName));
+  QCOMPARE(committed.at(1).at(1).toString(), QStringLiteral("home"));
+
+  captured.clear();
+  committed.clear();
+  QTest::keyClick(&controls, shootout->shortcut);
+  QTest::keyClick(&controls, Qt::Key_1);
+  QCOMPARE(captured.count(), 1);
+  QCOMPARE(captured.at(0).at(0).toString(), QStringLiteral("S.O."));
+  QCOMPARE(committed.count(), 1);
+  QCOMPARE(committed.at(0).at(0).toString(), QStringLiteral("S.O."));
+  QCOMPARE(committed.at(0).at(1).toString(),
+           QStringLiteral("home") + arrow + QStringLiteral("Converted"));
 }
 
 int runEventCatalogTests(int argc, char** argv) {

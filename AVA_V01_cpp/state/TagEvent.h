@@ -120,8 +120,14 @@ FollowUpChain chainOf(EventIds... eventIds) {
   return chain;
 }
 
+/// True when a follow-up records a scored goal. Shoot-out results do not.
 inline bool containsScoredGoal(const FollowUpChain& chain) {
-  return chain.contains(EventCatalog::EventId::FollowUpGoal);
+  const int used = chain.size();
+  for (int index = 0; index < used; ++index) {
+    const EventCatalog::Node* node = EventCatalog::nodeForId(chain.at(index));
+    if (node && !node->mainEvent && node->scoresGoal) return true;
+  }
+  return false;
 }
 
 inline size_t qHash(const FollowUpChain& chain, size_t seed = 0) noexcept {

@@ -12,13 +12,15 @@
 /// Converted S.O. attempts are not match goals. This model never reads Goal tags
 /// and never writes the match score. The main scoreboard stays on Goal tags only.
 ///
-/// Attempts are the session's "S.O." tags, ordered by mark time (tag order breaks
-/// ties). Each side's round number is how many of that side's slot-taking attempts
-/// this one is. A missing opponent attempt is not invented, so two Home attempts
+/// Attempts are tags whose catalog event has isShootout set, ordered by mark
+/// time (tag order breaks ties). Each side's round number is how many of that
+/// side's slot-taking attempts this one is. A missing opponent attempt is not
+/// invented, so two Home attempts
 /// in a row are Ronda 1 then Ronda 2 for Home while Away is still on Ronda 1.
 ///
 /// The model reads follow-up ids. Spanish words are parsed into those ids before
-/// a tag is stored. The last matching id wins:
+/// a tag is stored. The last follow-up whose catalog shootoutAttemptResult is
+/// set wins:
 /// - Converted — goal, takes a slot
 /// - Missed — miss, takes a slot
 /// - Replay — void, does not take a slot and does not score; the retake is the

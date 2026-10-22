@@ -26,7 +26,7 @@ QString exportedEventName(const TagSession::GameTag& tag) {
 }
 
 bool tagIsGoal(const TagSession::GameTag& tag) {
-  return tag.mainEventId == EventCatalog::EventId::Goal;
+  return EventCatalog::mainEventScoresGoal(tag.mainEventId);
 }
 
 /// Time-control codes are written verbatim as the <code>: Q1, Q2, Q3, Q4, Inicio, TM.
@@ -257,15 +257,18 @@ QVector<TagSession::GameTag> tagsForExport(const QVector<TagSession::GameTag>& t
   // Session order is startMs/markMs, not the emission comparator, so a linear merge cannot
   // replace the later stable_sort.
   const QVector<ExplicitGoal> explicitGoals = collectExplicitGoals(tags);
+  const EventCatalog::Node* scoringGoal = EventCatalog::scoringGoalMainEvent();
+  Q_ASSERT_X(scoringGoal, "XmlExporter", "catalog has no scoring goal");
   QVector<TagSession::GameTag> expanded = tags;
   expanded.reserve(tags.size() + 8);
   for (const auto& tag : tags) {
+    if (!scoringGoal) continue;
     if (tagIsGoal(tag)) continue;
     if (!TagEvent::containsScoredGoal(tag.followUpChain())) continue;
     if (hasExplicitGoalTagForTeam(explicitGoals, tag)) continue;
 
     TagSession::GameTag goalTag = tag;
-    goalTag.setMainEventKey(TagEvent::catalogKey(EventCatalog::EventId::Goal));
+    goalTag.setMainEventKey(TagEvent::catalogKey(scoringGoal->id));
     goalTag.setFollowUpChain({});
     // Synthetic Goals always use Goal lead/lag from EventDefaults around markMs.
     // Never inherit the originating tag's intervalManuallyEdited flag or trimmed span.

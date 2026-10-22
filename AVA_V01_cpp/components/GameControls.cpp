@@ -1036,20 +1036,27 @@ void GameControls::cancelFollowUpFlow() {
 }
 
 void GameControls::beginChainedGoalFlow() {
-  // "Goal" is already the last toast step. A second toast would hide that chain.
-  // If Goal ever grows follow-up questions, those still need their own confirmation.
-  // Which events chain into Goal stays in FollowUpCatalog::continuesAsGoal.
+  // The scoring goal is already the last toast step. A second toast would hide
+  // that chain. If that event grows follow-up questions, those still need their
+  // own confirmation. Which chains start it is the catalog continuesAsGoal flag.
+  const EventCatalog::Node* scoringGoal = EventCatalog::scoringGoalMainEvent();
+  Q_ASSERT_X(scoringGoal, "GameControls", "catalog has no scoring goal");
+  if (!scoringGoal) {
+    clearFollowUpUi();
+    return;
+  }
+  const QString eventName = EventCatalog::canonicalName(scoringGoal->id);
   QPushButton* goalButton =
-      mainEventButtonsById_.value(static_cast<int>(EventCatalog::EventId::Goal), nullptr);
-  Q_ASSERT_X(goalButton, "GameControls", "Goal is missing from the button grid");
-  followUpState_.beginMainEvent(QStringLiteral("Goal"));
+      mainEventButtonsById_.value(static_cast<int>(scoringGoal->id), nullptr);
+  Q_ASSERT_X(goalButton, "GameControls", "scoring goal is missing from the button grid");
+  followUpState_.beginMainEvent(eventName);
   setActiveMainButton(goalButton);
-  emit mainEventTimestampCaptured(QStringLiteral("Goal"));
-  const bool chainOpen = !FollowUpCatalog::firstLevelOptions(QStringLiteral("Goal")).isEmpty();
+  emit mainEventTimestampCaptured(eventName);
+  const bool chainOpen = !FollowUpCatalog::firstLevelOptions(eventName).isEmpty();
   if (chainOpen) {
     const QString shortcut = goalButton ? goalButton->property("shortcutHint").toString()
-                                        : QStringLiteral("F");
-    notifyTagSequence(shortcut, QStringLiteral("Goal"), true, true);
+                                        : EventCatalog::shortcutLabel(scoringGoal->id);
+    notifyTagSequence(shortcut, eventName, true, true);
   }
   showFirstLevelFollowUps();
 }

@@ -208,7 +208,7 @@ QVector<ClipSegment> buildClipSegments(const TagSession* session,
             QVector<InClipGoal> inClipGoals;
 
             for (const auto& tag : allTags) {
-                if (tag.mainEventId != EventCatalog::EventId::Goal) continue;
+                if (!EventCatalog::mainEventScoresGoal(tag.mainEventId)) continue;
                 if (tag.markMs <= clip.startMs) {
                     if (tag.team == QStringLiteral("Home")) ++initialHomeGoals;
                     else if (tag.team == QStringLiteral("Away")) ++initialAwayGoals;
@@ -261,8 +261,7 @@ QVector<ClipSegment> buildClipSegments(const TagSession* session,
             shootoutWindow.startMs = clip.startMs;
             shootoutWindow.endMs = clip.endMs;
             shootoutWindow.tagId = clip.tagId;
-            shootoutWindow.isShootoutClip =
-                clip.mainEvent.id == EventCatalog::EventId::Shootout;
+            shootoutWindow.isShootoutClip = EventCatalog::isShootout(clip.mainEvent.id);
             segment.shootouts = ShootoutOverlay::framesForClip(
                 shootoutState, shootoutWindow, options.language,
                 homeName, awayName, homeColorHex, awayColorHex);
