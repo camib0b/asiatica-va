@@ -1,4 +1,5 @@
 #include "AppLocale.h"
+#include "EventCatalog.h"
 #include "LocaleNotifier.h"
 
 #include <QHash>
@@ -87,89 +88,28 @@ struct SpanishEventEntry {
   const char* spanish;
 };
 
-constexpr std::array<SpanishEventEntry, 64> kSpanishEventEntries{{
-    // Main grid
-    {"Circle Entry", "Ingreso área"},
-    {"Shot", "Tiro"},
-    {"Goal", "Gol"},
-    {"PC", "Corto"},
-    {"PS", "Penal"},
-    {"S.O.", "S.O."},
-    {"Pass", "Pase"},
-    {"Turnover", "Pérdida"},
-    {"Card", "Tarjeta"},
-    {"PC Foul", "Falta PC"},
-
-    // First-level follow-ups
-    {"On target", "Al arco"},
-    {"Off target", "Afuera"},
-    {"Blocked", "Bloqueado"},
+// Tokens that are not catalog events. home/away are empty-name team labels.
+// For/Against/Off/Def are retired follow-up words still stored on old tags.
+constexpr std::array<SpanishEventEntry, 6> kResidualSpanishEntries{{
     {"For", "A favor"},
     {"Against", "En contra"},
-    {"Direct shot", "Directo"},
-    {"Variant", "Variante"},
-    {"Ruined", "Arruinado"},
-    {"Forward", "Hacia adelante"},
-    {"Sideways", "Hacia el lado"},
-    {"Back", "Hacia atrás"},
-    {"Green", "Verde"},
-    {"Yellow", "Amarilla"},
-    {"Red", "Roja"},
-    {"Flick", "Flick"},
-    {"Push", "Push"},
-    {"Sweep", "Sweep"},
-    {"Hit", "Pegada"},
-    {"Good", "Positivo"},
-    {"Bad", "Negativo"},
-    {"Neutral", "Neutro"},
-    {"Referee", "Arbitraje"},
     {"Off", "Ofensiva"},
     {"Def", "Defensiva"},
-
-    // Second / third level
-    {"Saved", "Atajado"},
-    {"Post", "Poste"},
-    {"Closeby", "Cerca"},
-    {"Not close", "Lejos"},
-    {"Swept", "Sweep"},
-    {"Dragflick", "Arrastre"},
-    {"New PC", "Nuevo corto"},
-    {"Dribbling", "Conducción"},
-    {"Deflection", "Desvío"},
-    {"Completed", "Completado"},
-    {"Failed", "Fallido"},
-    {"Interception", "Intercepción"},
-    {"Tackle", "Quite"},
-    {"Pressure", "Presión"},
-    {"Unforced error", "Error"},
-    {"Foot", "Pie"},
-    {"Stick", "Palo"},
-    {"Danger", "Peligro"},
-    {"Other", "Otro"},
-    {"Converted", "Convertido"},
-    {"Missed", "No convertido"},
-    {"Replay", "Repite"},
-    {"Left", "Izquierda"},
-    {"Middle", "Centro"},
-    {"Right", "Derecha"},
-    {"3 man", "de 3"},
-    {"4 man", "de 4"},
-    {"Fast", "rápida"},
-    // Default follow-up team labels (when names empty; English canonical tokens)
     {"home", "Local"},
     {"away", "Visita"},
 }};
 
-const QHash<QString, QString>& spanishEventMap() {
+const QHash<QString, QString>& residualSpanishMap() {
   static const QHash<QString, QString> map = [] {
     QHash<QString, QString> built;
-    built.reserve(static_cast<int>(kSpanishEventEntries.size()));
-    for (const SpanishEventEntry& entry : kSpanishEventEntries) {
+    built.reserve(static_cast<int>(kResidualSpanishEntries.size()));
+    for (const SpanishEventEntry& entry : kResidualSpanishEntries) {
       const QString key = QString::fromUtf8(entry.canonical);
       Q_ASSERT(!built.contains(key));
+      Q_ASSERT(!EventCatalog::containsCanonicalName(key));
       built.insert(key, QString::fromUtf8(entry.spanish));
     }
-    Q_ASSERT(built.size() == static_cast<int>(kSpanishEventEntries.size()));
+    Q_ASSERT(built.size() == static_cast<int>(kResidualSpanishEntries.size()));
     return built;
   }();
   return map;
@@ -178,13 +118,19 @@ const QHash<QString, QString>& spanishEventMap() {
 QString translateEventForLanguage(const QString& canonicalToken, AppLocale::Language language) {
   const QString key = canonicalToken.trimmed();
   if (key.isEmpty()) return key;
-  if (QString::compare(key, QStringLiteral("Special"), Qt::CaseInsensitive) == 0) {
-    return QStringLiteral("☆");
+
+  const QString displayLabel = EventCatalog::displayLabelForToken(key);
+  if (!displayLabel.isEmpty()) return displayLabel;
+
+  if (EventCatalog::containsCanonicalName(key)) {
+    if (language != AppLocale::Language::Spanish) return key;
+    const QString spanish = EventCatalog::spanishForCanonicalName(key);
+    return spanish.isEmpty() ? key : spanish;
   }
+
   if (language != AppLocale::Language::Spanish) return key;
-  const auto& map = spanishEventMap();
-  const auto iterator = map.constFind(key);
-  if (iterator == map.cend()) return key;
+  const auto iterator = residualSpanishMap().constFind(key);
+  if (iterator == residualSpanishMap().cend()) return key;
   return iterator.value();
 }
 

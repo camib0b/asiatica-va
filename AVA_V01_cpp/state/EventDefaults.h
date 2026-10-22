@@ -36,7 +36,8 @@ bool isTimeControlEvent(const QString& canonicalMainEvent);
 /// All clip event types shown in Clip Duration Settings (fixed display order).
 QStringList allConfigurableEventTypes();
 
-/// Hard-coded factory defaults (ignores user overrides).
+/// Factory lead/lag from EventCatalog for play events, and from the time-control
+/// table for the start anchor, quarters, and timeouts. Ignores user overrides.
 EventDuration factoryDefaultFor(const QString& canonicalMainEvent);
 
 /// Effective default: user override when set, otherwise factory default. Thread-safe.

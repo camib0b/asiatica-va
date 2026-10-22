@@ -1,18 +1,17 @@
 #pragma once
 
+#include "../state/EventCatalog.h"
+
 #include <QString>
 #include <QStringList>
 
 /// Follow-up option tree and tag-payload policy for game events.
-/// Adding an event means extending these tables, not GameControls click handlers.
+/// Definitions live in EventCatalog. Adding an event means extending that
+/// catalog, not GameControls click handlers. Goal / penalty-corner /
+/// penalty-stroke continuation stays in continuesAsGoal().
 class FollowUpCatalog {
 public:
-  enum class PayloadLayout {
-    PlainChain,     ///< selections joined with " → "
-    TeamThenChain,  ///< team → selections
-    ChainThenTeam,  ///< selections → team
-    TeamOnly,       ///< team label; ignores selections
-  };
+  using PayloadLayout = EventCatalog::PayloadLayout;
 
   static QStringList firstLevelOptions(const QString& mainEvent);
   static QStringList secondLevelOptions(const QString& mainEvent, const QString& firstFollowUp);

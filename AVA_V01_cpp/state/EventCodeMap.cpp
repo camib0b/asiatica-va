@@ -1,41 +1,15 @@
 #include "EventCodeMap.h"
 
+#include "EventCatalog.h"
+
 #include <QHash>
 #include <QString>
-#include <QVector>
-#include <QtGlobal>
 
 #include <optional>
 
 namespace EventCodeMap {
 
 namespace {
-
-struct EventCodePair {
-  QString canonicalName;
-  QString shortCode;
-};
-
-/// Single source of truth. Both lookup hashes are derived from this table.
-const QVector<EventCodePair>& eventCodePairs() {
-  static const QVector<EventCodePair> pairs = {
-      {QStringLiteral("Goal"), QStringLiteral("GOAL")},
-      {QStringLiteral("Shot"), QStringLiteral("SHOT")},
-      {QStringLiteral("PC"), QStringLiteral("PC")},
-      {QStringLiteral("PC Foul"), QStringLiteral("PCF")},
-      {QStringLiteral("Card"), QStringLiteral("CARD")},
-      {QStringLiteral("Pass"), QStringLiteral("PASS")},
-      {QStringLiteral("Circle Entry"), QStringLiteral("ENTRY")},
-      {QStringLiteral("16-yd"), QStringLiteral("16YD")},
-      {QStringLiteral("50-yd"), QStringLiteral("50YD")},
-      {QStringLiteral("75-yd"), QStringLiteral("75YD")},
-      {QStringLiteral("Turnover"), QStringLiteral("TO")},
-      {QStringLiteral("Special"), QStringLiteral("SPC")},
-      {QStringLiteral("PS"), QStringLiteral("PS")},
-      {QStringLiteral("S.O."), QStringLiteral("SO")},
-  };
-  return pairs;
-}
 
 QString normalizedCanonicalKey(const QString& canonicalMainEvent) {
   return canonicalMainEvent.trimmed().toLower();
@@ -53,13 +27,25 @@ struct EventCodeTables {
 const EventCodeTables& eventCodeTables() {
   static const EventCodeTables tables = [] {
     EventCodeTables built;
-    const QVector<EventCodePair>& pairs = eventCodePairs();
-    built.canonicalToShort.reserve(pairs.size());
-    built.shortToCanonical.reserve(pairs.size());
+    const int nodeCount = EventCatalog::nodeCount();
+    built.canonicalToShort.reserve(nodeCount);
+    built.shortToCanonical.reserve(nodeCount);
 
-    for (const EventCodePair& pair : pairs) {
-      const QString canonicalKey = normalizedCanonicalKey(pair.canonicalName);
-      const QString shortKey = normalizedShortKey(pair.shortCode);
+    int mainEventCount = 0;
+    for (int index = 0; index < nodeCount; ++index) {
+      const EventCatalog::Node& node = EventCatalog::nodeAt(index);
+      if (!node.mainEvent) continue;
+      ++mainEventCount;
+
+      if (!node.canonicalName || !node.xmlCode || node.xmlCode[0] == '\0') {
+        Q_ASSERT_X(false, "EventCodeMap", "main event is missing an XML code");
+        continue;
+      }
+
+      const QString canonicalName = QString::fromLatin1(node.canonicalName);
+      const QString shortCode = QString::fromLatin1(node.xmlCode);
+      const QString canonicalKey = normalizedCanonicalKey(canonicalName);
+      const QString shortKey = normalizedShortKey(shortCode);
 
       if (built.canonicalToShort.contains(canonicalKey)) {
         Q_ASSERT_X(false, "EventCodeMap", "duplicate canonical event name in event code table");
@@ -70,12 +56,12 @@ const EventCodeTables& eventCodeTables() {
         continue;
       }
 
-      built.canonicalToShort.insert(canonicalKey, pair.shortCode);
-      built.shortToCanonical.insert(shortKey, pair.canonicalName);
+      built.canonicalToShort.insert(canonicalKey, shortCode);
+      built.shortToCanonical.insert(shortKey, canonicalName);
     }
 
-    Q_ASSERT_X(built.canonicalToShort.size() == pairs.size() &&
-                   built.shortToCanonical.size() == pairs.size(),
+    Q_ASSERT_X(built.canonicalToShort.size() == mainEventCount &&
+                   built.shortToCanonical.size() == mainEventCount,
                "EventCodeMap", "event code table is not round-trippable");
     return built;
   }();
@@ -88,7 +74,7 @@ std::optional<QString> findMappedString(const QHash<QString, QString>& map, cons
   return iterator.value();
 }
 
-} // namespace
+}  // namespace
 
 std::optional<QString> shortCodeForMainEvent(const QString& canonicalMainEvent) {
   return findMappedString(eventCodeTables().canonicalToShort,
@@ -99,4 +85,4 @@ std::optional<QString> mainEventForShortCode(const QString& shortCode) {
   return findMappedString(eventCodeTables().shortToCanonical, normalizedShortKey(shortCode));
 }
 
-} // namespace EventCodeMap
+}  // namespace EventCodeMap

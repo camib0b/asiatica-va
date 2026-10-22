@@ -19,4 +19,4 @@ if (iterator == table.cend()) return key;
 return language == Spanish ? iterator->spanish : iterator->english;
 ```
 
-When you add `trUi("foo.bar")`, add `foo.bar` to `uiTranslationTable()` in `i18n/AppLocale.cpp` with both languages in the same initializer. Event tokens stay in `spanishEventMap()` (canonical English → Spanish).
+When you add `trUi("foo.bar")`, add `foo.bar` to `uiTranslationTable()` in `i18n/AppLocale.cpp` with both languages in the same initializer. Event and follow-up translations live on `EventCatalog` (canonical English name, Spanish text, optional display label). `AppLocale::trEvent` reads that catalog. Tokens that are not catalog events (`home`/`away` and retired follow-up words) stay in the residual table in `AppLocale.cpp`.

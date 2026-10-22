@@ -1,11 +1,19 @@
 #include "FollowUpCatalog.h"
 
 #include "AppLocale.h"
-
-#include <QHash>
-#include <QSet>
+#include "EventCatalog.h"
 
 namespace {
+
+const EventCatalog::Node* nodeAtPath(const QString& mainEvent, const QStringList& selections) {
+  const EventCatalog::Node* node = EventCatalog::mainEventForCanonicalName(mainEvent);
+  if (!node) return nullptr;
+  for (const QString& selection : selections) {
+    node = EventCatalog::childForCanonicalName(*node, selection);
+    if (!node) return nullptr;
+  }
+  return node;
+}
 
 QString joinArrowPath(const QStringList& parts) {
   QStringList nonempty;
@@ -16,121 +24,33 @@ QString joinArrowPath(const QStringList& parts) {
   return nonempty.join(QString(AppLocale::kCompoundPathSeparator));
 }
 
-const QHash<QString, QStringList>& firstLevelTable() {
-  static const QHash<QString, QStringList> kTable = {
-      {QStringLiteral("Shot"),
-       {QStringLiteral("On target"), QStringLiteral("Off target"), QStringLiteral("Blocked")}},
-      {QStringLiteral("Circle Entry"),
-       {QStringLiteral("Dribbling"), QStringLiteral("Pass"), QStringLiteral("Deflection")}},
-      {QStringLiteral("PC"),
-       {QStringLiteral("Direct shot"), QStringLiteral("Variant"), QStringLiteral("Ruined")}},
-      {QStringLiteral("16-yd"),
-       {QStringLiteral("3 man"), QStringLiteral("4 man"), QStringLiteral("Fast")}},
-      {QStringLiteral("75-yd"),
-       {QStringLiteral("Forward"), QStringLiteral("Sideways"), QStringLiteral("Back")}},
-      {QStringLiteral("Card"),
-       {QStringLiteral("Green"), QStringLiteral("Yellow"), QStringLiteral("Red")}},
-      {QStringLiteral("Pass"),
-       {QStringLiteral("Flick"), QStringLiteral("Push"), QStringLiteral("Sweep"), QStringLiteral("Hit")}},
-      {QStringLiteral("Special"),
-       {QStringLiteral("Good"), QStringLiteral("Bad"), QStringLiteral("Neutral"), QStringLiteral("Referee")}},
-      {QStringLiteral("Turnover"),
-       {QStringLiteral("Interception"), QStringLiteral("Tackle"), QStringLiteral("Pressure"),
-        QStringLiteral("Unforced error")}},
-      {QStringLiteral("PC Foul"),
-       {QStringLiteral("Foot"), QStringLiteral("Stick"), QStringLiteral("Danger"), QStringLiteral("Other")}},
-      {QStringLiteral("PS"), {QStringLiteral("Goal"), QStringLiteral("No Goal")}},
-      {QStringLiteral("S.O."),
-       {QStringLiteral("Converted"), QStringLiteral("Missed"), QStringLiteral("Replay")}},
-  };
-  return kTable;
-}
-
-const QHash<QString, QHash<QString, QStringList>>& secondLevelTable() {
-  static const QHash<QString, QHash<QString, QStringList>> kTable = {
-      {QStringLiteral("Shot"),
-       {{QStringLiteral("On target"),
-         {QStringLiteral("Goal"), QStringLiteral("Saved"), QStringLiteral("Post")}},
-        {QStringLiteral("Off target"),
-         {QStringLiteral("Closeby"), QStringLiteral("Not close")}}}},
-      {QStringLiteral("PC"),
-       {{QStringLiteral("Direct shot"),
-         {QStringLiteral("Hit"), QStringLiteral("Swept"), QStringLiteral("Dragflick")}},
-        {QStringLiteral("Variant"),
-         {QStringLiteral("Goal"), QStringLiteral("No Goal"), QStringLiteral("New PC")}},
-        {QStringLiteral("Ruined"),
-         {QStringLiteral("Goal"), QStringLiteral("No Goal"), QStringLiteral("New PC")}}}},
-      {QStringLiteral("Circle Entry"),
-       {{QStringLiteral("Dribbling"),
-         {QStringLiteral("Left"), QStringLiteral("Middle"), QStringLiteral("Right")}},
-        {QStringLiteral("Pass"),
-         {QStringLiteral("Left"), QStringLiteral("Middle"), QStringLiteral("Right")}},
-        {QStringLiteral("Deflection"),
-         {QStringLiteral("Left"), QStringLiteral("Middle"), QStringLiteral("Right")}}}},
-      {QStringLiteral("Pass"),
-       {{QStringLiteral("Flick"), {QStringLiteral("Completed"), QStringLiteral("Failed")}},
-        {QStringLiteral("Push"), {QStringLiteral("Completed"), QStringLiteral("Failed")}},
-        {QStringLiteral("Sweep"), {QStringLiteral("Completed"), QStringLiteral("Failed")}},
-        {QStringLiteral("Hit"), {QStringLiteral("Completed"), QStringLiteral("Failed")}}}},
-  };
-  return kTable;
-}
-
-const QHash<QString, QHash<QString, QHash<QString, QStringList>>>& thirdLevelTable() {
-  static const QHash<QString, QHash<QString, QHash<QString, QStringList>>> kTable = {
-      {QStringLiteral("PC"),
-       {{QStringLiteral("Direct shot"),
-         {{QStringLiteral("Hit"), {QStringLiteral("Goal"), QStringLiteral("No Goal")}},
-          {QStringLiteral("Swept"), {QStringLiteral("Goal"), QStringLiteral("No Goal")}},
-          {QStringLiteral("Dragflick"), {QStringLiteral("Goal"), QStringLiteral("No Goal")}}}}}},
-  };
-  return kTable;
-}
-
-const QHash<QString, FollowUpCatalog::PayloadLayout>& payloadLayoutTable() {
-  static const QHash<QString, FollowUpCatalog::PayloadLayout> kTable = {
-      {QStringLiteral("50-yd"), FollowUpCatalog::PayloadLayout::TeamOnly},
-      {QStringLiteral("Goal"), FollowUpCatalog::PayloadLayout::TeamOnly},
-      {QStringLiteral("PC"), FollowUpCatalog::PayloadLayout::TeamThenChain},
-      {QStringLiteral("PC Foul"), FollowUpCatalog::PayloadLayout::TeamThenChain},
-      {QStringLiteral("PS"), FollowUpCatalog::PayloadLayout::TeamThenChain},
-      {QStringLiteral("S.O."), FollowUpCatalog::PayloadLayout::TeamThenChain},
-      {QStringLiteral("16-yd"), FollowUpCatalog::PayloadLayout::TeamThenChain},
-      {QStringLiteral("Circle Entry"), FollowUpCatalog::PayloadLayout::TeamThenChain},
-      {QStringLiteral("Card"), FollowUpCatalog::PayloadLayout::ChainThenTeam},
-      {QStringLiteral("75-yd"), FollowUpCatalog::PayloadLayout::ChainThenTeam},
-  };
-  return kTable;
-}
-
-} // namespace
+}  // namespace
 
 QStringList FollowUpCatalog::firstLevelOptions(const QString& mainEvent) {
-  return firstLevelTable().value(mainEvent);
+  return optionsAfter(mainEvent, {});
 }
 
 QStringList FollowUpCatalog::secondLevelOptions(const QString& mainEvent,
                                                 const QString& firstFollowUp) {
-  return secondLevelTable().value(mainEvent).value(firstFollowUp);
+  return optionsAfter(mainEvent, {firstFollowUp});
 }
 
 QStringList FollowUpCatalog::thirdLevelOptions(const QString& mainEvent,
                                                const QString& firstFollowUp,
                                                const QString& secondFollowUp) {
-  return thirdLevelTable().value(mainEvent).value(firstFollowUp).value(secondFollowUp);
+  return optionsAfter(mainEvent, {firstFollowUp, secondFollowUp});
 }
 
 QStringList FollowUpCatalog::optionsAfter(const QString& mainEvent, const QStringList& selections) {
-  if (selections.isEmpty()) return firstLevelOptions(mainEvent);
-  if (selections.size() == 1) return secondLevelOptions(mainEvent, selections.at(0));
-  if (selections.size() == 2) {
-    return thirdLevelOptions(mainEvent, selections.at(0), selections.at(1));
-  }
-  return {};
+  // A fourth question is not part of the tagging flow. Depth is capped at 3.
+  if (selections.size() > 2) return {};
+  const EventCatalog::Node* node = nodeAtPath(mainEvent, selections);
+  if (!node) return {};
+  return EventCatalog::childCanonicalNames(*node);
 }
 
 FollowUpCatalog::PayloadLayout FollowUpCatalog::payloadLayout(const QString& mainEvent) {
-  return payloadLayoutTable().value(mainEvent, PayloadLayout::PlainChain);
+  return EventCatalog::payloadLayoutForMainEvent(mainEvent);
 }
 
 QString FollowUpCatalog::formatPayload(const QString& mainEvent, const QStringList& selections,
@@ -154,11 +74,12 @@ QString FollowUpCatalog::formatPayload(const QString& mainEvent, const QStringLi
 }
 
 bool FollowUpCatalog::switchesTeamOnCommit(const QString& mainEvent) {
-  static const QSet<QString> kSwitchTeamEvents = {QStringLiteral("Turnover")};
-  return kSwitchTeamEvents.contains(mainEvent);
+  return EventCatalog::switchesTeamForMainEvent(mainEvent);
 }
 
 bool FollowUpCatalog::continuesAsGoal(const QString& mainEvent, const QStringList& selections) {
+  // Goal, penalty corner, and penalty stroke still chain into a Goal tag by name.
+  // That special case stays here until it is described on the catalog.
   if (selections.isEmpty() || selections.last() != QStringLiteral("Goal")) return false;
   if (mainEvent == QStringLiteral("PS") || mainEvent == QStringLiteral("PC")) return true;
   return mainEvent == QStringLiteral("Shot") &&
