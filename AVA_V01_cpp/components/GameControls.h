@@ -98,7 +98,7 @@ private:
   void notifyTagSequence(const QString& shortcutKey, const QString& stepLabel, bool chainOpen,
                          bool startsChain);
   void refreshTeamButtonLabels();
-  std::array<QPushButton*, 14> keyboardOrderButtons() const;
+  const QList<QPushButton*>& keyboardOrderButtons() const;
   /// After possession changes to the other side (e.g. Turnover), select the other team for the next tag.
   void switchTeamSideToOppositeTeam();
   void updateTeamButtonSelectionVisual();
@@ -135,21 +135,10 @@ protected:
   QPushButton* homeTeamButton_ = nullptr;
   QPushButton* awayTeamButton_ = nullptr;
 
-  QPushButton* sixteenYardButton_ = nullptr;
-  QPushButton* fiftyYardButton_ = nullptr;
-  QPushButton* seventyFiveYardButton_ = nullptr;
-  QPushButton* pcButton_ = nullptr;
-  QPushButton* circleEntryButton_ = nullptr;
-  QPushButton* pcFoulButton_ = nullptr;
-  QPushButton* shotButton_ = nullptr;
-  QPushButton* goalButton_ = nullptr;
-  QPushButton* passButton_ = nullptr;
-  QPushButton* specialButton_ = nullptr;
-  QPushButton* turnoverButton_ = nullptr;
-  QPushButton* cardButton_ = nullptr;
-  QPushButton* shootoutButton_ = nullptr;
-  QPushButton* psButton_ = nullptr;
+  /// Main-event buttons in catalog keyboard order (row, then column).
+  QList<QPushButton*> mainEventButtons_;
   QHash<int, QPushButton*> mainEventButtonsByKey_;
+  QHash<int, QPushButton*> mainEventButtonsById_;
 
   FollowUpState followUpState_{};
   GamePhase gamePhase_ = GamePhase::NotStarted;

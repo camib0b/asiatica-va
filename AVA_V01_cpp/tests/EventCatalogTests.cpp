@@ -5,8 +5,12 @@
 #include "FollowUpCatalog.h"
 #include "GameControls.h"
 
+#include <QHBoxLayout>
+#include <QLayout>
 #include <QPushButton>
 #include <QSet>
+#include <QSignalSpy>
+#include <QSizePolicy>
 #include <QTest>
 
 #include <algorithm>
@@ -59,6 +63,75 @@ const std::array<ExpectedMainEvent, 14>& expectedMainEvents() {
        EventCatalog::PayloadLayout::TeamThenChain, false},
   }};
   return events;
+}
+
+struct ExpectedGridButton {
+  EventCatalog::EventId id;
+  const char* name;
+  Qt::Key key;
+  int row;
+  int column;
+  int leftOffsetUnits;
+};
+
+// The hand-laid QWERTY block: row, then column. Offsets are quarter-key units.
+const std::array<ExpectedGridButton, 14>& expectedButtonGrid() {
+  static const std::array<ExpectedGridButton, 14> buttons{{
+      {EventCatalog::EventId::SixteenYard, "16-yd", Qt::Key_Q, 0, 0, 0},
+      {EventCatalog::EventId::FiftyYard, "50-yd", Qt::Key_W, 0, 1, 0},
+      {EventCatalog::EventId::SeventyFiveYard, "75-yd", Qt::Key_E, 0, 2, 0},
+      {EventCatalog::EventId::PenaltyCorner, "PC", Qt::Key_R, 0, 3, 0},
+      {EventCatalog::EventId::CircleEntry, "Circle Entry", Qt::Key_A, 1, 0, 1},
+      {EventCatalog::EventId::PenaltyCornerFoul, "PC Foul", Qt::Key_S, 1, 1, 1},
+      {EventCatalog::EventId::Shot, "Shot", Qt::Key_D, 1, 2, 1},
+      {EventCatalog::EventId::Goal, "Goal", Qt::Key_F, 1, 3, 1},
+      {EventCatalog::EventId::Pass, "Pass", Qt::Key_Z, 2, 0, 3},
+      {EventCatalog::EventId::Special, "Special", Qt::Key_X, 2, 1, 3},
+      {EventCatalog::EventId::Turnover, "Turnover", Qt::Key_C, 2, 2, 3},
+      {EventCatalog::EventId::Card, "Card", Qt::Key_V, 2, 3, 3},
+      {EventCatalog::EventId::PenaltyStroke, "PS", Qt::Key_B, 3, 0, 3},
+      {EventCatalog::EventId::Shootout, "S.O.", Qt::Key_N, 3, 1, 3},
+  }};
+  return buttons;
+}
+
+struct ObservedKeyboardRow {
+  int leftOffsetUnits = 0;
+  QStringList names;
+  QList<QPushButton*> buttons;
+};
+
+std::optional<ObservedKeyboardRow> keyboardRowFromLayout(QLayout* layout) {
+  auto* rowLayout = qobject_cast<QHBoxLayout*>(layout);
+  if (!rowLayout) return std::nullopt;
+  ObservedKeyboardRow row;
+  row.leftOffsetUnits = rowLayout->stretch(0);
+  for (int index = 0; index < rowLayout->count(); ++index) {
+    QLayoutItem* item = rowLayout->itemAt(index);
+    if (!item) continue;
+    auto* button = qobject_cast<QPushButton*>(item->widget());
+    if (!button) continue;
+    const QString name = button->property("gameEventName").toString();
+    if (name.isEmpty()) continue;
+    row.names.append(name);
+    row.buttons.append(button);
+  }
+  if (row.names.isEmpty()) return std::nullopt;
+  return row;
+}
+
+void collectKeyboardRows(QWidget* widget, QList<ObservedKeyboardRow>* rows) {
+  if (!widget || !widget->layout()) return;
+  if (std::optional<ObservedKeyboardRow> row = keyboardRowFromLayout(widget->layout())) {
+    rows->append(*row);
+    return;
+  }
+  QLayout* layout = widget->layout();
+  for (int index = 0; index < layout->count(); ++index) {
+    QLayoutItem* item = layout->itemAt(index);
+    if (!item) continue;
+    if (QWidget* child = item->widget()) collectKeyboardRows(child, rows);
+  }
 }
 
 QStringList names(std::initializer_list<const char*> values) {
@@ -191,6 +264,8 @@ class EventCatalogTest : public QObject {
   void followUpTreeMatchesThePreviousCatalog();
   void translationsMatchThePreviousTable();
   void gameControlButtonsUseCatalogShortcuts();
+  void buttonGridMatchesTheHandLaidKeyboard();
+  void gameControlsGridMatchesTheCatalogOrder();
 };
 
 void EventCatalogTest::everyMainEventHasAnXmlCode() {
@@ -527,6 +602,139 @@ void EventCatalogTest::gameControlButtonsUseCatalogShortcuts() {
     QVERIFY2(button, row.name);
     QCOMPARE(button->property("shortcutHint").toString(), EventCatalog::shortcutLabel(row.id));
   }
+}
+
+void EventCatalogTest::buttonGridMatchesTheHandLaidKeyboard() {
+  const std::array<ExpectedGridButton, 14>& expected = expectedButtonGrid();
+  QCOMPARE(EventCatalog::buttonGridCount(), static_cast<int>(expected.size()));
+  QCOMPARE(EventCatalog::buttonGridRowCount(), 4);
+
+  QSet<int> seenIds;
+  int flatIndex = 0;
+  int expectedRowStart = 0;
+  for (int rowIndex = 0; rowIndex < EventCatalog::buttonGridRowCount(); ++rowIndex) {
+    const EventCatalog::ButtonGridRow row = EventCatalog::buttonGridRowAt(rowIndex);
+    const int rowLength = rowIndex == 3 ? 2 : EventCatalog::kButtonGridColumnCount;
+    QCOMPARE(row.eventCount, rowLength);
+    QCOMPARE(row.firstEventIndex, expectedRowStart);
+    const ExpectedGridButton& rowStart = expected.at(static_cast<std::size_t>(expectedRowStart));
+    QCOMPARE(row.leftOffsetUnits, rowStart.leftOffsetUnits);
+    for (int column = 0; column < row.eventCount; ++column) {
+      const ExpectedGridButton& expectedButton = expected.at(static_cast<std::size_t>(flatIndex));
+      QCOMPARE(expectedButton.row, rowIndex);
+      QCOMPARE(expectedButton.column, column);
+      const EventCatalog::Node& node = EventCatalog::buttonGridNodeAt(row.firstEventIndex + column);
+      QCOMPARE(node.id, expectedButton.id);
+      QCOMPARE(QString::fromLatin1(node.canonicalName), QString::fromLatin1(expectedButton.name));
+      QCOMPARE(node.shortcut, expectedButton.key);
+      QCOMPARE(node.buttonRow, expectedButton.row);
+      QCOMPARE(node.buttonColumn, expectedButton.column);
+      QCOMPARE(node.buttonRowOffsetUnits, expectedButton.leftOffsetUnits);
+      QCOMPARE(EventCatalog::shortcutKey(node.id), expectedButton.key);
+      QCOMPARE(EventCatalog::shortcutLabel(node.id),
+               QString(QLatin1Char(static_cast<char>(expectedButton.key))));
+      QVERIFY(!seenIds.contains(static_cast<int>(node.id)));
+      seenIds.insert(static_cast<int>(node.id));
+      QCOMPARE(flatIndex, row.firstEventIndex + column);
+      ++flatIndex;
+    }
+    expectedRowStart += row.eventCount;
+  }
+  QCOMPARE(flatIndex, static_cast<int>(expected.size()));
+  QCOMPARE(seenIds.size(), static_cast<int>(expected.size()));
+
+  int mainEventCount = 0;
+  for (int index = 0; index < EventCatalog::nodeCount(); ++index) {
+    const EventCatalog::Node& node = EventCatalog::nodeAt(index);
+    if (node.mainEvent) {
+      ++mainEventCount;
+      QVERIFY(seenIds.contains(static_cast<int>(node.id)));
+      continue;
+    }
+    QCOMPARE(node.buttonRow, EventCatalog::kNoButtonGridPosition);
+    QCOMPARE(node.buttonColumn, EventCatalog::kNoButtonGridPosition);
+    QCOMPARE(node.buttonRowOffsetUnits, 0);
+  }
+  QCOMPARE(mainEventCount, static_cast<int>(expected.size()));
+}
+
+void EventCatalogTest::gameControlsGridMatchesTheCatalogOrder() {
+  GameControls controls;
+  controls.setTeamSide(TagSession::TeamSide::Home);
+  controls.resize(420, 780);
+  controls.show();
+
+  QList<ObservedKeyboardRow> rows;
+  collectKeyboardRows(&controls, &rows);
+  const std::array<ExpectedGridButton, 14>& expected = expectedButtonGrid();
+  QCOMPARE(rows.size(), EventCatalog::buttonGridRowCount());
+
+  int namedButtonCount = 0;
+  for (QPushButton* button : controls.findChildren<QPushButton*>()) {
+    if (!button->property("gameEventName").toString().isEmpty()) ++namedButtonCount;
+  }
+  QCOMPARE(namedButtonCount, static_cast<int>(expected.size()));
+
+  QSignalSpy captured(&controls, &GameControls::mainEventTimestampCaptured);
+  int flatIndex = 0;
+  for (int rowIndex = 0; rowIndex < rows.size(); ++rowIndex) {
+    const ObservedKeyboardRow& row = rows.at(rowIndex);
+    const EventCatalog::ButtonGridRow catalogRow = EventCatalog::buttonGridRowAt(rowIndex);
+    QCOMPARE(row.leftOffsetUnits, catalogRow.leftOffsetUnits);
+    QCOMPARE(row.names.size(), catalogRow.eventCount);
+    QCOMPARE(row.buttons.size(), catalogRow.eventCount);
+    for (int column = 0; column < row.names.size(); ++column) {
+      const ExpectedGridButton& expectedButton = expected.at(static_cast<std::size_t>(flatIndex));
+      const EventCatalog::Node& node =
+          EventCatalog::buttonGridNodeAt(catalogRow.firstEventIndex + column);
+      const QString name = QString::fromLatin1(expectedButton.name);
+      QCOMPARE(row.names.at(column), name);
+      QCOMPARE(QString::fromLatin1(node.canonicalName), name);
+      QPushButton* button = row.buttons.at(column);
+      QCOMPARE(button->property("gameEventName").toString(), name);
+      QCOMPARE(button->property("shortcutHint").toString(), EventCatalog::shortcutLabel(node.id));
+      QCOMPARE(button->property("variant").toString(), QStringLiteral("gameControl"));
+      QCOMPARE(button->focusPolicy(), Qt::ClickFocus);
+      QCOMPARE(button->minimumHeight(), 52);
+      QCOMPARE(button->sizePolicy().horizontalPolicy(), QSizePolicy::Expanding);
+      QCOMPARE(button->sizePolicy().verticalPolicy(), QSizePolicy::Fixed);
+
+      captured.clear();
+      QTest::keyClick(&controls, expectedButton.key);
+      QCOMPARE(captured.count(), 1);
+      QCOMPARE(captured.at(0).at(0).toString(), name);
+      QTest::keyClick(&controls, Qt::Key_Escape);
+      ++flatIndex;
+    }
+  }
+  QCOMPARE(flatIndex, static_cast<int>(expected.size()));
+
+  captured.clear();
+  QSignalSpy advanced(&controls, &GameControls::tagSequenceAdvanced);
+  QSignalSpy committed(&controls, &GameControls::tagCommitted);
+  QSignalSpy dismissed(&controls, &GameControls::tagSequenceDismissed);
+  QTest::keyClick(&controls, Qt::Key_D);
+  QCOMPARE(captured.count(), 1);
+  QCOMPARE(captured.at(0).at(0).toString(), QStringLiteral("Shot"));
+  QTest::keyClick(&controls, Qt::Key_1);
+  QCOMPARE(captured.count(), 1);
+  QCOMPARE(advanced.count(), 2);
+  QCOMPARE(advanced.at(1).at(1).toString(), QStringLiteral("On target"));
+  QTest::keyClick(&controls, Qt::Key_Escape);
+  QCOMPARE(dismissed.count(), 1);
+  QCOMPARE(committed.count(), 1);
+  QCOMPARE(committed.at(0).at(0).toString(), QStringLiteral("Shot"));
+  QCOMPARE(committed.at(0).at(1).toString(), QString());
+
+  captured.clear();
+  QSignalSpy gameStarted(&controls, &GameControls::gameStartRequested);
+  QSignalSpy nextQuarter(&controls, &GameControls::nextQuarterRequested);
+  QTest::keyClick(&controls, Qt::Key_G);
+  QCOMPARE(captured.count(), 0);
+  QCOMPARE(gameStarted.count(), 1);
+  QTest::keyClick(&controls, Qt::Key_H);
+  QCOMPARE(captured.count(), 0);
+  QCOMPARE(nextQuarter.count(), 1);
 }
 
 int runEventCatalogTests(int argc, char** argv) {
