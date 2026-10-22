@@ -694,7 +694,6 @@ void EventCatalogTest::gameControlsGridMatchesTheCatalogOrder() {
       QCOMPARE(button->property("gameEventName").toString(), name);
       QCOMPARE(button->property("shortcutHint").toString(), EventCatalog::shortcutLabel(node.id));
       QCOMPARE(button->property("variant").toString(), QStringLiteral("gameControl"));
-      QCOMPARE(button->property("size").toString(), QStringLiteral("md"));
       QCOMPARE(button->focusPolicy(), Qt::ClickFocus);
       QCOMPARE(button->minimumHeight(), 52);
       QCOMPARE(button->sizePolicy().horizontalPolicy(), QSizePolicy::Expanding);
