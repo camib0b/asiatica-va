@@ -89,6 +89,8 @@ private slots:
     void onProcessError(QProcess::ProcessError error);
 
 private:
+    void onEncoderAvailability(bool h264VideoToolboxAvailable);
+    void prepareSourceAndExportClips();
     void processNextClip();
     void concatenateClips();
     /// Moves a finished temp video onto the destination. A failed replace leaves
@@ -154,4 +156,10 @@ private:
     qreal overlayScale_ = 1.0;
     bool includeAudioTrack_ = true;
     bool includeBrandingOverlay_ = true;
+    /// Cached `ffmpeg -encoders` result for this export's ffmpeg binary.
+    bool h264VideoToolboxAvailable_ = false;
+    /// After VideoToolbox fails, the retry and later clips in this export use libx264.
+    bool hardwareEncoderDisabledForExport_ = false;
+    /// True only for the clip encode that is currently running on VideoToolbox.
+    bool currentClipUsesHardwareEncoder_ = false;
 };

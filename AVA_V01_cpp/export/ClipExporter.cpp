@@ -2,6 +2,7 @@
 
 #include "AppLocale.h"
 #include "AvaVersion.h"
+#include "ExportVideoEncoder.h"
 #include "FfmpegLocator.h"
 
 #include <QCoreApplication>
@@ -484,6 +485,9 @@ void ClipExporter::startExport() {
     deferredDeletePending_ = false;
     tempClipPaths_.clear();
     measuredSegmentDurationSeconds_.clear();
+    h264VideoToolboxAvailable_ = false;
+    hardwareEncoderDisabledForExport_ = false;
+    currentClipUsesHardwareEncoder_ = false;
 
     cleanup();
     tempDir_ = std::make_unique<QTemporaryDir>();
@@ -494,7 +498,45 @@ void ClipExporter::startExport() {
 
     emit progressChanged(0, static_cast<int>(clips_.size()), Activity::Preparing);
 
+    // Child process; the callback is queued so the UI thread does not wait.
+    ExportVideoEncoder::requestH264VideoToolboxAvailability(
+        ffmpegPath_, this, [this](bool h264VideoToolboxAvailable) {
+            onEncoderAvailability(h264VideoToolboxAvailable);
+        });
+}
+
+void ClipExporter::onEncoderAvailability(bool h264VideoToolboxAvailable) {
+    if (exportFinishedEmitted_) {
+        return;
+    }
+    if (cancelled_) {
+        finishExport(false, QStringLiteral("Export cancelled."));
+        return;
+    }
+    h264VideoToolboxAvailable_ = h264VideoToolboxAvailable;
+    prepareSourceAndExportClips();
+}
+
+void ClipExporter::prepareSourceAndExportClips() {
+    if (exportFinishedEmitted_) {
+        return;
+    }
+    if (cancelled_) {
+        finishExport(false, QStringLiteral("Export cancelled."));
+        return;
+    }
+    if (!tempDir_ || !tempDir_->isValid()) {
+        finishExport(false, QStringLiteral("Failed to create temporary directory."));
+        return;
+    }
+
     const VideoProbeResult sourceProbe = probeSourceVideo(sourceVideoPath_);
+    if (cancelled_ || exportFinishedEmitted_) {
+        if (!exportFinishedEmitted_) {
+            finishExport(false, QStringLiteral("Export cancelled."));
+        }
+        return;
+    }
     if (!sourceProbe.isValid()) {
         finishExport(false,
             QStringLiteral("Failed to probe source video dimensions for \"%1\".")
@@ -542,6 +584,7 @@ void ClipExporter::cancelExport() {
 }
 
 void ClipExporter::processNextClip() {
+    currentClipUsesHardwareEncoder_ = false;
     if (cancelled_) {
         finishExport(false, QStringLiteral("Export cancelled."));
         return;
@@ -657,9 +700,13 @@ void ClipExporter::processNextClip() {
         QStringLiteral("main_h-overlay_h-main_h*%1")
             .arg(kYouTubeBottomSafeFraction, 0, 'f', 3);
 
+    const ExportVideoEncoder::Kind encoderKind = ExportVideoEncoder::kindForClip(
+        h264VideoToolboxAvailable_, hardwareEncoderDisabledForExport_);
+
     QStringList arguments;
-    arguments << QStringLiteral("-y")
-              << QStringLiteral("-noautorotate")
+    arguments << QStringLiteral("-y");
+    arguments << ExportVideoEncoder::sourceDecodeArguments(encoderKind);
+    arguments << QStringLiteral("-noautorotate")
               << QStringLiteral("-ss") << QString::number(startSeconds, 'f', 3)
               << QStringLiteral("-i") << sourceVideoPath_;
 
@@ -830,14 +877,13 @@ void ClipExporter::processNextClip() {
     } else {
         arguments << QStringLiteral("-an");
     }
-    arguments << QStringLiteral("-t") << QString::number(durationSeconds, 'f', 3)
-              << QStringLiteral("-c:v") << QStringLiteral("libx264")
-              << QStringLiteral("-preset") << QStringLiteral("fast")
-              << QStringLiteral("-crf") << QStringLiteral("23")
-              << QStringLiteral("-pix_fmt") << QStringLiteral("yuv420p")
-              << QStringLiteral("-movflags") << QStringLiteral("+faststart")
-              << tempPath;
+    arguments << QStringLiteral("-t") << QString::number(durationSeconds, 'f', 3);
+    arguments << ExportVideoEncoder::codecArguments(encoderKind);
+    arguments << ExportVideoEncoder::containerCompatibilityArguments();
+    arguments << tempPath;
 
+    currentClipUsesHardwareEncoder_ =
+        encoderKind == ExportVideoEncoder::Kind::H264VideoToolbox;
     startFfmpegJob(arguments, false);
 }
 
@@ -857,6 +903,21 @@ void ClipExporter::onClipProcessFinished(int exitCode, QProcess::ExitStatus exit
                   .arg(exitStatus == QProcess::CrashExit ? QStringLiteral("crashed")
                                                          : QStringLiteral("failed"))
             : stderrOutput.right(1500);
+        const ExportVideoEncoder::Kind kindUsed = currentClipUsesHardwareEncoder_
+            ? ExportVideoEncoder::Kind::H264VideoToolbox
+            : ExportVideoEncoder::Kind::Libx264;
+        if (ExportVideoEncoder::shouldRetryWithLibx264(kindUsed)) {
+            hardwareEncoderDisabledForExport_ = true;
+            qWarning("%s",
+                     qPrintable(QStringLiteral(
+                                    "ClipExporter: h264_videotoolbox failed on clip %1 of %2; "
+                                    "retrying with libx264. %3")
+                                    .arg(currentClipIndex_ + 1)
+                                    .arg(clips_.size())
+                                    .arg(detail.right(500))));
+            processNextClip();
+            return;
+        }
         finishExport(false,
             QStringLiteral("FFmpeg failed on clip %1 of %2:\n%3")
                 .arg(currentClipIndex_ + 1)

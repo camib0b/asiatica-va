@@ -1070,9 +1070,14 @@ int runWorkWindowCorrectnessTests(int argc, char** argv);
 int runInteractionGuardTests(int argc, char** argv);
 int runVideoClipSequenceTests(int argc, char** argv);
 int runShootoutStateTests(int argc, char** argv);
+int runExportVideoEncoderTests(int argc, char** argv);
 
 int main(int argc, char** argv) {
     QApplication application(argc, argv);
+    const int encoderStatus = runExportVideoEncoderTests(argc, argv);
+    if (encoderStatus != 0) {
+        return encoderStatus;
+    }
     const int catalogStatus = runEventCatalogTests(argc, argv);
     if (catalogStatus != 0) {
         return catalogStatus;
