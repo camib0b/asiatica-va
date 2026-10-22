@@ -3,6 +3,7 @@
 #include "../components/VideoPlayer.h"
 #include "../export/ClipTrimBar.h"
 #include "../i18n/AppLocale.h"
+#include "../state/EventLabelResolver.h"
 #include "../state/TagSession.h"
 #include "PresentationPanel.h"
 #include "TagRowDisplay.h"
@@ -88,6 +89,7 @@ void applyPresentationEffect(VideoPlayer& player, const PresentationPlayback::Ef
 PresentationPlaybackController::PresentationPlaybackController(QObject* parent)
     : QObject(parent),
       tagSession_(nullptr),
+      eventLabelOverridesConnection_(),
       videoPlayer_(nullptr),
       presentationQueue_(nullptr),
       presentationClipBar_(nullptr),
@@ -106,7 +108,16 @@ PresentationPlaybackController::~PresentationPlaybackController() {
 }
 
 void PresentationPlaybackController::setTagSession(TagSession* tagSession) {
+  if (tagSession_ == tagSession) return;
+  if (eventLabelOverridesConnection_) {
+    QObject::disconnect(eventLabelOverridesConnection_);
+    eventLabelOverridesConnection_ = {};
+  }
   tagSession_ = tagSession;
+  if (!tagSession_) return;
+  eventLabelOverridesConnection_ =
+      connect(tagSession_, &TagSession::eventLabelOverridesChanged, this,
+              &PresentationPlaybackController::updatePresentationStage);
 }
 
 void PresentationPlaybackController::setVideoPlayer(VideoPlayer* videoPlayer) {
@@ -315,7 +326,7 @@ void PresentationPlaybackController::showEmptyPresentationStage() {
 void PresentationPlaybackController::showCurrentPresentationClip(
     const PresentationQueue::Clip& clip) {
   presentationEventLabel_->setText(
-      TagEvent::displayTagLine(clip.mainEvent, clip.followUps));
+      EventLabelResolver::tagLine(clip.mainEvent, clip.followUps, tagSession_));
   presentationContextLabel_->setText(presentationContextText(clip));
 
   const bool showNote =

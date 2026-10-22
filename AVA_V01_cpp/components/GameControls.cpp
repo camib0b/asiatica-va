@@ -1,6 +1,7 @@
 #include "GameControls.h"
 #include "FollowUpCatalog.h"
 #include "../state/EventCatalog.h"
+#include "../state/EventLabelResolver.h"
 #include "../style/Motion.h"
 #include "../style/StyleProps.h"
 #include "../style/TextFit.h"
@@ -188,16 +189,39 @@ void applyTeamButtonSelectionStyle(QPushButton* button, bool selected, const QSt
   }
 }
 
+EventCatalog::EventId eventIdAtEndOfPath(const QString& mainEvent, const QStringList& selections) {
+  const EventCatalog::Node* node = EventCatalog::mainEventForCanonicalName(mainEvent);
+  if (!node) return EventCatalog::EventId::None;
+  for (const QString& selection : selections) {
+    const EventCatalog::Node* child = EventCatalog::childForCanonicalName(*node, selection);
+    if (!child) return EventCatalog::EventId::None;
+    node = child;
+  }
+  return node->id;
+}
+
+QString resolvedTitleText(const QLabel* titleLabel, const EventLabelOverrides::Table& overrides) {
+  if (!titleLabel) return {};
+  const int idValue = titleLabel->property("gameEventId").toInt();
+  if (idValue != static_cast<int>(EventCatalog::EventId::None)) {
+    return EventLabelResolver::labelForId(static_cast<EventCatalog::EventId>(idValue), overrides);
+  }
+  return AppLocale::trEvent(titleLabel->property("gameEventName").toString());
+}
+
 void configureFollowUpButton(QPushButton* button, const QString& canonicalKey,
+                             EventCatalog::EventId eventId, const QString& displayLabel,
                              const QString& shortcutHint) {
   if (!button) return;
   button->setText(QString());
   button->setProperty("gameEventKey", canonicalKey);
+  button->setProperty("gameEventId", static_cast<int>(eventId));
   auto* layout = new QVBoxLayout(button);
   layout->setContentsMargins(2, 4, 2, 4);
   layout->setSpacing(2);
-  auto* titleLabel = new QLabel(AppLocale::trEvent(canonicalKey), button);
+  auto* titleLabel = new QLabel(displayLabel, button);
   titleLabel->setProperty("gameEventName", canonicalKey);
+  titleLabel->setProperty("gameEventId", static_cast<int>(eventId));
   titleLabel->setAlignment(Qt::AlignCenter);
   titleLabel->setWordWrap(true);
   Style::setRole(titleLabel, "gameControlTitle");
@@ -350,7 +374,8 @@ GameControls::GameControls(QWidget* parent)
       followUpState_(),
       gamePhase_(GamePhase::NotStarted),
       activeMainButton_(nullptr),
-      teamSide_(TagSession::TeamSide::Unspecified) {
+      teamSide_(TagSession::TeamSide::Unspecified),
+      labelOverrides_() {
   setMinimumWidth(kMinimumPanelWidthPx);
   buildUi();
   wireSignals();
@@ -388,10 +413,16 @@ void GameControls::refreshTeamButtonLabels() {
   elideButtonLabel(awayTeamButton_, awayTeamFollowUpLabel_);
 }
 
+void GameControls::setEventLabelOverrides(const EventLabelOverrides::Table& overrides) {
+  if (labelOverrides_ == overrides) return;
+  labelOverrides_ = overrides;
+  applyUiLanguage();
+}
+
 void GameControls::refreshMainButtonTitles() {
   for (QLabel* titleLabel : mainButtonTitleLabels_) {
     if (!titleLabel) continue;
-    const QString fullText = AppLocale::trEvent(titleLabel->property("gameEventName").toString());
+    const QString fullText = resolvedTitleText(titleLabel, labelOverrides_);
     const int availableWidth = titleLabel->contentsRect().width();
     const int availableHeight = titleLabel->contentsRect().height();
     const QFontMetrics metrics = titleLabel->fontMetrics();
@@ -430,8 +461,10 @@ QColor GameControls::selectedTeamColor() const {
 }
 
 void GameControls::notifyTagSequence(const QString& shortcutKey, const QString& stepLabel,
-                                    bool chainOpen, bool startsChain) {
-  emit tagSequenceAdvanced(shortcutKey, stepLabel, selectedTeamColor(), chainOpen, startsChain);
+                                    bool chainOpen, bool startsChain,
+                                    EventCatalog::EventId stepEventId) {
+  emit tagSequenceAdvanced(shortcutKey, stepLabel, selectedTeamColor(), chainOpen, startsChain,
+                           stepEventId);
 }
 
 const QList<QPushButton*>& GameControls::keyboardOrderButtons() const {
@@ -477,18 +510,12 @@ void GameControls::switchTeamSideToOppositeTeam() {
 }
 
 void GameControls::applyUiLanguage() {
-  for (QLabel* titleLabel : mainButtonTitleLabels_) {
-    if (!titleLabel) continue;
-    const QString key = titleLabel->property("gameEventName").toString();
-    titleLabel->setText(AppLocale::trEvent(key));
-  }
   refreshMainButtonTitles();
   for (QPushButton* followUpButton : followUpButtons_) {
     if (!followUpButton) continue;
     for (QLabel* titleLabel : followUpButton->findChildren<QLabel*>()) {
-      const QString key = titleLabel->property("gameEventName").toString();
-      if (key.isEmpty()) continue;
-      titleLabel->setText(AppLocale::trEvent(key));
+      if (titleLabel->property("gameEventName").toString().isEmpty()) continue;
+      titleLabel->setText(resolvedTitleText(titleLabel, labelOverrides_));
     }
   }
   updateGameTimeUi(false);
@@ -684,6 +711,7 @@ void GameControls::bindMainEventButton(QPushButton* button, EventCatalog::EventI
   const QString eventName = EventCatalog::canonicalName(eventId);
   const QString shortcutHint = EventCatalog::shortcutLabel(eventId);
   Q_ASSERT_X(!eventName.isEmpty(), "GameControls", "main event is missing a canonical name");
+  button->setProperty("gameEventId", static_cast<int>(eventId));
   configureMainGameControlButton(button, eventName, shortcutHint);
 
   const Qt::Key shortcutKey = EventCatalog::shortcutKey(eventId);
@@ -710,6 +738,7 @@ void GameControls::configureMainGameControlButton(QPushButton* button, const QSt
   layout->setSpacing(2);
   auto* titleLabel = new QLabel(eventName, button);
   titleLabel->setProperty("gameEventName", eventName);
+  titleLabel->setProperty("gameEventId", button->property("gameEventId"));
   mainButtonTitleLabels_.append(titleLabel);
   titleLabel->setAlignment(Qt::AlignCenter);
   titleLabel->setWordWrap(true);
@@ -979,11 +1008,14 @@ void GameControls::onMainButtonClicked() {
   if (eventName.isEmpty()) {
     eventName = button->text();
   }
+  const auto stepEventId =
+      static_cast<EventCatalog::EventId>(button->property("gameEventId").toInt());
   followUpState_.beginMainEvent(eventName);
   setActiveMainButton(button);
   emit mainEventTimestampCaptured(eventName);
   const bool chainOpen = !FollowUpCatalog::firstLevelOptions(eventName).isEmpty();
-  notifyTagSequence(button->property("shortcutHint").toString(), eventName, chainOpen, true);
+  notifyTagSequence(button->property("shortcutHint").toString(), eventName, chainOpen, true,
+                    stepEventId);
   showFirstLevelFollowUps();
 }
 
@@ -1001,7 +1033,9 @@ void GameControls::advanceFollowUpFlow(const QString& choice) {
   const QStringList nextOptions =
       FollowUpCatalog::optionsAfter(followUpState_.mainEvent(), followUpState_.selections());
   const bool chainOpen = !nextOptions.isEmpty();
-  notifyTagSequence(QString(), choice, chainOpen, false);
+  const EventCatalog::EventId stepEventId =
+      eventIdAtEndOfPath(followUpState_.mainEvent(), followUpState_.selections());
+  notifyTagSequence(QString(), choice, chainOpen, false, stepEventId);
   if (!chainOpen) {
     commitFollowUpFlow();
     return;
@@ -1056,7 +1090,7 @@ void GameControls::beginChainedGoalFlow() {
   if (chainOpen) {
     const QString shortcut = goalButton ? goalButton->property("shortcutHint").toString()
                                         : EventCatalog::shortcutLabel(scoringGoal->id);
-    notifyTagSequence(shortcut, eventName, true, true);
+    notifyTagSequence(shortcut, eventName, true, true, scoringGoal->id);
   }
   showFirstLevelFollowUps();
 }
@@ -1081,10 +1115,18 @@ void GameControls::presentFollowUpChoices(const QStringList& actions, FollowUpSt
 
   for (int actionIndex = 0; actionIndex < actions.size(); ++actionIndex) {
     const QString& action = actions.at(actionIndex);
+    QStringList path = followUpState_.selections();
+    path.append(action);
+    const EventCatalog::EventId actionId =
+        eventIdAtEndOfPath(followUpState_.mainEvent(), path);
+    const QString displayLabel = actionId == EventCatalog::EventId::None
+                                     ? AppLocale::trEvent(action)
+                                     : EventLabelResolver::labelForId(actionId, labelOverrides_);
     auto* button = new QPushButton(followUpContainer_);
     Style::setSize(button, "md");
     Style::setVariant(button, "gameControlFollowUp");
-    configureFollowUpButton(button, action, QString::number(actionIndex + 1));
+    configureFollowUpButton(button, action, actionId, displayLabel,
+                            QString::number(actionIndex + 1));
     button->setFocusPolicy(Qt::ClickFocus);
     button->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     button->setMinimumHeight(44);

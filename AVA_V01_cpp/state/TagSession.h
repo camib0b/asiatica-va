@@ -1,5 +1,6 @@
 #pragma once
 
+#include "EventLabelOverrides.h"
 #include "TagEvent.h"
 
 #include <QDate>
@@ -106,6 +107,8 @@ public:
   explicit TagSession(QObject* parent = nullptr);
   ~TagSession() override = default;
 
+  /// Drops tags, notes, and game-time state. Label overrides stay: they belong
+  /// to the session, not to the tag list.
   void clear();
   /// Bumps when clear() or a replace import restarts tag ids at 1.
   /// Pending clip notes capture this so a reused id cannot accept a stale edit.
@@ -129,6 +132,17 @@ public:
   int gameYear() const { return gameDate_.isValid() ? gameDate_.year() : 0; }
   QString homeAbbrev() const { return homeAbbrev_; }
   QString awayAbbrev() const { return awayAbbrev_; }
+
+  /// Renames for this session. See EventLabelOverrides. The label is the only
+  /// field display code reads. Shortcut and hidden are stored for later steps.
+  const EventLabelOverrides::Table& eventLabelOverrides() const { return eventLabelOverrides_; }
+  EventLabelOverrides::Result setEventLabel(EventCatalog::EventId id, const QString& label);
+  EventLabelOverrides::Result clearEventLabel(EventCatalog::EventId id);
+  EventLabelOverrides::Result setEventShortcutKey(EventCatalog::EventId id, Qt::Key key);
+  EventLabelOverrides::Result clearEventShortcutKey(EventCatalog::EventId id);
+  EventLabelOverrides::Result setEventHidden(EventCatalog::EventId id, bool hidden);
+  /// Drops every override. TagSession::clear() does not call this.
+  void clearEventLabelOverrides();
 
   void addTag(const GameTag& tag);
   ImportResult importTags(const QVector<GameTag>& tags,
@@ -216,6 +230,8 @@ signals:
   void tagsChanged(quint64 addedTagId = 0);
   /// Team names/colors, date, or abbreviations changed.
   void gameMetadataChanged();
+  /// A label, shortcut, or hidden override was stored or cleared.
+  void eventLabelOverridesChanged();
 
 private:
   static constexpr int kQuarterCount = 4;
@@ -262,6 +278,7 @@ private:
   QDate gameDate_;
   QString homeAbbrev_;
   QString awayAbbrev_;
+  EventLabelOverrides::Table eventLabelOverrides_;
   qint64 gameStartAnchorMs_ = -1;
   int currentQuarterIndex_ = -1;
   qint64 currentQuarterStartMs_ = 0;

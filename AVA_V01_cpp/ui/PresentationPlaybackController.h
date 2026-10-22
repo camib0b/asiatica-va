@@ -83,6 +83,7 @@ private:
   bool isPresenting() const;
 
   TagSession* tagSession_ = nullptr;
+  QMetaObject::Connection eventLabelOverridesConnection_;
   QPointer<VideoPlayer> videoPlayer_;
   QPointer<PresentationQueue> presentationQueue_;
   QPointer<ClipTrimBar> presentationClipBar_;

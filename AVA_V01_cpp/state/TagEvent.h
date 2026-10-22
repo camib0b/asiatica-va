@@ -156,6 +156,8 @@ QString canonicalName(const MainEventKey& key);
 /// Canonical English follow-up names joined with the arrow separator.
 QString canonicalFollowUpPath(const FollowUpChain& chain);
 
+/// Catalog label only. A session rename is EventLabelResolver, which every
+/// display path uses. These helpers stay for callers that have no session.
 QString displayLabel(EventCatalog::EventId id, AppLocale::Language language);
 QString displayLabel(EventCatalog::EventId id);
 QString displayLabel(const MainEventKey& key, AppLocale::Language language);

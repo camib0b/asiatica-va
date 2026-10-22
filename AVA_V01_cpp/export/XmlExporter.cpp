@@ -21,6 +21,7 @@ namespace XmlExporter {
 
 namespace {
 
+/// Canonical English name. A session label override must not reach `<code>`.
 QString exportedEventName(const TagSession::GameTag& tag) {
   return TagEvent::canonicalName(tag.mainEventKey());
 }

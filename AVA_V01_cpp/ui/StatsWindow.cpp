@@ -2,6 +2,7 @@
 #include "../style/StyleProps.h"
 #include "../style/WorkDataView.h"
 #include "../i18n/AppLocale.h"
+#include "../state/EventLabelResolver.h"
 #include "../state/TagEvent.h"
 
 #include <QVBoxLayout>
@@ -76,6 +77,8 @@ void StatsWindow::setTagSession(TagSession* session) {
     connect(tagSession_, &TagSession::tagsChanged, this, &StatsWindow::onSessionTagsChanged);
     connect(tagSession_, &TagSession::gameMetadataChanged, this,
             &StatsWindow::onSessionGameMetadataChanged);
+    connect(tagSession_, &TagSession::eventLabelOverridesChanged, this,
+            &StatsWindow::onEventLabelOverridesChanged);
 }
 
 void StatsWindow::onSessionCleared() { clearTree(); }
@@ -86,6 +89,8 @@ void StatsWindow::onSessionGameMetadataChanged() {
     updateTeamFilterButtonLabels();
     rebuildTree();
 }
+
+void StatsWindow::onEventLabelOverridesChanged() { rebuildTree(); }
 
 void StatsWindow::onTeamFilterClicked(int /*id*/) { rebuildTree(); }
 
@@ -226,7 +231,7 @@ void StatsWindow::rebuildTree() {
         const int mainCount = mainCounts.value(mainEvent, 0);
 
         auto* mainItem = new QTreeWidgetItem(tree_);
-        mainItem->setText(0, TagEvent::displayLabel(mainEvent));
+        mainItem->setText(0, EventLabelResolver::labelForKey(mainEvent, tagSession_));
         mainItem->setText(1, QString::number(mainCount));
         mainItem->setData(0, Qt::UserRole, QVariant::fromValue(mainEvent));
         mainItem->setData(0, Qt::UserRole + 1, QVariant::fromValue(TagEvent::FollowUpChain{}));
@@ -243,7 +248,7 @@ void StatsWindow::rebuildTree() {
 
         for (const TagEvent::FollowUpChain& followUp : followUps) {
             const int followUpCount = followUpsIt.value().value(followUp, 0);
-            const QString followUpLabel = TagEvent::displayFollowUpPath(followUp);
+            const QString followUpLabel = EventLabelResolver::followUpPath(followUp, tagSession_);
             if (followUpLabel.isEmpty()) continue;
 
             auto* child = new QTreeWidgetItem(mainItem);

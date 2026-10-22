@@ -39,6 +39,8 @@ qt_add_executable(AVA
   ui/ReplaceVideoConfirmation.cpp
   state/EventDefaults.cpp
   state/EventCatalog.cpp
+  state/EventLabelOverrides.cpp
+  state/EventLabelResolver.cpp
   state/EventCodeMap.cpp
   state/TagEvent.cpp
   state/PresentationQueue.cpp
@@ -163,6 +165,7 @@ find_package(Qt6 REQUIRED COMPONENTS Test)
 qt_add_executable(AVAExportTests
   tests/CompilationSidecarTests.cpp
   tests/EventCatalogTests.cpp
+  tests/EventLabelOverrideTests.cpp
   tests/TagEventRoundTripTests.cpp
   tests/InteractionGuardTests.cpp
   tests/PresentationPlaybackTests.cpp
@@ -208,6 +211,8 @@ qt_add_executable(AVAExportTests
   i18n/LocaleNotifier.cpp
   state/EventDefaults.cpp
   state/EventCatalog.cpp
+  state/EventLabelOverrides.cpp
+  state/EventLabelResolver.cpp
   state/EventCodeMap.cpp
   state/TagEvent.cpp
   state/TagSession.cpp

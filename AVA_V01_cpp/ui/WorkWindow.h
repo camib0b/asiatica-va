@@ -31,6 +31,10 @@ class QTimer;
 class QDialog;
 class QTemporaryDir;
 
+namespace EventCatalog {
+enum class EventId : int;
+}
+
 class VideoConcatenator;
 class VideoPlayer;
 class PlaybackTemporaryDirectoryController;
@@ -201,7 +205,10 @@ private:
                            const QString& stepLabel,
                            const QColor& teamColor,
                            bool chainOpen,
-                           bool startsChain);
+                           bool startsChain,
+                           EventCatalog::EventId stepEventId);
+  void pushEventLabelOverridesToGameControls();
+  void onEventLabelOverridesChanged();
   void dismissTagSequenceToast();
   void commitTagFromGameControls(const QString& mainEvent, const QString& followUpEvent);
   void seekVideoFromTagsTableIndex(const QModelIndex& index);

@@ -21,8 +21,9 @@ QColor teamBackgroundForTag(const TagSession::GameTag& tag, const TagSession* ta
 /// Fixture rows still store a joined English path. Stored tags use eventLineForTag.
 QString followUpPathForDisplay(const QString& followUpEvent, const TagSession* tagSession);
 
-/// Main-event and follow-up labels from the catalog ids on \p tag.
-QString eventLineForTag(const TagSession::GameTag& tag);
+/// Main-event and follow-up labels for \p tag. A session supplies label
+/// overrides; a null session uses the catalog text.
+QString eventLineForTag(const TagSession::GameTag& tag, const TagSession* tagSession);
 
 QString displayTeamForTag(const TagSession::GameTag& tag, const TagSession* tagSession);
 

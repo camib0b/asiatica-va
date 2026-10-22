@@ -1056,6 +1056,7 @@ void CompilationSidecarExportTest::cancelAfterJoinedOutputCommittedRemovesIt() {
 #include "CompilationSidecarTests.moc"
 
 int runEventCatalogTests(int argc, char** argv);
+int runEventLabelOverrideTests(int argc, char** argv);
 int runTagEventRoundTripTests(int argc, char** argv);
 int runPresentationPlaybackTests(int argc, char** argv);
 int runWorkStateTests(int argc, char** argv);
@@ -1075,6 +1076,10 @@ int main(int argc, char** argv) {
     const int catalogStatus = runEventCatalogTests(argc, argv);
     if (catalogStatus != 0) {
         return catalogStatus;
+    }
+    const int labelOverrideStatus = runEventLabelOverrideTests(argc, argv);
+    if (labelOverrideStatus != 0) {
+        return labelOverrideStatus;
     }
     const int tagEventStatus = runTagEventRoundTripTests(argc, argv);
     if (tagEventStatus != 0) {

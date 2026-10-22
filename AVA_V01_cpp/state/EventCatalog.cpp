@@ -1,12 +1,17 @@
 #include "EventCatalog.h"
 
 #include <QHash>
+#include <QMetaType>
 #include <QSet>
 #include <QVector>
 
 #include <algorithm>
 #include <array>
 #include <cstddef>
+
+namespace {
+[[maybe_unused]] const int kEventIdMetaTypeId = qRegisterMetaType<EventCatalog::EventId>();
+}  // namespace
 
 namespace EventCatalog {
 namespace {

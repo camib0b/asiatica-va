@@ -15,6 +15,7 @@
 #include "../components/TagToastOverlay.h"
 #include "../components/MatchNotesEditor.h"
 #include "../state/PresentationQueue.h"
+#include "../state/EventLabelResolver.h"
 #include "../state/TagSession.h"
 #include "StatsWindow.h"
 #include "GameSetupWindow.h"
@@ -561,8 +562,23 @@ void WorkWindow::setTagSession(TagSession* session) {
     applySessionTeamIdentity();
     notesController_->loadMatchNote();
 
-    if (!tagSession_) return;
-    connectTagSessionSignals();
+    if (tagSession_) connectTagSessionSignals();
+    pushEventLabelOverridesToGameControls();
+}
+
+void WorkWindow::pushEventLabelOverridesToGameControls() {
+    if (!gameControls_) return;
+    if (tagSession_) {
+        gameControls_->setEventLabelOverrides(tagSession_->eventLabelOverrides());
+    } else {
+        gameControls_->setEventLabelOverrides(EventLabelOverrides::Table{});
+    }
+}
+
+void WorkWindow::onEventLabelOverridesChanged() {
+    pushEventLabelOverridesToGameControls();
+    tagsTableController_->syncFilterMenu();
+    tagsTableController_->refreshTagsTableRows();
 }
 
 void WorkWindow::bindTagSessionToSurfaces() {
@@ -582,6 +598,9 @@ void WorkWindow::connectTagSessionSignals() {
         tagSession_, &TagSession::tagsImported, this, &WorkWindow::onTagSessionTagsImported));
     tagSessionConnections_.append(connect(
         tagSession_, &TagSession::gameMetadataChanged, this, &WorkWindow::onTagSessionGameMetadataChanged));
+    tagSessionConnections_.append(connect(
+        tagSession_, &TagSession::eventLabelOverridesChanged, this,
+        &WorkWindow::onEventLabelOverridesChanged));
 }
 
 void WorkWindow::onTagSessionTagsChanged(quint64 addedTagId) {
@@ -1289,9 +1308,13 @@ void WorkWindow::rememberCapturedMainEvent(const QString& mainEvent) {
 }
 
 void WorkWindow::showTagSequenceStep(const QString& shortcutKey, const QString& stepLabel,
-                                    const QColor& teamColor, bool chainOpen, bool startsChain) {
+                                    const QColor& teamColor, bool chainOpen, bool startsChain,
+                                    EventCatalog::EventId stepEventId) {
     if (!tagToast_) return;
-    const QString displayLabel = AppLocale::trEvent(stepLabel);
+    const EventLabelOverrides::Table overrides =
+        tagSession_ ? tagSession_->eventLabelOverrides() : EventLabelOverrides::Table{};
+    QString displayLabel = EventLabelResolver::labelForId(stepEventId, overrides);
+    if (displayLabel.isEmpty()) displayLabel = AppLocale::trEvent(stepLabel);
     if (startsChain) {
         tagToast_->beginEvent(shortcutKey, displayLabel, teamColor, chainOpen);
     } else {
