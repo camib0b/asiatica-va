@@ -99,7 +99,9 @@ void VideoControlsBar
   layout->addWidget(playPauseButton_);
   layout->addWidget(backButton_);
   layout->addWidget(forwardButton_);
-  layout->addWidget(speedometer_);
+  // Transport stays together. The speed dial sits immediately after it.
+  layout->addSpacing(6);
+  layout->addWidget(speedometer_, 0, Qt::AlignVCenter);
 }
 
 void VideoControlsBar::applyUiStrings() {
@@ -108,9 +110,7 @@ void VideoControlsBar::applyUiStrings() {
   applyButtonStrings(backButton_, "vc.back");
   applyButtonStrings(forwardButton_, "vc.forward");
   updatePlayPauseButton();
-  if (speedometer_) {
-    speedometer_->setToolTip(QString());
-  }
+  speedometer_->setToolTip(AppLocale::trUi("vc.tt.speed"));
 }
 
 void VideoControlsBar::wireSignals() {
