@@ -14,6 +14,7 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QLabel>
@@ -28,7 +29,9 @@
 #include <QTimer>
 #include <QTreeWidget>
 
+#include <functional>
 #include <initializer_list>
+#include <memory>
 
 namespace {
 
@@ -85,10 +88,14 @@ QPushButton* buttonNamed(QWidget* root, const char* eventName) {
 
 QPushButton* followUpButton(QWidget* root, const char* canonicalKey) {
   if (!root) return nullptr;
+  // A replaced follow-up row is deleteLater'd and stays in the tree until the
+  // event loop runs. Drop those before choosing a button.
+  QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+  QPushButton* found = nullptr;
   for (QPushButton* button : root->findChildren<QPushButton*>()) {
-    if (button->property("gameEventKey").toString() == QLatin1String(canonicalKey)) return button;
+    if (button->property("gameEventKey").toString() == QLatin1String(canonicalKey)) found = button;
   }
-  return nullptr;
+  return found;
 }
 
 QString fullLabelOf(QPushButton* button) {
@@ -144,20 +151,49 @@ struct SharedPopupCapture {
   QStringList lines;
 };
 
-void armSharedPopup(const char* buttonName, SharedPopupCapture* capture) {
-  QTimer::singleShot(0, [buttonName, capture]() {
-    auto* popup = qobject_cast<QDialog*>(QApplication::activeModalWidget());
-    if (popup == nullptr || popup->objectName() != QLatin1String("ControlsSharedPaths")) {
-      if (auto* dialog = qobject_cast<QDialog*>(QApplication::activeModalWidget())) dialog->reject();
+QDialog* visibleSharedPopup() {
+  const QWidgetList widgets = QApplication::allWidgets();
+  for (QWidget* widget : widgets) {
+    if (widget == nullptr || widget->objectName() != QLatin1String("ControlsSharedPaths")) continue;
+    auto* dialog = qobject_cast<QDialog*>(widget);
+    if (dialog != nullptr && dialog->isVisible()) return dialog;
+  }
+  return nullptr;
+}
+
+// The editor is itself modal, and building the path popup can pump events
+// before that popup is the active modal widget. Wait until the popup is visible.
+void whenSharedPopupShown(const std::function<void(QDialog*)>& interact) {
+  auto attempts = std::make_shared<int>(0);
+  QObject* context = QApplication::activeModalWidget();
+  if (context == nullptr) context = QApplication::instance();
+  auto* timer = new QTimer(context);
+  timer->setInterval(0);
+  QObject::connect(timer, &QTimer::timeout, timer, [timer, attempts, interact]() {
+    QDialog* popup = visibleSharedPopup();
+    if (popup == nullptr) {
+      if (++(*attempts) < 50) return;
+      timer->stop();
+      timer->deleteLater();
       return;
     }
+    timer->stop();
+    timer->deleteLater();
+    interact(popup);
+  });
+  timer->start();
+}
+
+void armSharedPopup(const char* buttonName, SharedPopupCapture* capture) {
+  const QString name = QString::fromLatin1(buttonName);
+  whenSharedPopupShown([name, capture](QDialog* popup) {
     capture->seen = true;
     if (auto* list = popup->findChild<QListWidget*>(QStringLiteral("ControlsSharedList"))) {
       for (int index = 0; index < list->count(); ++index) {
         if (list->item(index) != nullptr) capture->lines.append(list->item(index)->text());
       }
     }
-    auto* button = popup->findChild<QPushButton*>(QLatin1String(buttonName));
+    auto* button = popup->findChild<QPushButton*>(name);
     if (button == nullptr) {
       popup->reject();
       return;
@@ -721,9 +757,11 @@ void GameControlsEditorTest::hidingGoalOnPenaltyStrokeKeepsShotTaggable() {
   QVERIFY(shotGoal);
   QSignalSpy committed(&controls, &GameControls::tagCommitted);
   shotGoal->click();
-  QCOMPARE(committed.count(), 1);
+  // Shot then Goal still tags, and that chain still continues as the scoring goal.
+  QCOMPARE(committed.count(), 2);
   QCOMPARE(committed.at(0).at(0).toString(), QStringLiteral("Shot"));
   QVERIFY(committed.at(0).at(1).toString().contains(QStringLiteral("Goal")));
+  QCOMPARE(committed.at(1).at(0).toString(), QStringLiteral("Goal"));
   QCOMPARE(EventCatalog::canonicalName(EventCatalog::EventId::FollowUpGoal), QStringLiteral("Goal"));
 }
 
@@ -782,9 +820,12 @@ void GameControlsEditorTest::circleEntryLeftRenameSkipsThePopup() {
       return;
     }
     field->setText(QStringLiteral("Por la izquierda"));
-    QTimer::singleShot(0, [&menuSawShared]() {
+    // Context is the name dialog, so this watch is dropped when that dialog
+    // closes. A bare singleShot would otherwise reject the next modal popup.
+    QTimer::singleShot(0, modal, [&menuSawShared, modal]() {
       QWidget* top = QApplication::activeModalWidget();
-      if (top != nullptr && top->objectName() == QLatin1String("ControlsSharedPaths")) {
+      if (top != nullptr && top != modal &&
+          top->objectName() == QLatin1String("ControlsSharedPaths")) {
         menuSawShared = true;
         if (auto* popup = qobject_cast<QDialog*>(top)) popup->reject();
       }
@@ -837,7 +878,6 @@ void GameControlsEditorTest::oldSessionAndTemplateFilesLoad() {
   QCOMPARE(MatchSessionFile::saveFile(roundTripPath, captured, MatchSessionFile::ExistingFileGuard::Replace)
                .status,
            MatchSessionFile::SaveStatus::Saved);
-  const QByteArray roundTripBytes = QFile(roundTripPath).readAll(); // file not open
   QFile roundTripFile(roundTripPath);
   QVERIFY(roundTripFile.open(QIODevice::ReadOnly));
   const QByteArray savedBytes = roundTripFile.readAll();
@@ -849,7 +889,6 @@ void GameControlsEditorTest::oldSessionAndTemplateFilesLoad() {
   QCOMPARE(restored.document.controls.labelOverrides.pathLabel(penalty), QStringLiteral("Penal gol"));
   QVERIFY(!restored.document.controls.labelOverrides.hasLabel(EventCatalog::EventId::FollowUpGoal));
   QCOMPARE(EventCatalog::canonicalName(EventCatalog::EventId::FollowUpGoal), QStringLiteral("Goal"));
-  Q_UNUSED(roundTripBytes);
 }
 
 void GameControlsEditorTest::sharedPathListBreakUi() {
@@ -870,12 +909,7 @@ void GameControlsEditorTest::sharedPathListBreakUi() {
   int oneCount = -1;
   bool emptyVisible = false;
   bool buttonsRemain = false;
-  QTimer::singleShot(0, [&]() {
-    auto* popup = qobject_cast<QDialog*>(QApplication::activeModalWidget());
-    if (popup == nullptr || popup->objectName() != QLatin1String("ControlsSharedPaths")) {
-      if (auto* other = qobject_cast<QDialog*>(QApplication::activeModalWidget())) other->reject();
-      return;
-    }
+  whenSharedPopupShown([&](QDialog* popup) {
     auto* worst = popup->findChild<QPushButton*>(QStringLiteral("ControlsSharedBreakWorst"));
     auto* empty = popup->findChild<QPushButton*>(QStringLiteral("ControlsSharedBreakEmpty"));
     auto* one = popup->findChild<QPushButton*>(QStringLiteral("ControlsSharedBreakOne"));
