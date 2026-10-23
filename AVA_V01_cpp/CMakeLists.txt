@@ -55,7 +55,12 @@ qt_add_executable(AVA
   components/FollowUpCatalog.cpp
   components/MatchNotesEditor.cpp
   components/VideoPlayer.cpp
+  components/DrawingGraphicsItem.cpp
+  components/TelestrationToolBar.cpp
+  components/TelestrationSurface.cpp
+  state/Telestration.cpp
   export/ClipExporter.cpp
+  export/ClipFilterGraph.cpp
   export/ExportVideoEncoder.cpp
   export/ShootoutState.cpp
   export/ShootoutOverlay.cpp
@@ -183,6 +188,7 @@ qt_add_executable(AVAExportTests
   tests/WorkDataViewTests.cpp
   tests/WorkWindowCorrectnessTests.cpp
   tests/TimelineScrubTests.cpp
+  tests/TelestrationTests.cpp
   ui/PresentationPanel.cpp
   ui/PresentationInstancesModel.cpp
   ui/XmlEventMappingDialog.cpp
@@ -202,6 +208,9 @@ qt_add_executable(AVAExportTests
   components/TeamColorPicker.cpp
   components/TagToastOverlay.cpp
   components/VideoPlayer.cpp
+  components/DrawingGraphicsItem.cpp
+  components/TelestrationToolBar.cpp
+  components/TelestrationSurface.cpp
   components/VideoControlsBar.cpp
   components/PlaybackSpeedometer.cpp
   components/TimelineBar.cpp
@@ -220,6 +229,7 @@ qt_add_executable(AVAExportTests
   state/EventCodeMap.cpp
   state/TagEvent.cpp
   state/TagSession.cpp
+  state/Telestration.cpp
   components/FollowUpCatalog.cpp
   components/GameControls.cpp
   style/Motion.cpp
@@ -227,6 +237,7 @@ qt_add_executable(AVAExportTests
   style/TextFit.cpp
   ui/ReplaceVideoConfirmation.cpp
   export/ClipExporter.cpp
+  export/ClipFilterGraph.cpp
   export/ExportVideoEncoder.cpp
   export/ClipTrimBar.cpp
   export/ExportJobsBar.cpp

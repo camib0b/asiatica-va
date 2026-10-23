@@ -1,7 +1,8 @@
 #include "VideoPlayer.h"
-#include "VideoControlsBar.h"
 #include "PlaybackRates.h"
+#include "TelestrationSurface.h"
 #include "TimelineBar.h"
+#include "VideoControlsBar.h"
 
 #ifdef Q_OS_MACOS
 #include "../macos/PlaybackActivity.h"
@@ -32,9 +33,13 @@ static void avaRemoveSystemPowerObservers(void*) {}
 #include <QSizePolicy>
 #include <QTimer>
 #include <QUrl>
+#include <QFrame>
+#include <QGraphicsScene>
+#include <QGraphicsVideoItem>
+#include <QGraphicsView>
+#include <QPainter>
 #include <QVideoFrame>
 #include <QVideoSink>
-#include <QVideoWidget>
 #include <QAction>
 #include <QKeySequence>
 #include <QApplication>
@@ -167,15 +172,39 @@ void VideoPlayer::buildUi() {
     stageLayout->setContentsMargins(0, 0, 0, 0);
     stageLayout->setSpacing(0);
 
-    videoWidget_ = new QVideoWidget(this);
-    videoWidget_->setObjectName(QStringLiteral("VideoSurface"));
-    videoWidget_->setAspectRatioMode(Qt::KeepAspectRatio);
-    videoWidget_->setMinimumHeight(360);
-    videoWidget_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    videoWidget_->setAttribute(Qt::WA_Hover, true);
-    videoWidget_->setAttribute(Qt::WA_StyledBackground, true);
-    videoWidget_->setMouseTracking(true);
-    stageLayout->addWidget(videoWidget_, 1);
+    videoView_ = new QGraphicsView(this);
+    videoView_->setObjectName(QStringLiteral("VideoSurface"));
+    videoView_->setFrameShape(QFrame::NoFrame);
+    videoView_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    videoView_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    videoView_->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    videoView_->setDragMode(QGraphicsView::NoDrag);
+    videoView_->setInteractive(false);
+    videoView_->setRenderHint(QPainter::Antialiasing, true);
+    videoView_->setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
+    videoView_->setBackgroundBrush(Qt::black);
+    videoView_->setMinimumHeight(360);
+    videoView_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    videoView_->setAttribute(Qt::WA_Hover, true);
+    videoView_->setAttribute(Qt::WA_StyledBackground, true);
+    videoView_->setMouseTracking(true);
+    videoScene_ = new QGraphicsScene(videoView_);
+    videoScene_->setBackgroundBrush(Qt::black);
+    videoView_->setScene(videoScene_);
+    videoItem_ = new QGraphicsVideoItem();
+    videoItem_->setAspectRatioMode(Qt::KeepAspectRatio);
+    videoItem_->setOffset(QPointF(0, 0));
+    videoItem_->setFlag(QGraphicsItem::ItemClipsChildrenToShape, true);
+    videoScene_->addItem(videoItem_);
+    videoViewport_ = videoView_->viewport();
+    if (videoViewport_) {
+        videoViewport_->setMouseTracking(true);
+        videoViewport_->setAttribute(Qt::WA_Hover, true);
+        videoViewport_->installEventFilter(this);
+    }
+    stageLayout->addWidget(videoView_, 1);
+    telestrationSurface_ = new TelestrationSurface(this);
+    telestrationSurface_->attach(videoView_, videoItem_, nullptr);
 
     videoControlsBar_ = new VideoControlsBar(this);
     videoTimelineBar_ = new TimelineBar(this);
@@ -190,9 +219,13 @@ void VideoPlayer::buildUi() {
     audioOutput_ = new QAudioOutput(this);
     mediaDevices_ = new QMediaDevices(this);
     player_->setAudioOutput(audioOutput_);
-    player_->setVideoOutput(videoWidget_);
+    player_->setVideoOutput(videoItem_);
+    if (telestrationSurface_) telestrationSurface_->attach(videoView_, videoItem_, player_);
+    connect(videoItem_, &QGraphicsVideoItem::nativeSizeChanged, this, [this](const QSizeF&) {
+        layoutVideoPicture();
+    });
 
-    if (videoWidget_) videoWidget_->hide();
+    if (videoView_) videoView_->hide();
     if (videoControlsBar_) videoControlsBar_->hide();
     if (videoTimelineBar_) videoTimelineBar_->hide();
 }
@@ -200,8 +233,8 @@ void VideoPlayer::buildUi() {
 void VideoPlayer::setupControlsOverlay() {
     if (!videoControlsBar_) return;
 
-    // Frameless tool window so the bar composites above QVideoWidget's native
-    // AVFoundation layer on macOS. A sibling QWidget is painted under that layer.
+    // Frameless tool window so the bar stays above the picture and keeps the
+    // existing hover, fade, and move tracking. Drawings live in the scene.
     videoControlsBar_->setAttribute(Qt::WA_StyledBackground, true);
     videoControlsBar_->setAttribute(Qt::WA_TranslucentBackground, true);
     videoControlsBar_->setAttribute(Qt::WA_ShowWithoutActivating, true);
@@ -256,8 +289,8 @@ void VideoPlayer::updateControlsOverlayGeometry() {
 
     lockOverlayWindowSize(videoControlsBar_);
     const QSize barSize = videoControlsBar_->size();
-    const QRect overlayAnchorRect = (videoWidget_ && videoWidget_->isVisible())
-        ? videoWidget_->geometry()
+    const QRect overlayAnchorRect = (videoView_ && videoView_->isVisible())
+        ? videoView_->geometry()
         : rect();
     const int x = overlayAnchorRect.x() + qMax(0, (overlayAnchorRect.width() - barSize.width()) / 2);
     const int y = overlayAnchorRect.y()
@@ -320,7 +353,33 @@ void VideoPlayer::hideControlsOverlay() {
 
 void VideoPlayer::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
+    layoutVideoPicture();
     updateControlsOverlayGeometry();
+}
+
+void VideoPlayer::layoutVideoPicture() {
+    if (telestrationSurface_) telestrationSurface_->relayout();
+}
+
+QVideoSink* VideoPlayer::videoSink() const {
+    return player_ ? player_->videoSink() : nullptr;
+}
+
+void VideoPlayer::setTelestrationSession(Telestration::Session* session) {
+    if (telestrationSurface_) telestrationSurface_->setSession(session);
+}
+
+void VideoPlayer::setDrawingTagResolver(
+    std::function<std::optional<quint64>(qint64 positionMs)> resolver) {
+    if (telestrationSurface_) telestrationSurface_->setTagResolver(std::move(resolver));
+}
+
+void VideoPlayer::setPresentationDrawingsActive(bool active) {
+    if (telestrationSurface_) telestrationSurface_->setPresentationMode(active);
+}
+
+void VideoPlayer::setForcedVisibleDrawingId(quint64 drawingId) {
+    if (telestrationSurface_) telestrationSurface_->setForcedVisibleDrawingId(drawingId);
 }
 
 void VideoPlayer::moveEvent(QMoveEvent* event) {
@@ -330,6 +389,7 @@ void VideoPlayer::moveEvent(QMoveEvent* event) {
 
 void VideoPlayer::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
+    layoutVideoPicture();
     installWindowMoveTracking();
     if (controlsChromeEnabled_) {
         revealControls();
@@ -453,7 +513,7 @@ void VideoPlayer::wireSignals() {
         }
     });
 
-    videoWidget_->installEventFilter(this);
+    if (videoView_) videoView_->installEventFilter(this);
     if (videoControlsBar_) {
         videoControlsBar_->setMouseTracking(true);
         videoControlsBar_->installEventFilter(this);
@@ -549,7 +609,8 @@ void VideoPlayer::buildKeyboardShortcuts() {
 
 void VideoPlayer::setControlsVisible(bool visible) {
     controlsChromeEnabled_ = visible;
-    if (videoWidget_) videoWidget_->setVisible(visible);
+    if (videoView_) videoView_->setVisible(visible);
+    if (telestrationSurface_) telestrationSurface_->setToolsVisible(visible);
     if (videoTimelineBar_) videoTimelineBar_->setVisible(visible);
 
     if (!visible) {
@@ -571,7 +632,8 @@ void VideoPlayer::setControlsVisible(bool visible) {
 void VideoPlayer::setControlsEnabled(bool enabled) {
     mediaControlsEnabled_ = enabled;
     if (videoControlsBar_) videoControlsBar_->setEnabledForMedia(enabled);
-    if (videoWidget_) videoWidget_->setEnabled(enabled);
+    if (videoView_) videoView_->setEnabled(enabled);
+    if (telestrationSurface_) telestrationSurface_->setToolsEnabled(enabled);
     if (videoTimelineBar_) {
         videoTimelineBar_->setEnabled(enabled);
         videoTimelineBar_->setEnabledForMedia(enabled);
@@ -1241,16 +1303,24 @@ bool VideoPlayer::eventFilter(QObject* obj, QEvent* event) {
         (event->type() == QEvent::Move || event->type() == QEvent::Resize)) {
         updateControlsOverlayGeometry();
     }
-    if (obj == videoWidget_) {
-        if (event->type() == QEvent::Show) {
-            QTimer::singleShot(0, this, [this]() {
-                if (controlsChromeEnabled_) {
-                    revealControls();
-                }
-            });
-        } else if (event->type() == QEvent::MouseMove) {
+    const bool onPicture = obj == videoView_ || obj == videoViewport_;
+    if (onPicture) {
+        if (event->type() == QEvent::Show || event->type() == QEvent::Resize) {
+            layoutVideoPicture();
+            if (event->type() == QEvent::Show) {
+                QTimer::singleShot(0, this, [this]() {
+                    if (controlsChromeEnabled_) {
+                        revealControls();
+                    }
+                });
+            }
+        } else if (event->type() == QEvent::MouseMove || event->type() == QEvent::Enter) {
             revealControls();
-        } else if (event->type() == QEvent::MouseButtonPress) {
+        }
+        if (telestrationSurface_ && telestrationSurface_->handleViewportEvent(obj, event)) {
+            return true;
+        }
+        if (event->type() == QEvent::MouseButtonPress) {
             auto* mouseEvent = static_cast<QMouseEvent*>(event);
             if (mouseEvent->button() == Qt::LeftButton) {
                 onTogglePlayPause();

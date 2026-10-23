@@ -2,8 +2,10 @@
 
 #include "AppLocale.h"
 #include "AvaVersion.h"
+#include "ClipFilterGraph.h"
 #include "ExportVideoEncoder.h"
 #include "FfmpegLocator.h"
+#include "Telestration.h"
 
 #include <QDir>
 #include <QFile>
@@ -123,20 +125,6 @@ struct VideoProbeResult {
         return QSize(width, height);
     }
 };
-
-QString rotationCorrectionFilter(const int rotationDegrees) {
-    const int normalizedRotation = ((rotationDegrees % 360) + 360) % 360;
-    switch (normalizedRotation) {
-    case 90:
-        return QStringLiteral("transpose=1");
-    case 180:
-        return QStringLiteral("hflip,vflip");
-    case 270:
-        return QStringLiteral("transpose=2");
-    default:
-        return {};
-    }
-}
 
 QSize parseSizeFromFfmpegStderr(const QString& stderrOutput) {
     // Matches forms like: Stream #0:0[0x1](und): Video: h264 ..., 3000x1688
@@ -363,19 +351,6 @@ QString generateScoreboardImage(const ScoreboardOverlay& data,
                                 qreal overlayScale,
                                 int maxImageWidth);
 QString generateBrandingImage(const QString& outputPath, qreal overlayScale);
-
-QString timedPhaseEnableExpression(double activationOffsetSeconds,
-                                   bool hasFollowingPhase,
-                                   double followingOffsetSeconds) {
-    if (!hasFollowingPhase) {
-        if (activationOffsetSeconds <= 0.0) return {};
-        return QStringLiteral("gte(t,%1)")
-            .arg(QString::number(activationOffsetSeconds, 'f', 3));
-    }
-    return QStringLiteral("gte(t,%1)*lt(t,%2)")
-        .arg(QString::number(activationOffsetSeconds, 'f', 3))
-        .arg(QString::number(followingOffsetSeconds, 'f', 3));
-}
 
 }  // namespace
 
@@ -711,6 +686,26 @@ void ClipExporter::processNextClip() {
         shootoutImagePaths.append(path);
     }
 
+    const int drawingCount = clip.drawings.size();
+    QStringList drawingImagePaths;
+    drawingImagePaths.reserve(drawingCount);
+    for (int drawingIndex = 0; drawingIndex < drawingCount; ++drawingIndex) {
+        const QString path = tempDir_->filePath(
+            QStringLiteral("drawing_%1_%2.png")
+                .arg(currentClipIndex_, 4, 10, QChar('0'))
+                .arg(drawingIndex));
+        if (!Telestration::writeDrawingPng(clip.drawings.at(drawingIndex).drawing,
+                                           outputVideoSize_,
+                                           path)) {
+            finishExport(false,
+                QStringLiteral("Failed to write drawing overlay image %1 for clip %2.")
+                    .arg(drawingIndex + 1)
+                    .arg(currentClipIndex_ + 1));
+            return;
+        }
+        drawingImagePaths.append(path);
+    }
+
     int scoreboardStackHeight = 0;
     for (const QString& path : scoreboardImagePaths) {
         const QImage scoreboardImage(path);
@@ -767,141 +762,37 @@ void ClipExporter::processNextClip() {
         arguments << QStringLiteral("-loop") << QStringLiteral("1")
                   << QStringLiteral("-i") << path;
     }
-
-    int nextInputIndex = 1;
-    int bottomOverlayInput = -1;
-    int brandingInput = -1;
-    int firstScoreboardInput = -1;
-    int firstShootoutInput = -1;
-
-    if (includeBottomOverlay) {
-        bottomOverlayInput = nextInputIndex++;
-    }
-    if (includeBrandingOverlay_) {
-        brandingInput = nextInputIndex++;
-    }
-    if (scoreboardCount > 0) {
-        firstScoreboardInput = nextInputIndex;
-        nextInputIndex += scoreboardCount;
-    }
-    if (shootoutCount > 0) {
-        firstShootoutInput = nextInputIndex;
+    for (const QString& path : drawingImagePaths) {
+        arguments << QStringLiteral("-loop") << QStringLiteral("1")
+                  << QStringLiteral("-i") << path;
     }
 
-    const QString rotationFilter = rotationCorrectionFilter(sourceRotationDegrees_);
-    QString filterComplex;
-    if (rotationFilter.isEmpty()) {
-        filterComplex = QStringLiteral(
-            "[0:v]scale=%1:%2:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1[scaled]")
-                            .arg(outputVideoSize_.width())
-                            .arg(outputVideoSize_.height());
-    } else {
-        filterComplex = QStringLiteral(
-            "[0:v]%1,scale=%2:%3:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1[scaled]")
-                            .arg(rotationFilter)
-                            .arg(outputVideoSize_.width())
-                            .arg(outputVideoSize_.height());
+    ClipFilterGraphInput graphInput;
+    graphInput.outputVideoSize = outputVideoSize_;
+    graphInput.sourceRotationDegrees = sourceRotationDegrees_;
+    graphInput.includeBottomOverlay = includeBottomOverlay;
+    graphInput.includeBrandingOverlay = includeBrandingOverlay_;
+    graphInput.bottomOverlayLeftMargin = bottomOverlayLeftMargin;
+    graphInput.cornerMargin = cornerMargin;
+    graphInput.topSafeY = topSafeY;
+    graphInput.bottomSafeY = bottomSafeY;
+    graphInput.shootoutY = shootoutY;
+    graphInput.scoreboards.reserve(scoreboardCount);
+    for (const TimedScoreboard& scoreboard : clip.scoreboards) {
+        graphInput.scoreboards.append(TimedOverlayPhase{scoreboard.activationOffsetSeconds});
     }
-    QString currentVideoLabel = QStringLiteral("scaled");
-    int stageCounter = 0;
-
-    auto appendOverlayStage = [&filterComplex, &currentVideoLabel, &stageCounter](
-                                  const int inputIndex, const QString& overlayExpression) {
-        const QString nextLabel = QStringLiteral("ov%1").arg(stageCounter++);
-        if (!filterComplex.isEmpty()) {
-            filterComplex += QStringLiteral(";");
-        }
-        filterComplex += QStringLiteral("[%1][%2:v]overlay=%3[%4]")
-                             .arg(currentVideoLabel)
-                             .arg(inputIndex)
-                             .arg(overlayExpression)
-                             .arg(nextLabel);
-        currentVideoLabel = nextLabel;
-    };
-
-    if (includeBottomOverlay) {
-        appendOverlayStage(bottomOverlayInput,
-                           QStringLiteral("%1:%2")
-                               .arg(bottomOverlayLeftMargin)
-                               .arg(bottomSafeY));
+    graphInput.shootouts.reserve(shootoutCount);
+    for (const TimedShootoutOverlay& shootout : clip.shootouts) {
+        graphInput.shootouts.append(TimedOverlayPhase{shootout.activationOffsetSeconds});
     }
-    if (includeBrandingOverlay_) {
-        appendOverlayStage(brandingInput,
-                           QStringLiteral("main_w-overlay_w-%1:%2")
-                               .arg(cornerMargin)
-                               .arg(topSafeY));
+    graphInput.drawings.reserve(drawingCount);
+    for (const TimedDrawingOverlay& drawing : clip.drawings) {
+        DrawingOverlaySpan span;
+        span.startOffsetSeconds = drawing.startOffsetSeconds;
+        span.endOffsetSeconds = drawing.endOffsetSeconds;
+        graphInput.drawings.append(span);
     }
-
-    const int timedOverlayCount = scoreboardCount + shootoutCount;
-    int timedOverlaysApplied = 0;
-    auto appendTimedOverlay = [&filterComplex, &currentVideoLabel, &timedOverlaysApplied,
-                               timedOverlayCount, cornerMargin](
-                                  const int inputIndex,
-                                  const QString& yExpression,
-                                  const QString& enableExpression) {
-        const bool isLast = timedOverlaysApplied == timedOverlayCount - 1;
-        const QString outputLabel = isLast
-            ? QStringLiteral("v")
-            : QStringLiteral("sb%1").arg(timedOverlaysApplied);
-        ++timedOverlaysApplied;
-        if (!filterComplex.isEmpty()) {
-            filterComplex += QStringLiteral(";");
-        }
-        if (enableExpression.isEmpty()) {
-            filterComplex += QStringLiteral("[%1][%2:v]overlay=%3:%4[%5]")
-                .arg(currentVideoLabel)
-                .arg(inputIndex)
-                .arg(cornerMargin)
-                .arg(yExpression)
-                .arg(outputLabel);
-        } else {
-            filterComplex += QStringLiteral("[%1][%2:v]overlay=%3:%4:enable='%5'[%6]")
-                .arg(currentVideoLabel)
-                .arg(inputIndex)
-                .arg(cornerMargin)
-                .arg(yExpression)
-                .arg(enableExpression)
-                .arg(outputLabel);
-        }
-        currentVideoLabel = outputLabel;
-    };
-
-    if (timedOverlayCount == 0) {
-        if (!filterComplex.isEmpty()) {
-            filterComplex += QStringLiteral(";");
-        }
-        filterComplex += QStringLiteral("[%1]null[v]").arg(currentVideoLabel);
-    } else {
-        // Phase timing is clip-local seconds (t=0 at the clip in-point via -ss).
-        // Phase i is visible on [offset[i], offset[i+1]); the last phase stays on.
-        // The shoot-out plate is a separate input directly under the match scoreboard.
-        for (int scoreboardIndex = 0; scoreboardIndex < scoreboardCount; ++scoreboardIndex) {
-            const bool hasFollowingPhase = scoreboardIndex + 1 < scoreboardCount;
-            const double followingOffset = hasFollowingPhase
-                ? clip.scoreboards.at(scoreboardIndex + 1).activationOffsetSeconds
-                : 0.0;
-            appendTimedOverlay(
-                firstScoreboardInput + scoreboardIndex,
-                topSafeY,
-                timedPhaseEnableExpression(
-                    clip.scoreboards.at(scoreboardIndex).activationOffsetSeconds,
-                    hasFollowingPhase,
-                    followingOffset));
-        }
-        for (int shootoutIndex = 0; shootoutIndex < shootoutCount; ++shootoutIndex) {
-            const bool hasFollowingPhase = shootoutIndex + 1 < shootoutCount;
-            const double followingOffset = hasFollowingPhase
-                ? clip.shootouts.at(shootoutIndex + 1).activationOffsetSeconds
-                : 0.0;
-            appendTimedOverlay(
-                firstShootoutInput + shootoutIndex,
-                shootoutY,
-                timedPhaseEnableExpression(
-                    clip.shootouts.at(shootoutIndex).activationOffsetSeconds,
-                    hasFollowingPhase,
-                    followingOffset));
-        }
-    }
+    const QString filterComplex = buildClipFilterComplex(graphInput);
 
     arguments << QStringLiteral("-filter_complex") << filterComplex
               << QStringLiteral("-map") << QStringLiteral("[v]");

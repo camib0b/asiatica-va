@@ -53,6 +53,10 @@ class ModeToggleTrack;
 
 #include "../state/TagSession.h"
 
+namespace Telestration {
+class Session;
+}
+
 class WorkWindow final : public QWidget {
   Q_OBJECT
 
@@ -336,6 +340,7 @@ private:
   QTimer* newTagFlashTimer_ = nullptr;
 
   TagSession* tagSession_ = nullptr;
+  Telestration::Session* telestrationSession_ = nullptr;
   QVector<QMetaObject::Connection> tagSessionConnections_;
   QAction* filterSelectAllAction_ = nullptr;
   QAction* filterSelectNoneAction_ = nullptr;

@@ -2,6 +2,7 @@
 
 #include "CompilationSidecar.h"
 #include "ShootoutOverlay.h"
+#include "Telestration.h"
 
 #include <QEvent>
 #include <QObject>
@@ -32,6 +33,14 @@ struct TimedScoreboard {
     ScoreboardOverlay scoreboard;
 };
 
+/// One telestration PNG, shown over moving video from start through end
+/// (seconds from the clip in-point). Empty when drawings are not included.
+struct TimedDrawingOverlay {
+    Telestration::Drawing drawing;
+    double startOffsetSeconds = 0.0;
+    double endOffsetSeconds = 0.0;
+};
+
 struct ClipSegment {
     qint64 startMs;
     qint64 durationMs;
@@ -41,6 +50,8 @@ struct ClipSegment {
     /// Shoot-out board under the match scoreboard. Empty when this clip is before
     /// the first S.O., or when the scoreboard overlay is off.
     QVector<TimedShootoutOverlay> shootouts;
+    /// Empty unless the export dialog's "Include drawings" checkbox is on.
+    QVector<TimedDrawingOverlay> drawings;
     /// Sidecar identity for this segment. Stays in the same order as the concat list.
     ClipCompilationRecord compilation;
 };

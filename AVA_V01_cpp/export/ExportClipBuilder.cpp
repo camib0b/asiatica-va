@@ -7,6 +7,7 @@
 #include "ShootoutState.h"
 #include "TagEvent.h"
 #include "TagSession.h"
+#include "Telestration.h"
 #include "XmlExporter.h"
 
 #include <algorithm>
@@ -268,6 +269,29 @@ QVector<ClipSegment> buildClipSegments(const TagSession* session,
         segment.overlayText = primary;
         segment.secondaryOverlayText = secondary;
         segment.scoreboards = scoreboardPhases;
+        if (options.includeDrawings) {
+            QVector<Telestration::Drawing> orderedDrawings = options.drawings;
+            std::stable_sort(orderedDrawings.begin(), orderedDrawings.end(),
+                             [](const Telestration::Drawing& first,
+                                const Telestration::Drawing& second) {
+                if (first.anchorMs != second.anchorMs) return first.anchorMs < second.anchorMs;
+                return first.id < second.id;
+            });
+            Telestration::ClipWindow clipWindow;
+            clipWindow.tagId = clip.tagId;
+            clipWindow.startMs = clip.startMs;
+            clipWindow.endMs = clip.endMs;
+            for (const Telestration::Drawing& drawing : orderedDrawings) {
+                const std::optional<Telestration::ExportWindow> window =
+                    Telestration::exportWindowForClip(drawing, clipWindow);
+                if (!window.has_value()) continue;
+                TimedDrawingOverlay timedDrawing;
+                timedDrawing.drawing = drawing;
+                timedDrawing.startOffsetSeconds = window->startOffsetSeconds;
+                timedDrawing.endOffsetSeconds = window->endOffsetSeconds;
+                segment.drawings.append(timedDrawing);
+            }
+        }
         if (options.includeScoreboardOverlay) {
             ShootoutState::ClipWindow shootoutWindow;
             shootoutWindow.startMs = clip.startMs;
