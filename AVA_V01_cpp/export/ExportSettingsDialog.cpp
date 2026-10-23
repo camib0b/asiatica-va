@@ -222,6 +222,13 @@ void ExportSettingsDialog::buildUi() {
     includeNotesCheckBox_->setChecked(true);
     formLayout->addRow(QString(), includeNotesCheckBox_);
 
+    includeDrawingsCheckBox_ =
+        new QCheckBox(AppLocale::trUi("export.include_drawings"), this);
+    includeDrawingsCheckBox_->setObjectName(QStringLiteral("IncludeDrawingsCheckBox"));
+    includeDrawingsCheckBox_->setCursor(Qt::PointingHandCursor);
+    includeDrawingsCheckBox_->setChecked(false);
+    formLayout->addRow(QString(), includeDrawingsCheckBox_);
+
     includeAudioTrackCheckBox_ =
         new QCheckBox(AppLocale::trUi("export.include_audio_track"), this);
     includeAudioTrackCheckBox_->setCursor(Qt::PointingHandCursor);
@@ -485,6 +492,8 @@ void ExportSettingsDialog::onExportClicked() {
         includeBrandingOverlayCheckBox_ && includeBrandingOverlayCheckBox_->isChecked();
     result_.includeNotesOverlay =
         includeNotesCheckBox_ && includeNotesCheckBox_->isChecked();
+    result_.includeDrawingsOverlay =
+        includeDrawingsCheckBox_ && includeDrawingsCheckBox_->isChecked();
     result_.outputPath = outputPath;
 
     accept();

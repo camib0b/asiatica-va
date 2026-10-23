@@ -11,7 +11,7 @@ class QTimer;
 
 /// Confirmation toast pinned to the top edge of the video frame.
 ///
-/// A frameless tool window so it paints above QVideoWidget's native surface.
+/// A frameless tool window so it stays above the video picture and does not take clicks.
 /// It does not take focus and does not accept mouse input, so playback and the
 /// controls bar keep working through it.
 ///

@@ -30,6 +30,7 @@ public:
         bool includeAudioTrack = true;
         bool includeBrandingOverlay = true;
         bool includeNotesOverlay = true;
+        bool includeDrawingsOverlay = false;
         QString outputPath;
     };
 
@@ -72,6 +73,7 @@ private:
     QCheckBox* includeAudioTrackCheckBox_ = nullptr;
     QCheckBox* includeBrandingOverlayCheckBox_ = nullptr;
     QCheckBox* includeNotesCheckBox_ = nullptr;
+    QCheckBox* includeDrawingsCheckBox_ = nullptr;
     QLabel* clipCountLabel_ = nullptr;
     QLineEdit* outputPathEdit_ = nullptr;
     QPushButton* browseButton_ = nullptr;

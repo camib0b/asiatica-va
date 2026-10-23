@@ -1205,8 +1205,40 @@ QHeaderView::section:last {
 ========================= */
 
 QWidget#VideoStage,
-QVideoWidget#VideoSurface {
+QGraphicsView#VideoSurface {
   background-color: #000000;
+}
+
+QWidget#TelestrationToolBar {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+}
+
+QWidget#TelestrationToolBar QPushButton {
+  min-width: 28px;
+  max-width: 28px;
+  min-height: 28px;
+  max-height: 28px;
+  padding: 2px;
+}
+
+QWidget#TelestrationToolBar QPushButton#TelestrationUndoButton {
+  min-width: 0;
+  max-width: 88px;
+  padding: 2px 8px;
+}
+
+QWidget#TelestrationToolBar QPushButton:checked {
+  background: #18181b;
+  color: #fafafa;
+  border-color: #18181b;
+}
+
+QWidget#TelestrationToolBar QPushButton[role="swatch"]:checked {
+  background: #ffffff;
+  color: #18181b;
+  border-color: #18181b;
 }
 
 QWidget#VideoTimelineBar {

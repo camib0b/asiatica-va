@@ -2,14 +2,20 @@
 
 #include "../ui/QtPtr.h"
 
+#include <QGraphicsView>
 #include <QMediaPlayer>
 #include <QString>
 #include <QWidget>
 
+#include <functional>
 #include <memory>
+#include <optional>
 
-class QVideoWidget;
 class QAudioOutput;
+class QGraphicsScene;
+class QGraphicsVideoItem;
+class QGraphicsView;
+class QVideoSink;
 class QMediaDevices;
 class QAction;
 class QHideEvent;
@@ -19,6 +25,11 @@ class QShowEvent;
 class QTimer;
 class VideoControlsBar;
 class TimelineBar;
+class TelestrationSurface;
+
+namespace Telestration {
+class Session;
+}
 
 class VideoPlayer final : public QWidget {
   Q_OBJECT
@@ -32,7 +43,10 @@ public:
   void releaseLoadedMedia();
   /// Local path currently assigned to the player. Empty when nothing is loaded.
   QString activeMediaFilePath() const;
-  QVideoWidget* videoWidget() const { return videoWidget_; }
+  /// The picture widget. Drawings share its graphics scene; the toast tracks this frame.
+  QWidget* videoFrame() const { return videoView_; }
+  /// Sink the scrub gate watches. This is the graphics video item's sink.
+  QVideoSink* videoSink() const;
   VideoControlsBar* controlsBar() const { return videoControlsBar_; }
   TimelineBar* timelineBar() const { return videoTimelineBar_; }
 
@@ -62,6 +76,13 @@ public:
   void playbackFasterWithControlFlash();
   void playbackResetSpeedWithControlFlash();
   void toggleMuteWithControlFlash();
+
+  void setTelestrationSession(Telestration::Session* session);
+  void setDrawingTagResolver(std::function<std::optional<quint64>(qint64 positionMs)> resolver);
+  /// Presenting shows a drawing for its hold by freezing. Other modes keep playing.
+  void setPresentationDrawingsActive(bool active);
+  /// Non-zero forces that drawing on screen for the presentation hold.
+  void setForcedVisibleDrawingId(quint64 drawingId);
 
 signals:
   void videoClosed();
@@ -103,6 +124,7 @@ private:
   void startControlsIdleTimer();
   void hideControlsOverlay();
   void updateControlsOverlayGeometry();
+  void layoutVideoPicture();
   void setupControlsOverlay();
   void applyControlsOverlayOpacity(qreal opacity);
   void raiseControlsOverlay();
@@ -159,7 +181,11 @@ private:
 
   VideoControlsBar* videoControlsBar_ = nullptr;
   TimelineBar* videoTimelineBar_ = nullptr;
-  QVideoWidget* videoWidget_ = nullptr;
+  QGraphicsView* videoView_ = nullptr;
+  QGraphicsScene* videoScene_ = nullptr;
+  QGraphicsVideoItem* videoItem_ = nullptr;
+  QWidget* videoViewport_ = nullptr;
+  TelestrationSurface* telestrationSurface_ = nullptr;
 
   // Application-wide playback shortcuts live on VideoPlayer so they stay active while the
   // overlay tool window is faded out or hidden.

@@ -17,6 +17,7 @@
 #include "../state/PresentationQueue.h"
 #include "../state/EventLabelResolver.h"
 #include "../state/TagSession.h"
+#include "../state/Telestration.h"
 #include "StatsWindow.h"
 #include "GameSetupWindow.h"
 #include "../i18n/AppLocale.h"
@@ -52,7 +53,6 @@
 #include <QTimer>
 #include <QPointer>
 #include <QIcon>
-#include <QVideoWidget>
 #include <QAbstractItemView>
 #include <QHeaderView>
 #include <QTableView>
@@ -281,6 +281,13 @@ WorkWindow::WorkWindow(QWidget* parent)
             &WorkWindow::leavePresentingForVideoChange, Qt::DirectConnection);
     setAttribute(Qt::WA_StyledBackground, true);
     buildUi();
+    telestrationSession_ = new Telestration::Session(this);
+    videoPlayer_->setTelestrationSession(telestrationSession_);
+    videoPlayer_->setDrawingTagResolver([this](qint64 positionMs) {
+        if (tagSession_ == nullptr) return std::optional<quint64>{};
+        return Telestration::tagIdCoveringPosition(*tagSession_, positionMs);
+    });
+    presentationPlaybackController_->setTelestrationSession(telestrationSession_);
     wireSignals();
     applyModeChrome();
     applyUiStrings();
@@ -550,6 +557,7 @@ void WorkWindow::setTagSession(TagSession* session) {
     notesController_->flushPendingClipNote();
     disconnectTagSessionSignals();
 
+    if (telestrationSession_) telestrationSession_->clear();
     tagSession_ = session;
     notesController_->setTagSession(session);
     tagsTableController_->setTagSession(session);
@@ -681,6 +689,7 @@ void WorkWindow::applyModeChrome() {
     placeSidePanelForMode(isTagging);
     applySidePanelCompressedWidth();
     updateTagToastForMode(isTagging);
+    if (videoPlayer_) videoPlayer_->setPresentationDrawingsActive(isPresenting);
 }
 
 void WorkWindow::updatePresentationChromeVisibility(bool isPresenting) {
@@ -1115,8 +1124,8 @@ void WorkWindow::buildVideoStageColumn() {
 
     videoPlayer_ = new VideoPlayer(videoColumn_);
     videoColumnLayout->addWidget(videoPlayer_, 1);
-    tagToast_ = new TagToastOverlay(videoPlayer_->videoWidget());
-    tagToast_->trackVideoFrame(videoPlayer_->videoWidget());
+    tagToast_ = new TagToastOverlay(videoPlayer_->videoFrame());
+    tagToast_->trackVideoFrame(videoPlayer_->videoFrame());
 
     presentationClipBar_ = new ClipTrimBar(videoColumn_);
     videoColumnLayout->addWidget(presentationClipBar_, 0);
@@ -1590,6 +1599,7 @@ void WorkWindow::resetSessionForOpenedVideo() {
     if (tagToast_) tagToast_->dismissImmediately();
     capturedMainEvent_.reset();
     if (tagSession_) tagSession_->clear();
+    if (telestrationSession_) telestrationSession_->clear();
     if (tagsModel_) tagsModel_->setRows({});
 }
 
@@ -1799,6 +1809,7 @@ void WorkWindow::onCloseVideo() {
     presentationPlaybackController_->resetPresentationForVideoChange();
 
     if (tagSession_) tagSession_->clear();
+    if (telestrationSession_) telestrationSession_->clear();
     if (tagsModel_) tagsModel_->setRows({});
 
     releaseTransientResources();
@@ -1858,6 +1869,10 @@ ExportJobRequest WorkWindow::buildPresentationExportRequest(
     overlayOptions.includeBottomOverlay = settings.includeBottomOverlay;
     overlayOptions.includeScoreboardOverlay = settings.includeScoreboardOverlay;
     overlayOptions.includeNotesOverlay = settings.includeNotesOverlay;
+    overlayOptions.includeDrawings = settings.includeDrawingsOverlay;
+    if (settings.includeDrawingsOverlay && telestrationSession_ != nullptr) {
+        overlayOptions.drawings = telestrationSession_->drawings();
+    }
 
     ExportJobRequest request;
     request.format = settings.format;

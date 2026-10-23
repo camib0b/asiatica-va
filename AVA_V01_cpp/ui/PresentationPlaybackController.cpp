@@ -14,6 +14,7 @@
 #include <QKeyEvent>
 #include <QLabel>
 #include <QStringList>
+#include <QTimer>
 #include <QWidget>
 
 #include <algorithm>
@@ -101,7 +102,21 @@ PresentationPlaybackController::PresentationPlaybackController(QObject* parent)
       presentingQuery_(),
       presentationKeyboardShortcutsAttached_(false),
       savingClipIntervalFromBar_(false),
-      presentationPlayback_() {}
+      presentationPlayback_(),
+      telestrationSession_(nullptr),
+      drawingFreezeTimer_(nullptr),
+      drawingFreezeActive_(false),
+      drawingFreezeSawPause_(false),
+      drawingFreezeId_(0),
+      drawingFreezeAnchorMs_(0),
+      drawingFreezeCrossedFromMs_(-1),
+      drawingFreezePausedAtMs_(-1),
+      heldDrawingIds_() {
+  drawingFreezeTimer_ = new QTimer(this);
+  drawingFreezeTimer_->setSingleShot(true);
+  connect(drawingFreezeTimer_, &QTimer::timeout, this,
+          &PresentationPlaybackController::finishDrawingFreeze);
+}
 
 PresentationPlaybackController::~PresentationPlaybackController() {
   detachPresentationKeyboardShortcuts();
@@ -152,6 +167,13 @@ void PresentationPlaybackController::setPresentingQuery(std::function<bool()> pr
   presentingQuery_ = std::move(presenting);
 }
 
+void PresentationPlaybackController::setTelestrationSession(Telestration::Session* session) {
+  if (telestrationSession_ == session) return;
+  cancelDrawingFreeze();
+  heldDrawingIds_.clear();
+  telestrationSession_ = session;
+}
+
 void PresentationPlaybackController::wirePresentationQueueSignals() {
   if (!presentationQueue_) return;
   connect(presentationQueue_, &PresentationQueue::queueChanged, this,
@@ -179,6 +201,8 @@ void PresentationPlaybackController::enterPresentationPlayback() {
 }
 
 void PresentationPlaybackController::leavePresentationPlayback() {
+  cancelDrawingFreeze();
+  heldDrawingIds_.clear();
   detachPresentationKeyboardShortcuts();
   commitPresentationPlayback(PresentationPlayback::reduce(
       presentationPlayback_, PresentationPlayback::ModeExit{}));
@@ -193,6 +217,8 @@ void PresentationPlaybackController::detachPresentationKeyboardShortcuts() {
 }
 
 void PresentationPlaybackController::resetPresentationForVideoChange() {
+  cancelDrawingFreeze();
+  heldDrawingIds_.clear();
   // The slot runs now, before Reset: Tagging, detach the Tab filter, then chrome.
   if (isPresenting()) {
     emit leavePresentationRequested();
@@ -206,11 +232,61 @@ void PresentationPlaybackController::updatePresentationPlayhead(qint64 positionM
   if (presenting && presentationClipBar_) {
     presentationClipBar_->setPlayheadMs(positionMs);
   }
+  if (videoPlayer_) videoPlayer_->setPresentationDrawingsActive(presenting);
 
   const bool playerIsPlaying = videoPlayer_ && videoPlayer_->isPlaying();
+  if (drawingFreezeActive_) {
+    if (!playerIsPlaying) {
+      drawingFreezeSawPause_ = true;
+      if (drawingFreezePausedAtMs_ < 0) drawingFreezePausedAtMs_ = positionMs;
+    }
+    const qint64 distanceFromHeldFrame =
+        drawingFreezePausedAtMs_ < 0
+            ? 0
+            : (positionMs >= drawingFreezePausedAtMs_ ? positionMs - drawingFreezePausedAtMs_
+                                                      : drawingFreezePausedAtMs_ - positionMs);
+    const bool leftHeldFrame = drawingFreezePausedAtMs_ >= 0 && distanceFromHeldFrame > 400;
+    if (!presenting) {
+      cancelDrawingFreeze();
+    } else if (playerIsPlaying && drawingFreezeSawPause_) {
+      // The presenter pressed play during the hold. Do not freeze the same drawing again.
+      heldDrawingIds_.insert(drawingFreezeId_);
+      cancelDrawingFreeze();
+    } else if (leftHeldFrame) {
+      // A seek or scrub moved off the paused frame. Drift before pause lands does not.
+      cancelDrawingFreeze();
+      noteRewoundPlayhead(positionMs);
+    } else {
+      commitPresentationPlayback(PresentationPlayback::reduce(
+          presentationPlayback_,
+          PresentationPlayback::PlayheadTick{positionMs, presenting, playerIsPlaying}));
+      return;
+    }
+  }
+
+  const qint64 previousPositionMs = presentationPlayback_.lastPlayheadMs;
   commitPresentationPlayback(PresentationPlayback::reduce(
       presentationPlayback_,
       PresentationPlayback::PlayheadTick{positionMs, presenting, playerIsPlaying}));
+
+  if (previousPositionMs >= 0 && positionMs + 250 < previousPositionMs) {
+    noteRewoundPlayhead(positionMs);
+  }
+
+  if (!presenting || !playerIsPlaying || !videoPlayer_ || !telestrationSession_) return;
+  const PresentationQueue::Clip* clip =
+      presentationQueue_ ? presentationQueue_->currentClip() : nullptr;
+  if (clip == nullptr || positionMs >= clip->endMs) return;
+
+  Telestration::ClipWindow clipWindow;
+  clipWindow.tagId = clip->tagId;
+  clipWindow.startMs = clip->startMs;
+  clipWindow.endMs = clip->endMs;
+  const std::optional<Telestration::FreezeCue> cue = Telestration::earliestFreezeCue(
+      telestrationSession_->drawings(), clipWindow, previousPositionMs, positionMs, true,
+      heldDrawingIds_);
+  if (!cue.has_value()) return;
+  beginDrawingFreeze(*cue, previousPositionMs);
 }
 
 void PresentationPlaybackController::showPresentationClip(int queueIndex) {
@@ -238,6 +314,8 @@ void PresentationPlaybackController::onPresentationQueueChanged() {
 }
 
 void PresentationPlaybackController::onPresentationCurrentClipChanged(int /*queueIndex*/) {
+  cancelDrawingFreeze();
+  heldDrawingIds_.clear();
   updatePresentationStage();
   if (!savingClipIntervalFromBar_) {
     configurePresentationClipBarForCurrentClip();
@@ -264,6 +342,8 @@ void PresentationPlaybackController::onPresentationClipIntervalChanged(int queue
 }
 
 void PresentationPlaybackController::seekVideoFromPresentationClipBar(qint64 positionMs) {
+  cancelDrawingFreeze();
+  noteRewoundPlayhead(positionMs);
   if (videoPlayer_) videoPlayer_->seekToMs(positionMs);
 }
 
@@ -432,4 +512,68 @@ bool PresentationPlaybackController::handlePresentationTabShortcut(QObject* watc
 
 bool PresentationPlaybackController::isPresenting() const {
   return presentingQuery_ && presentingQuery_();
+}
+
+void PresentationPlaybackController::cancelDrawingFreeze() {
+  if (drawingFreezeTimer_) drawingFreezeTimer_->stop();
+  drawingFreezeActive_ = false;
+  drawingFreezeSawPause_ = false;
+  drawingFreezeId_ = 0;
+  drawingFreezeAnchorMs_ = 0;
+  drawingFreezeCrossedFromMs_ = -1;
+  drawingFreezePausedAtMs_ = -1;
+  if (videoPlayer_) videoPlayer_->setForcedVisibleDrawingId(0);
+}
+
+void PresentationPlaybackController::beginDrawingFreeze(const Telestration::FreezeCue& cue,
+                                                       qint64 crossedFromMs) {
+  if (!videoPlayer_) return;
+  drawingFreezeActive_ = true;
+  drawingFreezeSawPause_ = videoPlayer_ != nullptr && !videoPlayer_->isPlaying();
+  drawingFreezeId_ = cue.drawingId;
+  drawingFreezeAnchorMs_ = cue.anchorMs;
+  drawingFreezeCrossedFromMs_ = crossedFromMs;
+  drawingFreezePausedAtMs_ = -1;
+  videoPlayer_->setForcedVisibleDrawingId(cue.drawingId);
+  videoPlayer_->pauseWithControlFlash();
+  if (!videoPlayer_->isPlaying()) {
+    drawingFreezeSawPause_ = true;
+    drawingFreezePausedAtMs_ = videoPlayer_->currentPositionMs();
+  }
+  const qint64 boundedHoldMs = std::clamp(cue.holdMs, qint64{1}, qint64{60 * 60 * 1000});
+  if (drawingFreezeTimer_) drawingFreezeTimer_->start(static_cast<int>(boundedHoldMs));
+}
+
+void PresentationPlaybackController::finishDrawingFreeze() {
+  if (!drawingFreezeActive_) return;
+  heldDrawingIds_.insert(drawingFreezeId_);
+  const qint64 crossedFromMs = drawingFreezeCrossedFromMs_;
+  const qint64 positionMs = videoPlayer_ ? videoPlayer_->currentPositionMs() : drawingFreezeAnchorMs_;
+  drawingFreezeActive_ = false;
+  drawingFreezeId_ = 0;
+  if (videoPlayer_) videoPlayer_->setForcedVisibleDrawingId(0);
+  if (drawingFreezeTimer_) drawingFreezeTimer_->stop();
+
+  if (!isPresenting() || !videoPlayer_ || !telestrationSession_) return;
+  const PresentationQueue::Clip* clip =
+      presentationQueue_ ? presentationQueue_->currentClip() : nullptr;
+  if (clip == nullptr || positionMs >= clip->endMs) return;
+
+  Telestration::ClipWindow clipWindow;
+  clipWindow.tagId = clip->tagId;
+  clipWindow.startMs = clip->startMs;
+  clipWindow.endMs = clip->endMs;
+  const std::optional<Telestration::FreezeCue> nextCue = Telestration::earliestUnheldCueThrough(
+      telestrationSession_->drawings(), clipWindow, crossedFromMs, positionMs, heldDrawingIds_);
+  if (nextCue.has_value()) {
+    beginDrawingFreeze(*nextCue, crossedFromMs);
+    return;
+  }
+  videoPlayer_->playWithControlFlash();
+}
+
+void PresentationPlaybackController::noteRewoundPlayhead(qint64 positionMs) {
+  if (telestrationSession_ == nullptr) return;
+  Telestration::forgetHeldDrawingsAfterRewind(heldDrawingIds_, telestrationSession_->drawings(),
+                                             positionMs);
 }

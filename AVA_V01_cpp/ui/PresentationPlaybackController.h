@@ -2,14 +2,17 @@
 
 #include "../state/PresentationPlayback.h"
 #include "../state/PresentationQueue.h"
+#include "../state/Telestration.h"
 
 #include <QObject>
 #include <QPointer>
+#include <QSet>
 
 #include <functional>
 
 class QEvent;
 class QLabel;
+class QTimer;
 class QWidget;
 
 class ClipTrimBar;
@@ -42,6 +45,7 @@ public:
   void setHostWindow(QWidget* hostWindow);
   /// Live read of WorkWindow::mode(). Cached state would drift if mode is assigned directly.
   void setPresentingQuery(std::function<bool()> presenting);
+  void setTelestrationSession(Telestration::Session* session);
 
   void wirePresentationQueueSignals();
   void wirePresentationClipBarSignals();
@@ -81,6 +85,10 @@ private:
   void attachPresentationKeyboardShortcuts();
   bool handlePresentationTabShortcut(QObject* watched, QEvent* event);
   bool isPresenting() const;
+  void cancelDrawingFreeze();
+  void beginDrawingFreeze(const Telestration::FreezeCue& cue, qint64 crossedFromMs);
+  void finishDrawingFreeze();
+  void noteRewoundPlayhead(qint64 positionMs);
 
   TagSession* tagSession_ = nullptr;
   QMetaObject::Connection eventLabelOverridesConnection_;
@@ -96,4 +104,17 @@ private:
   bool presentationKeyboardShortcutsAttached_ = false;
   bool savingClipIntervalFromBar_ = false;
   PresentationPlayback::State presentationPlayback_{};
+  Telestration::Session* telestrationSession_ = nullptr;
+  QTimer* drawingFreezeTimer_ = nullptr;
+  bool drawingFreezeActive_ = false;
+  /// Set once the player has actually paused, so a position tick during pause
+  /// is not mistaken for the presenter pressing play.
+  bool drawingFreezeSawPause_ = false;
+  quint64 drawingFreezeId_ = 0;
+  qint64 drawingFreezeAnchorMs_ = 0;
+  qint64 drawingFreezeCrossedFromMs_ = -1;
+  /// Playhead where the pause actually landed. Later ticks compare against this,
+  /// not the drawing anchor, because the player can run past the anchor before pause.
+  qint64 drawingFreezePausedAtMs_ = -1;
+  QSet<quint64> heldDrawingIds_;
 };

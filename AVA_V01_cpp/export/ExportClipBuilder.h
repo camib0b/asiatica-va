@@ -3,6 +3,7 @@
 #include "AppLocale.h"
 #include "ClipExporter.h"
 #include "PresentationQueue.h"
+#include "Telestration.h"
 
 #include <QString>
 #include <QVector>
@@ -21,6 +22,9 @@ struct OverlayOptions {
     bool includeBottomOverlay = true;
     bool includeScoreboardOverlay = true;
     bool includeNotesOverlay = true;
+    /// Off by default. Drawings are burned in only when this is set.
+    bool includeDrawings = false;
+    QVector<Telestration::Drawing> drawings;
 };
 
 QString teamDisplayName(const TagSession* session, const QString& teamKey);
