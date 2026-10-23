@@ -1440,7 +1440,9 @@ QWidget#TaggingRightCol QPushButton[variant="gameControl"][activeMain="true"]:fo
 QWidget#TaggingRightCol QPushButton[variant="gameControl"][teamSelected="true"],
 QWidget#TaggingRightCol QPushButton[variant="gameControl"][teamSelected="true"]:focus,
 QWidget#TaggingRightCol QPushButton[variant="gameControl"][flash="true"],
-QWidget#TaggingRightCol QPushButton[variant="gameControl"][flash="true"]:focus {
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][flash="true"]:focus,
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][controlsHidden="true"],
+QWidget#TaggingRightCol QPushButton[variant="gameControl"][controlsHidden="true"]:focus {
   padding: 4px 2px;
   min-height: 52px;
   border-radius: 6px;
@@ -1653,4 +1655,81 @@ QLineEdit#TeamColorHexEdit {
   font-size: 12px;
   padding: 6px 10px;
   min-height: 28px;
+}
+
+/* Hidden tagging keys stay in the QWERTY holes. The dashed stroke is the cue
+   that a click will not tag. Right-click still opens Show. */
+QPushButton[variant="gameControl"][controlsHidden="true"] {
+  border: 1px dashed #a1a1aa;
+  background: #fafafa;
+  color: #71717a;
+}
+QPushButton[variant="gameControl"][controlsHidden="true"] QLabel[role="gameControlTitle"],
+QPushButton[variant="gameControl"][controlsHidden="true"] QLabel[role="muted"] {
+  color: #71717a;
+}
+
+QDialog[role="controlsEditor"] {
+  background: #fafafa;
+}
+
+QDialog#ControlsSharedPaths {
+  background: #fafafa;
+}
+
+QListWidget#ControlsSharedList {
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  padding: 4px;
+}
+
+QListWidget#ControlsSharedList::item {
+  padding: 4px 2px;
+}
+
+QLabel#ControlsSharedEmpty {
+  color: #71717a;
+}
+
+QWidget#ControlsEditorGridScroll {
+  max-width: 500px;
+}
+
+QWidget#ControlsEditorGrid QPushButton[variant="gameControl"],
+QWidget#ControlsEditorGrid QPushButton[variant="gameControl"][size="md"],
+QWidget#ControlsEditorGrid QPushButton[variant="gameControl"]:focus,
+QWidget#ControlsEditorGrid QPushButton[variant="gameControl"][size="md"]:focus,
+QWidget#ControlsEditorGrid QPushButton[variant="gameControl"][activeMain="true"],
+QWidget#ControlsEditorGrid QPushButton[variant="gameControl"][activeMain="true"]:focus,
+QWidget#ControlsEditorGrid QPushButton[variant="gameControl"][controlsHidden="true"],
+QWidget#ControlsEditorGrid QPushButton[variant="gameControl"][controlsHidden="true"]:focus {
+  padding: 4px 2px;
+  min-height: 52px;
+  border-radius: 6px;
+}
+
+QLabel[role="inlineError"] {
+  color: #b91c1c;
+  min-height: 18px;
+}
+
+QWidget[role="breakUiToggle"] {
+  background: #f4f4f5;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+}
+QPushButton[role="breakUiSegment"] {
+  background: transparent;
+  border: none;
+  color: #52525b;
+  padding: 4px 10px;
+  min-height: 28px;
+  font-weight: 400;
+}
+QPushButton[role="breakUiSegment"]:checked {
+  background: #ffffff;
+  color: #09090b;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
 }

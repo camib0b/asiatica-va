@@ -158,8 +158,11 @@ FileContents readTemplateFile(const QString& filePath) {
         return contents;
       }
     }
-    const EventControlsSetup::ParseResult setup =
-        EventControlsSetup::fromJson(object.value(QStringLiteral("labelOverrides")));
+    const QJsonValue pathOverrides = object.contains(QStringLiteral("pathOverrides"))
+                                        ? object.value(QStringLiteral("pathOverrides"))
+                                        : QJsonValue();
+    const EventControlsSetup::ParseResult setup = EventControlsSetup::fromJson(
+        object.value(QStringLiteral("labelOverrides")), pathOverrides);
     if (!setup.ok) {
       contents.status = FileStatus::Corrupt;
       contents.errorMessage = templateError(setup.errorMessage);
@@ -182,6 +185,8 @@ QJsonDocument fileDocument(const QVector<StoredTemplate>& templates) {
     QJsonObject object;
     object.insert(QStringLiteral("name"), stored.name);
     object.insert(QStringLiteral("labelOverrides"), EventControlsSetup::toJson(stored.setup));
+    const QJsonArray pathOverrides = EventControlsSetup::pathOverridesToJson(stored.setup);
+    if (!pathOverrides.isEmpty()) object.insert(QStringLiteral("pathOverrides"), pathOverrides);
     array.append(object);
   }
   QJsonObject root;

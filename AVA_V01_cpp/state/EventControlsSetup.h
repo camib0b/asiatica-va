@@ -9,11 +9,12 @@ class TagSession;
 
 /// The controls setup a match session and a named template share.
 ///
-/// A setup is the label, shortcut key, and hidden flag for each catalog id.
-/// Follow-up edits the model supports are those three fields on a follow-up
-/// id. The catalog does not yet add, remove, or reorder follow-up nodes, so
-/// a setup does not carry a second tree. The editor in the next step calls
-/// fromSession, applyToSession, and the template store.
+/// A setup is the label, shortcut key, and hidden flag for each catalog id,
+/// plus an optional label or hidden flag for one follow-up path. An id-level
+/// record applies to every instance of that id. A path record applies only to
+/// that main event and follow-up chain. The catalog does not add, remove, or
+/// reorder follow-up nodes, so a setup does not carry a second tree. The
+/// game-controls editor calls fromSession, applyToSession, and the template store.
 namespace EventControlsSetup {
 
 struct Setup {
@@ -37,6 +38,8 @@ enum class ApplyStatus {
 ApplyStatus applyToSession(TagSession& session, const Setup& setup);
 
 QJsonArray toJson(const Setup& setup);
+/// Empty when the setup has no path records. Omitted from older files.
+QJsonArray pathOverridesToJson(const Setup& setup);
 
 struct ParseResult {
   bool ok = false;
@@ -44,8 +47,10 @@ struct ParseResult {
   Setup setup;
 };
 
-/// Missing or null is an empty setup. An array that is not a valid override
-/// table is rejected.
-ParseResult fromJson(const QJsonValue& value);
+/// Missing or null \p labelOverrides is an empty id table. Missing or null
+/// \p pathOverrides means there are no path records, which is how a version 1
+/// file loads. An array that is not a valid override table is rejected.
+ParseResult fromJson(const QJsonValue& labelOverrides,
+                     const QJsonValue& pathOverrides = QJsonValue());
 
 }  // namespace EventControlsSetup

@@ -47,6 +47,27 @@ QString labelForId(EventCatalog::EventId id, const TagSession* session) {
   return labelForId(id, session, AppLocale::currentLanguage());
 }
 
+QString labelForPath(const EventLabelOverrides::FollowUpPath& path,
+                     const EventLabelOverrides::Table& overrides, AppLocale::Language language) {
+  if (!path.isEmpty() && overrides.hasPathLabel(path)) return overrides.pathLabel(path);
+  const EventCatalog::EventId id = path.isEmpty() ? path.mainEventId : path.targetId();
+  return labelForId(id, overrides, language);
+}
+
+QString labelForPath(const EventLabelOverrides::FollowUpPath& path,
+                     const EventLabelOverrides::Table& overrides) {
+  return labelForPath(path, overrides, AppLocale::currentLanguage());
+}
+
+QString labelForPath(const EventLabelOverrides::FollowUpPath& path, const TagSession* session,
+                     AppLocale::Language language) {
+  return labelForPath(path, overridesFor(session), language);
+}
+
+QString labelForPath(const EventLabelOverrides::FollowUpPath& path, const TagSession* session) {
+  return labelForPath(path, session, AppLocale::currentLanguage());
+}
+
 QString labelForKey(const TagEvent::MainEventKey& key, const EventLabelOverrides::Table& overrides,
                     AppLocale::Language language) {
   if (key.id != EventCatalog::EventId::None) return labelForId(key.id, overrides, language);
@@ -87,10 +108,49 @@ QString followUpPath(const TagEvent::FollowUpChain& chain, const TagSession* ses
   return followUpPath(chain, session, AppLocale::currentLanguage());
 }
 
+QString followUpPath(EventCatalog::EventId mainEventId, const TagEvent::FollowUpChain& chain,
+                     const EventLabelOverrides::Table& overrides, AppLocale::Language language) {
+  QStringList labels;
+  const int used = chain.size();
+  labels.reserve(used);
+  EventLabelOverrides::FollowUpPath path;
+  path.mainEventId = mainEventId;
+  for (int index = 0; index < used; ++index) {
+    QString label;
+    if (mainEventId != EventCatalog::EventId::None &&
+        path.stepCount < EventCatalog::kMaxFollowUpDepth) {
+      path.steps[static_cast<std::size_t>(path.stepCount)] = chain.at(index);
+      ++path.stepCount;
+      label = labelForPath(path, overrides, language);
+    } else {
+      label = labelForId(chain.at(index), overrides, language);
+    }
+    if (!label.isEmpty()) labels.append(label);
+  }
+  return labels.join(AppLocale::kCompoundPathSeparator);
+}
+
+QString followUpPath(EventCatalog::EventId mainEventId, const TagEvent::FollowUpChain& chain,
+                     const EventLabelOverrides::Table& overrides) {
+  return followUpPath(mainEventId, chain, overrides, AppLocale::currentLanguage());
+}
+
+QString followUpPath(EventCatalog::EventId mainEventId, const TagEvent::FollowUpChain& chain,
+                     const TagSession* session, AppLocale::Language language) {
+  return followUpPath(mainEventId, chain, overridesFor(session), language);
+}
+
+QString followUpPath(EventCatalog::EventId mainEventId, const TagEvent::FollowUpChain& chain,
+                     const TagSession* session) {
+  return followUpPath(mainEventId, chain, session, AppLocale::currentLanguage());
+}
+
 QString tagLine(const TagEvent::MainEventKey& key, const TagEvent::FollowUpChain& chain,
                 const EventLabelOverrides::Table& overrides, AppLocale::Language language) {
   const QString mainLabel = labelForKey(key, overrides, language);
-  const QString followUpLabel = followUpPath(chain, overrides, language);
+  const QString followUpLabel = key.id == EventCatalog::EventId::None
+                                    ? followUpPath(chain, overrides, language)
+                                    : followUpPath(key.id, chain, overrides, language);
   if (followUpLabel.isEmpty()) return mainLabel;
   if (mainLabel.isEmpty()) return followUpLabel;
   return mainLabel + AppLocale::kCompoundPathSeparator + followUpLabel;

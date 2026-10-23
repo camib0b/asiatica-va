@@ -347,7 +347,7 @@ void WorkWindowCorrectnessTest::unreadableSessionFileWarnsAndIsLeftOnDisk() {
   TagSession session;
 
   const QByteArray newerBytes = QByteArrayLiteral(
-      "{\"format\":\"ava-match-session\",\"version\":2,\"tags\":[],\"future\":true}\n");
+      "{\"format\":\"ava-match-session\",\"version\":3,\"tags\":[],\"future\":true}\n");
   const QString newerVideo = writeNamedPlaceholder(directory, QStringLiteral("newer.mp4"));
   QVERIFY(!newerVideo.isEmpty());
   const QString newerSession = plantSessionBytes(newerVideo, newerBytes);

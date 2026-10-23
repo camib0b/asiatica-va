@@ -2,6 +2,7 @@
 
 #include <QColor>
 #include <QHash>
+#include <QPointer>
 #include <QWidget>
 #include <QStringList>
 #include <QList>
@@ -51,10 +52,14 @@ public:
   /// or an empty string when no quarter is in progress.
   QString currentPeriodName() const;
 
-  /// Button titles and follow-up popups. Canonical names stay on the buttons so
-  /// commits and shortcuts do not change. Shortcut and hidden overrides are
-  /// stored on the session and are not applied here.
+  /// Button titles, shortcut letters, and hidden controls. Canonical names stay
+  /// on the buttons so commits do not change. A hidden button stays in the grid
+  /// and does not tag. The first visible button in keyboard order keeps a key
+  /// when two events share it.
   void setEventLabelOverrides(const EventLabelOverrides::Table& overrides);
+
+  /// Follows label, shortcut, and hidden edits on this session.
+  void setTagSession(TagSession* session);
 
   void applyUiLanguage();
 
@@ -77,6 +82,8 @@ signals:
   /// Emitted when the user advances from Q1–Q4 (period-advance button / G or H).
   /// WorkWindow asks the session to close the current quarter.
   void nextQuarterRequested();
+  /// Gear menu and the tagging-grid context menu open the full-screen editor.
+  void editGameControlsRequested();
 
 private slots:
   void onHomeTeamButtonClicked();
@@ -111,6 +118,11 @@ private:
   void switchTeamSideToOppositeTeam();
   void updateTeamButtonSelectionVisual();
   void refreshMainButtonTitles();
+  void applyControlChrome();
+  void refreshOpenFollowUps();
+  QStringList visibleFollowUpChoices(const QStringList& actions) const;
+  bool buttonIsSuppressed(const QPushButton* button) const;
+  void installControlContextMenu(QPushButton* button);
   void flashButtonBorder(QPushButton* button);
   void setActiveMainButton(QPushButton* button);
   void clearActiveMainButton();
@@ -159,6 +171,8 @@ protected:
   QString awayTeamColorHex_;
   TagSession::TeamSide teamSide_ = TagSession::TeamSide::Unspecified;
   EventLabelOverrides::Table labelOverrides_;
+  QPointer<TagSession> tagSession_;
+  QMetaObject::Connection labelOverrideConnection_;
 
   QVector<QLabel*> mainButtonTitleLabels_;
 };

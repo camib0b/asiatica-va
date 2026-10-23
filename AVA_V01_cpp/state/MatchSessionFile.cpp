@@ -222,6 +222,8 @@ QJsonObject documentToJson(const Document& document) {
   for (const TagSession::GameTag& tag : document.tags) tags.append(tagToJson(tag));
   root.insert(QStringLiteral("tags"), tags);
   root.insert(QStringLiteral("labelOverrides"), EventControlsSetup::toJson(document.controls));
+  const QJsonArray pathOverrides = EventControlsSetup::pathOverridesToJson(document.controls);
+  if (!pathOverrides.isEmpty()) root.insert(QStringLiteral("pathOverrides"), pathOverrides);
 
   QJsonArray durations;
   for (const EventDefaults::UserOverride& override : document.clipLeadLagOverrides) {
@@ -619,9 +621,15 @@ LoadResult parseDocument(const QJsonDocument& jsonDocument) {
     document.nextTagId = static_cast<quint64>(nextTagId);
   }
 
-  if (root.contains(QStringLiteral("labelOverrides"))) {
+  if (root.contains(QStringLiteral("labelOverrides")) || root.contains(QStringLiteral("pathOverrides"))) {
+    const QJsonValue labelOverrides = root.contains(QStringLiteral("labelOverrides"))
+                                          ? root.value(QStringLiteral("labelOverrides"))
+                                          : QJsonValue();
+    const QJsonValue pathOverrides = root.contains(QStringLiteral("pathOverrides"))
+                                         ? root.value(QStringLiteral("pathOverrides"))
+                                         : QJsonValue();
     const EventControlsSetup::ParseResult controls =
-        EventControlsSetup::fromJson(root.value(QStringLiteral("labelOverrides")));
+        EventControlsSetup::fromJson(labelOverrides, pathOverrides);
     if (!controls.ok) return failedLoad(LoadStatus::Corrupt, controls.errorMessage);
     document.controls = controls.setup;
   }

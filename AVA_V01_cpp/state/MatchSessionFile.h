@@ -20,13 +20,13 @@ class PresentationQueue;
 /// may be read-only, so the session is not a sidecar beside the media.
 /// `.clips.json` stays the export sidecar and is not this file.
 ///
-/// Version 1 stores tags (follow-up ids and clip intervals included), the
-/// controls setup, clip lead/lag overrides, the presentation selection, and
-/// telestration drawings. A missing file means a new match. A corrupt file or
-/// a newer version is not applied and is not overwritten.
+/// Version 2 stores the same document as version 1 and adds pathOverrides for
+/// a follow-up label or hidden flag scoped to one main event and chain.
+/// Version 1 files load with no path overrides. A missing file means a new
+/// match. A corrupt file or a newer version is not applied and is not overwritten.
 namespace MatchSessionFile {
 
-inline constexpr int kFormatVersion = 1;
+inline constexpr int kFormatVersion = 2;
 
 enum class LoadStatus {
   Loaded,

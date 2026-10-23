@@ -5,6 +5,8 @@
 #include "TagsTableController.h"
 #include "TagsTableModel.h"
 #include "ClipDurationSettingsDialog.h"
+#include "GameControlsEditorDialog.h"
+#include "QtPtr.h"
 #include "PresentationPanel.h"
 #include "../style/Motion.h"
 #include "../style/StyleProps.h"
@@ -492,6 +494,9 @@ void WorkWindow::applyUiStrings() const {
     if (clipDurationSettingsAction_) {
         clipDurationSettingsAction_->setText(AppLocale::trUi("menu.clip_durations"));
     }
+    if (editGameControlsAction_) {
+        editGameControlsAction_->setText(AppLocale::trUi("menu.edit_controls"));
+    }
     if (reduceMotionAction_) {
         reduceMotionAction_->setText(AppLocale::trUi("menu.reduce_motion"));
         reduceMotionAction_->setToolTip(AppLocale::trUi("menu.reduce_motion_tooltip"));
@@ -570,6 +575,7 @@ void WorkWindow::setTagSession(TagSession* session) {
     tagsTableController_->setTagSession(session);
     bindTagSessionToSurfaces();
     if (gameControls_) {
+        gameControls_->setTagSession(tagSession_);
         gameControls_->setTeamSide(tagSession_ ? TagSession::TeamSide::Home
                                                : TagSession::TeamSide::Unspecified);
     }
@@ -1024,6 +1030,7 @@ void WorkWindow::buildVideoSettingsMenu(QHBoxLayout* videoControlsLayout) {
     importXmlAction_ = videoMenu->addAction(QString());
     exportXmlAction_ = videoMenu->addAction(QString());
     clipDurationSettingsAction_ = videoMenu->addAction(QString());
+    editGameControlsAction_ = videoMenu->addAction(QString());
     videoMenu->addSeparator();
     reduceMotionAction_ = videoMenu->addAction(QString());
     reduceMotionAction_->setCheckable(true);
@@ -1348,6 +1355,7 @@ void WorkWindow::wireVideoChromeSignals() {
     connect(exportXmlAction_, &QAction::triggered, this, &WorkWindow::onExportXml);
     connect(clipDurationSettingsAction_, &QAction::triggered, this,
             &WorkWindow::onClipDurationSettings);
+    connect(editGameControlsAction_, &QAction::triggered, this, &WorkWindow::onEditGameControls);
     connect(reduceMotionAction_, &QAction::toggled, this, [](bool checked) {
         Motion::setReducedMotionPreferred(checked);
     });
@@ -1367,6 +1375,8 @@ void WorkWindow::wireGameControlsSignals() {
                 &WorkWindow::onGameStartRequested);
         connect(gameControls_, &GameControls::nextQuarterRequested, this,
                 &WorkWindow::onNextQuarterRequested);
+        connect(gameControls_, &GameControls::editGameControlsRequested, this,
+                &WorkWindow::onEditGameControls);
     }
 
     connect(gameControls_, &GameControls::tagSequenceAdvanced, this, &WorkWindow::showTagSequenceStep);
@@ -2014,6 +2024,14 @@ void WorkWindow::onClipDurationSettings() {
     connect(&LocaleNotifier::instance(), &LocaleNotifier::languageChanged, dialog,
             &ClipDurationSettingsDialog::applyUiStrings);
     dialog->show();
+}
+
+void WorkWindow::onEditGameControls() {
+    if (!tagSession_) return;
+    auto dialog = makeQtPtr<GameControlsEditorDialog>(tagSession_, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModal(true);
+    dialog->showMaximized();
 }
 
 void WorkWindow::onImportXml() {

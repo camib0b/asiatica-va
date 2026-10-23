@@ -106,6 +106,7 @@ private slots:
   void onGameStartRequested();
   void onNextQuarterRequested();
   void onClipDurationSettings();
+  void onEditGameControls();
   void onImportXml();
   void onExportXml();
   void onApplicationLanguageChanged();
@@ -325,6 +326,7 @@ private:
   QAction* importXmlAction_ = nullptr;
   QAction* exportXmlAction_ = nullptr;
   QAction* clipDurationSettingsAction_ = nullptr;
+  QAction* editGameControlsAction_ = nullptr;
   QAction* reduceMotionAction_ = nullptr;
   QAction* statsOverlayAction_ = nullptr;
 
