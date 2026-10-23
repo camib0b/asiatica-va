@@ -1,5 +1,8 @@
 #pragma once
 
+#include <QPoint>
+#include <QRect>
+#include <QString>
 #include <QWidget>
 
 class PlaybackSpeedometer final : public QWidget {
@@ -10,6 +13,14 @@ public:
 
   void setRate(double rate);
   double rate() const { return rate_; }
+
+  /// Text painted to the right of the groove, for example "1.00x".
+  QString displayedRateText() const;
+
+  /// Slider groove. A click or drag here selects a playback step.
+  QRect trackGrooveRect() const;
+  /// Speed digits. A double-click here resets to 1.0x.
+  QRect rateReadoutRect() const;
 
   void flash();
 
@@ -29,13 +40,18 @@ protected:
   void mouseDoubleClickEvent(QMouseEvent* event) override;
 
 private:
-  QRect trackRect() const;
+  int readoutWidthPx() const;
+  int preferredHeightPx() const;
+  bool isOnRateReadout(const QPoint& position) const;
   int indexFromX(int x) const;
   int xForIndex(int index) const;
   void applyIndexFromX(int x);
+  void resetRate();
+  void finishDrag();
   void setFlashing(bool flashing);
 
   double rate_ = 1.0;
   bool dragging_ = false;
+  bool pressedOnReadout_ = false;
   bool flashing_ = false;
 };

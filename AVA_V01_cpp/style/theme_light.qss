@@ -1381,12 +1381,10 @@ QWidget#VideoControlsBar QPushButton:checked {
 }
 
 QWidget#VideoControlsBar QWidget#PlaybackSpeedometer {
-  min-width: 140px;
-  max-width: 140px;
   min-height: 20px;
-  max-height: 20px;
   border: none;
   background: transparent;
+  font-size: 12px;
 }
 
 QWidget#VideoControlsBar QLabel {

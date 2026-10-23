@@ -1,9 +1,11 @@
 #include "PlaybackSpeedometer.h"
 #include "PlaybackRates.h"
+#include "../style/TabularDigits.h"
 
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPen>
 #include <QPointer>
 #include <QSizePolicy>
 #include <QTimer>
@@ -12,19 +14,26 @@
 #include <cmath>
 
 namespace {
-constexpr int kPreferredWidthPx = 140;
-constexpr int kPreferredHeightPx = 20;
-constexpr int kTrackMarginXPx = 8;
+constexpr int kMinimumHeightPx = 20;
+constexpr int kPreferredTrackWidthPx = 120;
+constexpr int kTrackLeftMarginPx = 8;
+constexpr int kReadoutGapPx = 10;
+constexpr int kReadoutTextSlackPx = 6;
 constexpr int kTrackHeightPx = 8;
 constexpr int kThumbRadiusPx = 6;
 constexpr int kFlashDurationMs = 150;
 constexpr int kTickCount = static_cast<int>(PlaybackRates::kTicks.size());
+
+QString formatRateText(double rate) {
+  return QString::number(rate, 'f', 2) + QLatin1Char('x');
+}
 }  // namespace
 
 PlaybackSpeedometer::PlaybackSpeedometer(QWidget* parent)
     : QWidget(parent),
       rate_(PlaybackRates::kResetRate),
       dragging_(false),
+      pressedOnReadout_(false),
       flashing_(false) {
   setObjectName(QStringLiteral("PlaybackSpeedometer"));
   setFocusPolicy(Qt::NoFocus);
@@ -40,6 +49,10 @@ void PlaybackSpeedometer::setRate(double rate) {
   }
   rate_ = snapped;
   update();
+}
+
+QString PlaybackSpeedometer::displayedRateText() const {
+  return formatRateText(rate_);
 }
 
 void PlaybackSpeedometer::flash() {
@@ -61,21 +74,41 @@ void PlaybackSpeedometer::flash() {
   timer->start(kFlashDurationMs);
 }
 
+int PlaybackSpeedometer::readoutWidthPx() const {
+  return Style::tabularTextWidth(fontMetrics(), formatRateText(PlaybackRates::kTicks.back()))
+         + kReadoutTextSlackPx;
+}
+
+int PlaybackSpeedometer::preferredHeightPx() const {
+  return std::max(kMinimumHeightPx, fontMetrics().height() + 2);
+}
+
 QSize PlaybackSpeedometer::sizeHint() const {
-  return QSize(kPreferredWidthPx, kPreferredHeightPx);
+  const int width = kTrackLeftMarginPx + kPreferredTrackWidthPx + kReadoutGapPx + readoutWidthPx();
+  return QSize(width, preferredHeightPx());
 }
 
 QSize PlaybackSpeedometer::minimumSizeHint() const {
   return sizeHint();
 }
 
-QRect PlaybackSpeedometer::trackRect() const {
+QRect PlaybackSpeedometer::trackGrooveRect() const {
+  const int grooveWidth = width() - kTrackLeftMarginPx - kReadoutGapPx - readoutWidthPx();
   const int top = (height() - kTrackHeightPx) / 2;
-  return QRect(kTrackMarginXPx, top, width() - (2 * kTrackMarginXPx), kTrackHeightPx);
+  return QRect(kTrackLeftMarginPx, top, std::max(0, grooveWidth), kTrackHeightPx);
+}
+
+QRect PlaybackSpeedometer::rateReadoutRect() const {
+  const int readoutWidth = readoutWidthPx();
+  return QRect(width() - readoutWidth, 0, readoutWidth, height());
+}
+
+bool PlaybackSpeedometer::isOnRateReadout(const QPoint& position) const {
+  return rateReadoutRect().contains(position);
 }
 
 int PlaybackSpeedometer::indexFromX(int x) const {
-  const QRect track = trackRect();
+  const QRect track = trackGrooveRect();
   if (track.width() <= 0) {
     return PlaybackRates::indexOfNearest(rate_);
   }
@@ -88,7 +121,7 @@ int PlaybackSpeedometer::indexFromX(int x) const {
 }
 
 int PlaybackSpeedometer::xForIndex(int index) const {
-  const QRect track = trackRect();
+  const QRect track = trackGrooveRect();
   const int clamped = std::clamp(index, 0, kTickCount - 1);
   if (kTickCount <= 1) {
     return track.center().x();
@@ -106,6 +139,26 @@ void PlaybackSpeedometer::applyIndexFromX(int x) {
   emit rateChanged(rate_);
 }
 
+void PlaybackSpeedometer::resetRate() {
+  if (qFuzzyCompare(rate_, PlaybackRates::kResetRate)) {
+    return;
+  }
+  rate_ = PlaybackRates::kResetRate;
+  update();
+  emit rateChanged(rate_);
+}
+
+void PlaybackSpeedometer::finishDrag() {
+  if (!dragging_) {
+    return;
+  }
+  dragging_ = false;
+  if (mouseGrabber() == this) {
+    releaseMouse();
+  }
+  emit interactionFinished();
+}
+
 void PlaybackSpeedometer::setFlashing(bool flashing) {
   if (flashing_ == flashing) {
     return;
@@ -119,7 +172,7 @@ void PlaybackSpeedometer::paintEvent(QPaintEvent* /*event*/) {
   painter.setRenderHint(QPainter::Antialiasing, true);
 
   const bool enabled = isEnabled();
-  const QRect track = trackRect();
+  const QRect track = trackGrooveRect();
   const int currentIndex = PlaybackRates::indexOfNearest(rate_);
   const int thumbX = xForIndex(currentIndex);
   const int fillWidth = std::max(0, thumbX - track.left());
@@ -127,6 +180,7 @@ void PlaybackSpeedometer::paintEvent(QPaintEvent* /*event*/) {
   const int trackAlpha = enabled ? (flashing_ ? 70 : 40) : 20;
   const int fillAlpha = enabled ? (flashing_ ? 210 : 150) : 70;
   const int textAlpha = enabled ? 250 : 90;
+  const int homeIndex = PlaybackRates::indexOfNearest(PlaybackRates::kResetRate);
 
   QPainterPath trackPath;
   trackPath.addRoundedRect(track, track.height() / 2.0, track.height() / 2.0);
@@ -140,15 +194,28 @@ void PlaybackSpeedometer::paintEvent(QPaintEvent* /*event*/) {
     painter.fillPath(fillPath, QColor(250, 250, 250, fillAlpha));
   }
 
+  painter.setRenderHint(QPainter::Antialiasing, false);
+  for (int index = 0; index < kTickCount; ++index) {
+    const bool homeTick = index == homeIndex;
+    const int tickHalfHeight = homeTick ? (kTrackHeightPx / 2 + 4) : (kTrackHeightPx / 2 + 2);
+    const int tickAlpha = enabled ? (homeTick ? 200 : 120) : 50;
+    const int tickX = xForIndex(index);
+    const int centerY = track.center().y();
+    const int tickTop = std::max(0, centerY - tickHalfHeight);
+    const int tickBottom = std::min(height() - 1, centerY + tickHalfHeight);
+    painter.setPen(QPen(QColor(250, 250, 250, tickAlpha), 1));
+    painter.drawLine(tickX, tickTop, tickX, tickBottom);
+  }
+
+  painter.setRenderHint(QPainter::Antialiasing, true);
   const QPoint thumbCenter(thumbX, track.center().y());
   painter.setPen(Qt::NoPen);
   painter.setBrush(QColor(250, 250, 250, enabled ? 255 : 120));
   painter.drawEllipse(thumbCenter, kThumbRadiusPx, kThumbRadiusPx);
 
-  painter.setPen(QColor(250, 250, 250, textAlpha));
-  painter.setFont(font());
-  const QString rateText = QString::number(rate_, 'f', 2) + QLatin1Char('x');
-  painter.drawText(rect(), Qt::AlignCenter, rateText);
+  const QRect textRect = rateReadoutRect().adjusted(2, 0, 0, 0);
+  Style::drawTabularText(&painter, textRect, displayedRateText(), font(),
+                         QColor(250, 250, 250, textAlpha));
 }
 
 void PlaybackSpeedometer::mousePressEvent(QMouseEvent* event) {
@@ -156,10 +223,17 @@ void PlaybackSpeedometer::mousePressEvent(QMouseEvent* event) {
     QWidget::mousePressEvent(event);
     return;
   }
+  const QPoint position = event->position().toPoint();
+  if (isOnRateReadout(position)) {
+    pressedOnReadout_ = true;
+    event->accept();
+    return;
+  }
+  pressedOnReadout_ = false;
   dragging_ = true;
   grabMouse();
   emit interactionStarted();
-  applyIndexFromX(event->position().toPoint().x());
+  applyIndexFromX(position.x());
   event->accept();
 }
 
@@ -173,14 +247,23 @@ void PlaybackSpeedometer::mouseMoveEvent(QMouseEvent* event) {
 }
 
 void PlaybackSpeedometer::mouseReleaseEvent(QMouseEvent* event) {
-  if (!dragging_ || event->button() != Qt::LeftButton) {
+  if (event->button() != Qt::LeftButton) {
     QWidget::mouseReleaseEvent(event);
     return;
   }
-  dragging_ = false;
-  releaseMouse();
+  if (pressedOnReadout_ && !dragging_) {
+    pressedOnReadout_ = false;
+    event->accept();
+    return;
+  }
+  if (!dragging_) {
+    // The release that follows a double-click. Applying it would put the
+    // dial back on the step under the cursor and undo a reset.
+    event->accept();
+    return;
+  }
   applyIndexFromX(event->position().toPoint().x());
-  emit interactionFinished();
+  finishDrag();
   event->accept();
 }
 
@@ -189,11 +272,14 @@ void PlaybackSpeedometer::mouseDoubleClickEvent(QMouseEvent* event) {
     QWidget::mouseDoubleClickEvent(event);
     return;
   }
-  emit interactionStarted();
-  if (!qFuzzyCompare(rate_, PlaybackRates::kResetRate)) {
-    rate_ = PlaybackRates::kResetRate;
-    update();
-    emit rateChanged(rate_);
+  // The default handler turns this event into another press. That press
+  // selects the step under the cursor, and the release after the double-click
+  // then commits it again. On the digits, that undoes the reset.
+  const QPoint position = event->position().toPoint();
+  pressedOnReadout_ = false;
+  if (isOnRateReadout(position)) {
+    resetRate();
   }
+  finishDrag();
   event->accept();
 }
