@@ -134,8 +134,9 @@ public:
   QString awayAbbrev() const { return awayAbbrev_; }
 
   /// Renames, shortcut keys, and hidden flags for this session.
-  /// See EventLabelOverrides. Display text reads the label. GameControls also
-  /// reads the shortcut and the hidden flag.
+  /// See EventLabelOverrides. An id-level label or hidden flag applies to every
+  /// instance and clears path exceptions for that field. Display text reads the
+  /// label. GameControls also reads the shortcut and the hidden flag.
   const EventLabelOverrides::Table& eventLabelOverrides() const { return eventLabelOverrides_; }
   EventLabelOverrides::Result setEventLabel(EventCatalog::EventId id, const QString& label);
   EventLabelOverrides::Result clearEventLabel(EventCatalog::EventId id);

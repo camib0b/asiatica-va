@@ -202,6 +202,23 @@ EventCatalog::EventId eventIdAtEndOfPath(const QString& mainEvent, const QString
   return node->id;
 }
 
+EventLabelOverrides::FollowUpPath followUpPathFor(const QString& mainEvent,
+                                                 const QStringList& selections) {
+  EventLabelOverrides::FollowUpPath path;
+  const EventCatalog::Node* node = EventCatalog::mainEventForCanonicalName(mainEvent);
+  if (!node) return path;
+  path.mainEventId = node->id;
+  for (const QString& selection : selections) {
+    if (path.stepCount >= EventCatalog::kMaxFollowUpDepth) return {};
+    const EventCatalog::Node* child = EventCatalog::childForCanonicalName(*node, selection);
+    if (!child) return {};
+    path.steps[static_cast<std::size_t>(path.stepCount)] = child->id;
+    ++path.stepCount;
+    node = child;
+  }
+  return path;
+}
+
 QString resolvedTitleText(const QLabel* titleLabel, const EventLabelOverrides::Table& overrides) {
   if (!titleLabel) return {};
   const int idValue = titleLabel->property("gameEventId").toInt();
@@ -543,7 +560,13 @@ void GameControls::applyUiLanguage() {
     for (QLabel* titleLabel : followUpButton->findChildren<QLabel*>()) {
       if (titleLabel->property("gameEventName").toString().isEmpty()) continue;
       titleLabel->setTextFormat(Qt::PlainText);
-      const QString fullText = resolvedTitleText(titleLabel, labelOverrides_);
+      QStringList selections = followUpState_.selections();
+      const QString actionKey = followUpButton->property("gameEventKey").toString();
+      if (!actionKey.isEmpty()) selections.append(actionKey);
+      const EventLabelOverrides::FollowUpPath path =
+          followUpPathFor(followUpState_.mainEvent(), selections);
+      const QString fullText = path.isEmpty() ? resolvedTitleText(titleLabel, labelOverrides_)
+                                              : EventLabelResolver::labelForPath(path, labelOverrides_);
       titleLabel->setText(fullText);
       titleLabel->setToolTip(fullText);
     }
@@ -586,7 +609,12 @@ QStringList GameControls::visibleFollowUpChoices(const QStringList& actions) con
     path.append(action);
     const EventCatalog::EventId actionId =
         eventIdAtEndOfPath(followUpState_.mainEvent(), path);
-    if (actionId != EventCatalog::EventId::None && labelOverrides_.hidden(actionId)) continue;
+    const EventLabelOverrides::FollowUpPath followUpPath =
+        followUpPathFor(followUpState_.mainEvent(), path);
+    const bool hidden = followUpPath.isEmpty()
+                            ? actionId != EventCatalog::EventId::None && labelOverrides_.hidden(actionId)
+                            : labelOverrides_.hiddenOnPath(followUpPath);
+    if (hidden) continue;
     visible.append(action);
   }
   return visible;
@@ -616,9 +644,16 @@ void GameControls::installControlContextMenu(QPushButton* button) {
           [this, button](const QPoint& position) {
             const auto eventId =
                 static_cast<EventCatalog::EventId>(button->property("gameEventId").toInt());
+            EventLabelOverrides::FollowUpPath path;
+            const QString actionKey = button->property("gameEventKey").toString();
+            if (!actionKey.isEmpty()) {
+              QStringList selections = followUpState_.selections();
+              selections.append(actionKey);
+              path = followUpPathFor(followUpState_.mainEvent(), selections);
+            }
             GameControlsContextMenu::popup(
                 button, button->mapToGlobal(position), tagSession_, eventId,
-                [this]() { emit editGameControlsRequested(); });
+                [this]() { emit editGameControlsRequested(); }, path);
           });
 }
 
@@ -1229,9 +1264,13 @@ void GameControls::presentFollowUpChoices(const QStringList& actions, FollowUpSt
     path.append(action);
     const EventCatalog::EventId actionId =
         eventIdAtEndOfPath(followUpState_.mainEvent(), path);
-    const QString displayLabel = actionId == EventCatalog::EventId::None
-                                     ? AppLocale::trEvent(action)
-                                     : EventLabelResolver::labelForId(actionId, labelOverrides_);
+    const EventLabelOverrides::FollowUpPath followUpPath =
+        followUpPathFor(followUpState_.mainEvent(), path);
+    const QString displayLabel = followUpPath.isEmpty()
+                                     ? (actionId == EventCatalog::EventId::None
+                                            ? AppLocale::trEvent(action)
+                                            : EventLabelResolver::labelForId(actionId, labelOverrides_))
+                                     : EventLabelResolver::labelForPath(followUpPath, labelOverrides_);
     auto* button = new QPushButton(followUpContainer_);
     Style::setSize(button, "md");
     Style::setVariant(button, "gameControlFollowUp");

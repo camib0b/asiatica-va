@@ -506,7 +506,7 @@ void MatchSessionFileTest::missingCorruptAndNewerFilesStaySafe() {
 
   const QString newerPath = directory.filePath(QStringLiteral("newer.json"));
   const QByteArray newerBytes =
-      QByteArrayLiteral("{\"format\":\"ava-match-session\",\"version\":2,\"tags\":[],\"future\":true}\n");
+      QByteArrayLiteral("{\"format\":\"ava-match-session\",\"version\":3,\"tags\":[],\"future\":true}\n");
   QVERIFY(writeBytes(newerPath, newerBytes));
   QCOMPARE(MatchSessionFile::loadFile(newerPath).status, MatchSessionFile::LoadStatus::NewerVersion);
 
@@ -647,7 +647,7 @@ void MatchSessionFileTest::templatesSaveApplyAndProtectTheBuiltinLayout() {
            EventControlsTemplateStore::LoadStatus::Loaded);
 
   const QByteArray newerBytes =
-      QByteArrayLiteral("{\"format\":\"ava-control-templates\",\"version\":2,\"templates\":[]}\n");
+      QByteArrayLiteral("{\"format\":\"ava-control-templates\",\"version\":3,\"templates\":[]}\n");
   QVERIFY(writeBytes(templatePath, newerBytes));
   QCOMPARE(EventControlsTemplateStore::listTemplates(root).fileStatus,
            EventControlsTemplateStore::FileStatus::NewerVersion);

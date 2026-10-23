@@ -51,7 +51,16 @@ Issue inspectShortcutText(const EventLabelOverrides::Table& table, EventCatalog:
 /// refused when the name or the key would collide with a visible sibling.
 Issue inspectShow(const EventLabelOverrides::Table& table, EventCatalog::EventId id);
 
+/// Path-scoped label. Checked against the siblings of that one parent.
+Issue inspectPathLabel(const EventLabelOverrides::Table& table,
+                       const EventLabelOverrides::FollowUpPath& path, const QString& text);
+/// Showing a path that is already visible is fine.
+Issue inspectPathShow(const EventLabelOverrides::Table& table,
+                      const EventLabelOverrides::FollowUpPath& path);
+
 /// Writes the edit when inspection finds nothing wrong. \p issue may be null.
+/// commitLabel and commitShown are the all-instances write: they clear path
+/// exceptions for that field so every place that id appears follows the id.
 bool commitLabel(EventLabelOverrides::Table* table, EventCatalog::EventId id, const QString& text,
                  Issue* issue);
 bool commitShortcutText(EventLabelOverrides::Table* table, EventCatalog::EventId id,
@@ -59,6 +68,12 @@ bool commitShortcutText(EventLabelOverrides::Table* table, EventCatalog::EventId
 /// \p shown false hides the event. Hiding does not ask about duplicates.
 bool commitShown(EventLabelOverrides::Table* table, EventCatalog::EventId id, bool shown,
                  Issue* issue);
+/// Writes a label or hidden flag for one path and leaves every other path alone.
+bool commitPathLabel(EventLabelOverrides::Table* table,
+                     const EventLabelOverrides::FollowUpPath& path, const QString& text,
+                     Issue* issue);
+bool commitPathShown(EventLabelOverrides::Table* table,
+                     const EventLabelOverrides::FollowUpPath& path, bool shown, Issue* issue);
 
 /// Duplicate or reserved keys among visible main events, in keyboard order.
 QVector<Issue> reviewStoredKeys(const EventLabelOverrides::Table& table);

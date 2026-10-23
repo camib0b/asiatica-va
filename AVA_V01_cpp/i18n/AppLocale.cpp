@@ -973,6 +973,20 @@ const QHash<QString, UiTranslation>& uiTranslationTable() {
       {QStringLiteral("controls_editor.unknown_event"),
        {QStringLiteral("That event is not in the catalog."),
         QStringLiteral("Ese evento no está en el catálogo.")}},
+      {QStringLiteral("controls_shared.title"),
+       {QStringLiteral("This follow-up is shared"),
+        QStringLiteral("Este seguimiento está compartido")}},
+      {QStringLiteral("controls_shared.message"),
+       {QStringLiteral("This follow-up is also used in these places. Apply the change to all of them, or only to the one you selected."),
+        QStringLiteral("Este seguimiento también se usa en estos lugares. Aplica el cambio a todos, o solo al que seleccionaste.")}},
+      {QStringLiteral("controls_shared.apply_all"),
+       {QStringLiteral("Apply to all"), QStringLiteral("Aplicar a todos")}},
+      {QStringLiteral("controls_shared.apply_one"),
+       {QStringLiteral("Only this one"), QStringLiteral("Solo este")}},
+      {QStringLiteral("controls_shared.path_joiner"),
+       {QStringLiteral(", then "), QStringLiteral(", luego ")}},
+      {QStringLiteral("controls_shared.empty"),
+       {QStringLiteral("No other places."), QStringLiteral("No hay otros lugares.")}},
   };
   return table;
 }

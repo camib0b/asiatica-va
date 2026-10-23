@@ -1673,6 +1673,25 @@ QDialog[role="controlsEditor"] {
   background: #fafafa;
 }
 
+QDialog#ControlsSharedPaths {
+  background: #fafafa;
+}
+
+QListWidget#ControlsSharedList {
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  padding: 4px;
+}
+
+QListWidget#ControlsSharedList::item {
+  padding: 4px 2px;
+}
+
+QLabel#ControlsSharedEmpty {
+  color: #71717a;
+}
+
 QWidget#ControlsEditorGridScroll {
   max-width: 500px;
 }

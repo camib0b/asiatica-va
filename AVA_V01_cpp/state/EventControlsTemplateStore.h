@@ -14,7 +14,7 @@
 /// applies a loaded setup with EventControlsSetup::applyToSession.
 namespace EventControlsTemplateStore {
 
-inline constexpr int kFormatVersion = 1;
+inline constexpr int kFormatVersion = 2;
 
 struct ListedTemplate {
   QString name;

@@ -248,7 +248,10 @@ void StatsWindow::rebuildTree() {
 
         for (const TagEvent::FollowUpChain& followUp : followUps) {
             const int followUpCount = followUpsIt.value().value(followUp, 0);
-            const QString followUpLabel = EventLabelResolver::followUpPath(followUp, tagSession_);
+            const QString followUpLabel =
+                mainEvent.id == EventCatalog::EventId::None
+                    ? EventLabelResolver::followUpPath(followUp, tagSession_)
+                    : EventLabelResolver::followUpPath(mainEvent.id, followUp, tagSession_);
             if (followUpLabel.isEmpty()) continue;
 
             auto* child = new QTreeWidgetItem(mainItem);

@@ -24,6 +24,13 @@ bool revertsToCatalogLabel(EventCatalog::EventId id, const QString& trimmed) {
   return trimmed == EventCatalog::labelForId(id, spanish);
 }
 
+bool revertsToPathLabel(const EventLabelOverrides::Table& table,
+                        const EventLabelOverrides::FollowUpPath& path, const QString& trimmed) {
+  EventLabelOverrides::Table without = table;
+  without.clearPathLabel(path);
+  return trimmed == EventLabelResolver::labelForPath(path, without);
+}
+
 Issue issueFromResult(EventCatalog::EventId id, const EventLabelOverrides::Result& result) {
   Issue issue;
   issue.eventId = id;
@@ -189,6 +196,55 @@ Issue inspectLabel(const EventLabelOverrides::Table& table, EventCatalog::EventI
   return noneIssue(id);
 }
 
+Issue inspectPathLabel(const EventLabelOverrides::Table& table,
+                       const EventLabelOverrides::FollowUpPath& path, const QString& text) {
+  const EventCatalog::EventId id = path.targetId();
+  if (!EventLabelOverrides::followUpPathExists(path)) {
+    Issue issue;
+    issue.kind = IssueKind::UnknownEvent;
+    issue.eventId = id;
+    return issue;
+  }
+  const QString trimmed = text.trimmed();
+  if (trimmed.isEmpty()) {
+    Issue issue;
+    issue.kind = IssueKind::EmptyLabel;
+    issue.eventId = id;
+    return issue;
+  }
+  if (labelHasLineBreak(text)) {
+    Issue issue;
+    issue.kind = IssueKind::NotOneLine;
+    issue.eventId = id;
+    return issue;
+  }
+
+  EventLabelOverrides::Table copy = table;
+  if (revertsToPathLabel(table, path, trimmed)) {
+    copy.clearPathLabel(path);
+    return noneIssue(id);
+  }
+  const EventLabelOverrides::Result stored = copy.setPathLabel(path, trimmed);
+  if (!stored.accepted) return issueFromResult(id, stored);
+  return noneIssue(id);
+}
+
+Issue inspectPathShow(const EventLabelOverrides::Table& table,
+                      const EventLabelOverrides::FollowUpPath& path) {
+  const EventCatalog::EventId id = path.targetId();
+  if (!EventLabelOverrides::followUpPathExists(path)) {
+    Issue issue;
+    issue.kind = IssueKind::UnknownEvent;
+    issue.eventId = id;
+    return issue;
+  }
+  if (!table.hiddenOnPath(path)) return noneIssue(id);
+  EventLabelOverrides::Table copy = table;
+  const EventLabelOverrides::Result shown = copy.setPathHidden(path, false);
+  if (!shown.accepted) return issueFromResult(id, shown);
+  return noneIssue(id);
+}
+
 Issue inspectShortcutText(const EventLabelOverrides::Table& table, EventCatalog::EventId id,
                           const QString& text) {
   if (!isMainEvent(id)) {
@@ -245,6 +301,7 @@ bool commitLabel(EventLabelOverrides::Table* table, EventCatalog::EventId id, co
   const QString trimmed = text.trimmed();
   if (revertsToCatalogLabel(id, trimmed)) table->clearLabel(id);
   else table->setLabel(id, trimmed);
+  table->clearPathLabelsFor(id);
   return true;
 }
 
@@ -281,6 +338,50 @@ bool commitShown(EventLabelOverrides::Table* table, EventCatalog::EventId id, bo
     if (inspected.kind != IssueKind::None) return false;
   }
   const EventLabelOverrides::Result result = table->setHidden(id, !shown);
+  if (!result.accepted) {
+    if (issue) *issue = issueFromResult(id, result);
+    return false;
+  }
+  table->clearPathHiddenFor(id);
+  if (issue) *issue = noneIssue(id);
+  return true;
+}
+
+bool commitPathLabel(EventLabelOverrides::Table* table, const EventLabelOverrides::FollowUpPath& path,
+                     const QString& text, Issue* issue) {
+  const EventCatalog::EventId id = path.targetId();
+  if (!table) {
+    if (issue) {
+      issue->kind = IssueKind::UnknownEvent;
+      issue->eventId = id;
+    }
+    return false;
+  }
+  const Issue inspected = inspectPathLabel(*table, path, text);
+  if (issue) *issue = inspected;
+  if (inspected.kind != IssueKind::None) return false;
+  const QString trimmed = text.trimmed();
+  if (revertsToPathLabel(*table, path, trimmed)) table->clearPathLabel(path);
+  else table->setPathLabel(path, trimmed);
+  return true;
+}
+
+bool commitPathShown(EventLabelOverrides::Table* table, const EventLabelOverrides::FollowUpPath& path,
+                     bool shown, Issue* issue) {
+  const EventCatalog::EventId id = path.targetId();
+  if (!table) {
+    if (issue) {
+      issue->kind = IssueKind::UnknownEvent;
+      issue->eventId = id;
+    }
+    return false;
+  }
+  if (shown) {
+    const Issue inspected = inspectPathShow(*table, path);
+    if (issue) *issue = inspected;
+    if (inspected.kind != IssueKind::None) return false;
+  }
+  const EventLabelOverrides::Result result = table->setPathHidden(path, !shown);
   if (!result.accepted) {
     if (issue) *issue = issueFromResult(id, result);
     return false;

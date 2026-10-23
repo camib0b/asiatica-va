@@ -87,6 +87,11 @@ class GameControlsEditorDialog final : public QDialog {
   bool draftDiffersFromSession() const;
   void rememberPendingLabel(EventCatalog::EventId eventId, const QString& text, bool pending);
   void rememberPendingKey(EventCatalog::EventId eventId, const QString& text, bool pending);
+  void rememberPendingPathLabel(const EventLabelOverrides::FollowUpPath& path, const QString& text,
+                                bool pending);
+  EventLabelOverrides::FollowUpPath pathForFollowUpItem(const QTreeWidgetItem* item) const;
+  QString followUpText(const EventLabelOverrides::FollowUpPath& path) const;
+  void refreshFollowUpItems(EventCatalog::EventId eventId);
 
   TagSession* tagSession_ = nullptr;
   QString templateStorageRoot_;
@@ -94,6 +99,7 @@ class GameControlsEditorDialog final : public QDialog {
   EventCatalog::EventId selectedEventId_ = EventCatalog::EventId::None;
   QHash<int, QString> pendingLabels_;
   QHash<int, QString> pendingKeys_;
+  QHash<QString, QString> pendingPathLabels_;
   bool suppressDetailEdits_ = false;
 
   QPointer<QLabel> titleLabel_;

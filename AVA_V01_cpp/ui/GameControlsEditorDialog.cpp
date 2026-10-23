@@ -100,16 +100,38 @@ QString displayLabel(EventCatalog::EventId eventId, const EventLabelOverrides::T
   return EventLabelResolver::labelForId(eventId, table);
 }
 
-void accumulateFollowUps(const EventCatalog::Node& node, const EventLabelOverrides::Table& table,
-                         int* total, int* shown) {
+void accumulateFollowUps(const EventCatalog::Node& node, EventLabelOverrides::FollowUpPath prefix,
+                         const EventLabelOverrides::Table& table, int* total, int* shown) {
   for (int childIndex = 0; childIndex < node.childCount; ++childIndex) {
     const EventCatalog::EventId childId = node.children[static_cast<std::size_t>(childIndex)];
     const EventCatalog::Node* child = EventCatalog::nodeForId(childId);
     if (!child) continue;
+    EventLabelOverrides::FollowUpPath next = prefix;
+    if (next.stepCount < EventCatalog::kMaxFollowUpDepth) {
+      next.steps[static_cast<std::size_t>(next.stepCount)] = childId;
+      ++next.stepCount;
+    }
     ++*total;
-    if (!table.hidden(childId)) ++*shown;
-    accumulateFollowUps(*child, table, total, shown);
+    if (!table.hiddenOnPath(next)) ++*shown;
+    accumulateFollowUps(*child, next, table, total, shown);
   }
+}
+
+bool pathFromKey(const QString& key, EventLabelOverrides::FollowUpPath* path) {
+  if (!path) return false;
+  const QStringList parts = key.split(QLatin1Char(':'));
+  if (parts.size() < 2 || parts.size() > EventCatalog::kMaxFollowUpDepth + 1) return false;
+  bool ok = false;
+  const int mainId = parts.at(0).toInt(&ok);
+  if (!ok) return false;
+  path->mainEventId = static_cast<EventCatalog::EventId>(mainId);
+  path->stepCount = parts.size() - 1;
+  for (int index = 0; index < path->stepCount; ++index) {
+    const int stepId = parts.at(index + 1).toInt(&ok);
+    if (!ok) return false;
+    path->steps[static_cast<std::size_t>(index)] = static_cast<EventCatalog::EventId>(stepId);
+  }
+  return true;
 }
 
 QString followUpCountText(int shown, int total) {
@@ -527,9 +549,7 @@ void GameControlsEditorDialog::buildDetail(QWidget* host) {
               followUpDetail_->clear();
               return;
             }
-            const auto eventId =
-                static_cast<EventCatalog::EventId>(current->data(0, Qt::UserRole).toInt());
-            const QString full = displayLabel(eventId, draft_, pendingLabels_);
+            const QString full = followUpText(pathForFollowUpItem(current));
             followUpDetail_->setText(full);
             followUpDetail_->setToolTip(full);
           });
@@ -624,6 +644,7 @@ void GameControlsEditorDialog::applyUiStrings() {
 void GameControlsEditorDialog::applyDataFixture(DataFixture fixture) {
   pendingLabels_.clear();
   pendingKeys_.clear();
+  pendingPathLabels_.clear();
   if (fixture == DataFixture::Session) {
     draft_ = tagSession_ ? EventControlsSetup::fromSession(*tagSession_).labelOverrides
                          : EventLabelOverrides::Table{};
@@ -765,6 +786,58 @@ void GameControlsEditorDialog::rememberPendingKey(EventCatalog::EventId eventId,
   else pendingKeys_.remove(eventKey);
 }
 
+void GameControlsEditorDialog::rememberPendingPathLabel(const EventLabelOverrides::FollowUpPath& path,
+                                                        const QString& text, bool pending) {
+  if (pending) pendingPathLabels_.insert(path.key(), text);
+  else pendingPathLabels_.remove(path.key());
+}
+
+EventLabelOverrides::FollowUpPath GameControlsEditorDialog::pathForFollowUpItem(
+    const QTreeWidgetItem* item) const {
+  EventLabelOverrides::FollowUpPath path;
+  path.mainEventId = selectedEventId_;
+  if (item == nullptr) return path;
+  const QVariantList steps = item->data(0, Qt::UserRole + 1).toList();
+  const int count = qMin(steps.size(), EventCatalog::kMaxFollowUpDepth);
+  path.stepCount = count;
+  for (int index = 0; index < count; ++index) {
+    path.steps[static_cast<std::size_t>(index)] =
+        static_cast<EventCatalog::EventId>(steps.at(index).toInt());
+  }
+  return path;
+}
+
+QString GameControlsEditorDialog::followUpText(const EventLabelOverrides::FollowUpPath& path) const {
+  const auto pending = pendingPathLabels_.constFind(path.key());
+  if (pending != pendingPathLabels_.cend()) return pending.value();
+  if (!EventLabelOverrides::sharedAcrossMainEvents(path.targetId())) {
+    const auto idPending = pendingLabels_.constFind(static_cast<int>(path.targetId()));
+    if (idPending != pendingLabels_.cend()) return idPending.value();
+  }
+  return EventLabelResolver::labelForPath(path, draft_);
+}
+
+void GameControlsEditorDialog::refreshFollowUpItems(EventCatalog::EventId eventId) {
+  if (!followUpTree_) return;
+  QSignalBlocker blocker(followUpTree_);
+  std::function<void(QTreeWidgetItem*)> visit = [&](QTreeWidgetItem* item) {
+    if (item == nullptr) return;
+    if (item->data(0, Qt::UserRole).toInt() == static_cast<int>(eventId)) {
+      const EventLabelOverrides::FollowUpPath path = pathForFollowUpItem(item);
+      const QString full = followUpText(path);
+      item->setText(0, full);
+      item->setToolTip(0, full);
+      const bool shown = !draft_.hiddenOnPath(path);
+      item->setCheckState(1, shown ? Qt::Checked : Qt::Unchecked);
+      item->setForeground(0, shown ? QBrush() : QBrush(Style::ThemeColors::faint()));
+    }
+    for (int index = 0; index < item->childCount(); ++index) visit(item->child(index));
+  };
+  for (int index = 0; index < followUpTree_->topLevelItemCount(); ++index) {
+    visit(followUpTree_->topLevelItem(index));
+  }
+}
+
 void GameControlsEditorDialog::onNameEdited(const QString& text) {
   if (suppressDetailEdits_ || selectedEventId_ == EventCatalog::EventId::None) return;
   EventControlsValidation::Issue issue;
@@ -826,21 +899,66 @@ void GameControlsEditorDialog::onFollowUpItemChanged(QTreeWidgetItem* item, int 
   if (suppressDetailEdits_ || !item) return;
   const auto eventId = static_cast<EventCatalog::EventId>(item->data(0, Qt::UserRole).toInt());
   if (eventId == EventCatalog::EventId::None) return;
+  const EventLabelOverrides::FollowUpPath path = pathForFollowUpItem(item);
+  const bool shared = EventLabelOverrides::sharedAcrossMainEvents(eventId);
   if (column == 0) {
     EventControlsValidation::Issue issue;
     const QString text = item->text(0);
+    if (shared) {
+      issue = EventControlsValidation::inspectPathLabel(draft_, path, text);
+      if (issue.kind != EventControlsValidation::IssueKind::None) {
+        rememberPendingPathLabel(path, text, true);
+        item->setToolTip(0, text);
+        if (followUpDetail_) followUpDetail_->setText(EventControlsValidation::issueMessage(issue, draft_));
+        updateFollowUpSummary();
+        updateBanner();
+        updateSaveEnabled();
+        return;
+      }
+      rememberPendingPathLabel(path, text, false);
+      const GameControlsContextMenu::SharedScopeChoice choice =
+          GameControlsContextMenu::askSharedFollowUpScope(this, draft_, path);
+      if (choice == GameControlsContextMenu::SharedScopeChoice::Cancel) {
+        suppressDetailEdits_ = true;
+        const QString restored = followUpText(path);
+        item->setText(0, restored);
+        item->setToolTip(0, restored);
+        suppressDetailEdits_ = false;
+        return;
+      }
+      const bool accepted =
+          choice == GameControlsContextMenu::SharedScopeChoice::AllInstances
+              ? EventControlsValidation::commitLabel(&draft_, eventId, text, &issue)
+              : EventControlsValidation::commitPathLabel(&draft_, path, text, &issue);
+      if (!accepted) {
+        rememberPendingPathLabel(path, text, true);
+        if (followUpDetail_) {
+          followUpDetail_->setText(EventControlsValidation::issueMessage(issue, draft_));
+        }
+        updateBanner();
+        updateSaveEnabled();
+        return;
+      }
+      refreshFollowUpItems(eventId);
+      if (followUpDetail_) {
+        const QString full = followUpText(path);
+        followUpDetail_->setText(full);
+        followUpDetail_->setToolTip(full);
+      }
+      updateFollowUpSummary();
+      updateBanner();
+      updateSaveEnabled();
+      return;
+    }
+
     const bool accepted = EventControlsValidation::commitLabel(&draft_, eventId, text, &issue);
     rememberPendingLabel(eventId, text, !accepted);
-    const QString full = displayLabel(eventId, draft_, pendingLabels_);
-    item->setToolTip(0, full);
+    if (accepted) refreshFollowUpItems(eventId);
+    else item->setToolTip(0, text);
     if (followUpDetail_) {
-      followUpDetail_->setText(full);
+      const QString full = accepted ? followUpText(path) : text;
+      followUpDetail_->setText(accepted ? full : EventControlsValidation::issueMessage(issue, draft_));
       followUpDetail_->setToolTip(full);
-    }
-    if (accepted && item->text(0) != EventLabelResolver::labelForId(eventId, draft_)) {
-      suppressDetailEdits_ = true;
-      item->setText(0, EventLabelResolver::labelForId(eventId, draft_));
-      suppressDetailEdits_ = false;
     }
     updateFollowUpSummary();
     updateBanner();
@@ -849,8 +967,39 @@ void GameControlsEditorDialog::onFollowUpItemChanged(QTreeWidgetItem* item, int 
   }
   if (column != 1) return;
   const bool shown = item->checkState(1) == Qt::Checked;
-  const bool wasShown = !draft_.hidden(eventId);
+  const bool wasShown = !draft_.hiddenOnPath(path);
   if (shown == wasShown) return;
+  if (shared) {
+    const GameControlsContextMenu::SharedScopeChoice choice =
+        GameControlsContextMenu::askSharedFollowUpScope(this, draft_, path);
+    if (choice == GameControlsContextMenu::SharedScopeChoice::Cancel) {
+      suppressDetailEdits_ = true;
+      item->setCheckState(1, wasShown ? Qt::Checked : Qt::Unchecked);
+      suppressDetailEdits_ = false;
+      return;
+    }
+    EventControlsValidation::Issue issue;
+    const bool accepted =
+        choice == GameControlsContextMenu::SharedScopeChoice::AllInstances
+            ? EventControlsValidation::commitShown(&draft_, eventId, shown, &issue)
+            : EventControlsValidation::commitPathShown(&draft_, path, shown, &issue);
+    if (!accepted) {
+      suppressDetailEdits_ = true;
+      item->setCheckState(1, wasShown ? Qt::Checked : Qt::Unchecked);
+      suppressDetailEdits_ = false;
+      if (followUpDetail_) {
+        followUpDetail_->setText(EventControlsValidation::issueMessage(issue, draft_));
+      }
+      updateBanner();
+      updateSaveEnabled();
+      return;
+    }
+    refreshFollowUpItems(eventId);
+    updateFollowUpSummary();
+    updateBanner();
+    updateSaveEnabled();
+    return;
+  }
   if (!shown) {
     if (!GameControlsContextMenu::confirmDestructive(
             this, AppLocale::trUi("controls_menu.hide_follow_up_title"),
@@ -873,7 +1022,7 @@ void GameControlsEditorDialog::onFollowUpItemChanged(QTreeWidgetItem* item, int 
     updateSaveEnabled();
     return;
   }
-  item->setForeground(0, shown ? QBrush() : QBrush(Style::ThemeColors::faint()));
+  refreshFollowUpItems(eventId);
   updateFollowUpSummary();
   updateBanner();
   updateSaveEnabled();
@@ -903,6 +1052,7 @@ void GameControlsEditorDialog::onResetClicked() {
   draft_ = EventControlsSetup::builtinDefault().labelOverrides;
   pendingLabels_.clear();
   pendingKeys_.clear();
+  pendingPathLabels_.clear();
   updateAllGridButtons();
   const EventCatalog::EventId firstEvent =
       EventCatalog::buttonGridCount() > 0 ? EventCatalog::buttonGridNodeAt(0).id
@@ -942,6 +1092,7 @@ void GameControlsEditorDialog::onLoadTemplateClicked() {
   draft_ = loaded.setup.labelOverrides;
   pendingLabels_.clear();
   pendingKeys_.clear();
+  pendingPathLabels_.clear();
   if (templateStatus_) {
     Style::setRole(templateStatus_, "muted");
     templateStatus_->clear();
@@ -1092,28 +1243,31 @@ void GameControlsEditorDialog::rebuildFollowUpTree() {
   followUpTree_->clear();
   if (!root) return;
 
-  std::function<void(QTreeWidgetItem*, const EventCatalog::Node&)> addChildren =
-      [&](QTreeWidgetItem* parentItem, const EventCatalog::Node& node) {
+  std::function<void(QTreeWidgetItem*, const EventCatalog::Node&, QVariantList)> addChildren =
+      [&](QTreeWidgetItem* parentItem, const EventCatalog::Node& node, QVariantList chain) {
         for (int childIndex = 0; childIndex < node.childCount; ++childIndex) {
           const EventCatalog::EventId childId =
               node.children[static_cast<std::size_t>(childIndex)];
           const EventCatalog::Node* child = EventCatalog::nodeForId(childId);
           if (!child) continue;
+          QVariantList next = chain;
+          next.append(static_cast<int>(childId));
           auto* item = parentItem ? new QTreeWidgetItem(parentItem) : new QTreeWidgetItem(followUpTree_);
-          const QString full = displayLabel(childId, draft_, pendingLabels_);
           item->setData(0, Qt::UserRole, static_cast<int>(childId));
+          item->setData(0, Qt::UserRole + 1, next);
+          const QString full = followUpText(pathForFollowUpItem(item));
           item->setText(0, full);
           item->setToolTip(0, full);
           item->setFlags(item->flags() | Qt::ItemIsEditable | Qt::ItemIsUserCheckable |
                          Qt::ItemIsSelectable | Qt::ItemIsEnabled);
-          const bool shown = !draft_.hidden(childId);
+          const bool shown = !draft_.hiddenOnPath(pathForFollowUpItem(item));
           item->setCheckState(1, shown ? Qt::Checked : Qt::Unchecked);
           item->setToolTip(1, AppLocale::trUi("controls_editor.shown"));
           if (!shown) item->setForeground(0, QBrush(Style::ThemeColors::faint()));
-          addChildren(item, *child);
+          addChildren(item, *child, next);
         }
       };
-  addChildren(nullptr, *root);
+  addChildren(nullptr, *root, {});
   followUpTree_->expandAll();
   if (followUpTree_->topLevelItemCount() > 0) {
     followUpTree_->setCurrentItem(followUpTree_->topLevelItem(0));
@@ -1131,7 +1285,11 @@ void GameControlsEditorDialog::updateFollowUpSummary() {
   }
   int total = 0;
   int shown = 0;
-  if (root) accumulateFollowUps(*root, draft_, &total, &shown);
+  if (root) {
+    EventLabelOverrides::FollowUpPath prefix;
+    prefix.mainEventId = selectedEventId_;
+    accumulateFollowUps(*root, prefix, draft_, &total, &shown);
+  }
   if (followUpCount_) followUpCount_->setText(followUpCountText(shown, total));
   const bool empty = total <= 0;
   if (followUpEmpty_) followUpEmpty_->setVisible(empty);
@@ -1176,6 +1334,13 @@ void GameControlsEditorDialog::updateBanner() {
         &messages, EventControlsValidation::inspectShortcutText(draft_, eventId, iterator.value()),
         draft_);
   }
+  for (auto iterator = pendingPathLabels_.cbegin(); iterator != pendingPathLabels_.cend(); ++iterator) {
+    EventLabelOverrides::FollowUpPath path;
+    if (!pathFromKey(iterator.key(), &path)) continue;
+    appendIssueMessage(&messages,
+                       EventControlsValidation::inspectPathLabel(draft_, path, iterator.value()),
+                       draft_);
+  }
   banner_->setText(messages.join(QStringLiteral("\n")));
   banner_->setVisible(!messages.isEmpty());
 }
@@ -1210,7 +1375,9 @@ void GameControlsEditorDialog::positionBreakToggle() {
 
 bool GameControlsEditorDialog::canSave() const {
   if (!tagSession_) return false;
-  if (!pendingLabels_.isEmpty() || !pendingKeys_.isEmpty()) return false;
+  if (!pendingLabels_.isEmpty() || !pendingKeys_.isEmpty() || !pendingPathLabels_.isEmpty()) {
+    return false;
+  }
   return EventControlsValidation::reviewStoredKeys(draft_).isEmpty();
 }
 
@@ -1220,7 +1387,7 @@ bool GameControlsEditorDialog::currentEventIsClean() const {
 }
 
 bool GameControlsEditorDialog::draftDiffersFromSession() const {
-  if (!pendingLabels_.isEmpty() || !pendingKeys_.isEmpty()) return true;
+  if (!pendingLabels_.isEmpty() || !pendingKeys_.isEmpty() || !pendingPathLabels_.isEmpty()) return true;
   if (!tagSession_) return draft_ != EventLabelOverrides::Table{};
   return draft_ != tagSession_->eventLabelOverrides();
 }

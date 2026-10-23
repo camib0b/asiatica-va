@@ -116,6 +116,7 @@ EventLabelOverrides::Result TagSession::setEventLabel(EventCatalog::EventId id,
                                                       const QString& label) {
   const EventLabelOverrides::Table before = eventLabelOverrides_;
   const EventLabelOverrides::Result result = eventLabelOverrides_.setLabel(id, label);
+  if (result.accepted) eventLabelOverrides_.clearPathLabelsFor(id);
   return publishIfOverrideChanged(this, before, eventLabelOverrides_, result);
 }
 
@@ -140,6 +141,7 @@ EventLabelOverrides::Result TagSession::clearEventShortcutKey(EventCatalog::Even
 EventLabelOverrides::Result TagSession::setEventHidden(EventCatalog::EventId id, bool hidden) {
   const EventLabelOverrides::Table before = eventLabelOverrides_;
   const EventLabelOverrides::Result result = eventLabelOverrides_.setHidden(id, hidden);
+  if (result.accepted) eventLabelOverrides_.clearPathHiddenFor(id);
   return publishIfOverrideChanged(this, before, eventLabelOverrides_, result);
 }
 
@@ -152,7 +154,7 @@ void TagSession::clearEventLabelOverrides() {
 bool TagSession::replaceEventLabelOverrides(const EventLabelOverrides::Table& overrides) {
   if (eventLabelOverrides_ == overrides) return true;
   EventLabelOverrides::Table replacement;
-  if (!replacement.replaceRecords(overrides.records())) return false;
+  if (!replacement.replaceAll(overrides.records(), overrides.pathRecords())) return false;
   eventLabelOverrides_ = replacement;
   emit eventLabelOverridesChanged();
   return true;
