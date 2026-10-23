@@ -11,8 +11,8 @@ class TagSession;
 ///
 /// A setup is the label, shortcut key, and hidden flag for each catalog id.
 /// Follow-up edits the model supports are those three fields on a follow-up
-/// id. The catalog does not yet add, remove, or reorder follow-up nodes, so
-/// a setup does not carry a second tree. The editor in the next step calls
+/// id. The catalog does not add, remove, or reorder follow-up nodes, so
+/// a setup does not carry a second tree. The game-controls editor calls
 /// fromSession, applyToSession, and the template store.
 namespace EventControlsSetup {
 

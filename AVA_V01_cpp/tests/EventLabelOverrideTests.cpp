@@ -210,7 +210,7 @@ class EventLabelOverrideTest : public QObject {
   void cleanup();
   void validationRejectsEmptyAndDuplicateLabels();
   void hiddenSiblingIsExcludedUntilShown();
-  void shortcutAndHiddenAreStoredWithoutChangingControls();
+  void shortcutAndHiddenChangeTheTaggingGrid();
   void renameKeepsStatsGroupedById();
   void exportRoundTripKeepsStableCodesAndWritesTheDisplayLabel();
   void renamePropagatesThroughEveryDisplayPath();
@@ -376,7 +376,7 @@ void EventLabelOverrideTest::hiddenSiblingIsExcludedUntilShown() {
            QStringLiteral("Gol"));
 }
 
-void EventLabelOverrideTest::shortcutAndHiddenAreStoredWithoutChangingControls() {
+void EventLabelOverrideTest::shortcutAndHiddenChangeTheTaggingGrid() {
   TagSession session;
   EXPECT_ACCEPTED(session.setEventShortcutKey(EventCatalog::EventId::Shot, Qt::Key_P));
   EXPECT_ACCEPTED(session.setEventShortcutKey(EventCatalog::EventId::Goal, Qt::Key_P));
@@ -398,13 +398,22 @@ void EventLabelOverrideTest::shortcutAndHiddenAreStoredWithoutChangingControls()
   QPushButton* shotButton = buttonNamed(&controls, "Shot");
   QVERIFY(shotButton);
   QVERIFY(!shotButton->isHidden());
+  QVERIFY(shotButton->property("controlsHidden").toBool());
   QCOMPARE(shotButton->property("gameEventName").toString(), QStringLiteral("Shot"));
   QCOMPARE(shotButton->property("gameEventId").toInt(),
            static_cast<int>(EventCatalog::EventId::Shot));
-  QCOMPARE(shortcutText(shotButton), QStringLiteral("D"));
+  QCOMPARE(shortcutText(shotButton), QStringLiteral("P"));
   QCOMPARE(titleText(shotButton), kPlayerLabel);
 
   QSignalSpy advanced(&controls, &GameControls::tagSequenceAdvanced);
+  shotButton->click();
+  QCOMPARE(advanced.count(), 0);
+  QVERIFY(followUpButton(&controls, "On target") == nullptr);
+
+  EXPECT_ACCEPTED(session.setEventHidden(EventCatalog::EventId::Shot, false));
+  controls.setEventLabelOverrides(session.eventLabelOverrides());
+  QVERIFY(!shotButton->property("controlsHidden").toBool());
+  QCOMPARE(shortcutText(shotButton), QStringLiteral("P"));
   shotButton->click();
   QCOMPARE(advanced.count(), 1);
   QCOMPARE(advanced.at(0).at(1).toString(), QStringLiteral("Shot"));

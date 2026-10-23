@@ -1,6 +1,7 @@
 #include "GameControls.h"
 #include "FollowUpCatalog.h"
 #include "../state/EventCatalog.h"
+#include "../state/EventControlsValidation.h"
 #include "../state/EventLabelResolver.h"
 #include "../style/Motion.h"
 #include "../style/StyleProps.h"
@@ -8,6 +9,7 @@
 #include "../style/ThemeColors.h"
 #include "../i18n/AppLocale.h"
 #include "../state/TagSession.h"
+#include "../ui/GameControlsContextMenu.h"
 #include "../ui/TextInputFocus.h"
 
 #include <QHBoxLayout>
@@ -222,12 +224,19 @@ void configureFollowUpButton(QPushButton* button, const QString& canonicalKey,
   auto* titleLabel = new QLabel(displayLabel, button);
   titleLabel->setProperty("gameEventName", canonicalKey);
   titleLabel->setProperty("gameEventId", static_cast<int>(eventId));
+  titleLabel->setTextFormat(Qt::PlainText);
   titleLabel->setAlignment(Qt::AlignCenter);
   titleLabel->setWordWrap(true);
+  titleLabel->setMinimumWidth(0);
+  titleLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+  titleLabel->setToolTip(displayLabel);
   Style::setRole(titleLabel, "gameControlTitle");
   titleLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
   auto* shortcutLabel = new QLabel(shortcutHint, button);
+  shortcutLabel->setTextFormat(Qt::PlainText);
   shortcutLabel->setAlignment(Qt::AlignCenter);
+  shortcutLabel->setMinimumWidth(0);
+  shortcutLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
   Style::setRole(shortcutLabel, "muted");
   shortcutLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
   layout->addWidget(titleLabel);
@@ -417,11 +426,29 @@ void GameControls::setEventLabelOverrides(const EventLabelOverrides::Table& over
   if (labelOverrides_ == overrides) return;
   labelOverrides_ = overrides;
   applyUiLanguage();
+  refreshOpenFollowUps();
+}
+
+void GameControls::setTagSession(TagSession* session) {
+  if (labelOverrideConnection_) QObject::disconnect(labelOverrideConnection_);
+  labelOverrideConnection_ = {};
+  tagSession_ = session;
+  if (!tagSession_) {
+    setEventLabelOverrides(EventLabelOverrides::Table{});
+    return;
+  }
+  labelOverrideConnection_ =
+      connect(tagSession_, &TagSession::eventLabelOverridesChanged, this, [this]() {
+        if (!tagSession_) return;
+        setEventLabelOverrides(tagSession_->eventLabelOverrides());
+      });
+  setEventLabelOverrides(tagSession_->eventLabelOverrides());
 }
 
 void GameControls::refreshMainButtonTitles() {
   for (QLabel* titleLabel : mainButtonTitleLabels_) {
     if (!titleLabel) continue;
+    titleLabel->setTextFormat(Qt::PlainText);
     const QString fullText = resolvedTitleText(titleLabel, labelOverrides_);
     const int availableWidth = titleLabel->contentsRect().width();
     const int availableHeight = titleLabel->contentsRect().height();
@@ -510,15 +537,89 @@ void GameControls::switchTeamSideToOppositeTeam() {
 }
 
 void GameControls::applyUiLanguage() {
-  refreshMainButtonTitles();
+  applyControlChrome();
   for (QPushButton* followUpButton : followUpButtons_) {
     if (!followUpButton) continue;
     for (QLabel* titleLabel : followUpButton->findChildren<QLabel*>()) {
       if (titleLabel->property("gameEventName").toString().isEmpty()) continue;
-      titleLabel->setText(resolvedTitleText(titleLabel, labelOverrides_));
+      titleLabel->setTextFormat(Qt::PlainText);
+      const QString fullText = resolvedTitleText(titleLabel, labelOverrides_);
+      titleLabel->setText(fullText);
+      titleLabel->setToolTip(fullText);
     }
   }
   updateGameTimeUi(false);
+}
+
+void GameControls::applyControlChrome() {
+  mainEventButtonsByKey_.clear();
+  for (QPushButton* button : mainEventButtons_) {
+    if (!button) continue;
+    const auto eventId =
+        static_cast<EventCatalog::EventId>(button->property("gameEventId").toInt());
+    const bool hidden = labelOverrides_.hidden(eventId);
+    Style::setState(button, "controlsHidden", hidden);
+    const Qt::Key key = EventControlsValidation::effectiveShortcut(eventId, labelOverrides_);
+    const QString letter = EventControlsValidation::letterForKey(key);
+    const QString caption = letter.isEmpty() ? EventCatalog::shortcutLabel(eventId) : letter;
+    button->setProperty("shortcutHint", caption);
+    for (QLabel* label : button->findChildren<QLabel*>(Qt::FindDirectChildrenOnly)) {
+      label->setTextFormat(Qt::PlainText);
+      if (label->property("gameEventName").toString().isEmpty()) label->setText(caption);
+    }
+    const QString fullLabel = EventLabelResolver::labelForId(eventId, labelOverrides_);
+    button->setAccessibleName(
+        hidden ? AppLocale::trUi("controls_editor.hidden_access").arg(fullLabel) : QString());
+    if (!hidden && key != Qt::Key_unknown &&
+        !mainEventButtonsByKey_.contains(static_cast<int>(key))) {
+      mainEventButtonsByKey_.insert(static_cast<int>(key), button);
+    }
+  }
+  refreshMainButtonTitles();
+}
+
+QStringList GameControls::visibleFollowUpChoices(const QStringList& actions) const {
+  QStringList visible;
+  visible.reserve(actions.size());
+  for (const QString& action : actions) {
+    QStringList path = followUpState_.selections();
+    path.append(action);
+    const EventCatalog::EventId actionId =
+        eventIdAtEndOfPath(followUpState_.mainEvent(), path);
+    if (actionId != EventCatalog::EventId::None && labelOverrides_.hidden(actionId)) continue;
+    visible.append(action);
+  }
+  return visible;
+}
+
+void GameControls::refreshOpenFollowUps() {
+  if (followUpState_.isIdle()) return;
+  const QStringList options =
+      followUpState_.selections().isEmpty()
+          ? FollowUpCatalog::firstLevelOptions(followUpState_.mainEvent())
+          : FollowUpCatalog::optionsAfter(followUpState_.mainEvent(), followUpState_.selections());
+  if (visibleFollowUpChoices(options).isEmpty()) {
+    commitFollowUpFlow();
+    return;
+  }
+  presentFollowUpChoices(options, followUpState_.stage());
+}
+
+bool GameControls::buttonIsSuppressed(const QPushButton* button) const {
+  return button != nullptr && button->property("controlsHidden").toBool();
+}
+
+void GameControls::installControlContextMenu(QPushButton* button) {
+  if (!button) return;
+  button->setContextMenuPolicy(Qt::CustomContextMenu);
+  connect(button, &QPushButton::customContextMenuRequested, this,
+          [this, button](const QPoint& position) {
+            const auto eventId =
+                static_cast<EventCatalog::EventId>(button->property("gameEventId").toInt());
+            GameControlsContextMenu::popup(
+                button, button->mapToGlobal(position), tagSession_, eventId,
+                [this]() { emit editGameControlsRequested(); });
+          });
 }
 
 void GameControls::resetGameTimeState() {
@@ -739,6 +840,7 @@ void GameControls::configureMainGameControlButton(QPushButton* button, const QSt
   auto* titleLabel = new QLabel(eventName, button);
   titleLabel->setProperty("gameEventName", eventName);
   titleLabel->setProperty("gameEventId", button->property("gameEventId"));
+  titleLabel->setTextFormat(Qt::PlainText);
   mainButtonTitleLabels_.append(titleLabel);
   titleLabel->setAlignment(Qt::AlignCenter);
   titleLabel->setWordWrap(true);
@@ -747,6 +849,7 @@ void GameControls::configureMainGameControlButton(QPushButton* button, const QSt
   Style::setRole(titleLabel, "gameControlTitle");
   titleLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
   auto* shortcutLabel = new QLabel(shortcutHint, button);
+  shortcutLabel->setTextFormat(Qt::PlainText);
   shortcutLabel->setAlignment(Qt::AlignCenter);
   shortcutLabel->setMinimumWidth(0);
   shortcutLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
@@ -930,6 +1033,7 @@ void GameControls::wireSignals() {
   for (QPushButton* button : mainEventButtons_) {
     connect(button, &QPushButton::clicked, this, [this, button]() { flashButtonBorder(button); });
     connect(button, &QPushButton::clicked, this, &GameControls::onMainButtonClicked);
+    installControlContextMenu(button);
   }
 }
 
@@ -995,7 +1099,7 @@ bool GameControls::handleApplicationShortcut(QKeyEvent* event) {
 
 void GameControls::onMainButtonClicked() {
   auto* button = qobject_cast<QPushButton*>(sender());
-  if (!button) return;
+  if (!button || buttonIsSuppressed(button)) return;
 
   if (teamSide_ == TagSession::TeamSide::Unspecified) {
     clearActiveMainButton();
@@ -1013,7 +1117,8 @@ void GameControls::onMainButtonClicked() {
   followUpState_.beginMainEvent(eventName);
   setActiveMainButton(button);
   emit mainEventTimestampCaptured(eventName);
-  const bool chainOpen = !FollowUpCatalog::firstLevelOptions(eventName).isEmpty();
+  const bool chainOpen =
+      !visibleFollowUpChoices(FollowUpCatalog::firstLevelOptions(eventName)).isEmpty();
   notifyTagSequence(button->property("shortcutHint").toString(), eventName, chainOpen, true,
                     stepEventId);
   showFirstLevelFollowUps();
@@ -1032,7 +1137,7 @@ void GameControls::advanceFollowUpFlow(const QString& choice) {
   followUpState_.select(choice);
   const QStringList nextOptions =
       FollowUpCatalog::optionsAfter(followUpState_.mainEvent(), followUpState_.selections());
-  const bool chainOpen = !nextOptions.isEmpty();
+  const bool chainOpen = !visibleFollowUpChoices(nextOptions).isEmpty();
   const EventCatalog::EventId stepEventId =
       eventIdAtEndOfPath(followUpState_.mainEvent(), followUpState_.selections());
   notifyTagSequence(QString(), choice, chainOpen, false, stepEventId);
@@ -1086,7 +1191,8 @@ void GameControls::beginChainedGoalFlow() {
   followUpState_.beginMainEvent(eventName);
   setActiveMainButton(goalButton);
   emit mainEventTimestampCaptured(eventName);
-  const bool chainOpen = !FollowUpCatalog::firstLevelOptions(eventName).isEmpty();
+  const bool chainOpen =
+      !visibleFollowUpChoices(FollowUpCatalog::firstLevelOptions(eventName)).isEmpty();
   if (chainOpen) {
     const QString shortcut = goalButton ? goalButton->property("shortcutHint").toString()
                                         : EventCatalog::shortcutLabel(scoringGoal->id);
@@ -1110,11 +1216,15 @@ void GameControls::showFirstLevelFollowUps() {
 }
 
 void GameControls::presentFollowUpChoices(const QStringList& actions, FollowUpState::Stage stage) {
-  Q_ASSERT(!actions.isEmpty());
+  const QStringList visibleActions = visibleFollowUpChoices(actions);
+  if (visibleActions.isEmpty()) {
+    commitFollowUpFlow();
+    return;
+  }
   hideFollowUpButtons();
 
-  for (int actionIndex = 0; actionIndex < actions.size(); ++actionIndex) {
-    const QString& action = actions.at(actionIndex);
+  for (int actionIndex = 0; actionIndex < visibleActions.size(); ++actionIndex) {
+    const QString& action = visibleActions.at(actionIndex);
     QStringList path = followUpState_.selections();
     path.append(action);
     const EventCatalog::EventId actionId =
@@ -1128,11 +1238,13 @@ void GameControls::presentFollowUpChoices(const QStringList& actions, FollowUpSt
     configureFollowUpButton(button, action, actionId, displayLabel,
                             QString::number(actionIndex + 1));
     button->setFocusPolicy(Qt::ClickFocus);
-    button->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    button->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+    button->setMinimumWidth(0);
     button->setMinimumHeight(44);
 
     connect(button, &QPushButton::clicked, this, [this, button]() { flashButtonBorder(button); });
     connect(button, &QPushButton::clicked, this, &GameControls::onFollowUpButtonClicked);
+    installControlContextMenu(button);
     refreshGameButtonMotion(button, activeMainButton_);
     button->installEventFilter(this);
     followUpLayout_->addWidget(button, 1);

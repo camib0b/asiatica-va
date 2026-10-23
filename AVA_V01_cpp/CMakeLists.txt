@@ -33,6 +33,8 @@ qt_add_executable(AVA
   ui/PresentationInstancesModel.cpp
   ui/TagsTableModel.cpp
   ui/ClipDurationSettingsDialog.cpp
+  ui/GameControlsContextMenu.cpp
+  ui/GameControlsEditorDialog.cpp
   ui/XmlSyncDialog.cpp
   ui/XmlEventMappingDialog.cpp
   ui/StatsWindow.cpp
@@ -41,6 +43,7 @@ qt_add_executable(AVA
   state/EventCatalog.cpp
   state/EventLabelOverrides.cpp
   state/EventControlsSetup.cpp
+  state/EventControlsValidation.cpp
   state/EventControlsTemplateStore.cpp
   state/MatchSessionFile.cpp
   state/Utf8JsonFile.cpp
@@ -178,6 +181,7 @@ qt_add_executable(AVAExportTests
   tests/ExportVideoEncoderTests.cpp
   tests/EventCatalogTests.cpp
   tests/EventLabelOverrideTests.cpp
+  tests/GameControlsEditorTests.cpp
   tests/TagEventRoundTripTests.cpp
   tests/InteractionGuardTests.cpp
   tests/PresentationPlaybackTests.cpp
@@ -210,6 +214,8 @@ qt_add_executable(AVAExportTests
   ui/PresentationInstancesModel.cpp
   ui/TagsTableModel.cpp
   ui/ClipDurationSettingsDialog.cpp
+  ui/GameControlsContextMenu.cpp
+  ui/GameControlsEditorDialog.cpp
   ui/XmlSyncDialog.cpp
   components/TeamColorPicker.cpp
   components/TagToastOverlay.cpp
@@ -232,6 +238,7 @@ qt_add_executable(AVAExportTests
   state/EventCatalog.cpp
   state/EventLabelOverrides.cpp
   state/EventControlsSetup.cpp
+  state/EventControlsValidation.cpp
   state/EventControlsTemplateStore.cpp
   state/MatchSessionFile.cpp
   state/Utf8JsonFile.cpp

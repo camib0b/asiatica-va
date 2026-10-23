@@ -13,9 +13,9 @@
 /// Keyed by EventCatalog::EventId so a rename keeps the event's identity.
 /// Stats, follow-up chains, XML codes, and .clips.json codes stay on that id.
 /// Each entry may carry a label, an optional shortcut key, and a hidden flag.
-/// Only the label is applied to the UI in this step. The shortcut key and the
-/// hidden flag are stored for later steps. Hidden still participates in
-/// validation: a hidden event is not a visible sibling.
+/// GameControls applies all three. A hidden event stays in the button grid and
+/// does not tag. Hidden still participates in validation: a hidden event is
+/// not a visible sibling.
 ///
 /// An accepted label replaces the catalog text in both English and Spanish.
 /// Empty labels (after trimming the ends) are rejected. A label is a duplicate
@@ -65,14 +65,15 @@ class Table {
   /// nothing.
   Result clearLabel(EventCatalog::EventId id);
 
-  /// Stores a shortcut for a later step. Qt::Key_unknown clears it. Duplicate
-  /// keys are not rejected yet, and GameControls does not read this field.
+  /// Stores a shortcut. Qt::Key_unknown clears it. Duplicate keys are kept so an
+  /// older session file still loads. The editor refuses to save a new conflict.
+  /// GameControls gives the key to the first visible button in keyboard order.
   Result setShortcutKey(EventCatalog::EventId id, Qt::Key key);
   Result clearShortcutKey(EventCatalog::EventId id);
 
   /// Stores the hidden flag. setHidden(false) is rejected when showing the
-  /// event would duplicate a visible sibling's label. Buttons are not hidden
-  /// by this flag yet.
+  /// event would duplicate a visible sibling's label. GameControls leaves the
+  /// button in the layout and suppresses tagging while the flag is set.
   Result setHidden(EventCatalog::EventId id, bool hidden);
 
   void clear();
