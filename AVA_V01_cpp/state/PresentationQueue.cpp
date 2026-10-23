@@ -116,6 +116,19 @@ void PresentationQueue::setSelectedTagIndexes(const QVector<int>& tagSessionInde
   emit queueChanged();
 }
 
+quint64 PresentationQueue::currentClipTagId() const { return currentTagId(); }
+
+void PresentationQueue::restoreSelection(const QVector<quint64>& tagIds, quint64 currentTagId) {
+  selectedTagIds_ = filterTagIdsToExisting(tagIds, existingTagIdsFromSession(tagSession_));
+  rebuildClipsFromSession();
+  const int restoredIndex = queueIndexForTagId(currentTagId);
+  if (restoredIndex >= 0) currentIndex_ = restoredIndex;
+  else if (clips_.isEmpty()) currentIndex_ = -1;
+  else currentIndex_ = 0;
+  emit queueChanged();
+  emit currentClipChanged(currentIndex_);
+}
+
 void PresentationQueue::clear() {
   const bool hadContent = !clips_.isEmpty() || !selectedTagIds_.isEmpty();
   selectedTagIds_.clear();

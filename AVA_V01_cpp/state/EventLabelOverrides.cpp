@@ -2,7 +2,10 @@
 
 #include "EventLabelResolver.h"
 
+#include <QSet>
 #include <QVector>
+
+#include <algorithm>
 
 namespace EventLabelOverrides {
 namespace {
@@ -177,6 +180,63 @@ Result Table::setHidden(EventCatalog::EventId id, bool hidden) {
 }
 
 void Table::clear() { entries_.clear(); }
+
+QVector<Record> Table::records() const {
+  QVector<int> keys;
+  keys.reserve(entries_.size());
+  for (auto iterator = entries_.cbegin(); iterator != entries_.cend(); ++iterator) {
+    keys.append(iterator.key());
+  }
+  std::sort(keys.begin(), keys.end());
+
+  QVector<Record> stored;
+  stored.reserve(keys.size());
+  for (const int key : keys) {
+    const auto iterator = entries_.constFind(key);
+    if (iterator == entries_.cend()) continue;
+    Record record;
+    record.id = static_cast<EventCatalog::EventId>(key);
+    record.label = iterator->label;
+    record.hasShortcutKey = iterator->hasShortcutKey;
+    record.shortcutKey = iterator->shortcutKey;
+    record.hidden = iterator->hidden;
+    stored.append(record);
+  }
+  return stored;
+}
+
+bool Table::replaceRecords(const QVector<Record>& records) {
+  Table prospective;
+  QSet<int> seenIds;
+  seenIds.reserve(records.size());
+  for (const Record& record : records) {
+    if (!isCatalogId(record.id)) return false;
+    const int key = static_cast<int>(record.id);
+    if (seenIds.contains(key)) return false;
+    seenIds.insert(key);
+
+    Entry entry;
+    entry.label = record.label.trimmed();
+    if (record.hasShortcutKey && record.shortcutKey != Qt::Key_unknown) {
+      entry.hasShortcutKey = true;
+      entry.shortcutKey = record.shortcutKey;
+    }
+    entry.hidden = record.hidden;
+    if (entry.isEmpty()) continue;
+    prospective.entries_.insert(key, entry);
+  }
+
+  const QVector<int> keys = prospective.entries_.keys();
+  for (const int key : keys) {
+    const auto id = static_cast<EventCatalog::EventId>(key);
+    if (prospective.hidden(id)) continue;
+    const Result collision = visibleLabelCollision(id, prospective);
+    if (!collision.accepted) return false;
+  }
+
+  entries_ = prospective.entries_;
+  return true;
+}
 
 bool Table::hasLabel(EventCatalog::EventId id) const { return !label(id).isEmpty(); }
 

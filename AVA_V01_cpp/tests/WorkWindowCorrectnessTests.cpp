@@ -1,16 +1,21 @@
+#include "AppLocale.h"
+#include "MatchSessionFile.h"
 #include "TagSession.h"
 #include "WorkWindow.h"
 
 #include <QApplication>
 #include <QAbstractItemModel>
 #include <QAction>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QItemSelectionModel>
+#include <QLabel>
 #include <QMediaPlayer>
 #include <QMenu>
 #include <QMetaObject>
 #include <QPlainTextEdit>
+#include <QStringList>
 #include <QTableView>
 #include <QTemporaryDir>
 #include <QTest>
@@ -46,6 +51,90 @@ QPlainTextEdit* clipNotes(WorkWindow& window) {
   return editors.isEmpty() ? nullptr : editors.first();
 }
 
+QString writeNamedPlaceholder(QTemporaryDir& directory, const QString& fileName) {
+  const QString path = directory.filePath(fileName);
+  QFile file(path);
+  if (!file.open(QIODevice::WriteOnly)) return {};
+  if (file.write("not a real video") < 0) return {};
+  file.close();
+  return QFileInfo(path).absoluteFilePath();
+}
+
+QString plantSessionBytes(const QString& videoPath, const QByteArray& bytes) {
+  const QString sessionPath = MatchSessionFile::sessionFilePathForSources({videoPath});
+  if (sessionPath.isEmpty()) return {};
+  if (!QDir().mkpath(QFileInfo(sessionPath).absolutePath())) return {};
+  QFile file(sessionPath);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return {};
+  if (file.write(bytes) != bytes.size()) return {};
+  file.close();
+  return sessionPath;
+}
+
+class LanguageGuard {
+ public:
+  LanguageGuard() : previous_(AppLocale::currentLanguage()) {
+    AppLocale::setLanguage(AppLocale::Language::English);
+  }
+  ~LanguageGuard() { AppLocale::setLanguage(previous_); }
+
+  LanguageGuard(const LanguageGuard&) = delete;
+  LanguageGuard& operator=(const LanguageGuard&) = delete;
+
+ private:
+  AppLocale::Language previous_;
+};
+
+class WarningLog {
+ public:
+  WarningLog() {
+    active_ = this;
+    previous_ = qInstallMessageHandler(&WarningLog::handle);
+  }
+  ~WarningLog() {
+    active_ = nullptr;
+    qInstallMessageHandler(previous_);
+  }
+
+  WarningLog(const WarningLog&) = delete;
+  WarningLog& operator=(const WarningLog&) = delete;
+
+  bool contains(const QString& fragment) const {
+    for (const QString& line : lines_) {
+      if (line.contains(fragment)) return true;
+    }
+    return false;
+  }
+
+ private:
+  static void handle(QtMsgType type, const QMessageLogContext& context, const QString& message) {
+    if (active_ != nullptr && type == QtWarningMsg) active_->lines_.append(message);
+    if (active_ != nullptr && active_->previous_ != nullptr) {
+      active_->previous_(type, context, message);
+    }
+  }
+
+  static WarningLog* active_;
+  QtMessageHandler previous_ = nullptr;
+  QStringList lines_;
+};
+
+WarningLog* WarningLog::active_ = nullptr;
+
+const QString kUnreadableEnglish =
+    QStringLiteral("Couldn't read the session file. Changes to this match won't be saved.");
+const QString kUnreadableSpanish =
+    QStringLiteral("No se pudo leer el archivo de la sesión. Los cambios de este partido no se guardarán.");
+const QString kUnsavedLog = QStringLiteral("Changes to this match will not be saved.");
+
+void expectUnreadableWarning(WorkWindow& window, const WarningLog& log) {
+  auto* warning = window.findChild<QLabel*>(QStringLiteral("SessionFileWarning"));
+  QVERIFY(warning != nullptr);
+  QVERIFY(!warning->isHidden());
+  QCOMPARE(warning->text(), kUnreadableEnglish);
+  QVERIFY(log.contains(kUnsavedLog));
+}
+
 }  // namespace
 
 class WorkWindowCorrectnessTest : public QObject {
@@ -58,6 +147,7 @@ class WorkWindowCorrectnessTest : public QObject {
   void tagRebuildCoalescesANestedReset();
   void filterMenuKeepsTheSameMenuWhenEventsChange();
   void filterMenuDefersNewActionsUntilItCloses();
+  void unreadableSessionFileWarnsAndIsLeftOnDisk();
 };
 
 void WorkWindowCorrectnessTest::closingVideoReleasesTheFileBeforeTheTempDirectoryGoes() {
@@ -248,6 +338,85 @@ void WorkWindowCorrectnessTest::filterMenuDefersNewActionsUntilItCloses() {
     }
   }
   QVERIFY(sawCircle);
+}
+
+void WorkWindowCorrectnessTest::unreadableSessionFileWarnsAndIsLeftOnDisk() {
+  LanguageGuard language;
+  QTemporaryDir directory;
+  QVERIFY(directory.isValid());
+  TagSession session;
+
+  const QByteArray newerBytes = QByteArrayLiteral(
+      "{\"format\":\"ava-match-session\",\"version\":2,\"tags\":[],\"future\":true}\n");
+  const QString newerVideo = writeNamedPlaceholder(directory, QStringLiteral("newer.mp4"));
+  QVERIFY(!newerVideo.isEmpty());
+  const QString newerSession = plantSessionBytes(newerVideo, newerBytes);
+  QVERIFY(!newerSession.isEmpty());
+
+  {
+    WarningLog log;
+    WorkWindow window;
+    window.setTagSession(&session);
+    window.loadVideoFromFile(newerVideo);
+    expectUnreadableWarning(window, log);
+
+    AppLocale::setLanguage(AppLocale::Language::Spanish);
+    auto* warning = window.findChild<QLabel*>(QStringLiteral("SessionFileWarning"));
+    QVERIFY(warning != nullptr);
+    QCOMPARE(warning->text(), kUnreadableSpanish);
+    QCOMPARE(AppLocale::trUi("session.unreadable"), kUnreadableSpanish);
+
+    QVERIFY(QMetaObject::invokeMethod(&window, "onCloseVideo"));
+    QVERIFY(warning->isHidden());
+  }
+  QCOMPARE(QFile(newerSession).exists(), true);
+  QFile newerFile(newerSession);
+  QVERIFY(newerFile.open(QIODevice::ReadOnly));
+  QCOMPARE(newerFile.readAll(), newerBytes);
+  newerFile.close();
+  QVERIFY(QFile::remove(newerSession));
+
+  AppLocale::setLanguage(AppLocale::Language::English);
+  const QByteArray corruptBytes = QByteArrayLiteral("{");
+  const QString corruptVideo = writeNamedPlaceholder(directory, QStringLiteral("corrupt.mp4"));
+  QVERIFY(!corruptVideo.isEmpty());
+  const QString corruptSession = plantSessionBytes(corruptVideo, corruptBytes);
+  QVERIFY(!corruptSession.isEmpty());
+
+  {
+    WarningLog log;
+    WorkWindow window;
+    window.setTagSession(&session);
+    window.loadVideoFromFile(corruptVideo);
+    expectUnreadableWarning(window, log);
+    QVERIFY(QMetaObject::invokeMethod(&window, "onCloseVideo"));
+    auto* warning = window.findChild<QLabel*>(QStringLiteral("SessionFileWarning"));
+    QVERIFY(warning != nullptr);
+    QVERIFY(warning->isHidden());
+  }
+  QFile corruptFile(corruptSession);
+  QVERIFY(corruptFile.open(QIODevice::ReadOnly));
+  QCOMPARE(corruptFile.readAll(), corruptBytes);
+  corruptFile.close();
+  QVERIFY(QFile::remove(corruptSession));
+
+  const QString freshVideo = writeNamedPlaceholder(directory, QStringLiteral("fresh.mp4"));
+  QVERIFY(!freshVideo.isEmpty());
+  const QString freshSession = MatchSessionFile::sessionFilePathForSources({freshVideo});
+  QVERIFY(!freshSession.isEmpty());
+  QVERIFY(!QFile::exists(freshSession));
+  {
+    WarningLog log;
+    WorkWindow window;
+    window.setTagSession(&session);
+    window.loadVideoFromFile(freshVideo);
+    auto* warning = window.findChild<QLabel*>(QStringLiteral("SessionFileWarning"));
+    QVERIFY(warning != nullptr);
+    QVERIFY(warning->isHidden());
+    QVERIFY(!log.contains(kUnsavedLog));
+    QVERIFY(QMetaObject::invokeMethod(&window, "onCloseVideo"));
+  }
+  QFile::remove(freshSession);
 }
 
 int runWorkWindowCorrectnessTests(int argc, char** argv) {

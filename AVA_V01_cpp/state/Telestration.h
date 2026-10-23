@@ -14,8 +14,8 @@
 
 class TagSession;
 
-/// In-memory telestration for the open video. Drawings are not written to a
-/// session file and are not part of the Sportscode XML export.
+/// Telestration for the open video. The match session file stores the
+/// drawings. They are not part of the Sportscode XML export.
 namespace Telestration {
 
 /// How long a new drawing stays up. Presentation pauses for this long.
@@ -152,6 +152,11 @@ public:
     explicit Session(QObject* parent = nullptr);
 
     const QVector<Drawing>& drawings() const { return drawings_; }
+    quint64 nextDrawingId() const { return nextDrawingId_; }
+
+    /// Replaces the drawing list. \p nextDrawingId is a floor so restored ids
+    /// are not reused. Emits drawingsChanged.
+    void replaceDrawings(const QVector<Drawing>& drawings, quint64 nextDrawingId);
 
     /// Appends \p shape to the last drawing when that drawing is anchored at
     /// \p anchorMs with the same tag. Otherwise starts a new drawing.

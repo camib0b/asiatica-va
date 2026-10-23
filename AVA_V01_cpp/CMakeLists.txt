@@ -40,6 +40,10 @@ qt_add_executable(AVA
   state/EventDefaults.cpp
   state/EventCatalog.cpp
   state/EventLabelOverrides.cpp
+  state/EventControlsSetup.cpp
+  state/EventControlsTemplateStore.cpp
+  state/MatchSessionFile.cpp
+  state/Utf8JsonFile.cpp
   state/EventLabelResolver.cpp
   state/EventCodeMap.cpp
   state/TagEvent.cpp
@@ -190,6 +194,7 @@ qt_add_executable(AVAExportTests
   tests/TimelineScrubTests.cpp
   tests/PlaybackSpeedTests.cpp
   tests/TelestrationTests.cpp
+  tests/MatchSessionFileTests.cpp
   ui/PresentationPanel.cpp
   ui/PresentationInstancesModel.cpp
   ui/XmlEventMappingDialog.cpp
@@ -226,6 +231,10 @@ qt_add_executable(AVAExportTests
   state/EventDefaults.cpp
   state/EventCatalog.cpp
   state/EventLabelOverrides.cpp
+  state/EventControlsSetup.cpp
+  state/EventControlsTemplateStore.cpp
+  state/MatchSessionFile.cpp
+  state/Utf8JsonFile.cpp
   state/EventLabelResolver.cpp
   state/EventCodeMap.cpp
   state/TagEvent.cpp

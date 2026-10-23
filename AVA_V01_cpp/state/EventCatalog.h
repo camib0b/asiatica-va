@@ -28,8 +28,9 @@ inline constexpr int kNoButtonGridPosition = -1;
 /// Stable identity for a main event or a follow-up.
 ///
 /// Values are part of the catalog contract. Do not renumber or reuse them.
-/// Game tags store these ids. XML export, .clips.json, and clip-duration
-/// QSettings still use the canonical English name.
+/// Game tags store these ids. XML export and .clips.json still use the
+/// canonical English name. Clip-duration QSettings use this id; a value stored
+/// under the English name is migrated on load.
 enum class EventId : int {
   None = 0,
 
@@ -128,8 +129,8 @@ enum class ShootoutAttemptResult {
 /// Follow-ups leave shortcut, XML code, lead/lag, payload, and the button grid unused.
 struct Node {
   EventId id = EventId::None;
-  /// English token. XML export, .clips.json, and clip-duration QSettings still
-  /// write this name. Game tags store EventId instead.
+  /// English token. XML export and .clips.json still write this name. Game tags
+  /// and clip-duration QSettings store EventId instead.
   const char* canonicalName = nullptr;
   Qt::Key shortcut = Qt::Key_unknown;
   /// Short XML code for a main event. Null for follow-ups.

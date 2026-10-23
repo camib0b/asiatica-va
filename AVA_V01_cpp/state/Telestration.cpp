@@ -334,6 +334,17 @@ bool Session::removeLastShape() {
     return true;
 }
 
+void Session::replaceDrawings(const QVector<Drawing>& drawings, quint64 nextDrawingId) {
+    drawings_ = drawings;
+    quint64 highestId = 0;
+    for (const Drawing& drawing : drawings_) {
+        if (drawing.id > highestId) highestId = drawing.id;
+    }
+    nextDrawingId_ = std::max(nextDrawingId, highestId + 1);
+    if (nextDrawingId_ == 0) nextDrawingId_ = 1;
+    emit drawingsChanged();
+}
+
 void Session::clear() {
     if (drawings_.isEmpty()) return;
     drawings_.clear();
