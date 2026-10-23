@@ -14,6 +14,7 @@
 #include "../components/GameControls.h"
 #include "../components/TagToastOverlay.h"
 #include "../components/MatchNotesEditor.h"
+#include "../state/MatchSessionFile.h"
 #include "../state/PresentationQueue.h"
 #include "../state/EventLabelResolver.h"
 #include "../state/TagSession.h"
@@ -94,6 +95,7 @@ void setToolButtonFlashState(QToolButton* button, bool flashing) {
 #include <QSizePolicy>
 #include <QHBoxLayout>
 #include <QApplication>
+#include <QDebug>
 #include <QAbstractSpinBox>
 #include <QComboBox>
 #include <QTextEdit>
@@ -295,6 +297,8 @@ WorkWindow::WorkWindow(QWidget* parent)
 
 WorkWindow::~WorkWindow() {
     notesController_->flushPendingClipNote();
+    notesController_->saveMatchNoteDebounceFired();
+    saveOpenMatchSession();
     presentationPlaybackController_->detachPresentationKeyboardShortcuts();
     disconnectTagSessionSignals();
     if (exportJobManager_) {
@@ -572,6 +576,34 @@ void WorkWindow::setTagSession(TagSession* session) {
 
     if (tagSession_) connectTagSessionSignals();
     pushEventLabelOverridesToGameControls();
+}
+
+void WorkWindow::saveOpenMatchSession() {
+    if (workStage_ != WorkStage::VideoOpen || matchSourcePaths_.isEmpty() || tagSession_ == nullptr) return;
+    notesController_->flushPendingClipNote();
+    notesController_->saveMatchNoteDebounceFired();
+    const MatchSessionFile::Document document = MatchSessionFile::capture(
+        *tagSession_, presentationQueue_, telestrationSession_, matchSourcePaths_);
+    const MatchSessionFile::SaveResult result = MatchSessionFile::saveForSources(matchSourcePaths_, document);
+    if (result.status != MatchSessionFile::SaveStatus::Saved && !result.errorMessage.isEmpty()) {
+        qWarning("%s", qPrintable(result.errorMessage));
+    }
+}
+
+void WorkWindow::restoreOpenedMatchSession(bool keepMetadata) {
+    if (tagSession_ == nullptr || matchSourcePaths_.isEmpty()) return;
+    const MatchSessionFile::LoadResult loaded = MatchSessionFile::loadForSources(matchSourcePaths_);
+    if (loaded.status != MatchSessionFile::LoadStatus::Loaded &&
+        loaded.status != MatchSessionFile::LoadStatus::Missing &&
+        !loaded.errorMessage.isEmpty()) {
+        qWarning("%s", qPrintable(loaded.errorMessage));
+    }
+    if (loaded.status == MatchSessionFile::LoadStatus::Loaded) {
+        MatchSessionFile::apply(loaded.document, *tagSession_, presentationQueue_, telestrationSession_,
+                                keepMetadata);
+        return;
+    }
+    tagSession_->clearEventLabelOverrides();
 }
 
 void WorkWindow::pushEventLabelOverridesToGameControls() {
@@ -1466,9 +1498,22 @@ void WorkWindow::wireApplicationFocusSignals() {
 void WorkWindow::showTeamSetupForVideo(const QString& filePath, const QStringList& sourceVideoPaths) {
     if (!gameSetupWidget_ || !contentStack_) return;
     gameSetupWidget_->setVideoPath(filePath);
-    gameSetupWidget_->setTeamDefaults(QString(), QString(), QString(), QString());
-    gameSetupWidget_->setMetadataDefaults(QDate::currentDate(), QString(), QString());
-    gameSetupWidget_->beginMetadataSuggestion(sourceVideoPaths);
+    const QStringList sources = sourceVideoPaths.isEmpty() ? QStringList{filePath} : sourceVideoPaths;
+    pendingMatchSourcePaths_ = MatchSessionFile::normalizedSourcePaths(sources);
+    pendingMetadataConfirmed_ = false;
+    const MatchSessionFile::LoadResult loaded =
+        MatchSessionFile::loadForSources(pendingMatchSourcePaths_);
+    if (loaded.status == MatchSessionFile::LoadStatus::Loaded) {
+        const MatchSessionFile::Document& document = loaded.document;
+        gameSetupWidget_->setTeamDefaults(document.homeTeamName, document.awayTeamName,
+                                          document.homeTeamColor, document.awayTeamColor);
+        gameSetupWidget_->setMetadataDefaults(document.gameDate, document.homeAbbrev,
+                                              document.awayAbbrev);
+    } else {
+        gameSetupWidget_->setTeamDefaults(QString(), QString(), QString(), QString());
+        gameSetupWidget_->setMetadataDefaults(QDate::currentDate(), QString(), QString());
+        gameSetupWidget_->beginMetadataSuggestion(sourceVideoPaths);
+    }
     contentStack_->setCurrentIndex(0);
     gameSetupWidget_->setInitialFocus();
     refreshPlaybackShortcutFocusGate();
@@ -1510,6 +1555,7 @@ void WorkWindow::applyConfirmedGameSetup(const QString& filePath,
                                          const QDate& gameDate,
                                          const QString& homeAbbrev,
                                          const QString& awayAbbrev) {
+    pendingMetadataConfirmed_ = true;
     if (tagSession_) {
         tagSession_->setGameTeams(homeName, awayName, homeColor, awayColor);
         tagSession_->setGameMetadata(gameDate, homeAbbrev, awayAbbrev);
@@ -1542,6 +1588,10 @@ void WorkWindow::onGameSetupCancelled() {
 
 void WorkWindow::loadVideoFromFile(const QString& filePath) {
     if (filePath.isEmpty()) return;
+    if (pendingMatchSourcePaths_.isEmpty() && matchSourcePaths_.isEmpty()) {
+        pendingMatchSourcePaths_ = MatchSessionFile::normalizedSourcePaths(QStringList{filePath});
+        pendingMetadataConfirmed_ = false;
+    }
 
     ++playbackPreparationGeneration_;
     activePlaybackPreparer_.reset();
@@ -1586,12 +1636,23 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
 }
 
 void WorkWindow::finishOpeningVideo(const QString& filePath, const QString& playbackPath) {
+    saveOpenMatchSession();
+    if (!pendingMatchSourcePaths_.isEmpty()) {
+        matchSourcePaths_ = pendingMatchSourcePaths_;
+    } else if (matchSourcePaths_.isEmpty()) {
+        matchSourcePaths_ = MatchSessionFile::normalizedSourcePaths(QStringList{filePath});
+    }
+    pendingMatchSourcePaths_.clear();
+    const bool keepMetadata = pendingMetadataConfirmed_;
+    pendingMetadataConfirmed_ = false;
+
     sourceVideoPath_ = filePath;
     workStage_ = WorkStage::VideoOpen;
     resetSessionForOpenedVideo();
     showPlayerForOpenedVideo(playbackPath);
     showWorkChromeForOpenedVideo();
     resetPresentationForOpenedVideo();
+    restoreOpenedMatchSession(keepMetadata);
     refreshSurfacesForOpenedVideo();
 }
 
@@ -1736,6 +1797,8 @@ void WorkWindow::onReplaceVideo() {
 }
 
 void WorkWindow::replaceOpenVideoWithFile(const QString& filePath) {
+    pendingMatchSourcePaths_ = MatchSessionFile::normalizedSourcePaths(QStringList{filePath});
+    pendingMetadataConfirmed_ = false;
     releaseTransientResources();
     setExportDefaultDirectoryFromVideoPath(filePath);
     loadVideoFromFile(filePath);
@@ -1766,7 +1829,7 @@ void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
     activeConcatTemporaryDirectory_ = std::move(tempDir);
     activeConcatenator_ = std::make_unique<VideoConcatenator>();
     connect(activeConcatenator_.get(), &VideoConcatenator::runFinished, this,
-            [this, generation](const VideoConcatenationResult& result) {
+            [this, generation, filePaths](const VideoConcatenationResult& result) {
                 if (generation != videoConcatenationGeneration_) return;
                 std::unique_ptr<QTemporaryDir> finishedDirectory =
                     std::move(activeConcatTemporaryDirectory_);
@@ -1779,6 +1842,8 @@ void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
                     return;
                 }
                 const QString outputPath = result.outputPath;
+                pendingMatchSourcePaths_ = MatchSessionFile::normalizedSourcePaths(filePaths);
+                pendingMetadataConfirmed_ = false;
                 releaseTransientResources();
                 setConcatenatedVideoTemporaryDirectory(std::move(finishedDirectory));
                 loadVideoFromFile(outputPath);
@@ -1790,7 +1855,11 @@ void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
 
 void WorkWindow::onCloseVideo() {
     if (!confirmExportAllowsVideoRelease()) return;
+    saveOpenMatchSession();
     workStage_ = WorkStage::NoVideo;
+    matchSourcePaths_.clear();
+    pendingMatchSourcePaths_.clear();
+    pendingMetadataConfirmed_ = false;
     sourceVideoPath_.clear();
     if (tagToast_) tagToast_->dismissImmediately();
     capturedMainEvent_.reset();

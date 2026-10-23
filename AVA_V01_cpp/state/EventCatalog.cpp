@@ -156,8 +156,8 @@ constexpr Node makeMainEvent(EventId id, const char* canonicalName, Qt::Key shor
 // lag ms, Spanish (nullptr = same as the canonical name), payload layout,
 // switches team, display label (nullptr = canonical name), button row,
 // button column, row left offset in quarter-key units, then children.
-// Main events stay in clip-duration settings order. QSettings groups use
-// canonicalName, not the id. The button row is the GameControls keyboard,
+// Main events stay in clip-duration settings order. QSettings groups use the
+// catalog id. The button row is the GameControls keyboard,
 // which is not this array order:
 //   row 0 offset 0: 16-yd, 50-yd, 75-yd, PC
 //   row 1 offset 1: Circle Entry, PC Foul, Shot, Goal

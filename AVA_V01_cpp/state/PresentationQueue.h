@@ -45,6 +45,13 @@ public:
   /// Replaces the queue with the given TagSession indexes, ordered by event mark. The clip that is
   /// currently on screen stays selected when it is still part of the new selection.
   void setSelectedTagIndexes(const QVector<int>& tagSessionIndexes);
+  /// Selection stored by stable tag id, in the order it was picked.
+  QVector<quint64> selectedTagIds() const { return selectedTagIds_; }
+  /// Tag id of the clip on screen, or 0 when the queue is empty.
+  quint64 currentClipTagId() const;
+  /// Restores a saved selection. Unknown ids are dropped. \p currentTagId is
+  /// selected when it is still in the queue; otherwise the earliest clip is.
+  void restoreSelection(const QVector<quint64>& tagIds, quint64 currentTagId);
   void clear();
 
   bool isEmpty() const { return clips_.isEmpty(); }

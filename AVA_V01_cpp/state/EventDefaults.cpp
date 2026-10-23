@@ -7,6 +7,7 @@
 #include <QSettings>
 #include <QString>
 #include <QVariant>
+#include <QVector>
 
 #include <algorithm>
 #include <array>
@@ -58,10 +59,15 @@ EventDuration clampDuration(qint64 leadMs, qint64 lagMs) {
           std::clamp(lagMs, kMinLeadLagMs, kMaxLeadLagMs)};
 }
 
-/// QSettings INI groups treat '.' as a path separator, so "S.O." must be encoded.
-/// The group name is the canonical English event name, not the catalog id.
-QString settingsGroupForEvent(const QString& canonicalMainEvent) {
+/// The previous writer used this as the QSettings group. Percent-encoding
+/// leaves '.' in place ("S.O.") and encodes a space ("PC Foul" -> "PC%20Foul").
+/// New groups are the decimal catalog id.
+QString legacySettingsGroupForEvent(const QString& canonicalMainEvent) {
   return QString::fromLatin1(canonicalMainEvent.toUtf8().toPercentEncoding("-_"));
+}
+
+QString settingsGroupForEventId(EventCatalog::EventId eventId) {
+  return QString::number(static_cast<int>(eventId));
 }
 
 bool readOverrideDuration(QSettings& settings, const QString& groupName, EventDuration* duration) {
@@ -85,7 +91,7 @@ bool readOverrideDuration(QSettings& settings, const QString& groupName, EventDu
 
 struct UserOverrideState {
   std::mutex mutex;
-  QHash<QString, EventDuration> overrides;
+  QHash<int, EventDuration> overrides;
   bool loaded = false;
 };
 
@@ -94,18 +100,40 @@ UserOverrideState& userOverrideState() {
   return state;
 }
 
-void persistOverride(const QString& canonicalMainEvent, qint64 leadMs, qint64 lagMs) {
-  QSettings settings;
-  settings.beginGroup(QLatin1String(kSettingsGroup));
-  settings.beginGroup(settingsGroupForEvent(canonicalMainEvent));
-  // Historical QSettings keys; kept so existing user clip-duration overrides still load.
-  settings.setValue(QLatin1String(kLeadSettingsKey), leadMs);
-  settings.setValue(QLatin1String(kLagSettingsKey), lagMs);
-  settings.endGroup();
+void writeOverrideGroup(QSettings& settings, const QString& groupName, const EventDuration& duration) {
+  settings.beginGroup(groupName);
+  settings.setValue(QLatin1String(kLeadSettingsKey), duration.leadMs);
+  settings.setValue(QLatin1String(kLagSettingsKey), duration.lagMs);
   settings.endGroup();
 }
 
-// Caller must hold state.mutex.
+void removeSettingsGroup(QSettings& settings, const QString& groupName) {
+  settings.beginGroup(groupName);
+  settings.remove(QString());
+  settings.endGroup();
+  settings.remove(groupName);
+}
+
+void removeLegacyGroups(QSettings& settings, const QString& canonicalName, const QString& idGroup) {
+  const QString encoded = legacySettingsGroupForEvent(canonicalName);
+  if (encoded != idGroup) removeSettingsGroup(settings, encoded);
+  if (canonicalName != encoded && canonicalName != idGroup) {
+    removeSettingsGroup(settings, canonicalName);
+  }
+}
+
+void persistOverride(EventCatalog::EventId eventId, const QString& canonicalName,
+                     const EventDuration& duration) {
+  QSettings settings;
+  settings.beginGroup(QLatin1String(kSettingsGroup));
+  const QString idGroup = settingsGroupForEventId(eventId);
+  writeOverrideGroup(settings, idGroup, duration);
+  removeLegacyGroups(settings, canonicalName, idGroup);
+  settings.endGroup();
+}
+
+// Caller must hold state.mutex. Copies a canonical-name group onto the catalog
+// id, then removes the name group so the value is not read twice.
 void loadOverridesFromSettings(UserOverrideState& state) {
   if (state.loaded) return;
   state.loaded = true;
@@ -118,15 +146,38 @@ void loadOverridesFromSettings(UserOverrideState& state) {
     if (!node.mainEvent || !node.canonicalName) continue;
 
     const QString canonicalName = QString::fromLatin1(node.canonicalName);
+    const QString idGroup = settingsGroupForEventId(node.id);
+    const QString encodedGroup = legacySettingsGroupForEvent(canonicalName);
     EventDuration duration;
-    const bool loadedEncoded =
-        readOverrideDuration(settings, settingsGroupForEvent(canonicalName), &duration);
-    const bool loadedLegacy =
-        !loadedEncoded && readOverrideDuration(settings, canonicalName, &duration);
-    if (!loadedEncoded && !loadedLegacy) continue;
-    state.overrides.insert(canonicalName, duration);
+    const bool loadedFromId = readOverrideDuration(settings, idGroup, &duration);
+    const bool loadedFromEncoded =
+        !loadedFromId && readOverrideDuration(settings, encodedGroup, &duration);
+    const bool loadedFromRawName = !loadedFromId && !loadedFromEncoded &&
+                                   encodedGroup != canonicalName &&
+                                   readOverrideDuration(settings, canonicalName, &duration);
+    if (!loadedFromId && !loadedFromEncoded && !loadedFromRawName) continue;
+
+    state.overrides.insert(static_cast<int>(node.id), duration);
+    if (!loadedFromId) writeOverrideGroup(settings, idGroup, duration);
+    removeLegacyGroups(settings, canonicalName, idGroup);
   }
   settings.endGroup();
+}
+
+QVector<UserOverride> overridesInIdOrder(const QHash<int, EventDuration>& overrides) {
+  QVector<UserOverride> listed;
+  listed.reserve(overrides.size());
+  for (auto iterator = overrides.cbegin(); iterator != overrides.cend(); ++iterator) {
+    UserOverride override;
+    override.eventId = static_cast<EventCatalog::EventId>(iterator.key());
+    override.leadMs = iterator->leadMs;
+    override.lagMs = iterator->lagMs;
+    listed.append(override);
+  }
+  std::sort(listed.begin(), listed.end(), [](const UserOverride& left, const UserOverride& right) {
+    return static_cast<int>(left.eventId) < static_cast<int>(right.eventId);
+  });
+  return listed;
 }
 
 }  // namespace
@@ -163,12 +214,15 @@ EventDuration factoryDefaultFor(const QString& canonicalMainEvent) {
 EventDuration defaultFor(const QString& canonicalMainEvent) {
   if (isTimeControlEvent(canonicalMainEvent)) return factoryDefaultFor(canonicalMainEvent);
 
+  const EventCatalog::Node* node = playEvent(canonicalMainEvent);
+  if (node == nullptr) return factoryDefaultFor(canonicalMainEvent);
+
   UserOverrideState& state = userOverrideState();
   std::lock_guard<std::mutex> lock(state.mutex);
   loadOverridesFromSettings(state);
-  const auto iterator = state.overrides.constFind(canonicalMainEvent);
+  const auto iterator = state.overrides.constFind(static_cast<int>(node->id));
   if (iterator != state.overrides.cend()) return iterator.value();
-  return factoryDefaultFor(canonicalMainEvent);
+  return EventDuration{node->leadMs, node->lagMs};
 }
 
 QString quarterCode(int quarterIndex) {
@@ -181,15 +235,45 @@ QString quarterCode(int quarterIndex) {
 }
 
 void setUserOverride(const QString& canonicalMainEvent, qint64 leadMs, qint64 lagMs) {
-  if (playEvent(canonicalMainEvent) == nullptr) return;
+  const EventCatalog::Node* node = playEvent(canonicalMainEvent);
+  if (node == nullptr) return;
 
   const EventDuration clamped = clampDuration(leadMs, lagMs);
 
   UserOverrideState& state = userOverrideState();
   std::lock_guard<std::mutex> lock(state.mutex);
   loadOverridesFromSettings(state);
-  state.overrides.insert(canonicalMainEvent, clamped);
-  persistOverride(canonicalMainEvent, clamped.leadMs, clamped.lagMs);
+  state.overrides.insert(static_cast<int>(node->id), clamped);
+  persistOverride(node->id, canonicalMainEvent, clamped);
+}
+
+QVector<UserOverride> userOverrides() {
+  UserOverrideState& state = userOverrideState();
+  std::lock_guard<std::mutex> lock(state.mutex);
+  loadOverridesFromSettings(state);
+  return overridesInIdOrder(state.overrides);
+}
+
+void replaceUserOverrides(const QVector<UserOverride>& overrides) {
+  QHash<int, EventDuration> replacement;
+  for (const UserOverride& override : overrides) {
+    const EventCatalog::Node* node = EventCatalog::nodeForId(override.eventId);
+    if (node == nullptr || !node->mainEvent || !node->canonicalName) continue;
+    replacement.insert(static_cast<int>(node->id), clampDuration(override.leadMs, override.lagMs));
+  }
+
+  UserOverrideState& state = userOverrideState();
+  std::lock_guard<std::mutex> lock(state.mutex);
+  state.overrides = replacement;
+  state.loaded = true;
+
+  QSettings settings;
+  settings.remove(QLatin1String(kSettingsGroup));
+  settings.beginGroup(QLatin1String(kSettingsGroup));
+  for (auto iterator = replacement.cbegin(); iterator != replacement.cend(); ++iterator) {
+    writeOverrideGroup(settings, QString::number(iterator.key()), iterator.value());
+  }
+  settings.endGroup();
 }
 
 void clearUserOverrides() {
@@ -205,6 +289,8 @@ void clearUserOverrides() {
 void loadFromSettings() {
   UserOverrideState& state = userOverrideState();
   std::lock_guard<std::mutex> lock(state.mutex);
+  state.loaded = false;
+  state.overrides.clear();
   loadOverridesFromSettings(state);
 }
 

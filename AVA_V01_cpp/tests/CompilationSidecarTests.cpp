@@ -1073,6 +1073,7 @@ int runShootoutStateTests(int argc, char** argv);
 int runExportVideoEncoderTests(int argc, char** argv);
 int runTimelineScrubTests(int argc, char** argv);
 int runTelestrationTests(int argc, char** argv);
+int runMatchSessionFileTests(int argc, char** argv);
 
 int main(int argc, char** argv) {
     QApplication application(argc, argv);
@@ -1147,6 +1148,10 @@ int main(int argc, char** argv) {
     const int telestrationStatus = runTelestrationTests(argc, argv);
     if (telestrationStatus != 0) {
         return telestrationStatus;
+    }
+    const int matchSessionStatus = runMatchSessionFileTests(argc, argv);
+    if (matchSessionStatus != 0) {
+        return matchSessionStatus;
     }
     int status = 0;
     {

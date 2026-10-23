@@ -4,6 +4,7 @@
 
 #include <QHash>
 #include <QString>
+#include <QVector>
 
 #include <Qt>
 
@@ -25,7 +26,8 @@
 /// they may keep sharing a word.
 ///
 /// Overrides last as long as the TagSession. TagSession::clear() drops tags
-/// and does not drop overrides. Nothing here is written to QSettings.
+/// and does not drop overrides. The match session file and control templates
+/// persist this table. Nothing here is written to QSettings.
 namespace EventLabelOverrides {
 
 enum class RejectReason {
@@ -40,6 +42,16 @@ struct Result {
   RejectReason reason = RejectReason::UnknownEvent;
   /// The other visible sibling that already shows this label. None otherwise.
   EventCatalog::EventId conflictingEventId = EventCatalog::EventId::None;
+};
+
+/// One stored override. Empty label, no shortcut, and hidden == false is not
+/// an entry. Follow-up edits use the same record on a follow-up id.
+struct Record {
+  EventCatalog::EventId id = EventCatalog::EventId::None;
+  QString label;
+  bool hasShortcutKey = false;
+  Qt::Key shortcutKey = Qt::Key_unknown;
+  bool hidden = false;
 };
 
 class Table {
@@ -64,6 +76,13 @@ class Table {
   Result setHidden(EventCatalog::EventId id, bool hidden);
 
   void clear();
+
+  /// Entries in ascending catalog-id order.
+  QVector<Record> records() const;
+  /// Replaces the table. Unknown ids, duplicate ids, and a label that would
+  /// show twice on visible siblings are rejected and the table is left as it
+  /// was. An empty \p records clears the table.
+  bool replaceRecords(const QVector<Record>& records);
 
   bool hasLabel(EventCatalog::EventId id) const;
   /// Empty when this id has no label override.

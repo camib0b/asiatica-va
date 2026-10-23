@@ -143,11 +143,21 @@ public:
   EventLabelOverrides::Result setEventHidden(EventCatalog::EventId id, bool hidden);
   /// Drops every override. TagSession::clear() does not call this.
   void clearEventLabelOverrides();
+  /// Replaces the override table. Returns false when \p overrides is not a
+  /// valid setup; the previous table is kept.
+  bool replaceEventLabelOverrides(const EventLabelOverrides::Table& overrides);
+
+  /// Next id that addTag will assign. Restored sessions keep this above every
+  /// saved id so a deleted tag's id is not reused.
+  quint64 nextTagId() const { return nextTagId_; }
 
   void addTag(const GameTag& tag);
   ImportResult importTags(const QVector<GameTag>& tags,
                           ImportMode mode,
                           qint64 videoDurationMs = -1);
+  /// Replaces the tag list in \p tags order. Unlike importTags, this does not
+  /// sort. Ids already set on the tags are kept. \p nextTagId is a floor.
+  void restoreTags(const QVector<GameTag>& tags, quint64 nextTagId);
   /// Returns false when \p index is out of range (Q_ASSERT in debug builds).
   bool removeTag(int index);
   /// Returns false when \p index is out of range (Q_ASSERT in debug builds).

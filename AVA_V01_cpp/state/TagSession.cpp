@@ -149,6 +149,15 @@ void TagSession::clearEventLabelOverrides() {
   emit eventLabelOverridesChanged();
 }
 
+bool TagSession::replaceEventLabelOverrides(const EventLabelOverrides::Table& overrides) {
+  if (eventLabelOverrides_ == overrides) return true;
+  EventLabelOverrides::Table replacement;
+  if (!replacement.replaceRecords(overrides.records())) return false;
+  eventLabelOverrides_ = replacement;
+  emit eventLabelOverridesChanged();
+  return true;
+}
+
 void TagSession::clearGameMetadata() {
   const bool alreadyEmpty =
       homeTeamName_.isEmpty() && awayTeamName_.isEmpty() && homeTeamColor_.isEmpty() &&
@@ -269,6 +278,30 @@ TagSession::ImportResult TagSession::importTags(const QVector<GameTag>& tags,
   emit tagsImported();
   emit tagsChanged();
   return result;
+}
+
+void TagSession::restoreTags(const QVector<GameTag>& tags, quint64 nextTagId) {
+  emit aboutToReplaceTags();
+  tags_.clear();
+  nextTagId_ = 1;
+  ++tagIdEpoch_;
+  gameTimeTags_.clear();
+  resetGameTimeState();
+
+  tags_.reserve(tags.size());
+  for (const GameTag& incoming : tags) {
+    GameTag stored = incoming;
+    assignStableId(stored);
+    clampTagInterval(stored);
+    tags_.push_back(stored);
+  }
+  if (nextTagId > nextTagId_) nextTagId_ = nextTagId;
+
+  rebuildEventCountsFromTags();
+  rebuildGameTimeIndexFromTags();
+  restoreGameTimeStateFromTags();
+  emit tagsImported();
+  emit tagsChanged();
 }
 
 void TagSession::rebuildEventCountsFromTags() {

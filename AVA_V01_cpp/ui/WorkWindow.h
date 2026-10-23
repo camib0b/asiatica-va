@@ -213,6 +213,12 @@ private:
                            bool startsChain,
                            EventCatalog::EventId stepEventId);
   void pushEventLabelOverridesToGameControls();
+  /// Writes the open match when a video is open. A newer or unreadable session
+  /// file is left on disk.
+  void saveOpenMatchSession();
+  /// Loads the session for matchSourcePaths_ after the video finishes opening.
+  /// \p keepMetadata leaves the team names the setup form just confirmed.
+  void restoreOpenedMatchSession(bool keepMetadata);
   void onEventLabelOverridesChanged();
   void dismissTagSequenceToast();
   void commitTagFromGameControls(const QString& mainEvent, const QString& followUpEvent);
@@ -348,6 +354,13 @@ private:
   std::optional<CapturedMainEvent> capturedMainEvent_;
 
   QString sourceVideoPath_;
+  /// Canonical source videos for the match that is open. Not the temporary
+  /// playback file.
+  QStringList matchSourcePaths_;
+  /// Sources for a video that is still opening. Committed in finishOpeningVideo.
+  QStringList pendingMatchSourcePaths_;
+  /// True when the setup form confirmed team metadata for the pending sources.
+  bool pendingMetadataConfirmed_ = false;
   QString exportDefaultDirectoryPath_;
   /// Concat, playback-prep, and export-retained temporary directories.
   std::unique_ptr<PlaybackTemporaryDirectoryController> playbackTemporaryDirectoryController_;

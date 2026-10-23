@@ -37,7 +37,7 @@ struct ExpectedMainEvent {
   bool switchesTeam;
 };
 
-// Clip-duration order. These names are the QSettings group keys.
+// Clip-duration order. QSettings groups are the catalog ids, not these names.
 const std::array<ExpectedMainEvent, 14>& expectedMainEvents() {
   static const std::array<ExpectedMainEvent, 14> events{{
       {EventCatalog::EventId::Goal, "Goal", Qt::Key_F, "GOAL", 10000, 2000,
