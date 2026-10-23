@@ -219,6 +219,8 @@ private:
   /// Loads the session for matchSourcePaths_ after the video finishes opening.
   /// \p keepMetadata leaves the team names the setup form just confirmed.
   void restoreOpenedMatchSession(bool keepMetadata);
+  /// Shows or hides the one-line notice for a session file that cannot be read.
+  void showSessionFileWarning(bool show);
   void onEventLabelOverridesChanged();
   void dismissTagSequenceToast();
   void commitTagFromGameControls(const QString& mainEvent, const QString& followUpEvent);
@@ -361,6 +363,10 @@ private:
   QStringList pendingMatchSourcePaths_;
   /// True when the setup form confirmed team metadata for the pending sources.
   bool pendingMetadataConfirmed_ = false;
+  /// True while the open match's session file is corrupt or a newer version.
+  /// Saves leave that file on disk.
+  bool sessionFileUnreadable_ = false;
+  QLabel* sessionFileWarning_ = nullptr;
   QString exportDefaultDirectoryPath_;
   /// Concat, playback-prep, and export-retained temporary directories.
   std::unique_ptr<PlaybackTemporaryDirectoryController> playbackTemporaryDirectoryController_;

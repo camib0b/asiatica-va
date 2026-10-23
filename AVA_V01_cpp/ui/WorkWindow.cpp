@@ -517,6 +517,9 @@ void WorkWindow::applyUiStrings() const {
     if (filterSelectNoneAction_) filterSelectNoneAction_->setText(AppLocale::trUi("filter.select_none"));
     if (statsOverlayAction_) statsOverlayAction_->setToolTip(AppLocale::trUi("stats_overlay.tooltip"));
     if (statsOverlayDialog_) statsOverlayDialog_->setWindowTitle(AppLocale::trUi("stats.overlay_title"));
+    if (sessionFileWarning_ && sessionFileUnreadable_) {
+        sessionFileWarning_->setText(AppLocale::trUi("session.unreadable"));
+    }
     if (gameSetupWidget_) gameSetupWidget_->applyUiStrings();
     if (statsWindow_) statsWindow_->applyUiStrings();
     if (exportJobsBar_) exportJobsBar_->applyUiStrings();
@@ -590,14 +593,33 @@ void WorkWindow::saveOpenMatchSession() {
     }
 }
 
+void WorkWindow::showSessionFileWarning(bool show) {
+    sessionFileUnreadable_ = show;
+    if (!sessionFileWarning_) return;
+    if (!show) {
+        sessionFileWarning_->hide();
+        return;
+    }
+    sessionFileWarning_->setText(AppLocale::trUi("session.unreadable"));
+    sessionFileWarning_->show();
+}
+
 void WorkWindow::restoreOpenedMatchSession(bool keepMetadata) {
     if (tagSession_ == nullptr || matchSourcePaths_.isEmpty()) return;
     const MatchSessionFile::LoadResult loaded = MatchSessionFile::loadForSources(matchSourcePaths_);
-    if (loaded.status != MatchSessionFile::LoadStatus::Loaded &&
-        loaded.status != MatchSessionFile::LoadStatus::Missing &&
-        !loaded.errorMessage.isEmpty()) {
+    const bool unreadable = loaded.status == MatchSessionFile::LoadStatus::Corrupt ||
+                            loaded.status == MatchSessionFile::LoadStatus::NewerVersion;
+    if (unreadable) {
+        const QString detail = loaded.errorMessage.isEmpty()
+                                   ? QStringLiteral("Match session: the file could not be read.")
+                                   : loaded.errorMessage;
+        qWarning("%s Changes to this match will not be saved.", qPrintable(detail));
+    } else if (loaded.status != MatchSessionFile::LoadStatus::Loaded &&
+               loaded.status != MatchSessionFile::LoadStatus::Missing &&
+               !loaded.errorMessage.isEmpty()) {
         qWarning("%s", qPrintable(loaded.errorMessage));
     }
+    showSessionFileWarning(unreadable);
     if (loaded.status == MatchSessionFile::LoadStatus::Loaded) {
         MatchSessionFile::apply(loaded.document, *tagSession_, presentationQueue_, telestrationSession_,
                                 keepMetadata);
@@ -888,6 +910,15 @@ void WorkWindow::buildUi() {
     mainContentLayout->setContentsMargins(12, 12, 12, 12);
     mainContentLayout->setSpacing(4);
     mainContentLayout->addWidget(buildTopToolbar(mainContentContainer_));
+
+    sessionFileWarning_ = new QLabel(mainContentContainer_);
+    sessionFileWarning_->setObjectName(QStringLiteral("SessionFileWarning"));
+    sessionFileWarning_->setTextFormat(Qt::PlainText);
+    sessionFileWarning_->setWordWrap(true);
+    sessionFileWarning_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+    Style::setRole(sessionFileWarning_, "exportError");
+    sessionFileWarning_->hide();
+    mainContentLayout->addWidget(sessionFileWarning_);
 
     auto* contentArea = new QWidget(mainContentContainer_);
     auto* contentAreaLayout = new QVBoxLayout(contentArea);
@@ -1860,6 +1891,7 @@ void WorkWindow::onCloseVideo() {
     matchSourcePaths_.clear();
     pendingMatchSourcePaths_.clear();
     pendingMetadataConfirmed_ = false;
+    showSessionFileWarning(false);
     sourceVideoPath_.clear();
     if (tagToast_) tagToast_->dismissImmediately();
     capturedMainEvent_.reset();
