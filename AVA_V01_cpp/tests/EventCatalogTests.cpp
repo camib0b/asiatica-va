@@ -10,8 +10,11 @@
 #include "TagSession.h"
 #include "XmlExporter.h"
 
+#include <QApplication>
 #include <QDate>
+#include <QFontMetrics>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QLayout>
 #include <QPushButton>
 #include <QSet>
@@ -731,6 +734,7 @@ void EventCatalogTest::gameControlsGridMatchesTheCatalogOrder() {
   controls.setTeamSide(TagSession::TeamSide::Home);
   controls.resize(420, 780);
   controls.show();
+  QApplication::processEvents();
 
   QList<ObservedKeyboardRow> rows;
   collectKeyboardRows(&controls, &rows);
@@ -763,7 +767,13 @@ void EventCatalogTest::gameControlsGridMatchesTheCatalogOrder() {
       QCOMPARE(button->property("shortcutHint").toString(), EventCatalog::shortcutLabel(node.id));
       QCOMPARE(button->property("variant").toString(), QStringLiteral("gameControl"));
       QCOMPARE(button->focusPolicy(), Qt::ClickFocus);
-      QCOMPARE(button->minimumHeight(), 52);
+      QLabel* titleLabel = nullptr;
+      for (QLabel* label : button->findChildren<QLabel*>(Qt::FindDirectChildrenOnly)) {
+        if (!label->property("gameEventName").toString().isEmpty()) titleLabel = label;
+      }
+      QVERIFY(titleLabel);
+      QVERIFY(titleLabel->minimumHeight() >= titleLabel->fontMetrics().lineSpacing() * 2);
+      QVERIFY(button->minimumHeight() >= titleLabel->minimumHeight());
       QCOMPARE(button->sizePolicy().horizontalPolicy(), QSizePolicy::Expanding);
       QCOMPARE(button->sizePolicy().verticalPolicy(), QSizePolicy::Fixed);
 
