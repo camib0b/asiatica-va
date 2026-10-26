@@ -13,6 +13,7 @@
 #include "../ui/TextInputFocus.h"
 
 #include <QHBoxLayout>
+#include <QGridLayout>
 #include <QVBoxLayout>
 #include <QSpacerItem>
 #include <QPushButton>
@@ -20,12 +21,15 @@
 #include <QTimer>
 #include <QPointer>
 #include <QKeyEvent>
+#include <QResizeEvent>
+#include <QShowEvent>
 #include <algorithm>
 #include <array>
 #include <climits>
 #include <QEvent>
 #include <QApplication>
 #include <QLabel>
+#include <QFont>
 #include <QFontMetrics>
 #include <QColor>
 #include <QSizePolicy>
@@ -33,6 +37,10 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPaintEvent>
+#include <QStyle>
+#include <QStyleOptionButton>
+
+#include "../ui/QtPtr.h"
 
 namespace {
 constexpr int kQuarterSegmentHeightPx = 10;
@@ -241,19 +249,19 @@ void configureFollowUpButton(QPushButton* button, const QString& canonicalKey,
   auto* titleLabel = new QLabel(displayLabel, button);
   titleLabel->setProperty("gameEventName", canonicalKey);
   titleLabel->setProperty("gameEventId", static_cast<int>(eventId));
+  titleLabel->setProperty("fullLabel", displayLabel);
   titleLabel->setTextFormat(Qt::PlainText);
-  titleLabel->setAlignment(Qt::AlignCenter);
+  titleLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
   titleLabel->setWordWrap(true);
   titleLabel->setMinimumWidth(0);
-  titleLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-  titleLabel->setToolTip(displayLabel);
+  titleLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Expanding);
   Style::setRole(titleLabel, "gameControlTitle");
   titleLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
   auto* shortcutLabel = new QLabel(shortcutHint, button);
   shortcutLabel->setTextFormat(Qt::PlainText);
-  shortcutLabel->setAlignment(Qt::AlignCenter);
+  shortcutLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
   shortcutLabel->setMinimumWidth(0);
-  shortcutLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+  shortcutLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
   Style::setRole(shortcutLabel, "muted");
   shortcutLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
   layout->addWidget(titleLabel);
@@ -297,23 +305,135 @@ void addKeyboardRow(QVBoxLayout* column, QWidget* parent, const QList<QPushButto
   column->addWidget(row);
 }
 
+void publishFittedText(QLabel* titleLabel, const QString& fullText, const Style::FittedButtonTitle& fitted) {
+  if (!titleLabel) return;
+  if (titleLabel->text() != fitted.shown) titleLabel->setText(fitted.shown);
+  const QString tip = fitted.elided ? fullText : QString();
+  if (titleLabel->toolTip() != tip) titleLabel->setToolTip(tip);
+  if (QWidget* parent = titleLabel->parentWidget()) {
+    if (parent->toolTip() != tip) parent->setToolTip(tip);
+  }
+}
+
+void restoreThemeTitleFont(QLabel* titleLabel) {
+  if (!titleLabel) return;
+  if (titleLabel->property("titleDensity").toString() != QLatin1String("compact")) return;
+  Style::setProp(titleLabel, "titleDensity", QVariant());
+  titleLabel->setFont(QFont());
+  titleLabel->ensurePolished();
+}
+
+QFont themeTitleFont(const QLabel* titleLabel) {
+  if (!titleLabel) return {};
+  QFont font = titleLabel->font();
+  if (titleLabel->property("titleDensity").toString() != QLatin1String("compact")) return font;
+  if (font.pixelSize() > 0) {
+    font.setPixelSize(font.pixelSize() + 2);
+    return font;
+  }
+  if (font.pointSizeF() > 0) {
+    font.setPointSizeF(font.pointSizeF() + 1.0);
+  }
+  return font;
+}
+
+QFont compactTitleFont(const QFont& themeFont) {
+  QFont compact = themeFont;
+  if (themeFont.pixelSize() > 10) {
+    compact.setPixelSize(themeFont.pixelSize() - 2);
+    return compact;
+  }
+  if (themeFont.pointSizeF() > 8.0) {
+    compact.setPointSizeF(themeFont.pointSizeF() - 1.0);
+    return compact;
+  }
+  return themeFont;
+}
+
+void applyFittedTitle(QLabel* titleLabel, int maximumLines) {
+  if (!titleLabel) return;
+  const QString fullText = titleLabel->property("fullLabel").toString();
+  titleLabel->setTextFormat(Qt::PlainText);
+  titleLabel->ensurePolished();
+
+  const int textWidth = titleLabel->contentsRect().width();
+  if (textWidth <= 0) {
+    Style::FittedButtonTitle pending;
+    pending.shown = fullText;
+    publishFittedText(titleLabel, fullText, pending);
+    return;
+  }
+
+  const bool alreadyCompact =
+      titleLabel->property("titleDensity").toString() == QLatin1String("compact");
+  const QFont themeFont = themeTitleFont(titleLabel);
+  const QFont compactFont = compactTitleFont(themeFont);
+  const Style::FittedButtonTitle atThemeSize =
+      Style::fitButtonTitle(QFontMetrics(themeFont), fullText, textWidth, maximumLines);
+  if (!atThemeSize.elided) {
+    if (alreadyCompact) restoreThemeTitleFont(titleLabel);
+    publishFittedText(titleLabel, fullText, atThemeSize);
+    return;
+  }
+
+  if (compactFont != themeFont) {
+    const Style::FittedButtonTitle atCompactSize =
+        Style::fitButtonTitle(QFontMetrics(compactFont), fullText, textWidth, maximumLines);
+    if (!atCompactSize.elided) {
+      if (!alreadyCompact) Style::setProp(titleLabel, "titleDensity", QStringLiteral("compact"));
+      if (titleLabel->font() != compactFont) titleLabel->setFont(compactFont);
+      publishFittedText(titleLabel, fullText, atCompactSize);
+      return;
+    }
+  }
+
+  if (alreadyCompact) restoreThemeTitleFont(titleLabel);
+  publishFittedText(titleLabel, fullText, atThemeSize);
+}
+
+QLabel* titleLabelOnButton(const QPushButton* button) {
+  if (!button) return nullptr;
+  for (QLabel* label : button->findChildren<QLabel*>(Qt::FindDirectChildrenOnly)) {
+    if (!label->property("gameEventName").toString().isEmpty() || label->property("fullLabel").isValid()) {
+      return label;
+    }
+  }
+  return nullptr;
+}
+
+QLabel* shortcutLabelOnButton(const QPushButton* button) {
+  if (!button) return nullptr;
+  for (QLabel* label : button->findChildren<QLabel*>(Qt::FindDirectChildrenOnly)) {
+    if (label->property("gameEventName").toString().isEmpty() && !label->property("fullLabel").isValid()) {
+      return label;
+    }
+  }
+  return nullptr;
+}
+
+int measuredTitleChrome(const QPushButton* button) {
+  if (!button || button->width() <= 0) return -1;
+  const QLabel* titleLabel = titleLabelOnButton(button);
+  if (!titleLabel || titleLabel->contentsRect().width() <= 0) return -1;
+  return qMax(0, button->width() - titleLabel->contentsRect().width());
+}
+
 void elideButtonLabel(QPushButton* button, const QString& fullText) {
   if (!button) return;
+  button->ensurePolished();
   const int availableWidth = Style::availableButtonTextWidth(button);
-  QString shown = fullText;
-  if (availableWidth > 8) {
-    shown = button->fontMetrics().elidedText(fullText, Qt::ElideRight, availableWidth);
-  }
-  if (button->text() != shown) {
-    button->setText(shown);
-  }
-  button->setToolTip(shown == fullText ? QString() : fullText);
+  const Style::FittedButtonTitle fitted =
+      Style::fitButtonTitle(button->fontMetrics(), fullText, availableWidth, 1);
+  if (button->text() != fitted.shown) button->setText(fitted.shown);
+  const QString tip = fitted.elided ? fullText : QString();
+  if (button->toolTip() != tip) button->setToolTip(tip);
 }
 
 QVector<FocusNavEntry> buildFocusNavEntries(QPushButton* homeTeamButton,
                                             QPushButton* awayTeamButton,
                                             const QList<QPushButton*>& mainButtons,
-                                            const QList<QPushButton*>& followUpButtons) {
+                                            const QList<QPushButton*>& followUpButtons,
+                                            int followUpColumnCount) {
   QVector<FocusNavEntry> entries;
   if (homeTeamButton) {
     entries.append({homeTeamButton, -1, 0});
@@ -328,11 +448,12 @@ QVector<FocusNavEntry> buildFocusNavEntries(QPushButton* homeTeamButton,
     const int column = index % EventCatalog::kButtonGridColumnCount;
     entries.append({button, row, column});
   }
+  const int columns = qMax(1, followUpColumnCount);
   const int followUpFocusRow = EventCatalog::buttonGridRowCount();
   for (int index = 0; index < followUpButtons.size(); ++index) {
     QPushButton* button = followUpButtons.at(index);
     if (button && button->isVisible()) {
-      entries.append({button, followUpFocusRow, index});
+      entries.append({button, followUpFocusRow + index / columns, index % columns});
     }
   }
   return entries;
@@ -366,10 +487,14 @@ QPushButton* focusDownFromEntry(const QVector<FocusNavEntry>& entries, const Foc
     const int targetCol = current.col == 0 ? 0 : 1;
     return closestButtonInRow(entries, 3, targetCol);
   }
+  const int firstFollowUpRow = EventCatalog::buttonGridRowCount();
   if (current.row == 3) {
-    const int followUpRow = current.row + 1;
-    QPushButton* followUpButton = closestButtonInRow(entries, followUpRow, 0);
+    QPushButton* followUpButton = closestButtonInRow(entries, firstFollowUpRow, 0);
     return followUpButton ? followUpButton : closestButtonInRow(entries, 0, 0);
+  }
+  if (current.row >= firstFollowUpRow) {
+    QPushButton* below = closestButtonInRow(entries, current.row + 1, current.col);
+    if (below) return below;
   }
   return closestButtonInRow(entries, 0, 0);
 }
@@ -388,6 +513,10 @@ QPushButton* focusUpFromEntry(const QVector<FocusNavEntry>& entries, const Focus
   if (current.row == 3) {
     return closestButtonInRow(entries, 2, current.col);
   }
+  const int firstFollowUpRow = EventCatalog::buttonGridRowCount();
+  if (current.row > firstFollowUpRow) {
+    return closestButtonInRow(entries, current.row - 1, current.col);
+  }
   if (current.col == 0) {
     return closestButtonInRow(entries, 3, 0);
   }
@@ -401,7 +530,12 @@ GameControls::GameControls(QWidget* parent)
       gamePhase_(GamePhase::NotStarted),
       activeMainButton_(nullptr),
       teamSide_(TagSession::TeamSide::Unspecified),
-      labelOverrides_() {
+      labelOverrides_(),
+      arrangingFollowUps_(false),
+      applyingTitleFit_(false),
+      stackedHeightUpdateQueued_(false),
+      breakUiToggle_(nullptr),
+      breakFixtureActive_(false) {
   setMinimumWidth(kMinimumPanelWidthPx);
   buildUi();
   wireSignals();
@@ -456,37 +590,22 @@ void GameControls::setTagSession(TagSession* session) {
   }
   labelOverrideConnection_ =
       connect(tagSession_, &TagSession::eventLabelOverridesChanged, this, [this]() {
-        if (!tagSession_) return;
+        if (!tagSession_ || breakFixtureActive_) return;
         setEventLabelOverrides(tagSession_->eventLabelOverrides());
       });
   setEventLabelOverrides(tagSession_->eventLabelOverrides());
 }
 
 void GameControls::refreshMainButtonTitles() {
+  if (applyingTitleFit_) return;
+  applyingTitleFit_ = true;
   for (QLabel* titleLabel : mainButtonTitleLabels_) {
     if (!titleLabel) continue;
-    titleLabel->setTextFormat(Qt::PlainText);
     const QString fullText = resolvedTitleText(titleLabel, labelOverrides_);
-    const int availableWidth = titleLabel->contentsRect().width();
-    const int availableHeight = titleLabel->contentsRect().height();
-    const QFontMetrics metrics = titleLabel->fontMetrics();
-    QString shown = fullText;
-    if (availableWidth > 8 && availableHeight > 0) {
-      const QRect wrapped = metrics.boundingRect(QRect(0, 0, availableWidth, 1000),
-                                                 Qt::AlignHCenter | Qt::TextWordWrap, fullText);
-      const bool fitsWrapped =
-          wrapped.width() <= availableWidth + 1 && wrapped.height() <= availableHeight + 1;
-      if (!fitsWrapped) {
-        shown = metrics.elidedText(fullText, Qt::ElideRight, availableWidth);
-      }
-    }
-    if (titleLabel->text() != shown) titleLabel->setText(shown);
-    const QString tip = shown == fullText ? QString() : fullText;
-    if (titleLabel->toolTip() != tip) titleLabel->setToolTip(tip);
-    if (QPushButton* button = qobject_cast<QPushButton*>(titleLabel->parentWidget())) {
-      if (button->toolTip() != tip) button->setToolTip(tip);
-    }
+    titleLabel->setProperty("fullLabel", fullText);
+    applyFittedTitle(titleLabel, Style::kButtonTitleMaxLines);
   }
+  applyingTitleFit_ = false;
 }
 
 QString GameControls::selectedTeamLabel() const {
@@ -567,11 +686,12 @@ void GameControls::applyUiLanguage() {
           followUpPathFor(followUpState_.mainEvent(), selections);
       const QString fullText = path.isEmpty() ? resolvedTitleText(titleLabel, labelOverrides_)
                                               : EventLabelResolver::labelForPath(path, labelOverrides_);
-      titleLabel->setText(fullText);
-      titleLabel->setToolTip(fullText);
+      titleLabel->setProperty("fullLabel", fullText);
     }
   }
   updateGameTimeUi(false);
+  updateBreakToggleLabels();
+  relayoutFollowUpButtons();
 }
 
 void GameControls::applyControlChrome() {
@@ -723,10 +843,10 @@ void GameControls::updateGameTimeUi(bool animateQuarterChange) {
       titleKey = "gamecontrols.end_game";
       break;
   }
-  periodAdvanceTitleLabel_->setText(AppLocale::trUi(titleKey));
+  periodAdvanceTitleLabel_->setProperty("fullLabel", AppLocale::trUi(titleKey));
   periodAdvanceButton_->setEnabled(gamePhase_ != GamePhase::Ended);
-  periodAdvanceTitleLabel_->ensurePolished();
-  periodAdvanceButton_->setMinimumWidth(Style::buttonWidthFittingContents(periodAdvanceButton_));
+  periodAdvanceButton_->setMinimumWidth(0);
+  refreshPeriodButtonTitle();
   updateQuarterTrack(animateQuarterChange);
 }
 
@@ -877,17 +997,17 @@ void GameControls::configureMainGameControlButton(QPushButton* button, const QSt
   titleLabel->setProperty("gameEventId", button->property("gameEventId"));
   titleLabel->setTextFormat(Qt::PlainText);
   mainButtonTitleLabels_.append(titleLabel);
-  titleLabel->setAlignment(Qt::AlignCenter);
+  titleLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
   titleLabel->setWordWrap(true);
   titleLabel->setMinimumWidth(0);
-  titleLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+  titleLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Expanding);
   Style::setRole(titleLabel, "gameControlTitle");
   titleLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
   auto* shortcutLabel = new QLabel(shortcutHint, button);
   shortcutLabel->setTextFormat(Qt::PlainText);
-  shortcutLabel->setAlignment(Qt::AlignCenter);
+  shortcutLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
   shortcutLabel->setMinimumWidth(0);
-  shortcutLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+  shortcutLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
   Style::setRole(shortcutLabel, "muted");
   shortcutLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
   layout->addWidget(titleLabel);
@@ -901,11 +1021,17 @@ void GameControls::configurePeriodAdvanceButton(QPushButton* button, const QStri
   layout->setContentsMargins(4, 4, 4, 4);
   layout->setSpacing(8);
   periodAdvanceTitleLabel_ = new QLabel(button);
+  periodAdvanceTitleLabel_->setTextFormat(Qt::PlainText);
   periodAdvanceTitleLabel_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+  periodAdvanceTitleLabel_->setWordWrap(false);
+  periodAdvanceTitleLabel_->setMinimumWidth(0);
+  periodAdvanceTitleLabel_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
   Style::setRole(periodAdvanceTitleLabel_, "gameControlTitle");
   periodAdvanceTitleLabel_->setAttribute(Qt::WA_TransparentForMouseEvents, true);
   auto* shortcutLabel = new QLabel(shortcutHint, button);
+  shortcutLabel->setTextFormat(Qt::PlainText);
   shortcutLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+  shortcutLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
   Style::setRole(shortcutLabel, "muted");
   shortcutLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
   layout->addWidget(periodAdvanceTitleLabel_);
@@ -932,6 +1058,7 @@ void GameControls::buildUi() {
   Style::setSize(periodAdvanceButton_, "sm");
   periodAdvanceButton_->setFocusPolicy(Qt::ClickFocus);
   periodAdvanceButton_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+  periodAdvanceButton_->setMinimumWidth(0);
   configurePeriodAdvanceButton(periodAdvanceButton_, QStringLiteral("G"));
 
   quarterTrack_ = new QWidget(gameTimeRowWidget);
@@ -1035,9 +1162,13 @@ void GameControls::buildUi() {
 
   // Follow-up buttons container (initially hidden)
   followUpContainer_ = new QWidget(this);
-  followUpLayout_ = new QHBoxLayout(followUpContainer_);
+  followUpContainer_->setObjectName(QStringLiteral("TaggingFollowUpRow"));
+  followUpContainer_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+  followUpContainer_->setMinimumWidth(0);
+  followUpLayout_ = new QGridLayout(followUpContainer_);
   followUpLayout_->setContentsMargins(0, 0, 0, 0);
   followUpLayout_->setSpacing(8);
+  followUpContainer_->installEventFilter(this);
 
   mainLayout->addWidget(gameTimeRowWidget);
   mainLayout->addWidget(teamRowWidget);
@@ -1050,6 +1181,7 @@ void GameControls::buildUi() {
   for (QPushButton* button : motionButtons) {
     refreshGameButtonMotion(button, activeMainButton_);
   }
+  buildBreakToggle();
 }
 
 void GameControls::wireSignals() {
@@ -1279,28 +1411,34 @@ void GameControls::presentFollowUpChoices(const QStringList& actions, FollowUpSt
     button->setFocusPolicy(Qt::ClickFocus);
     button->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
     button->setMinimumWidth(0);
-    button->setMinimumHeight(44);
 
     connect(button, &QPushButton::clicked, this, [this, button]() { flashButtonBorder(button); });
     connect(button, &QPushButton::clicked, this, &GameControls::onFollowUpButtonClicked);
     installControlContextMenu(button);
     refreshGameButtonMotion(button, activeMainButton_);
     button->installEventFilter(this);
-    followUpLayout_->addWidget(button, 1);
     followUpButtons_.append(button);
   }
 
   followUpState_.setStage(stage);
   followUpContainer_->setVisible(true);
-  followUpContainer_->update();
+  if (QWidget* host = followUpContainer_->parentWidget()) {
+    if (host->layout()) host->layout()->activate();
+  }
+  relayoutFollowUpButtons();
 }
 
 void GameControls::hideFollowUpButtons() {
   for (auto* button : followUpButtons_) {
     followUpLayout_->removeWidget(button);
+    button->hide();
     button->deleteLater();
   }
   followUpButtons_.clear();
+  while (QLayoutItem* item = followUpLayout_->takeAt(0)) {
+    delete item;
+  }
+  followUpColumnCount_ = 1;
   followUpContainer_->setVisible(false);
 }
 
@@ -1324,7 +1462,8 @@ void GameControls::flashButtonBorder(QPushButton* button) {
 QList<QPushButton*> GameControls::focusableButtonsOrder() const {
   QList<QPushButton*> buttons;
   for (const FocusNavEntry& entry :
-       buildFocusNavEntries(homeTeamButton_, awayTeamButton_, keyboardOrderButtons(), followUpButtons_)) {
+       buildFocusNavEntries(homeTeamButton_, awayTeamButton_, keyboardOrderButtons(), followUpButtons_,
+                            followUpColumnCount_)) {
     if (entry.button) {
       buttons.append(entry.button);
     }
@@ -1334,7 +1473,8 @@ QList<QPushButton*> GameControls::focusableButtonsOrder() const {
 
 void GameControls::focusNextInDirection(Qt::Key key) {
   const QVector<FocusNavEntry> entries =
-      buildFocusNavEntries(homeTeamButton_, awayTeamButton_, keyboardOrderButtons(), followUpButtons_);
+      buildFocusNavEntries(homeTeamButton_, awayTeamButton_, keyboardOrderButtons(), followUpButtons_,
+                           followUpColumnCount_);
   if (entries.isEmpty()) {
     return;
   }
@@ -1409,18 +1549,17 @@ void GameControls::applyTeamOnlyTabNavigation(bool forwardTab) {
 }
 
 bool GameControls::eventFilter(QObject* obj, QEvent* event) {
-  if (event->type() == QEvent::Resize &&
-      (obj == homeTeamButton_ || obj == awayTeamButton_)) {
-    refreshTeamButtonLabels();
-    return false;
-  }
-  if (event->type() == QEvent::Resize) {
-    for (QLabel* titleLabel : mainButtonTitleLabels_) {
-      if (titleLabel && titleLabel->parentWidget() == obj) {
-        refreshMainButtonTitles();
-        break;
-      }
-    }
+  if (!event) return QWidget::eventFilter(obj, event);
+
+  const QEvent::Type eventType = event->type();
+  const bool geometryEvent = eventType == QEvent::Resize || eventType == QEvent::Polish ||
+                             eventType == QEvent::StyleChange || eventType == QEvent::FontChange;
+  if (geometryEvent && !arrangingFollowUps_ && !applyingTitleFit_) {
+    auto* button = qobject_cast<QPushButton*>(obj);
+    const bool ownButton = button && (button == periodAdvanceButton_ || button == homeTeamButton_ ||
+                                      button == awayTeamButton_ || mainEventButtons_.contains(button) ||
+                                      followUpButtons_.contains(button));
+    if (obj == this || obj == followUpContainer_ || ownButton) scheduleFittedRefresh();
   }
   if (event->type() == QEvent::KeyPress) {
     QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
@@ -1459,6 +1598,408 @@ bool GameControls::eventFilter(QObject* obj, QEvent* event) {
     }
   }
   return QWidget::eventFilter(obj, event);
+}
+
+void GameControls::updateStackedButtonHeight(QPushButton* button) {
+  if (!button) return;
+  QLabel* titleLabel = titleLabelOnButton(button);
+  if (!titleLabel) return;
+  QLabel* shortcutLabel = shortcutLabelOnButton(button);
+
+  const bool compact =
+      titleLabel->property("titleDensity").toString() == QLatin1String("compact");
+  titleLabel->ensurePolished();
+  const QFontMetrics titleMetrics(themeTitleFont(titleLabel));
+  const QString accentSample = QStringLiteral("Áy\nÁy");
+  const int wrappedSampleHeight = titleMetrics
+                                       .boundingRect(QRect(0, 0, 400, 400),
+                                                     Qt::AlignHCenter | Qt::TextWordWrap, accentSample)
+                                       .height();
+  const int twoLineHeight =
+      qMax(titleMetrics.lineSpacing() * Style::kButtonTitleMaxLines, wrappedSampleHeight);
+  if (compact) {
+    if (titleLabel->minimumHeight() < twoLineHeight) titleLabel->setMinimumHeight(twoLineHeight);
+  } else if (titleLabel->minimumHeight() != twoLineHeight) {
+    titleLabel->setMinimumHeight(twoLineHeight);
+  }
+
+  if (shortcutLabel) {
+    shortcutLabel->ensurePolished();
+    const int shortcutHeight =
+        qMax(shortcutLabel->fontMetrics().lineSpacing(), shortcutLabel->fontMetrics().height());
+    if (shortcutLabel->minimumHeight() != shortcutHeight) {
+      shortcutLabel->setMinimumHeight(shortcutHeight);
+    }
+    shortcutLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+  }
+
+  if (QLayout* layout = button->layout()) layout->activate();
+  const int contentHeight =
+      button->layout() ? button->layout()->minimumSize().height() : twoLineHeight;
+  button->ensurePolished();
+  QStyleOptionButton option;
+  option.initFrom(button);
+  const int styledHeight =
+      button->style()
+          ->sizeFromContents(QStyle::CT_PushButton, &option, QSize(0, contentHeight), button)
+          .height();
+  const int minimumHeight = qMax(contentHeight, styledHeight);
+  if (button->minimumHeight() != minimumHeight) button->setMinimumHeight(minimumHeight);
+}
+
+void GameControls::updateAllStackedButtonHeights() {
+  for (QPushButton* button : mainEventButtons_) updateStackedButtonHeight(button);
+  for (QPushButton* button : followUpButtons_) updateStackedButtonHeight(button);
+}
+
+void GameControls::refreshFollowUpTitles() {
+  if (applyingTitleFit_) return;
+  applyingTitleFit_ = true;
+  for (QPushButton* button : followUpButtons_) {
+    applyFittedTitle(titleLabelOnButton(button), Style::kButtonTitleMaxLines);
+  }
+  applyingTitleFit_ = false;
+}
+
+void GameControls::refreshPeriodButtonTitle() {
+  if (!periodAdvanceTitleLabel_ || applyingTitleFit_) return;
+  applyingTitleFit_ = true;
+  applyFittedTitle(periodAdvanceTitleLabel_, 1);
+  applyingTitleFit_ = false;
+}
+
+int GameControls::columnCountForFollowUps(int availableWidth) const {
+  QStringList labels;
+  const QLabel* sampleTitle = nullptr;
+  for (const QPushButton* button : followUpButtons_) {
+    const QLabel* titleLabel = titleLabelOnButton(button);
+    if (!titleLabel) continue;
+    labels.append(titleLabel->property("fullLabel").toString());
+    if (!sampleTitle) sampleTitle = titleLabel;
+  }
+  if (labels.size() <= 1) return 1;
+
+  auto* mutableTitle = const_cast<QLabel*>(sampleTitle);
+  mutableTitle->ensurePolished();
+  const QFontMetrics metrics(themeTitleFont(sampleTitle));
+
+  int horizontalChrome = -1;
+  for (const QPushButton* button : mainEventButtons_) {
+    horizontalChrome = measuredTitleChrome(button);
+    if (horizontalChrome >= 0) break;
+  }
+  if (horizontalChrome < 0) {
+    for (const QPushButton* button : followUpButtons_) {
+      horizontalChrome = measuredTitleChrome(button);
+      if (horizontalChrome >= 0) break;
+    }
+  }
+  if (horizontalChrome < 0) {
+    const QPushButton* sampleButton =
+        mainEventButtons_.isEmpty() ? followUpButtons_.value(0, nullptr) : mainEventButtons_.first();
+    if (sampleButton) {
+      auto* mutableButton = const_cast<QPushButton*>(sampleButton);
+      mutableButton->ensurePolished();
+      QStyleOptionButton option;
+      option.initFrom(mutableButton);
+      horizontalChrome = mutableButton->style()
+                             ->sizeFromContents(QStyle::CT_PushButton, &option, QSize(0, 0),
+                                                mutableButton)
+                             .width();
+    } else {
+      horizontalChrome = 0;
+    }
+  }
+
+  const int spacing = followUpLayout_ ? followUpLayout_->spacing() : 0;
+  return Style::fittingColumnCount(availableWidth, labels.size(), horizontalChrome, spacing, metrics,
+                                   labels);
+}
+
+void GameControls::relayoutFollowUpButtons() {
+  if (arrangingFollowUps_ || !followUpLayout_ || !followUpContainer_) return;
+  arrangingFollowUps_ = true;
+
+  const int buttonCount = followUpButtons_.size();
+  if (buttonCount == 0) {
+    followUpColumnCount_ = 1;
+    arrangingFollowUps_ = false;
+    return;
+  }
+
+  int availableWidth = followUpContainer_->width();
+  if (availableWidth <= 0) availableWidth = width();
+  if (availableWidth <= 0) availableWidth = kMinimumPanelWidthPx;
+
+  const int columnCount = columnCountForFollowUps(availableWidth);
+  const bool gridMatches =
+      followUpLayout_->count() == buttonCount && followUpColumnCount_ == columnCount;
+  if (gridMatches) {
+    arrangingFollowUps_ = false;
+    refreshFollowUpTitles();
+    return;
+  }
+
+  while (QLayoutItem* item = followUpLayout_->takeAt(0)) {
+    delete item;
+  }
+  const int stretchColumns = qMax(followUpColumnCount_, columnCount) + 2;
+  for (int column = 0; column < stretchColumns; ++column) {
+    followUpLayout_->setColumnStretch(column, 0);
+  }
+
+  followUpColumnCount_ = columnCount;
+  for (int index = 0; index < buttonCount; ++index) {
+    QPushButton* button = followUpButtons_.at(index);
+    if (!button) continue;
+    followUpLayout_->addWidget(button, index / columnCount, index % columnCount);
+    updateStackedButtonHeight(button);
+  }
+  for (int column = 0; column < columnCount; ++column) {
+    followUpLayout_->setColumnStretch(column, 1);
+  }
+  followUpLayout_->activate();
+  if (layout()) layout()->activate();
+  arrangingFollowUps_ = false;
+  refreshFollowUpTitles();
+}
+
+void GameControls::clearFollowUpPreview() {
+  followUpState_.reset();
+  clearActiveMainButton();
+  hideFollowUpButtons();
+}
+
+void GameControls::previewMainEventFollowUps(const QString& mainEvent) {
+  clearFollowUpPreview();
+  QPushButton* mainButton = nullptr;
+  for (QPushButton* button : mainEventButtons_) {
+    if (button && button->property("gameEventName").toString() == mainEvent) {
+      mainButton = button;
+      break;
+    }
+  }
+  if (!mainButton) return;
+
+  followUpState_.beginMainEvent(mainEvent);
+  setActiveMainButton(mainButton);
+  const QStringList options = FollowUpCatalog::firstLevelOptions(mainEvent);
+  if (visibleFollowUpChoices(options).isEmpty()) {
+    clearFollowUpPreview();
+    return;
+  }
+  presentFollowUpChoices(options, FollowUpState::Stage::FirstLevel);
+}
+
+void GameControls::buildBreakToggle() {
+  if (breakUiToggle_ || !qEnvironmentVariableIsSet("AVA_BREAK_UI")) return;
+
+  auto toggle = makeQtPtr<QWidget>(this);
+  breakUiToggle_ = toggle.get();
+  breakUiToggle_->setObjectName(QStringLiteral("TaggingBreakUiToggle"));
+  Style::setRole(breakUiToggle_, "breakUiToggle");
+  breakUiToggle_->setFocusPolicy(Qt::NoFocus);
+
+  auto grid = makeQtPtr<QGridLayout>(breakUiToggle_);
+  grid->setContentsMargins(4, 4, 4, 4);
+  grid->setHorizontalSpacing(4);
+  grid->setVerticalSpacing(4);
+
+  struct BreakSegment {
+    const char* objectName;
+    int fixtureId;
+    int row;
+    int column;
+  };
+  const std::array<BreakSegment, 5> segments = {{
+      {"TaggingBreakUiDemo", 0, 0, 0},
+      {"TaggingBreakUiWorst", 1, 0, 1},
+      {"TaggingBreakUiEmpty", 2, 0, 2},
+      {"TaggingBreakUiOne", 3, 1, 0},
+      {"TaggingBreakUiMany", 4, 1, 1},
+  }};
+  for (const BreakSegment& segment : segments) {
+    auto button = makeQtPtr<QPushButton>(breakUiToggle_);
+    button->setObjectName(QString::fromUtf8(segment.objectName));
+    button->setProperty("breakFixture", segment.fixtureId);
+    button->setCheckable(true);
+    button->setChecked(segment.fixtureId == 0);
+    button->setFocusPolicy(Qt::NoFocus);
+    button->setMinimumWidth(0);
+    button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    Style::setRole(button.get(), "breakUiSegment");
+    grid->addWidget(button.get(), segment.row, segment.column);
+    connect(button.get(), &QPushButton::clicked, this, [this, fixtureId = segment.fixtureId]() {
+      applyBreakFixture(fixtureId);
+    });
+  }
+  updateBreakToggleLabels();
+  positionBreakToggle();
+}
+
+void GameControls::updateBreakToggleLabels() {
+  if (!breakUiToggle_) return;
+  const QHash<QString, const char*> labelKeys = {
+      {QStringLiteral("TaggingBreakUiDemo"), "controls_editor.break_demo"},
+      {QStringLiteral("TaggingBreakUiWorst"), "controls_editor.break_worst"},
+      {QStringLiteral("TaggingBreakUiEmpty"), "controls_editor.break_empty"},
+      {QStringLiteral("TaggingBreakUiOne"), "controls_editor.break_one"},
+      {QStringLiteral("TaggingBreakUiMany"), "controls_editor.break_many"},
+  };
+  for (QPushButton* button : breakUiToggle_->findChildren<QPushButton*>()) {
+    const auto key = labelKeys.constFind(button->objectName());
+    if (key == labelKeys.cend()) continue;
+    button->setText(AppLocale::trUi(key.value()));
+  }
+}
+
+void GameControls::positionBreakToggle() {
+  if (!breakUiToggle_) return;
+  breakUiToggle_->ensurePolished();
+  const int horizontalInset = 8;
+  const int bottomInset = 8;
+  const int toggleWidth = qMax(0, width() - horizontalInset * 2);
+  breakUiToggle_->setFixedWidth(toggleWidth);
+  const int toggleHeight = qMax(breakUiToggle_->sizeHint().height(), breakUiToggle_->minimumSizeHint().height());
+  const int top = qMax(0, height() - toggleHeight - bottomInset);
+  breakUiToggle_->setGeometry(horizontalInset, top, toggleWidth, toggleHeight);
+  breakUiToggle_->raise();
+  breakUiToggle_->show();
+
+  if (QLayout* panelLayout = layout()) {
+    const int reserved = toggleHeight + bottomInset;
+    QMargins margins = panelLayout->contentsMargins();
+    if (margins.bottom() != reserved) {
+      margins.setBottom(reserved);
+      panelLayout->setContentsMargins(margins);
+    }
+  }
+}
+
+void GameControls::applyBreakFixture(int fixtureId) {
+  constexpr int kDemoFixture = 0;
+  constexpr int kWorstFixture = 1;
+  constexpr int kEmptyFixture = 2;
+  constexpr int kOneFixture = 3;
+  constexpr int kManyFixture = 4;
+
+  auto selectSegment = [this](int selectedFixture) {
+    if (!breakUiToggle_) return;
+    for (QPushButton* button : breakUiToggle_->findChildren<QPushButton*>()) {
+      button->setChecked(button->property("breakFixture").toInt() == selectedFixture);
+    }
+  };
+
+  if (fixtureId == kDemoFixture && !breakFixtureActive_) {
+    selectSegment(kDemoFixture);
+    return;
+  }
+
+  if (!breakFixtureActive_) {
+    breakSavedOverrides_ = labelOverrides_;
+    breakSavedHomeName_ = homeTeamFollowUpLabel_;
+    breakSavedAwayName_ = awayTeamFollowUpLabel_;
+    breakSavedHomeColor_ = homeTeamColorHex_;
+    breakSavedAwayColor_ = awayTeamColorHex_;
+  }
+  clearFollowUpPreview();
+
+  if (fixtureId == kDemoFixture) {
+    breakFixtureActive_ = false;
+    if (tagSession_) setEventLabelOverrides(tagSession_->eventLabelOverrides());
+    else setEventLabelOverrides(breakSavedOverrides_);
+    setSessionTeamNames(breakSavedHomeName_, breakSavedAwayName_, breakSavedHomeColor_,
+                        breakSavedAwayColor_);
+    selectSegment(kDemoFixture);
+    return;
+  }
+
+  breakFixtureActive_ = true;
+  EventLabelOverrides::Table table;
+  auto commitLabel = [&table](EventCatalog::EventId eventId, const char* text) {
+    EventControlsValidation::Issue issue;
+    EventControlsValidation::commitLabel(&table, eventId, QString::fromUtf8(text), &issue);
+  };
+  auto hideEvent = [&table](EventCatalog::EventId eventId) {
+    EventControlsValidation::commitShown(&table, eventId, false, nullptr);
+  };
+
+  if (fixtureId == kWorstFixture) {
+    commitLabel(EventCatalog::EventId::Shot, "Aleksandra Wiśniewska-Kowalczyk");
+    commitLabel(EventCatalog::EventId::Goal, "J");
+    commitLabel(EventCatalog::EventId::Pass, "Jo");
+    commitLabel(EventCatalog::EventId::CircleEntry, "Đặng Thị Ngọc Hân");
+    commitLabel(EventCatalog::EventId::Card, "Benachrichtigungseinstellungen");
+    commitLabel(EventCatalog::EventId::PenaltyCorner, "customer-feedback-from-enterprise-onboarding");
+    commitLabel(EventCatalog::EventId::Turnover, "🦊 Fox");
+    commitLabel(EventCatalog::EventId::Special, "<script>alert(1)</script>");
+    commitLabel(EventCatalog::EventId::PenaltyCornerFoul, "María José de la Cruz y Fernández");
+    commitLabel(EventCatalog::EventId::FiftyYard, "王秀英");
+    commitLabel(EventCatalog::EventId::SeventyFiveYard,
+                "Senior Product Design Engineer, Platform Infrastructure");
+    commitLabel(EventCatalog::EventId::PenaltyStroke, "Ólafur Darri");
+    commitLabel(EventCatalog::EventId::Shootout, "Seán O'Brien");
+    commitLabel(EventCatalog::EventId::Interception, "Intercepción");
+    commitLabel(EventCatalog::EventId::Tackle, "J");
+    commitLabel(EventCatalog::EventId::Pressure, "Presión");
+    commitLabel(EventCatalog::EventId::UnforcedError, "Konstantin Oberhauser-Wettstein");
+    setEventLabelOverrides(table);
+    setSessionTeamNames(QStringLiteral("Aleksandra Wiśniewska-Kowalczyk"),
+                        QStringLiteral("Đặng Thị Ngọc Hân"), QStringLiteral("#fde68a"),
+                        QStringLiteral("#1d4ed8"));
+    previewMainEventFollowUps(QStringLiteral("Turnover"));
+  } else if (fixtureId == kEmptyFixture) {
+    setEventLabelOverrides(table);
+  } else if (fixtureId == kOneFixture) {
+    hideEvent(EventCatalog::EventId::Tackle);
+    hideEvent(EventCatalog::EventId::Pressure);
+    hideEvent(EventCatalog::EventId::UnforcedError);
+    commitLabel(EventCatalog::EventId::Interception, "Intercepción");
+    setEventLabelOverrides(table);
+    previewMainEventFollowUps(QStringLiteral("Turnover"));
+  } else if (fixtureId == kManyFixture) {
+    commitLabel(EventCatalog::EventId::Interception, "Intercepción de contraataque");
+    commitLabel(EventCatalog::EventId::Tackle, "Entrada por la izquierda");
+    commitLabel(EventCatalog::EventId::Pressure, "Presión alta sostenida");
+    commitLabel(EventCatalog::EventId::UnforcedError, "Error no forzado en salida");
+    setEventLabelOverrides(table);
+    previewMainEventFollowUps(QStringLiteral("Turnover"));
+  }
+
+  selectSegment(fixtureId);
+}
+
+void GameControls::scheduleFittedRefresh() {
+  if (stackedHeightUpdateQueued_ || applyingTitleFit_ || arrangingFollowUps_) return;
+  stackedHeightUpdateQueued_ = true;
+  QTimer::singleShot(0, this, [guard = QPointer<GameControls>(this)]() {
+    if (!guard) return;
+    guard->stackedHeightUpdateQueued_ = false;
+    guard->refreshFittedControls();
+  });
+}
+
+void GameControls::refreshFittedControls() {
+  if (QLayout* panelLayout = layout()) panelLayout->activate();
+  updateAllStackedButtonHeights();
+  if (QLayout* panelLayout = layout()) panelLayout->activate();
+  refreshTeamButtonLabels();
+  relayoutFollowUpButtons();
+  if (QLayout* panelLayout = layout()) panelLayout->activate();
+  refreshMainButtonTitles();
+  refreshFollowUpTitles();
+  refreshPeriodButtonTitle();
+  positionBreakToggle();
+}
+
+void GameControls::resizeEvent(QResizeEvent* event) {
+  QWidget::resizeEvent(event);
+  scheduleFittedRefresh();
+}
+
+void GameControls::showEvent(QShowEvent* event) {
+  QWidget::showEvent(event);
+  scheduleFittedRefresh();
 }
 
 void GameControls::keyPressEvent(QKeyEvent* event) {

@@ -371,6 +371,9 @@ QLabel[role="gameControlTitle"] {
   font-weight: 600;
   font-size: 12px;
 }
+QLabel[role="gameControlTitle"][titleDensity="compact"] {
+  font-size: 10px;
+}
 QPushButton[variant="gameControl"] QLabel[role="muted"] {
   color: #71717a;
   font-size: 11px;
@@ -421,6 +424,10 @@ QPushButton[variant="gameControlFollowUp"] QLabel[role="gameControlTitle"] {
   color: #fafafa;
   font-weight: 600;
   font-size: 12px;
+}
+QPushButton[variant="gameControl"] QLabel[role="gameControlTitle"][titleDensity="compact"],
+QPushButton[variant="gameControlFollowUp"] QLabel[role="gameControlTitle"][titleDensity="compact"] {
+  font-size: 10px;
 }
 
 QPushButton[variant="gameControlFollowUp"] QLabel[role="muted"] {
@@ -1504,7 +1511,7 @@ QWidget#TaggingRightCol QPushButton[variant="gameControl"][flash="true"]:focus,
 QWidget#TaggingRightCol QPushButton[variant="gameControl"][controlsHidden="true"],
 QWidget#TaggingRightCol QPushButton[variant="gameControl"][controlsHidden="true"]:focus {
   padding: 4px 2px;
-  min-height: 52px;
+  min-height: 72px;
   border-radius: 6px;
 }
 QWidget#TaggingRightCol QPushButton[variant="gameControl"][size="sm"],
@@ -1521,7 +1528,7 @@ QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"][flash="true"]
 QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"][flash="true"]:focus {
   padding: 4px 2px;
   font-size: 11px;
-  min-height: 36px;
+  min-height: 72px;
   border-radius: 6px;
 }
 

@@ -7,6 +7,7 @@
 #include <QEvent>
 #include <QFontMetrics>
 #include <QPainter>
+#include <QStringList>
 #include <QStyle>
 #include <QStyleOptionButton>
 #include <QToolButton>
@@ -239,6 +240,176 @@ void ElidingProxyStyle::drawItemText(QPainter* painter,
     }
   }
   QProxyStyle::drawItemText(painter, rectangle, alignment, palette, enabled, shown, textRole);
+}
+
+namespace {
+
+void chopOneCodePoint(QString* text) {
+  if (!text || text->isEmpty()) return;
+  if (text->size() >= 2 && text->back().isLowSurrogate() &&
+      text->at(text->size() - 2).isHighSurrogate()) {
+    text->chop(2);
+    return;
+  }
+  text->chop(1);
+}
+
+QString elideToWidth(const QFontMetrics& metrics, const QString& text, int width) {
+  if (text.isEmpty() || width <= 0) return {};
+  if (metrics.horizontalAdvance(text) <= width) return text;
+
+  const QString ellipsis = QString(QChar(0x2026));
+  QString elided = metrics.elidedText(text, Qt::ElideRight, width);
+  if (metrics.horizontalAdvance(elided) <= width) return elided;
+
+  QString stem = elided;
+  if (stem.endsWith(ellipsis)) stem.chop(1);
+  while (!stem.isEmpty() && metrics.horizontalAdvance(stem + ellipsis) > width) {
+    chopOneCodePoint(&stem);
+  }
+  if (stem.isEmpty()) {
+    if (metrics.horizontalAdvance(ellipsis) <= width) return ellipsis;
+    return {};
+  }
+  return stem + ellipsis;
+}
+
+QStringList wordsOf(const QString& text) {
+  QStringList words;
+  QString current;
+  const int count = text.size();
+  for (int index = 0; index < count; ++index) {
+    const QChar character = text.at(index);
+    if (character.isSpace() || character == QLatin1Char('\n') || character == QLatin1Char('\r')) {
+      if (!current.isEmpty()) {
+        words.append(current);
+        current.clear();
+      }
+      continue;
+    }
+    current.append(character);
+  }
+  if (!current.isEmpty()) words.append(current);
+  return words;
+}
+
+bool titleBoxFits(const QFontMetrics& metrics, const QString& text, int textWidthPx, int maxLines) {
+  if (textWidthPx <= 0 || maxLines < 1) return false;
+  const int maxHeight = metrics.lineSpacing() * maxLines;
+  const QRect bounds = metrics.boundingRect(QRect(0, 0, textWidthPx, maxHeight + metrics.lineSpacing()),
+                                            Qt::AlignHCenter | Qt::TextWordWrap, text);
+  return bounds.width() <= textWidthPx + 1 && bounds.height() <= maxHeight + 1;
+}
+
+int textWidthForColumnCount(int availableWidthPx, int columnCount, int horizontalChromePx, int spacingPx) {
+  if (columnCount < 1) return 0;
+  const int gaps = spacingPx * (columnCount - 1);
+  if (availableWidthPx <= gaps) return 0;
+  const int buttonWidth = (availableWidthPx - gaps) / columnCount;
+  return buttonWidth - horizontalChromePx;
+}
+
+}  // namespace
+
+FittedButtonTitle fitButtonTitle(const QFontMetrics& metrics,
+                                 const QString& fullText,
+                                 int textWidthPx,
+                                 int maxLines) {
+  FittedButtonTitle result;
+  result.shown = fullText;
+  if (fullText.isEmpty() || textWidthPx <= 0 || maxLines < 1) return result;
+  if (titleBoxFits(metrics, fullText, textWidthPx, maxLines)) return result;
+
+  const QStringList words = wordsOf(fullText);
+  if (words.isEmpty()) {
+    result.shown = elideToWidth(metrics, fullText.simplified(), textWidthPx);
+    result.elided = result.shown != fullText;
+    return result;
+  }
+
+  QStringList lines;
+  QString currentLine;
+  int wordIndex = 0;
+  while (wordIndex < words.size()) {
+    const bool lastLine = lines.size() >= maxLines - 1;
+    if (lastLine) {
+      QStringList remainderWords = words.mid(wordIndex);
+      if (!currentLine.isEmpty()) remainderWords.prepend(currentLine);
+      const QString remainder = remainderWords.join(QLatin1Char(' '));
+      const QString fitted = elideToWidth(metrics, remainder, textWidthPx);
+      lines.append(fitted);
+      if (fitted != remainder) result.elided = true;
+      currentLine.clear();
+      break;
+    }
+
+    const QString& word = words.at(wordIndex);
+    const QString candidate = currentLine.isEmpty() ? word : currentLine + QLatin1Char(' ') + word;
+    if (metrics.horizontalAdvance(candidate) <= textWidthPx) {
+      currentLine = candidate;
+      ++wordIndex;
+      continue;
+    }
+    if (!currentLine.isEmpty()) {
+      lines.append(currentLine);
+      currentLine.clear();
+      continue;
+    }
+
+    const QString fittedWord = elideToWidth(metrics, word, textWidthPx);
+    lines.append(fittedWord);
+    if (fittedWord != word) result.elided = true;
+    ++wordIndex;
+  }
+  if (!currentLine.isEmpty()) lines.append(currentLine);
+
+  if (lines.size() > maxLines) {
+    const QString tail = lines.mid(qMax(0, maxLines - 1)).join(QLatin1Char(' '));
+    lines = lines.mid(0, qMax(0, maxLines - 1));
+    const QString fittedTail = elideToWidth(metrics, tail, textWidthPx);
+    lines.append(fittedTail);
+    if (fittedTail != tail) result.elided = true;
+  }
+
+  result.shown = lines.join(QLatin1Char('\n'));
+  if (result.shown != fullText) {
+    const bool onlyWrapped = !result.elided && wordsOf(result.shown) == words;
+    if (!onlyWrapped) result.elided = true;
+  }
+  return result;
+}
+
+int fittingColumnCount(int availableWidthPx,
+                       int buttonCount,
+                       int horizontalChromePx,
+                       int spacingPx,
+                       const QFontMetrics& metrics,
+                       const QStringList& labels,
+                       int maxLines) {
+  if (buttonCount <= 1) return 1;
+  if (availableWidthPx <= 0) return buttonCount;
+
+  const int singleColumnTextWidth =
+      textWidthForColumnCount(availableWidthPx, 1, horizontalChromePx, spacingPx);
+  auto fitsColumn = [&](const QString& label, int columnCount) {
+    const int textWidth =
+        textWidthForColumnCount(availableWidthPx, columnCount, horizontalChromePx, spacingPx);
+    return !fitButtonTitle(metrics, label, textWidth, maxLines).elided;
+  };
+
+  for (int columnCount = buttonCount; columnCount >= 1; --columnCount) {
+    bool everyFlexibleLabelFits = true;
+    for (const QString& label : labels) {
+      const bool fitsOnOneColumn = singleColumnTextWidth > 0 && fitsColumn(label, 1);
+      if (!fitsOnOneColumn) continue;
+      if (!fitsColumn(label, columnCount)) {
+        everyFlexibleLabelFits = false;
+        break;
+      }
+    }
+    if (everyFlexibleLabelFits) return columnCount;
+  }
+  return 1;
 }
 
 int availableButtonTextWidth(const QAbstractButton* button) {

@@ -971,6 +971,8 @@ const QHash<QString, UiTranslation>& uiTranslationTable() {
       {QStringLiteral("controls_editor.break_empty"),
        {QStringLiteral("Empty"), QStringLiteral("Vacío")}},
       {QStringLiteral("controls_editor.break_one"), {QStringLiteral("One"), QStringLiteral("Uno")}},
+      {QStringLiteral("controls_editor.break_many"),
+       {QStringLiteral("Many"), QStringLiteral("Varios")}},
       {QStringLiteral("controls_editor.column_name"),
        {QStringLiteral("Name"), QStringLiteral("Nombre")}},
       {QStringLiteral("controls_editor.hidden_access"),

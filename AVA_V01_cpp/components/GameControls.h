@@ -16,7 +16,9 @@
 
 class QPushButton;
 class QLabel;
-class QHBoxLayout;
+class QGridLayout;
+class QShowEvent;
+class QResizeEvent;
 class QWidget;
 class QKeyEvent;
 
@@ -131,10 +133,26 @@ private:
   void applyTeamOnlyTabNavigation(bool forwardTab);
   void updateGameTimeUi(bool animateQuarterChange);
   void updateQuarterTrack(bool animateQuarterChange);
+  void updateStackedButtonHeight(QPushButton* button);
+  void updateAllStackedButtonHeights();
+  void refreshFollowUpTitles();
+  void refreshPeriodButtonTitle();
+  void relayoutFollowUpButtons();
+  int columnCountForFollowUps(int availableWidth) const;
+  void clearFollowUpPreview();
+  void previewMainEventFollowUps(const QString& mainEvent);
+  void buildBreakToggle();
+  void updateBreakToggleLabels();
+  void positionBreakToggle();
+  void applyBreakFixture(int fixtureId);
+  void scheduleFittedRefresh();
+  void refreshFittedControls();
 
 protected:
   bool eventFilter(QObject* obj, QEvent* event) override;
   void keyPressEvent(QKeyEvent* event) override;
+  void resizeEvent(QResizeEvent* event) override;
+  void showEvent(QShowEvent* event) override;
 
   enum class GamePhase {
     NotStarted,        // Period-advance enabled; starts the game.
@@ -142,8 +160,9 @@ protected:
     Ended,             // All quarters closed; period-advance disabled.
   };
 
-  QHBoxLayout* followUpLayout_ = nullptr;
+  QGridLayout* followUpLayout_ = nullptr;
   QWidget* followUpContainer_ = nullptr;
+  int followUpColumnCount_ = 1;
 
   QPushButton* periodAdvanceButton_ = nullptr;
   QLabel* periodAdvanceTitleLabel_ = nullptr;
@@ -175,4 +194,16 @@ protected:
   QMetaObject::Connection labelOverrideConnection_;
 
   QVector<QLabel*> mainButtonTitleLabels_;
+
+  bool arrangingFollowUps_ = false;
+  bool applyingTitleFit_ = false;
+  bool stackedHeightUpdateQueued_ = false;
+
+  QWidget* breakUiToggle_ = nullptr;
+  bool breakFixtureActive_ = false;
+  EventLabelOverrides::Table breakSavedOverrides_;
+  QString breakSavedHomeName_;
+  QString breakSavedAwayName_;
+  QString breakSavedHomeColor_;
+  QString breakSavedAwayColor_;
 };
