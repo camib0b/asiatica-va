@@ -1,5 +1,6 @@
 #include "PresentationPanel.h"
 
+#include "PresentationSelectionPopup.h"
 #include "../i18n/AppLocale.h"
 #include "../state/EventDefaults.h"
 #include "../state/EventLabelResolver.h"
@@ -21,10 +22,12 @@
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QEvent>
+#include <QFont>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QMenu>
 #include <QMouseEvent>
@@ -33,6 +36,7 @@
 #include <QPointer>
 #include <QPushButton>
 #include <QResizeEvent>
+#include <QScreen>
 #include <QScrollBar>
 #include <QSignalBlocker>
 #include <QStyle>
@@ -289,6 +293,71 @@ std::unique_ptr<QWidget, QtParentDeleter> makePresentationListDataToggle(QWidget
     const int row = segment.id < 3 ? 0 : 1;
     const int column = segment.id < 3 ? segment.id : segment.id - 3;
     layout->addWidget(button.get(), row, column);
+  }
+
+  return toggle;
+}
+
+std::unique_ptr<QWidget, QtParentDeleter> makePresentationSelectionMapToggle(QWidget* parent) {
+  auto toggle = makeQtPtr<QWidget>(parent);
+  toggle->setObjectName(QStringLiteral("PresentationSelectionMapToggle"));
+  toggle->setFocusPolicy(Qt::NoFocus);
+  toggle->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  toggle->setStyleSheet(QStringLiteral(
+      "QWidget#PresentationSelectionMapToggle {"
+      "  background: #d4d4d8;"
+      "  border-radius: 8px;"
+      "}"
+      "QWidget#PresentationSelectionMapToggle QToolButton {"
+      "  background: transparent;"
+      "  border: none;"
+      "  border-radius: 6px;"
+      "  color: #3f3f46;"
+      "  font-family: sans-serif;"
+      "  font-size: 11px;"
+      "  font-weight: 400;"
+      "  padding: 2px 6px;"
+      "  min-height: 18px;"
+      "  max-height: 22px;"
+      "  min-width: 0px;"
+      "}"
+      "QWidget#PresentationSelectionMapToggle QToolButton:checked {"
+      "  background: #ffffff;"
+      "  color: #18181b;"
+      "}"));
+
+  auto* layout = new QGridLayout(toggle.get());
+  layout->setContentsMargins(3, 3, 3, 3);
+  layout->setHorizontalSpacing(2);
+  layout->setVerticalSpacing(2);
+  layout->setColumnStretch(0, 1);
+  layout->setColumnStretch(1, 1);
+
+  auto group = makeQtPtr<QButtonGroup>(toggle.get());
+  group->setExclusive(true);
+
+  const struct Segment {
+    const char* objectName;
+    const char* label;
+    int id;
+  } segments[] = {
+      {"PresentationSelectionMapDemo", "Demo data", 0},
+      {"PresentationSelectionMapWorst", "Worst case", 1},
+      {"PresentationSelectionMapEmpty", "Empty", 2},
+      {"PresentationSelectionMapOne", "One", 3},
+  };
+
+  for (const Segment& segment : segments) {
+    auto button = makeQtPtr<QToolButton>(toggle.get());
+    button->setObjectName(QString::fromLatin1(segment.objectName));
+    button->setText(QString::fromLatin1(segment.label));
+    button->setCheckable(true);
+    button->setFocusPolicy(Qt::NoFocus);
+    button->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    button->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    if (segment.id == 0) button->setChecked(true);
+    group->addButton(button.get(), segment.id);
+    layout->addWidget(button.get(), segment.id / 2, segment.id % 2);
   }
 
   return toggle;
@@ -576,10 +645,22 @@ void PresentationPanel::buildUi() {
   selectionSummaryLabel_ = new QLabel(this);
   selectionSummaryLabel_->setObjectName(QStringLiteral("PresentationSelectionSummary"));
   selectionSummaryLabel_->setWordWrap(true);
+  selectionSummaryLabel_->setTextFormat(Qt::PlainText);
   selectionSummaryLabel_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
   selectionSummaryLabel_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
   selectionSummaryLabel_->setMinimumWidth(0);
+  selectionSummaryLabel_->setAttribute(Qt::WA_Hover, true);
+  selectionSummaryLabel_->setCursor(Qt::ArrowCursor);
   Style::setRole(selectionSummaryLabel_, "muted");
+
+  auto hideTimer = makeQtPtr<QTimer>(this);
+  selectionBreakdownHideTimer_ = hideTimer.get();
+  selectionBreakdownHideTimer_->setSingleShot(true);
+  selectionBreakdownHideTimer_->setInterval(250);
+  connect(selectionBreakdownHideTimer_, &QTimer::timeout, this, [this]() {
+    if (selectionBreakdownPointerInside()) return;
+    hideSelectionBreakdownPopup();
+  });
 
   selectionRow->addWidget(selectAllButton_);
   selectionRow->addWidget(selectNoneButton_);
@@ -696,6 +777,13 @@ void PresentationPanel::buildUi() {
     rootLayout->addWidget(toggle.get());
     if (auto* group = breakUiToggle_->findChild<QButtonGroup*>()) {
       connect(group, &QButtonGroup::idClicked, this, &PresentationPanel::onListFixtureChanged);
+    }
+
+    auto mapToggle = makePresentationSelectionMapToggle(this);
+    rootLayout->addWidget(mapToggle.get());
+    if (auto* group = mapToggle->findChild<QButtonGroup*>()) {
+      connect(group, &QButtonGroup::idClicked, this,
+              &PresentationPanel::onSelectionMapFixtureChanged);
     }
   }
 }
@@ -1078,6 +1166,7 @@ void PresentationPanel::updateSelectionSummary() {
           .arg(listedCount)
           .arg(totalSelectedCount));
   updateApplyButtonLabel();
+  syncSelectionBreakdown();
 }
 
 void PresentationPanel::updateApplyButtonLabel() {
@@ -1092,6 +1181,155 @@ void PresentationPanel::updateApplyButtonLabel() {
     wrappingButton->setLabelText(label);
   }
   applyToAllButton_->setToolTip(AppLocale::trUi(tooltipKey));
+}
+
+PresentationSelectionBreakdown::Result PresentationPanel::currentSelectionBreakdown() const {
+  switch (selectionMapFixture_) {
+  case SelectionMapFixture::WorstCase:
+    return PresentationSelectionBreakdown::worstCaseResult();
+  case SelectionMapFixture::Empty:
+    return {};
+  case SelectionMapFixture::One:
+    return PresentationSelectionBreakdown::oneEventResult();
+  case SelectionMapFixture::Live:
+    break;
+  }
+
+  QVector<TagEvent::MainEventKey> keys;
+  if (tagSession_) {
+    keys.reserve(selectedTagIdSet_.size());
+    for (quint64 tagId : selectedTagIdSet_) {
+      const int index = tagSession_->indexOfTagId(tagId);
+      if (!tagSession_->isValidTagIndex(index)) continue;
+      keys.append(tagSession_->tags().at(index).mainEventKey());
+    }
+  }
+
+  const QVariant filterData = eventFilterCombo_ ? eventFilterCombo_->currentData() : QVariant();
+  const bool allEvents = filterDataMeansAllEvents(filterData);
+  return PresentationSelectionBreakdown::fromSelectedKeys(keys, mainEventKeyFromFilterData(filterData),
+                                                         allEvents, tagSession_);
+}
+
+int PresentationPanel::selectionBreakdownPopupWidth() const {
+  return qBound(220, qMax(1, width()), 320);
+}
+
+void PresentationPanel::syncSelectionBreakdown() {
+  if (!selectionSummaryLabel_) return;
+  const PresentationSelectionBreakdown::Result result = currentSelectionBreakdown();
+  const bool interactive = result.interactive && !result.events.isEmpty();
+  Style::setState(selectionSummaryLabel_, "interactive", interactive);
+  selectionSummaryLabel_->ensurePolished();
+  QFont summaryFont = selectionSummaryLabel_->font();
+  if (summaryFont.underline() != interactive) {
+    summaryFont.setUnderline(interactive);
+    selectionSummaryLabel_->setFont(summaryFont);
+  }
+  selectionSummaryLabel_->setCursor(interactive ? Qt::PointingHandCursor : Qt::ArrowCursor);
+
+  if (!selectionBreakdownPopup_ || !selectionBreakdownPopup_->isVisible()) return;
+  if (!interactive) {
+    hideSelectionBreakdownPopup();
+    return;
+  }
+  selectionBreakdownPopup_->setEvents(result.events, selectionBreakdownPopupWidth());
+  placeSelectionBreakdownPopup();
+}
+
+void PresentationPanel::showSelectionBreakdownPopup() {
+  const PresentationSelectionBreakdown::Result result = currentSelectionBreakdown();
+  if (!result.interactive || result.events.isEmpty() || !selectionSummaryLabel_ ||
+      !selectionSummaryLabel_->isVisible()) {
+    return;
+  }
+
+  if (!selectionBreakdownPopup_) {
+    auto popup = makeQtPtr<PresentationSelectionPopup>(this);
+    selectionBreakdownPopup_ = popup.get();
+    selectionBreakdownPopup_->setActivationHandler(
+        [this](const TagEvent::MainEventKey& eventKey) { applySelectionBreakdownEvent(eventKey); });
+  }
+
+  if (selectionBreakdownHideTimer_) selectionBreakdownHideTimer_->stop();
+  selectionBreakdownPopup_->setEvents(result.events, selectionBreakdownPopupWidth());
+  placeSelectionBreakdownPopup();
+  selectionBreakdownPopup_->show();
+  selectionBreakdownPopup_->raise();
+}
+
+void PresentationPanel::hideSelectionBreakdownPopup() {
+  if (selectionBreakdownHideTimer_) selectionBreakdownHideTimer_->stop();
+  if (selectionBreakdownPopup_) selectionBreakdownPopup_->hide();
+}
+
+void PresentationPanel::scheduleSelectionBreakdownHide() {
+  if (!selectionBreakdownPopup_ || !selectionBreakdownPopup_->isVisible()) return;
+  if (!selectionBreakdownHideTimer_) return;
+  selectionBreakdownHideTimer_->start();
+}
+
+void PresentationPanel::applySelectionBreakdownEvent(const TagEvent::MainEventKey& eventKey) {
+  hideSelectionBreakdownPopup();
+  if (!eventFilterCombo_ || eventKey.isEmpty() || eventKey.isTimeControl()) return;
+
+  const QVariant data = eventKey.id != EventCatalog::EventId::None
+                            ? QVariant(static_cast<int>(eventKey.id))
+                            : QVariant(eventKey.unlistedName);
+  const int index = eventFilterCombo_->findData(data);
+  if (index < 0 || index == eventFilterCombo_->currentIndex()) return;
+  eventFilterCombo_->setCurrentIndex(index);
+}
+
+void PresentationPanel::placeSelectionBreakdownPopup() {
+  if (!selectionBreakdownPopup_ || !selectionSummaryLabel_) return;
+
+  const QPoint below = selectionSummaryLabel_->mapToGlobal(
+      QPoint(0, qMax(0, selectionSummaryLabel_->height() - 1)));
+  QRect available(0, 0, 1920, 1080);
+  if (QScreen* screen = selectionSummaryLabel_->screen()) available = screen->availableGeometry();
+
+  int x = below.x();
+  int y = below.y();
+  const int popupWidth = selectionBreakdownPopup_->width();
+  const int popupHeight = selectionBreakdownPopup_->height();
+  if (x + popupWidth > available.right()) x = available.right() - popupWidth + 1;
+  if (x < available.left()) x = available.left();
+  if (y + popupHeight > available.bottom()) {
+    const int above = selectionSummaryLabel_->mapToGlobal(QPoint(0, 0)).y() - popupHeight;
+    if (above >= available.top()) y = above;
+  }
+  selectionBreakdownPopup_->move(x, y);
+}
+
+bool PresentationPanel::selectionBreakdownContains(const QWidget* widget) const {
+  if (!widget || !selectionBreakdownPopup_) return false;
+  if (widget == selectionBreakdownPopup_) return true;
+  return selectionBreakdownPopup_->isAncestorOf(widget);
+}
+
+bool PresentationPanel::selectionBreakdownPointerInside() const {
+  const auto treeUnderMouse = [](const QWidget* root) {
+    if (!root) return false;
+    if (root->underMouse()) return true;
+    const QList<QWidget*> children = root->findChildren<QWidget*>();
+    for (const QWidget* child : children) {
+      if (child->underMouse()) return true;
+    }
+    return false;
+  };
+  return treeUnderMouse(selectionSummaryLabel_) || treeUnderMouse(selectionBreakdownPopup_);
+}
+
+void PresentationPanel::onSelectionMapFixtureChanged(int fixtureId) {
+  if (fixtureId < static_cast<int>(SelectionMapFixture::Live) ||
+      fixtureId > static_cast<int>(SelectionMapFixture::One)) {
+    return;
+  }
+  const auto nextFixture = static_cast<SelectionMapFixture>(fixtureId);
+  if (nextFixture == selectionMapFixture_) return;
+  selectionMapFixture_ = nextFixture;
+  syncSelectionBreakdown();
 }
 
 // ---------------------------------------------------------------------------
@@ -1221,6 +1459,38 @@ bool PresentationPanel::eventFilter(QObject* watched, QEvent* event) {
 
   auto* targetWidget = qobject_cast<QWidget*>(watched);
   const QEvent::Type eventType = event->type();
+
+  if (selectionSummaryLabel_ && watched == selectionSummaryLabel_ &&
+      (eventType == QEvent::Enter || eventType == QEvent::HoverEnter ||
+       eventType == QEvent::MouseButtonRelease)) {
+    showSelectionBreakdownPopup();
+  }
+
+  const bool pointerOnBreakdown =
+      (selectionSummaryLabel_ && targetWidget == selectionSummaryLabel_) ||
+      selectionBreakdownContains(targetWidget);
+  if (pointerOnBreakdown &&
+      (eventType == QEvent::Enter || eventType == QEvent::HoverEnter)) {
+    if (selectionBreakdownHideTimer_) selectionBreakdownHideTimer_->stop();
+  }
+  if ((eventType == QEvent::Leave || eventType == QEvent::HoverLeave) &&
+      (watched == selectionSummaryLabel_ || watched == selectionBreakdownPopup_.data())) {
+    scheduleSelectionBreakdownHide();
+  }
+
+  if (eventType == QEvent::MouseButtonPress && selectionBreakdownPopup_ &&
+      selectionBreakdownPopup_->isVisible() && !pointerOnBreakdown) {
+    hideSelectionBreakdownPopup();
+  }
+
+  if (eventType == QEvent::KeyPress && selectionBreakdownPopup_ &&
+      selectionBreakdownPopup_->isVisible()) {
+    const auto* keyEvent = static_cast<const QKeyEvent*>(event);
+    if (keyEvent->key() == Qt::Key_Escape) {
+      hideSelectionBreakdownPopup();
+      return true;
+    }
+  }
 
   if (eventType == QEvent::MouseButtonPress) {
     if (focusedLeadLagSpinBox() && !isInsideLeadLagSpinBox(targetWidget)) {

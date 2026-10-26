@@ -1064,6 +1064,7 @@ int runWorkStateTests(int argc, char** argv);
 int runTaggingToastTests(int argc, char** argv);
 int runModeChromeTests(int argc, char** argv);
 int runPresentationFilterTests(int argc, char** argv);
+int runPresentationSelectionBreakdownTests(int argc, char** argv);
 int runXmlEventMappingDialogTests(int argc, char** argv);
 int runUiPolicyTests(int argc, char** argv);
 int runWorkDataViewTests(int argc, char** argv);
@@ -1118,6 +1119,10 @@ int main(int argc, char** argv) {
     const int filterStatus = runPresentationFilterTests(argc, argv);
     if (filterStatus != 0) {
         return filterStatus;
+    }
+    const int selectionBreakdownStatus = runPresentationSelectionBreakdownTests(argc, argv);
+    if (selectionBreakdownStatus != 0) {
+        return selectionBreakdownStatus;
     }
     const int mappingStatus = runXmlEventMappingDialogTests(argc, argv);
     if (mappingStatus != 0) {
