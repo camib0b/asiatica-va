@@ -1124,9 +1124,18 @@ QLabel[role="exportError"] {
   font-weight: 600;
 }
 
+QWidget#ExportJobsBar QPushButton[size="sm"] {
+  padding: 4px 12px;
+  min-height: 28px;
+}
+
+QWidget#ExportJobsBar QPushButton[size="sm"]:focus {
+  padding: 3px 11px;
+}
+
 QWidget#ExportJobsBar QProgressBar {
-  min-height: 18px;
-  max-height: 18px;
+  min-height: 14px;
+  max-height: 14px;
   font-size: 11px;
   color: #09090b;
 }
