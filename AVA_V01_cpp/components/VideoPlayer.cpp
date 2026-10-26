@@ -108,6 +108,7 @@ VideoPlayer::VideoPlayer(QWidget* parent)
       playbackKeyboardShortcutsEnabled_(true),
       controlsChromeEnabled_(false),
       controlsOverlayOpacity_(kControlsOverlayActiveOpacity),
+      speedInteractionOpen_(false),
       playbackRate_(1.0),
       wasPlayingBeforeScrub_(false),
       scrubSeekInFlight_(false),
@@ -246,11 +247,13 @@ void VideoPlayer::setupControlsOverlay() {
     videoControlsBar_->setWindowOpacity(kControlsOverlayActiveOpacity);
 
     controlsIdleTimer_ = new QTimer(this);
+    controlsIdleTimer_->setObjectName(QStringLiteral("controlsIdleTimer"));
     controlsIdleTimer_->setSingleShot(true);
     controlsIdleTimer_->setInterval(kControlsOverlayIdleMs);
     connect(controlsIdleTimer_, &QTimer::timeout, this, &VideoPlayer::hideControlsOverlay);
 
     controlsFadeAnimation_ = new QPropertyAnimation(videoControlsBar_, "windowOpacity", this);
+    controlsFadeAnimation_->setObjectName(QStringLiteral("controlsFadeAnimation"));
     controlsFadeAnimation_->setDuration(kControlsOverlayFadeMs);
     connect(controlsFadeAnimation_, &QPropertyAnimation::finished, this, [this]() {
         if (!videoControlsBar_) return;
@@ -303,8 +306,11 @@ void VideoPlayer::updateControlsOverlayGeometry() {
 
 bool VideoPlayer::isPointerOverControlsBar() const {
     if (!videoControlsBar_ || !videoControlsBar_->isVisible()) return false;
-    if (videoControlsBar_->underMouse()) return true;
-    return videoControlsBar_->rect().contains(videoControlsBar_->mapFromGlobal(QCursor::pos()));
+    // Cursor geometry, not WA_UnderMouse. A drag grabs the mouse, so the
+    // under-mouse flag can stay set after the pointer has left the bar and
+    // would keep the idle timer from ever hiding the controls.
+    const QPoint cursorInBar = videoControlsBar_->mapFromGlobal(QCursor::pos());
+    return videoControlsBar_->rect().contains(cursorInBar);
 }
 
 void VideoPlayer::revealControls() {
@@ -326,11 +332,18 @@ void VideoPlayer::revealControls() {
 }
 
 void VideoPlayer::startControlsIdleTimer() {
-    if (!controlsChromeEnabled_ || !controlsIdleTimer_) return;
-    if (isPointerOverControlsBar()) {
+    if (!controlsChromeEnabled_ || !controlsIdleTimer_ || !isVisible()) return;
+    if (speedInteractionOpen_ || isPointerOverControlsBar()) {
         controlsIdleTimer_->stop();
         return;
     }
+    controlsIdleTimer_->start();
+}
+
+void VideoPlayer::armControlsIdleTimer() {
+    if (!controlsChromeEnabled_ || !controlsIdleTimer_ || !isVisible()) return;
+    if (!videoControlsBar_ || !videoControlsBar_->isVisible()) return;
+    if (speedInteractionOpen_) return;
     controlsIdleTimer_->start();
 }
 
@@ -436,10 +449,12 @@ void VideoPlayer::wireSignals() {
         revealControls();
     });
     connect(videoControlsBar_, &VideoControlsBar::speedDragStarted, this, [this]() {
+        speedInteractionOpen_ = true;
         revealControls();
         if (controlsIdleTimer_) controlsIdleTimer_->stop();
     });
     connect(videoControlsBar_, &VideoControlsBar::speedDragFinished, this, [this]() {
+        speedInteractionOpen_ = false;
         startControlsIdleTimer();
     });
     connect(videoControlsBar_, &VideoControlsBar::muteToggled, this, [this](bool) {
@@ -1330,6 +1345,11 @@ bool VideoPlayer::eventFilter(QObject* obj, QEvent* event) {
     } else if (obj == videoControlsBar_ &&
                (event->type() == QEvent::MouseMove || event->type() == QEvent::Enter)) {
         revealControls();
+    } else if (obj == videoControlsBar_ && event->type() == QEvent::Leave) {
+        // Hovering the bar stops the idle timer. Nothing else restarts it
+        // when the pointer leaves onto the tagging panel or off the window,
+        // so a click or double-click on the speed dial left the bar up.
+        armControlsIdleTimer();
     }
     return QWidget::eventFilter(obj, event);
 }

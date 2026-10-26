@@ -122,6 +122,9 @@ private:
   void updatePlaybackShortcutActionStates();
   void revealControls();
   void startControlsIdleTimer();
+  /// Start the idle hide without asking whether the pointer is still inside.
+  /// Leave means it is not; underMouse() can still be set from the drag.
+  void armControlsIdleTimer();
   void hideControlsOverlay();
   void updateControlsOverlayGeometry();
   void layoutVideoPicture();
@@ -204,6 +207,9 @@ private:
   bool playbackShortcutFocusGate_ = false;
   bool controlsChromeEnabled_ = false;
   qreal controlsOverlayOpacity_ = 0.85;
+  /// True from speedDragStarted until the matching speedDragFinished.
+  /// Leave must not arm the idle hide while a drag is still open.
+  bool speedInteractionOpen_ = false;
 
   // Settings or constants:
   double playbackRate_ = 1.0;

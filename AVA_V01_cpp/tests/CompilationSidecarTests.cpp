@@ -24,6 +24,8 @@
 #include <QTemporaryDir>
 #include <QXmlStreamReader>
 
+#include <sys/stat.h>
+
 #include <algorithm>
 #include <cmath>
 #include <optional>
@@ -188,6 +190,121 @@ bool waitUntilJobFinishes(ExportJobManager& manager, int timeoutMilliseconds) {
         QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
     }
     return false;
+}
+
+// The destination and a hard link to the same inode. A replace, truncate, or
+// delete changes one of them; an untouched file keeps both.
+struct PreservedFile {
+    QString path;
+    QString linkPath;
+    QByteArray bytes;
+    quint64 device = 0;
+    quint64 inode = 0;
+};
+
+bool rememberFile(const QString& path,
+                  const QByteArray& bytes,
+                  PreservedFile* preserved,
+                  QString* error) {
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        if (error) {
+            *error = file.errorString();
+        }
+        return false;
+    }
+    if (file.write(bytes) != bytes.size() || !file.flush()) {
+        if (error) {
+            *error = file.errorString();
+        }
+        return false;
+    }
+    file.close();
+
+    preserved->path = path;
+    preserved->bytes = bytes;
+    preserved->linkPath = path + QStringLiteral(".inode-watch");
+    QFile::remove(preserved->linkPath);
+    if (!QFile::link(path, preserved->linkPath)) {
+        if (error) {
+            *error = QStringLiteral("could not hardlink %1").arg(path);
+        }
+        return false;
+    }
+
+    struct stat info;
+    if (::stat(QFile::encodeName(path).constData(), &info) != 0) {
+        if (error) {
+            *error = QStringLiteral("stat failed for %1").arg(path);
+        }
+        return false;
+    }
+    preserved->device = static_cast<quint64>(info.st_dev);
+    preserved->inode = static_cast<quint64>(info.st_ino);
+    return true;
+}
+
+QString preservedFileDamage(const PreservedFile& preserved) {
+    QFile file(preserved.path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return QStringLiteral("destination missing");
+    }
+    if (file.readAll() != preserved.bytes) {
+        return QStringLiteral("destination bytes changed");
+    }
+    struct stat info;
+    if (::stat(QFile::encodeName(preserved.path).constData(), &info) != 0) {
+        return QStringLiteral("stat failed");
+    }
+    if (static_cast<quint64>(info.st_dev) != preserved.device
+        || static_cast<quint64>(info.st_ino) != preserved.inode) {
+        return QStringLiteral("destination inode changed");
+    }
+    QFile link(preserved.linkPath);
+    if (!link.open(QIODevice::ReadOnly) || link.readAll() != preserved.bytes) {
+        return QStringLiteral("hardlink bytes changed");
+    }
+    const QStringList leftovers =
+        QDir(QFileInfo(preserved.path).absolutePath())
+            .entryList({QStringLiteral("*.ava-replace-backup"),
+                        QStringLiteral("*.ava-partial")},
+                       QDir::Files);
+    if (!leftovers.isEmpty()) {
+        return QStringLiteral("leftover publish files: %1").arg(leftovers.join(QStringLiteral(", ")));
+    }
+    return {};
+}
+
+struct SingleClipFailure {
+    enum class Action {
+        None,
+        TruncateSource,
+        Cancel,
+    };
+    Action action = Action::None;
+    ExportJobManager* manager = nullptr;
+    int jobId = 0;
+    QString sourcePath;
+    int visits = 0;
+};
+
+void failSingleClipAtEncodeStart(void* context) {
+    auto* state = static_cast<SingleClipFailure*>(context);
+    if (!state || state->visits > 0) {
+        return;
+    }
+    ++state->visits;
+    if (state->action == SingleClipFailure::Action::TruncateSource) {
+        QFile source(state->sourcePath);
+        if (source.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            source.write("not-a-video");
+            source.close();
+        }
+        return;
+    }
+    if (state->action == SingleClipFailure::Action::Cancel && state->manager) {
+        state->manager->cancelJob(state->jobId);
+    }
 }
 
 }  // namespace
@@ -566,6 +683,7 @@ private slots:
     void exportsSidecarBesideCompilation();
     void cancelBeforeOutputReplaceDoesNotWriteSidecar();
     void cancelAfterJoinedOutputCommittedRemovesIt();
+    void failedSingleClipExportKeepsExistingFile();
 
 private:
     void cancelJoinedExportAfterCommit(const QString& sourcePath,
@@ -573,6 +691,11 @@ private:
                                        const QString& outputPath,
                                        const QByteArray& previousOutput,
                                        const QByteArray& previousSidecar);
+    void expectFailedSingleClipLeavesPreviousFile(const QString& sourcePath,
+                                                  const QVector<ClipSegment>& segments,
+                                                  const QString& outputPath,
+                                                  SingleClipFailure::Action action,
+                                                  const QString& statusFragment);
 };
 
 void CompilationSidecarExportTest::initTestCase() {
@@ -1051,6 +1174,124 @@ void CompilationSidecarExportTest::cancelAfterJoinedOutputCommittedRemovesIt() {
                                   directory.filePath(QStringLiteral("replaced.mp4")),
                                   QByteArray("not-a-video"),
                                   QByteArray("{}\n"));
+}
+
+void CompilationSidecarExportTest::expectFailedSingleClipLeavesPreviousFile(
+    const QString& sourcePath,
+    const QVector<ClipSegment>& segments,
+    const QString& outputPath,
+    SingleClipFailure::Action action,
+    const QString& statusFragment) {
+    const QByteArray previousOutput("not-a-video");
+    const QByteArray previousSidecar("{}\n");
+    const QString sidecarPath = CompilationSidecar::clipsJsonPathForVideo(outputPath);
+    PreservedFile video;
+    QString rememberError;
+    QVERIFY2(rememberFile(outputPath, previousOutput, &video, &rememberError),
+             qPrintable(rememberError));
+    QFile sidecar(sidecarPath);
+    QVERIFY(sidecar.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    QCOMPARE(sidecar.write(previousSidecar), previousSidecar.size());
+    sidecar.close();
+
+    ExportJobRequest request;
+    request.format = ExportOutputFormat::Mp4;
+    request.sourceVideoPath = sourcePath;
+    request.outputPath = outputPath;
+    request.clips = segments;
+    request.includeAudioTrack = false;
+    request.includeBrandingOverlay = false;
+
+    ExportJobManager manager;
+    QString startError;
+    QVERIFY2(manager.startJob(request, &startError), qPrintable(startError));
+
+    SingleClipFailure failure;
+    failure.action = action;
+    failure.manager = &manager;
+    failure.jobId = manager.snapshots().constFirst().id;
+    failure.sourcePath = sourcePath;
+    struct ObserverReset {
+        ~ObserverReset() { ClipExporter::setExportStepObserverForTests(nullptr, nullptr); }
+    } observerReset;
+    if (action != SingleClipFailure::Action::None) {
+        ClipExporter::setExportStepObserverForTests(&failSingleClipAtEncodeStart, &failure);
+    }
+    QVERIFY2(waitUntilJobFinishes(manager, 60000), "single-clip failure export timed out");
+    if (action != SingleClipFailure::Action::None) {
+        QVERIFY2(failure.visits == 1, "encode-start observer did not run");
+    }
+
+    const ExportJobSnapshot snapshot = manager.snapshots().constFirst();
+    QVERIFY2(snapshot.statusText.contains(statusFragment, Qt::CaseInsensitive),
+             qPrintable(snapshot.statusText));
+    if (action == SingleClipFailure::Action::Cancel) {
+        QVERIFY(snapshot.cancelled);
+        QVERIFY(!snapshot.failed);
+    } else {
+        QVERIFY2(snapshot.failed, qPrintable(snapshot.statusText));
+        QVERIFY(!snapshot.cancelled);
+    }
+
+    const QString damage = preservedFileDamage(video);
+    QVERIFY2(damage.isEmpty(), qPrintable(damage));
+    QFile keptSidecar(sidecarPath);
+    QVERIFY(keptSidecar.open(QIODevice::ReadOnly));
+    QCOMPARE(keptSidecar.readAll(), previousSidecar);
+}
+
+void CompilationSidecarExportTest::failedSingleClipExportKeepsExistingFile() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("full-match.mp4"));
+    QString commandError;
+    QVERIFY2(runProgram(FfmpegLocator::findFfmpeg(),
+                        {QStringLiteral("-y"),
+                         QStringLiteral("-f"), QStringLiteral("lavfi"),
+                         QStringLiteral("-i"), QStringLiteral("testsrc=duration=2:size=320x180:rate=30"),
+                         QStringLiteral("-pix_fmt"), QStringLiteral("yuv420p"),
+                         QStringLiteral("-c:v"), QStringLiteral("libx264"),
+                         QStringLiteral("-preset"), QStringLiteral("ultrafast"),
+                         sourcePath},
+                        60000,
+                        &commandError),
+             qPrintable(commandError));
+
+    TagSession session;
+    configureMatch(session);
+    const TagSession::GameTag clip = appendTag(
+        session, makeTag(QStringLiteral("16-yd"), QStringLiteral("Away"), 0, 1000, 500,
+                         QStringLiteral("Q1")));
+    ExportClipBuilder::OverlayOptions options;
+    options.includeBottomOverlay = false;
+    options.includeScoreboardOverlay = false;
+    options.includeNotesOverlay = false;
+    const QVector<ClipSegment> segments = ExportClipBuilder::buildClipSegments(
+        &session, {presentationClipFrom(clip, 0)}, options);
+    QCOMPARE(segments.size(), 1);
+    QVERIFY(segments.at(0).durationMs > 0);
+
+    QVector<ClipSegment> invalidDuration = segments;
+    invalidDuration[0].durationMs = 0;
+    expectFailedSingleClipLeavesPreviousFile(
+        sourcePath, invalidDuration, directory.filePath(QStringLiteral("invalid-duration.mp4")),
+        SingleClipFailure::Action::None, QStringLiteral("invalid duration"));
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+
+    const QString truncatedSource = directory.filePath(QStringLiteral("truncated-source.mp4"));
+    QVERIFY(QFile::copy(sourcePath, truncatedSource));
+    expectFailedSingleClipLeavesPreviousFile(
+        truncatedSource, segments, directory.filePath(QStringLiteral("ffmpeg-failed.mp4")),
+        SingleClipFailure::Action::TruncateSource, QStringLiteral("FFmpeg failed"));
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+
+    expectFailedSingleClipLeavesPreviousFile(
+        sourcePath, segments, directory.filePath(QStringLiteral("cancelled-clip.mp4")),
+        SingleClipFailure::Action::Cancel, QStringLiteral("cancel"));
 }
 
 #include "CompilationSidecarTests.moc"

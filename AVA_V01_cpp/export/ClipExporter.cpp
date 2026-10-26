@@ -595,8 +595,9 @@ void ClipExporter::cancelExport() {
 
 void ClipExporter::processNextClip() {
     currentClipUsesHardwareEncoder_ = false;
-    if (cancelled_) {
-        finishExport(false, QStringLiteral("Export cancelled."));
+    // Notifies the test observer before ffmpeg is started, then finishes when
+    // this clip's encode was already cancelled.
+    if (finishExportIfCancelled()) {
         return;
     }
 
