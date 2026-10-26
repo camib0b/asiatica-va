@@ -130,12 +130,12 @@ ExportJobsBar::ExportJobsBar(ExportJobManager* manager, QWidget* parent)
     setAttribute(Qt::WA_StyledBackground, true);
 
     auto* rootLayout = new QVBoxLayout(this);
-    rootLayout->setContentsMargins(12, 8, 12, 8);
-    rootLayout->setSpacing(6);
+    rootLayout->setContentsMargins(12, 4, 12, 4);
+    rootLayout->setSpacing(4);
 
     rowsLayout_ = new QVBoxLayout();
     rowsLayout_->setContentsMargins(0, 0, 0, 0);
-    rowsLayout_->setSpacing(6);
+    rowsLayout_->setSpacing(4);
     rootLayout->addLayout(rowsLayout_);
 
     if (manager_) {
@@ -199,7 +199,7 @@ ExportJobsBar::JobRowWidgets ExportJobsBar::createRow(const ExportJobSnapshot& s
 
     auto row = makeQtPtr<ExportJobRow>(this);
     auto rowLayout = makeQtPtr<QHBoxLayout>(row.get());
-    rowLayout->setContentsMargins(8, 4, 8, 4);
+    rowLayout->setContentsMargins(8, 2, 8, 2);
     rowLayout->setSpacing(8);
 
     auto checkMark = makeQtPtr<ExportCheckMark>(row.get());
