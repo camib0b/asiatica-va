@@ -73,6 +73,10 @@ public:
   /// Re-pads every queued clip with the same lead/lag around its own event mark.
   void applyLeadLagToAllClips(qint64 leadMs, qint64 lagMs);
 
+  /// Builds export-ready clip data for one tag, using the same interval clamping as queued clips.
+  /// Returns a default-constructed clip when \p tagSessionIndex is invalid.
+  Clip clipFromSessionIndex(int tagSessionIndex) const;
+
 signals:
   /// The queued clips changed (selection, ordering, or underlying tag data).
   void queueChanged();

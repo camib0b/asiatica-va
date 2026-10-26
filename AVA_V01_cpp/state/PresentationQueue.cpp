@@ -247,30 +247,34 @@ void PresentationQueue::refreshQueueFromSession() {
   emit queueChanged();
 }
 
+PresentationQueue::Clip PresentationQueue::clipFromSessionIndex(int tagSessionIndex) const {
+  Clip clip;
+  if (!tagSession_ || !tagSession_->isValidTagIndex(tagSessionIndex)) return clip;
+
+  const TagSession::GameTag& tag = tagSession_->tags().at(tagSessionIndex);
+  clip.tagSessionIndex = tagSessionIndex;
+  clip.tagId = tag.id;
+  clip.markMs = tag.markMs;
+  clip.startMs = tag.startMs;
+  clip.endMs = tag.endMs;
+  clip.mainEvent = tag.mainEventKey();
+  clip.followUps = tag.followUpChain();
+  clip.team = tag.team;
+  clip.note = tag.note.trimmed();
+  clampClipToVideo(clip);
+  return clip;
+}
+
 void PresentationQueue::rebuildClipsFromSession() {
   clips_.clear();
   if (!tagSession_) return;
 
-  const auto& tags = tagSession_->tags();
   clips_.reserve(selectedTagIds_.size());
   for (const quint64 tagId : selectedTagIds_) {
     if (tagId == 0) continue;
     const int tagSessionIndex = tagSession_->indexOfTagId(tagId);
     if (!tagSession_->isValidTagIndex(tagSessionIndex)) continue;
-    const TagSession::GameTag& tag = tags.at(tagSessionIndex);
-
-    Clip clip;
-    clip.tagSessionIndex = tagSessionIndex;
-    clip.tagId = tag.id;
-    clip.markMs = tag.markMs;
-    clip.startMs = tag.startMs;
-    clip.endMs = tag.endMs;
-    clip.mainEvent = tag.mainEventKey();
-    clip.followUps = tag.followUpChain();
-    clip.team = tag.team;
-    clip.note = tag.note.trimmed();
-    clampClipToVideo(clip);
-    clips_.append(clip);
+    clips_.append(clipFromSessionIndex(tagSessionIndex));
   }
 
   std::sort(clips_.begin(), clips_.end(), [](const Clip& first, const Clip& second) {

@@ -58,11 +58,14 @@ signals:
   void applyLeadLagToAllRequested(qint64 leadMs, qint64 lagMs);
   void showNotesToggled(bool enabled);
   void exportRequested();
+  /// Export one clip from the instance list without changing the presentation selection.
+  void exportClipRequested(int tagSessionIndex);
 
 private slots:
   void onFilterChanged();
   void onModelCheckStateChanged(quint64 tagId, bool checked);
   void onTableRowDoubleClicked(const QModelIndex& index);
+  void onInstancesTableContextMenu(const QPoint& position);
   void onSelectAllClicked();
   void onSelectNoneClicked();
   void onLeadLagSpinChanged();

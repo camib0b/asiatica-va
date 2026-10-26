@@ -1316,6 +1316,8 @@ void WorkWindow::wirePresentationPanelSignals() {
             &WorkWindow::onPresentationShowNotesToggled);
     connect(presentationPanel_, &PresentationPanel::exportRequested, this,
             &WorkWindow::onPresentationExportRequested);
+    connect(presentationPanel_, &PresentationPanel::exportClipRequested, this,
+            &WorkWindow::onPresentationExportClipRequested);
 }
 
 void WorkWindow::wireSignals() {
@@ -1933,19 +1935,36 @@ void WorkWindow::onPresentationExportRequested() {
     if (!tagSession_ || !hasOpenVideo() || !exportJobManager_) return;
 
     const QVector<PresentationQueue::Clip> queuedClips = copyPresentationQueueClips();
+    startPresentationExportForClips(queuedClips);
+}
+
+void WorkWindow::onPresentationExportClipRequested(int tagSessionIndex) {
+    if (!tagSession_ || !hasOpenVideo() || !exportJobManager_ || !presentationQueue_) return;
+    if (!tagSession_->isValidTagIndex(tagSessionIndex)) return;
+
+    const PresentationQueue::Clip clip = presentationQueue_->clipFromSessionIndex(tagSessionIndex);
+    if (clip.tagId == 0) return;
+
+    startPresentationExportForClips({clip});
+}
+
+void WorkWindow::startPresentationExportForClips(
+    const QVector<PresentationQueue::Clip>& clipsToExport) {
+    if (!tagSession_ || !hasOpenVideo() || !exportJobManager_ || clipsToExport.isEmpty()) return;
 
     ExportSettingsDialog dialog(
         tagSession_,
         sourceVideoPath_,
         exportDefaultDirectoryPath_,
-        queuedClips,
+        clipsToExport,
         exportJobManager_->activeOutputPaths(),
         this);
     dialog.setModal(true);
 
     if (dialog.exec() != QDialog::Accepted) return;
 
-    const ExportJobRequest request = buildPresentationExportRequest(dialog.resultSettings(), queuedClips);
+    const ExportJobRequest request =
+        buildPresentationExportRequest(dialog.resultSettings(), clipsToExport);
     QString errorMessage;
     if (!exportJobManager_->startJob(request, &errorMessage)) {
         QMessageBox::warning(this, AppLocale::trUi("export.title"), errorMessage);
