@@ -275,6 +275,7 @@ private slots:
     void missingResultsReplaysAndBrokenAlternationStayHonest();
     void currentAttemptIsHiddenUntilItsMark();
     void laterClipsKeepShootoutGoalsOffTheMatchScoreboard();
+    void shootoutResultWaitsForTheOutcomeInsideTheAttemptClip();
     void overlayFitsWorstCaseNamesAndSuddenDeath();
 };
 
@@ -565,9 +566,15 @@ void ShootoutStateTest::laterClipsKeepShootoutGoalsOffTheMatchScoreboard() {
     QCOMPARE(segments.at(1).scoreboards.at(0).scoreboard.homeGoals, 1);
     QCOMPARE(segments.at(1).scoreboards.at(0).scoreboard.awayGoals, 0);
     QCOMPARE(segments.at(1).shootouts.size(), 2);
+    QVERIFY(segments.at(1).shootouts.at(0).activationOffsetSeconds == 0.0);
     QCOMPARE(segments.at(1).shootouts.at(0).frame.homeConverted, 0);
     QCOMPARE(segments.at(1).shootouts.at(0).frame.roundLabel, QStringLiteral("Ronda 1"));
+    expectMarkers(segments.at(1).shootouts.at(0).frame.homeMarkers,
+                  regulation({Marker::InProgress}));
+    QCOMPARE(segments.at(1).shootouts.at(1).activationOffsetSeconds, 9.0);
     QCOMPARE(segments.at(1).shootouts.at(1).frame.homeConverted, 1);
+    expectMarkers(segments.at(1).shootouts.at(1).frame.homeMarkers,
+                  regulation({Marker::Converted}));
     QCOMPARE(segments.at(1).shootouts.at(1).frame.homeName, QStringLiteral("Universidad Católica"));
     QCOMPARE(segments.at(1).shootouts.at(1).frame.awayName, QStringLiteral("Old Georgians"));
 
@@ -581,6 +588,237 @@ void ShootoutStateTest::laterClipsKeepShootoutGoalsOffTheMatchScoreboard() {
         &session, {presentationClip(storedShootout)}, options);
     QVERIFY(withoutBoard.at(0).scoreboards.isEmpty());
     QVERIFY(withoutBoard.at(0).shootouts.isEmpty());
+}
+
+void ShootoutStateTest::shootoutResultWaitsForTheOutcomeInsideTheAttemptClip() {
+    const EventCatalog::Node* shootout =
+        EventCatalog::nodeForId(EventCatalog::EventId::Shootout);
+    const EventCatalog::Node* scoringGoal = EventCatalog::scoringGoalMainEvent();
+    QVERIFY(shootout != nullptr);
+    QVERIFY(scoringGoal != nullptr);
+    const qint64 leadMs = shootout->leadMs;
+    const qint64 lagMs = shootout->lagMs;
+    const qint64 holdMs = scoringGoal->lagMs;
+    QCOMPARE(leadMs, static_cast<qint64>(2000));
+    QCOMPARE(lagMs, static_cast<qint64>(9000));
+    QCOMPARE(holdMs, static_cast<qint64>(2000));
+    QVERIFY(lagMs > holdMs);
+
+    const auto factoryInterval = [leadMs, lagMs, holdMs](qint64 markMs) {
+        struct Interval {
+            qint64 startMs;
+            qint64 endMs;
+            qint64 outcomeMs;
+        };
+        Interval interval;
+        interval.startMs = markMs - leadMs;
+        interval.endMs = markMs + lagMs;
+        interval.outcomeMs = interval.endMs - holdMs;
+        return interval;
+    };
+
+    const qint64 homeRoundOneMarkMs = 30000;
+    const qint64 awayRoundOneMarkMs = 50000;
+    const qint64 homeRoundTwoMarkMs = 80000;
+    const auto homeRoundOne = factoryInterval(homeRoundOneMarkMs);
+    const auto awayRoundOne = factoryInterval(awayRoundOneMarkMs);
+    const auto homeRoundTwo = factoryInterval(homeRoundTwoMarkMs);
+    QCOMPARE(homeRoundOne.outcomeMs, static_cast<qint64>(37000));
+    QCOMPARE(awayRoundOne.outcomeMs, static_cast<qint64>(57000));
+    QCOMPARE(homeRoundTwo.outcomeMs, static_cast<qint64>(87000));
+
+    const auto makeAttempt = [](const char* team,
+                                qint64 markMs,
+                                qint64 startMs,
+                                qint64 endMs,
+                                EventCatalog::EventId result) {
+        TagSession::GameTag tag;
+        tag.setMainEventKey(TagEvent::catalogKey(EventCatalog::EventId::Shootout));
+        tag.team = QString::fromLatin1(team);
+        tag.setFollowUpChain(TagEvent::chainOf(result));
+        tag.markMs = markMs;
+        tag.startMs = startMs;
+        tag.endMs = endMs;
+        tag.intervalManuallyEdited = true;
+        return tag;
+    };
+
+    TagSession session;
+    session.setGameTeams(QStringLiteral("Universidad Católica"),
+                         QStringLiteral("Old Georgians"),
+                         QStringLiteral("#3c5ac8"),
+                         QStringLiteral("#c83c3c"));
+    const TagSession::GameTag storedHomeRoundOne = storedTag(session, makeAttempt(
+        "Home", homeRoundOneMarkMs, homeRoundOne.startMs, homeRoundOne.endMs,
+        EventCatalog::EventId::Converted));
+    const TagSession::GameTag storedAwayRoundOne = storedTag(session, makeAttempt(
+        "Away", awayRoundOneMarkMs, awayRoundOne.startMs, awayRoundOne.endMs,
+        EventCatalog::EventId::Missed));
+    const TagSession::GameTag storedHomeRoundTwo = storedTag(session, makeAttempt(
+        "Home", homeRoundTwoMarkMs, homeRoundTwo.startMs, homeRoundTwo.endMs,
+        EventCatalog::EventId::Converted));
+
+    const ShootoutState state = ShootoutState::fromGameTags(session.tags());
+    const AppLocale::Language english = AppLocale::Language::English;
+
+    const ShootoutState::Snapshot homeRoundOneHidden = state.snapshotRevealedThrough(
+        homeRoundOne.outcomeMs - 1, english, storedHomeRoundOne.id, homeRoundOne.endMs);
+    QCOMPARE(homeRoundOneHidden.homeConverted, 0);
+    QCOMPARE(homeRoundOneHidden.awayConverted, 0);
+    QCOMPARE(homeRoundOneHidden.roundLabel, QStringLiteral("Round 1"));
+    expectMarkers(homeRoundOneHidden.homeMarkers, regulation({Marker::InProgress}));
+    expectMarkers(homeRoundOneHidden.awayMarkers, regulation({}));
+
+    const ShootoutState::Snapshot homeRoundOneRevealed = state.snapshotRevealedThrough(
+        homeRoundOne.outcomeMs, english, storedHomeRoundOne.id, homeRoundOne.endMs);
+    QCOMPARE(homeRoundOneRevealed.homeConverted, 1);
+    QCOMPARE(homeRoundOneRevealed.awayConverted, 0);
+    expectMarkers(homeRoundOneRevealed.homeMarkers, regulation({Marker::Converted}));
+    expectMarkers(homeRoundOneRevealed.awayMarkers, regulation({}));
+
+    const ShootoutState::Snapshot awayRoundOneHidden = state.snapshotRevealedThrough(
+        awayRoundOne.outcomeMs - 1, english, storedAwayRoundOne.id, awayRoundOne.endMs);
+    QCOMPARE(awayRoundOneHidden.homeConverted, 1);
+    QCOMPARE(awayRoundOneHidden.awayConverted, 0);
+    expectMarkers(awayRoundOneHidden.homeMarkers, regulation({Marker::Converted}));
+    expectMarkers(awayRoundOneHidden.awayMarkers, regulation({Marker::InProgress}));
+
+    const ShootoutState::Snapshot awayRoundOneRevealed = state.snapshotRevealedThrough(
+        awayRoundOne.outcomeMs, english, storedAwayRoundOne.id, awayRoundOne.endMs);
+    QCOMPARE(awayRoundOneRevealed.homeConverted, 1);
+    QCOMPARE(awayRoundOneRevealed.awayConverted, 0);
+    expectMarkers(awayRoundOneRevealed.awayMarkers, regulation({Marker::Missed}));
+
+    const ShootoutState::Snapshot homeRoundTwoHidden = state.snapshotRevealedThrough(
+        homeRoundTwo.outcomeMs - 1, english, storedHomeRoundTwo.id, homeRoundTwo.endMs);
+    QCOMPARE(homeRoundTwoHidden.homeConverted, 1);
+    QCOMPARE(homeRoundTwoHidden.awayConverted, 0);
+    QCOMPARE(homeRoundTwoHidden.roundLabel, QStringLiteral("Round 2"));
+    expectMarkers(homeRoundTwoHidden.homeMarkers,
+                  regulation({Marker::Converted, Marker::InProgress}));
+    expectMarkers(homeRoundTwoHidden.awayMarkers, regulation({Marker::Missed}));
+
+    const ShootoutState::Snapshot homeRoundTwoRevealed = state.snapshotRevealedThrough(
+        homeRoundTwo.outcomeMs, english, storedHomeRoundTwo.id, homeRoundTwo.endMs);
+    QCOMPARE(homeRoundTwoRevealed.homeConverted, 2);
+    QCOMPARE(homeRoundTwoRevealed.awayConverted, 0);
+    expectMarkers(homeRoundTwoRevealed.homeMarkers,
+                  regulation({Marker::Converted, Marker::Converted}));
+    expectMarkers(homeRoundTwoRevealed.awayMarkers, regulation({Marker::Missed}));
+
+    ShootoutState::ClipWindow markWithoutOutcome;
+    markWithoutOutcome.startMs = homeRoundOneMarkMs - 1000;
+    markWithoutOutcome.endMs = homeRoundOneMarkMs + 2000;
+    markWithoutOutcome.isShootoutClip = false;
+    const QVector<ShootoutState::TimedSnapshot> markOnlyPhases =
+        state.phasesForClip(markWithoutOutcome, english);
+    QCOMPARE(markOnlyPhases.size(), 1);
+    QCOMPARE(markOnlyPhases.at(0).activationOffsetSeconds, 1.0);
+    QCOMPARE(markOnlyPhases.at(0).snapshot.homeConverted, 0);
+    expectMarkers(markOnlyPhases.at(0).snapshot.homeMarkers, regulation({Marker::InProgress}));
+
+    ExportClipBuilder::OverlayOptions options;
+    options.language = english;
+    options.includeScoreboardOverlay = true;
+    const QVector<ClipSegment> chronological = ExportClipBuilder::buildClipSegments(
+        &session,
+        {presentationClip(storedHomeRoundOne),
+         presentationClip(storedAwayRoundOne),
+         presentationClip(storedHomeRoundTwo)},
+        options);
+    QCOMPARE(chronological.size(), 3);
+
+    const auto expectAttemptClip = [](const ClipSegment& segment,
+                                      double outcomeOffsetSeconds,
+                                      int homeConvertedBefore,
+                                      int awayConvertedBefore,
+                                      const QVector<Marker>& homeMarkersBefore,
+                                      const QVector<Marker>& awayMarkersBefore,
+                                      int homeConvertedAfter,
+                                      int awayConvertedAfter,
+                                      const QVector<Marker>& homeMarkersAfter,
+                                      const QVector<Marker>& awayMarkersAfter) {
+        QCOMPARE(segment.shootouts.size(), 2);
+        QVERIFY(segment.shootouts.at(0).activationOffsetSeconds == 0.0);
+        QCOMPARE(segment.shootouts.at(0).frame.homeConverted, homeConvertedBefore);
+        QCOMPARE(segment.shootouts.at(0).frame.awayConverted, awayConvertedBefore);
+        expectMarkers(segment.shootouts.at(0).frame.homeMarkers, homeMarkersBefore);
+        expectMarkers(segment.shootouts.at(0).frame.awayMarkers, awayMarkersBefore);
+        QCOMPARE(segment.shootouts.at(1).activationOffsetSeconds, outcomeOffsetSeconds);
+        QCOMPARE(segment.shootouts.at(1).frame.homeConverted, homeConvertedAfter);
+        QCOMPARE(segment.shootouts.at(1).frame.awayConverted, awayConvertedAfter);
+        expectMarkers(segment.shootouts.at(1).frame.homeMarkers, homeMarkersAfter);
+        expectMarkers(segment.shootouts.at(1).frame.awayMarkers, awayMarkersAfter);
+    };
+
+    const double factoryOutcomeOffsetSeconds = (leadMs + lagMs - holdMs) / 1000.0;
+    QCOMPARE(factoryOutcomeOffsetSeconds, 9.0);
+    expectAttemptClip(chronological.at(0), factoryOutcomeOffsetSeconds,
+                      0, 0,
+                      regulation({Marker::InProgress}), regulation({}),
+                      1, 0,
+                      regulation({Marker::Converted}), regulation({}));
+    expectAttemptClip(chronological.at(1), factoryOutcomeOffsetSeconds,
+                      1, 0,
+                      regulation({Marker::Converted}), regulation({Marker::InProgress}),
+                      1, 0,
+                      regulation({Marker::Converted}), regulation({Marker::Missed}));
+    expectAttemptClip(chronological.at(2), factoryOutcomeOffsetSeconds,
+                      1, 0,
+                      regulation({Marker::Converted, Marker::InProgress}),
+                      regulation({Marker::Missed}),
+                      2, 0,
+                      regulation({Marker::Converted, Marker::Converted}),
+                      regulation({Marker::Missed}));
+
+    const QVector<ClipSegment> sortedByTeam = ExportClipBuilder::buildClipSegments(
+        &session,
+        {presentationClip(storedHomeRoundOne),
+         presentationClip(storedHomeRoundTwo),
+         presentationClip(storedAwayRoundOne)},
+        options);
+    QCOMPARE(sortedByTeam.size(), 3);
+    expectAttemptClip(sortedByTeam.at(0), factoryOutcomeOffsetSeconds,
+                      0, 0,
+                      regulation({Marker::InProgress}), regulation({}),
+                      1, 0,
+                      regulation({Marker::Converted}), regulation({}));
+    expectAttemptClip(sortedByTeam.at(1), factoryOutcomeOffsetSeconds,
+                      1, 0,
+                      regulation({Marker::Converted, Marker::InProgress}),
+                      regulation({Marker::Missed}),
+                      2, 0,
+                      regulation({Marker::Converted, Marker::Converted}),
+                      regulation({Marker::Missed}));
+    expectAttemptClip(sortedByTeam.at(2), factoryOutcomeOffsetSeconds,
+                      1, 0,
+                      regulation({Marker::Converted}), regulation({Marker::InProgress}),
+                      1, 0,
+                      regulation({Marker::Converted}), regulation({Marker::Missed}));
+
+    const qint64 nearEndMarkMs = 100000;
+    const qint64 nearEndLeadMs = 8000;
+    TagSession nearEndSession;
+    nearEndSession.setGameTeams(QStringLiteral("Home"),
+                                QStringLiteral("Away"),
+                                QStringLiteral("#3c5ac8"),
+                                QStringLiteral("#c83c3c"));
+    const TagSession::GameTag storedNearEnd = storedTag(nearEndSession, makeAttempt(
+        "Home", nearEndMarkMs, nearEndMarkMs - nearEndLeadMs, nearEndMarkMs + holdMs,
+        EventCatalog::EventId::Converted));
+    const QVector<ClipSegment> nearEndSegments = ExportClipBuilder::buildClipSegments(
+        &nearEndSession, {presentationClip(storedNearEnd)}, options);
+    QCOMPARE(nearEndSegments.size(), 1);
+    QCOMPARE(nearEndSegments.at(0).shootouts.size(), 2);
+    QVERIFY(nearEndSegments.at(0).shootouts.at(0).activationOffsetSeconds == 0.0);
+    QCOMPARE(nearEndSegments.at(0).shootouts.at(0).frame.homeConverted, 0);
+    expectMarkers(nearEndSegments.at(0).shootouts.at(0).frame.homeMarkers,
+                  regulation({Marker::InProgress}));
+    QCOMPARE(nearEndSegments.at(0).shootouts.at(1).activationOffsetSeconds,
+             nearEndLeadMs / 1000.0);
+    QCOMPARE(nearEndSegments.at(0).shootouts.at(1).frame.homeConverted, 1);
+    expectMarkers(nearEndSegments.at(0).shootouts.at(1).frame.homeMarkers,
+                  regulation({Marker::Converted}));
 }
 
 void ShootoutStateTest::overlayFitsWorstCaseNamesAndSuddenDeath() {

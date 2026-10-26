@@ -38,13 +38,33 @@
 /// attempts and the scores differ. A side that has shot in the current sudden-death
 /// round does not win before the other side shoots.
 ///
-/// Spoiler rule for a clip: an attempt's result joins the score and the dot
-/// history only when playback reaches its mark. Before that, if this clip is the
-/// attempt (or the mark falls inside the clip), the round label names it and its
-/// slot is in progress — empty of a result. Attempts already marked before the
-/// clip starts are shown in full. On a later non-shoot-out clip the board shows
-/// the revealed score and does not light a future attempt that this clip does not
-/// contain.
+/// Spoiler rule: an attempt's result joins the score and the dot history only
+/// when playback reaches that attempt's outcome time, not when its clip starts.
+///
+/// The match scoreboard flips at a Goal tag's mark. Lead and lag do not move
+/// that instant; they only place the clip around it. Factory Goal is a long
+/// lead and a short lag, so on a goal clip the new score appears near the end
+/// and stays up for the goal's lag. A penalty-corner clip flips at that same
+/// Goal mark (captured when the goal is registered), which falls inside the
+/// corner clip when the ball crosses, not at the corner clip's first frame.
+///
+/// An S.O. attempt has no second timestamp. The stored mark is the S.O. press.
+/// Factory S.O. lead is short and the lag is the attempt itself, so the mark
+/// sits near the start of the clip. Revealing there would show the finish for
+/// the whole attempt. The outcome time is therefore:
+/// - the mark, when it already lies in the final hold of the attempt's own
+///   clip (the scoring goal's lag — the tail a goal score stays on screen).
+///   A long lead puts the tag there.
+/// - otherwise one hold before the attempt clip ends. That uses the clip end
+///   the tag already stores (mark + lag, unless trimmed) and keeps the result
+///   on screen for the same tail as a goal. No extra field is required, so
+///   older sessions and XML imports keep working.
+///
+/// Before the outcome, if this clip is the attempt or the attempt falls inside
+/// the clip, the round label names it and its slot is in progress — empty of a
+/// result. Attempts whose outcome is already at or before the clip start are
+/// shown in full. On a later non-shoot-out clip the board shows the revealed
+/// score and does not light a future attempt that this clip does not contain.
 class ShootoutState {
 public:
     static constexpr int kRegulationRounds = 5;
@@ -72,6 +92,12 @@ public:
     struct SourceEvent {
         quint64 tagId = 0;
         qint64 markMs = 0;
+        /// Attempt clip from the tag. When \p intervalEndMs is not after
+        /// \p intervalStartMs, or the mark lies outside that interval, the
+        /// outcome time is \p markMs. Callers that only know the mark leave
+        /// the end before the start.
+        qint64 intervalStartMs = 0;
+        qint64 intervalEndMs = -1;
         QString teamKey;
         TagEvent::FollowUpChain followUps;
         int sourceOrder = 0;
@@ -111,9 +137,10 @@ public:
     bool hasAttempts() const { return !attempts_.isEmpty(); }
     qint64 firstAttemptMarkMs() const;
 
-    /// Results with markMs <= \p revealThroughMs are included.
+    /// Results whose outcome time is <= \p revealThroughMs are included.
     /// The next not-yet-revealed attempt is in progress when its tag id is
-    /// \p highlightTagId (non-zero) or its mark is <= \p highlightThroughMs.
+    /// \p highlightTagId (non-zero), or its mark or outcome time is
+    /// <= \p highlightThroughMs.
     Snapshot snapshotRevealedThrough(qint64 revealThroughMs,
                                      AppLocale::Language language,
                                      quint64 highlightTagId = 0,
@@ -138,6 +165,8 @@ private:
         int displaySlotIndex = 0;
         RoundKind roundKind = RoundKind::Regulation;
         int roundNumber = 0;
+        /// Absolute time at which this attempt's result becomes visible.
+        qint64 outcomeMs = 0;
     };
 
     static QVector<AnnotatedAttempt> annotate(QVector<SourceEvent> events);
