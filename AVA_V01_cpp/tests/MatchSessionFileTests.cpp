@@ -269,6 +269,8 @@ class MatchSessionFileTest : public QObject {
   void cleanupTestCase();
 
   void roundTripRestoresMatchAndKeepsExportBytes();
+  void clipFromSessionIndexMatchesQueuedClip();
+  void singleClipExportBuildsOneSegment();
   void missingCorruptAndNewerFilesStaySafe();
   void templatesSaveApplyAndProtectTheBuiltinLayout();
   void qsettingsNameKeysMigrateToCatalogIds();
@@ -465,6 +467,46 @@ void MatchSessionFileTest::roundTripRestoresMatchAndKeepsExportBytes() {
   QCOMPARE(keptMetadata.tags().size(), 2);
   QCOMPARE(keptMetadata.eventLabelOverrides().label(EventCatalog::EventId::Shot),
            QStringLiteral("Tiro libre"));
+}
+
+void MatchSessionFileTest::clipFromSessionIndexMatchesQueuedClip() {
+  TagSession session;
+  session.restoreTags({shotTag(), quarterTag()}, 5);
+
+  PresentationQueue queue;
+  queue.setTagSession(&session);
+  queue.setVideoDurationMs(120000);
+  queue.setSelectedTagIndexes({0});
+
+  const PresentationQueue::Clip queued = queue.clipAt(0);
+  const PresentationQueue::Clip direct = queue.clipFromSessionIndex(0);
+
+  QCOMPARE(direct.tagSessionIndex, queued.tagSessionIndex);
+  QCOMPARE(direct.tagId, queued.tagId);
+  QCOMPARE(direct.markMs, queued.markMs);
+  QCOMPARE(direct.startMs, queued.startMs);
+  QCOMPARE(direct.endMs, queued.endMs);
+  QCOMPARE(direct.team, queued.team);
+  QCOMPARE(direct.note, queued.note);
+}
+
+void MatchSessionFileTest::singleClipExportBuildsOneSegment() {
+  TagSession session;
+  session.restoreTags({shotTag()}, 5);
+
+  PresentationQueue queue;
+  queue.setTagSession(&session);
+  queue.setVideoDurationMs(120000);
+
+  const PresentationQueue::Clip clip = queue.clipFromSessionIndex(0);
+  QVERIFY(clip.tagId != 0);
+
+  ExportClipBuilder::OverlayOptions options;
+  const QVector<ClipSegment> segments =
+      ExportClipBuilder::buildClipSegments(&session, {clip}, options);
+  QCOMPARE(segments.size(), 1);
+  QCOMPARE(segments.first().compilation.sourceStartMs, clip.startMs);
+  QCOMPARE(segments.first().compilation.sourceEndMs, clip.endMs);
 }
 
 void MatchSessionFileTest::missingCorruptAndNewerFilesStaySafe() {

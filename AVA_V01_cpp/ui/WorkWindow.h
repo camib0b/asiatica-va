@@ -118,6 +118,8 @@ private slots:
   void onPresentationApplyLeadLagToAll(qint64 leadMs, qint64 lagMs);
   void onPresentationShowNotesToggled();
   void onPresentationExportRequested();
+  void onPresentationExportClipRequested(int tagSessionIndex);
+  void startPresentationExportForClips(const QVector<PresentationQueue::Clip>& clipsToExport);
   void enforceTaggingSidePanelWidthCap();
 
 private:

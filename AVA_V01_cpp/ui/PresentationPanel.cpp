@@ -26,6 +26,7 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPaintEvent>
@@ -604,6 +605,9 @@ void PresentationPanel::buildUi() {
           &PresentationPanel::onModelCheckStateChanged);
   connect(instancesTable_, &QTableView::doubleClicked, this,
           &PresentationPanel::onTableRowDoubleClicked);
+  instancesTable_->setContextMenuPolicy(Qt::CustomContextMenu);
+  connect(instancesTable_, &QTableView::customContextMenuRequested, this,
+          &PresentationPanel::onInstancesTableContextMenu);
   rootLayout->addWidget(instancesTable_, 1);
 
   auto* separator = new QFrame(this);
@@ -1023,6 +1027,24 @@ void PresentationPanel::onTableRowDoubleClicked(const QModelIndex& index) {
     emitSelectionChanged();
   }
   emit clipActivated(tagSessionIndex);
+}
+
+void PresentationPanel::onInstancesTableContextMenu(const QPoint& position) {
+  if (!instancesTable_ || !instancesModel_ || !tagSession_) return;
+
+  const QModelIndex index = instancesTable_->indexAt(position);
+  if (!index.isValid()) return;
+
+  const int tagSessionIndex = instancesModel_->tagSessionIndexAt(index.row());
+  if (!tagSession_->isValidTagIndex(tagSessionIndex)) return;
+
+  QMenu menu(instancesTable_);
+  QAction* exportAction = menu.addAction(AppLocale::trUi("presentation.export_this_clip"));
+  exportAction->setObjectName(QStringLiteral("PresentationExportClipAction"));
+  QObject::connect(exportAction, &QAction::triggered, this, [this, tagSessionIndex]() {
+    emit exportClipRequested(tagSessionIndex);
+  });
+  menu.exec(instancesTable_->viewport()->mapToGlobal(position));
 }
 
 void PresentationPanel::onSelectAllClicked() {
