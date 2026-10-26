@@ -9,6 +9,8 @@
 #include "../style/StyleProps.h"
 
 #include <QAbstractItemView>
+#include <QButtonGroup>
+#include <QCollator>
 #include <QColor>
 #include <QComboBox>
 #include <QHBoxLayout>
@@ -21,7 +23,9 @@
 #include <QSizePolicy>
 #include <QTableWidget>
 #include <QTableWidgetItem>
+#include <QToolButton>
 #include <QVBoxLayout>
+#include <QWheelEvent>
 
 #include <algorithm>
 #include <array>
@@ -31,10 +35,26 @@
 namespace {
 
 constexpr int kColCode = 0;
-constexpr int kColCount = 1;
+constexpr int kColTeam = 1;
 constexpr int kColEvent = 2;
-constexpr int kColTeam = 3;
+constexpr int kColCount = 3;
 constexpr int kColImport = 4;
+
+class WheelIgnoringComboBox final : public QComboBox {
+public:
+  explicit WheelIgnoringComboBox(QWidget* parent = nullptr) : QComboBox(parent) {
+    setFocusPolicy(Qt::StrongFocus);
+  }
+
+protected:
+  void wheelEvent(QWheelEvent* event) override {
+    if (!hasFocus()) {
+      event->ignore();
+      return;
+    }
+    QComboBox::wheelEvent(event);
+  }
+};
 
 const QColor kActiveRowBgEven(0xFFFFFF);
 const QColor kActiveRowBgOdd(0xFAFAFA);
@@ -87,16 +107,16 @@ void applyTeamComboLabels(QComboBox* teamCombo,
   if (awayIndex >= 0) teamCombo->setItemText(awayIndex, awayLabel);
 }
 
-std::unique_ptr<QComboBox, QtParentDeleter> makeAbbrevComboWidget(QWidget* parent) {
-  auto combo = makeQtPtr<QComboBox>(parent);
+std::unique_ptr<WheelIgnoringComboBox, QtParentDeleter> makeAbbrevComboWidget(QWidget* parent) {
+  auto combo = makeQtPtr<WheelIgnoringComboBox>(parent);
   Style::setVariant(combo.get(), "abbrev");
   combo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
   combo->setMinimumWidth(56);
   return combo;
 }
 
-std::unique_ptr<QComboBox, QtParentDeleter> makeTableComboWidget(QWidget* parent) {
-  auto combo = makeQtPtr<QComboBox>(parent);
+std::unique_ptr<WheelIgnoringComboBox, QtParentDeleter> makeTableComboWidget(QWidget* parent) {
+  auto combo = makeQtPtr<WheelIgnoringComboBox>(parent);
   Style::setVariant(combo.get(), "compact");
   combo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   return combo;
@@ -254,7 +274,11 @@ XmlEventMappingDialog::XmlEventMappingDialog(const QVector<XmlImporter::ParsedIn
                                              qint64 offsetMs,
                                              const TagSession* session,
                                              QWidget* parent)
-    : QDialog(parent), instances_(instances), offsetMs_(offsetMs), session_(session) {
+    : QDialog(parent),
+      sessionInstances_(instances),
+      instances_(instances),
+      offsetMs_(offsetMs),
+      session_(session) {
   if (session_) {
     sessionHomeAbbrev_ = session_->homeAbbrev().trimmed().toUpper();
     sessionAwayAbbrev_ = session_->awayAbbrev().trimmed().toUpper();
@@ -315,14 +339,81 @@ void XmlEventMappingDialog::buildUi() {
   abbrevConflictLabel_ = abbrevConflictLabel.get();
   layout->addWidget(abbrevConflictLabel.get());
 
+  auto importToolbar = makeQtPtr<QHBoxLayout>();
+  importToolbar->addStretch();
+  auto selectAllImportButton = makeQtPtr<QPushButton>(this);
+  auto deselectAllImportButton = makeQtPtr<QPushButton>(this);
+  Style::setSize(selectAllImportButton.get(), "sm");
+  Style::setSize(deselectAllImportButton.get(), "sm");
+  Style::setVariant(selectAllImportButton.get(), "ghost");
+  Style::setVariant(deselectAllImportButton.get(), "ghost");
+  selectAllImportButton->setObjectName(QStringLiteral("XmlMappingSelectAllImportButton"));
+  deselectAllImportButton->setObjectName(QStringLiteral("XmlMappingDeselectAllImportButton"));
+  selectAllImportButton_ = selectAllImportButton.get();
+  deselectAllImportButton_ = deselectAllImportButton.get();
+  importToolbar->addWidget(selectAllImportButton.get());
+  importToolbar->addWidget(deselectAllImportButton.get());
+  layout->addLayout(importToolbar.get());
+
   auto mappingTable = makeQtPtr<QTableWidget>(this);
   mappingTable->setObjectName(QStringLiteral("XmlEventMappingTable"));
   mappingTable->setColumnCount(5);
   mappingTable->setSelectionBehavior(QAbstractItemView::SelectRows);
   mappingTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
   mappingTable->setAlternatingRowColors(false);
+  mappingTable->setSortingEnabled(false);
+  mappingTable->horizontalHeader()->setSortIndicatorShown(true);
+  mappingTable->horizontalHeader()->setSectionsClickable(true);
   mappingTable_ = mappingTable.get();
   layout->addWidget(mappingTable.get(), 1);
+
+  if (mappingBreakUiEnabled()) {
+    auto breakToggle = makeQtPtr<QWidget>(this);
+    breakToggle->setObjectName(QStringLiteral("XmlMappingBreakUiToggle"));
+    Style::setRole(breakToggle.get(), "breakUiToggle");
+    auto* breakLayout = new QHBoxLayout(breakToggle.get());
+    breakLayout->setContentsMargins(4, 4, 4, 4);
+    breakLayout->setSpacing(2);
+    auto breakGroup = makeQtPtr<QButtonGroup>(breakToggle.get());
+    breakGroup->setExclusive(true);
+    const struct BreakSegment {
+      const char* objectName;
+      const char* labelKey;
+      MappingDataFixture fixture;
+    } segments[] = {
+        {"XmlMappingBreakUiDemo", "controls_editor.break_demo", MappingDataFixture::Session},
+        {"XmlMappingBreakUiWorst", "controls_editor.break_worst", MappingDataFixture::WorstCase},
+        {"XmlMappingBreakUiEmpty", "controls_editor.break_empty", MappingDataFixture::Empty},
+        {"XmlMappingBreakUiOne", "controls_editor.break_one", MappingDataFixture::One},
+    };
+    for (const BreakSegment& segment : segments) {
+      auto button = makeQtPtr<QToolButton>(breakToggle.get());
+      button->setObjectName(QString::fromLatin1(segment.objectName));
+      button->setText(AppLocale::trUi(segment.labelKey));
+      button->setCheckable(true);
+      button->setFocusPolicy(Qt::NoFocus);
+      Style::setRole(button.get(), "breakUiSegment");
+      if (segment.fixture == MappingDataFixture::Session) button->setChecked(true);
+      breakGroup->addButton(button.get(), static_cast<int>(segment.fixture));
+      breakLayout->addWidget(button.get());
+      connect(button.get(), &QToolButton::clicked, this, [this, fixture = segment.fixture]() {
+        applyMappingDataFixture(fixture);
+      });
+    }
+    auto thousandButton = makeQtPtr<QToolButton>(breakToggle.get());
+    thousandButton->setObjectName(QStringLiteral("XmlMappingBreakUiThousand"));
+    thousandButton->setText(QStringLiteral("1,000 rows"));
+    thousandButton->setCheckable(true);
+    thousandButton->setFocusPolicy(Qt::NoFocus);
+    Style::setRole(thousandButton.get(), "breakUiSegment");
+    breakGroup->addButton(thousandButton.get(), static_cast<int>(MappingDataFixture::Thousand));
+    breakLayout->addWidget(thousandButton.get());
+    connect(thousandButton.get(), &QToolButton::clicked, this, [this]() {
+      applyMappingDataFixture(MappingDataFixture::Thousand);
+    });
+    breakUiToggle_ = breakToggle.get();
+    layout->addWidget(breakToggle.get());
+  }
 
   auto buttonRow = makeQtPtr<QHBoxLayout>();
   buttonRow->addStretch();
@@ -339,6 +430,12 @@ void XmlEventMappingDialog::buildUi() {
 
   connect(cancelButton.get(), &QPushButton::clicked, this, &QDialog::reject);
   connect(importButton.get(), &QPushButton::clicked, this, &XmlEventMappingDialog::onImportClicked);
+  connect(selectAllImportButton.get(), &QPushButton::clicked, this,
+          &XmlEventMappingDialog::onSelectAllImportClicked);
+  connect(deselectAllImportButton.get(), &QPushButton::clicked, this,
+          &XmlEventMappingDialog::onDeselectAllImportClicked);
+  connect(mappingTable->horizontalHeader(), &QHeaderView::sectionClicked, this,
+          &XmlEventMappingDialog::onMappingHeaderClicked);
   connect(xmlHomeAbbrevCombo.get(), &QComboBox::currentTextChanged, this,
           [this](const QString&) {
             onAbbrevMappingChanged();
@@ -354,6 +451,89 @@ void XmlEventMappingDialog::buildUi() {
             if (!item || item->column() != kColImport) return;
             updateRowImportState(item->row());
           });
+}
+
+void XmlEventMappingDialog::clearMappingTableUi() {
+  if (mappingTable_) mappingTable_->setRowCount(0);
+  rows_.clear();
+  if (xmlHomeAbbrevCombo_) {
+    QSignalBlocker blocker(xmlHomeAbbrevCombo_);
+    xmlHomeAbbrevCombo_->clear();
+  }
+  if (xmlAwayAbbrevCombo_) {
+    QSignalBlocker blocker(xmlAwayAbbrevCombo_);
+    xmlAwayAbbrevCombo_->clear();
+  }
+}
+
+void XmlEventMappingDialog::cacheRowWidgetState(int row) {
+  if (row < 0 || row >= rows_.size()) return;
+  MappingRow& mappingRow = rows_[row];
+  if (mappingRow.eventCombo) mappingRow.cachedEvent = mappingRow.eventCombo->currentText();
+  if (mappingRow.teamCombo) {
+    mappingRow.cachedTeam = mappingRow.teamCombo->currentData().toString();
+    mappingRow.cachedTeamLabel = mappingRow.teamCombo->currentText();
+  }
+  mappingRow.cachedImport = isRowImportEnabled(row);
+}
+
+void XmlEventMappingDialog::cacheAllRowWidgetState() {
+  for (int row = 0; row < rows_.size(); ++row) {
+    cacheRowWidgetState(row);
+  }
+}
+
+void XmlEventMappingDialog::rebuildMappingTableFromRows() {
+  if (!mappingTable_) return;
+
+  const QStringList events = eventChoices();
+  const QString homeLabel =
+      teamSideDisplayLabel(QStringLiteral("Home"), sessionHomeAbbrev_, sessionAwayAbbrev_);
+  const QString awayLabel =
+      teamSideDisplayLabel(QStringLiteral("Away"), sessionHomeAbbrev_, sessionAwayAbbrev_);
+
+  QSignalBlocker tableBlocker(mappingTable_);
+  mappingTable_->setRowCount(rows_.size());
+
+  for (int row = 0; row < rows_.size(); ++row) {
+    MappingRow& mappingRow = rows_[row];
+
+    auto* codeItem = new QTableWidgetItem(mappingRow.xmlCode);
+    codeItem->setToolTip(mappingRow.xmlCode);
+    mappingTable_->setItem(row, kColCode, codeItem);
+
+    auto teamCombo = makeTableComboWidget(mappingTable_);
+    mappingRow.teamCombo = teamCombo.get();
+    teamCombo->addItem(AppLocale::trUi("xml_import.mapping_team_none"), QString());
+    teamCombo->addItem(homeLabel, QStringLiteral("Home"));
+    teamCombo->addItem(awayLabel, QStringLiteral("Away"));
+    if (!mappingRow.cachedTeam.isEmpty()) {
+      const int teamIndex = teamCombo->findData(mappingRow.cachedTeam);
+      if (teamIndex >= 0) teamCombo->setCurrentIndex(teamIndex);
+    }
+    embedTableCombo(mappingTable_, row, kColTeam, teamCombo.get());
+
+    auto eventCombo = makeTableComboWidget(mappingTable_);
+    mappingRow.eventCombo = eventCombo.get();
+    eventCombo->addItems(events);
+    if (!mappingRow.cachedEvent.isEmpty()) {
+      const int eventIndex = eventCombo->findText(mappingRow.cachedEvent);
+      if (eventIndex >= 0) eventCombo->setCurrentIndex(eventIndex);
+    }
+    embedTableCombo(mappingTable_, row, kColEvent, eventCombo.get());
+
+    auto* countItem = new QTableWidgetItem(QString::number(mappingRow.count));
+    countItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    countItem->setData(Qt::UserRole, mappingRow.count);
+    mappingTable_->setItem(row, kColCount, countItem);
+
+    mappingRow.importItem = makeImportCheckItem();
+    mappingRow.importItem->setCheckState(mappingRow.cachedImport ? Qt::Checked : Qt::Unchecked);
+    mappingTable_->setItem(row, kColImport, mappingRow.importItem);
+  }
+
+  configureMappingTable();
+  refreshAllRowImportStates();
 }
 
 void XmlEventMappingDialog::populateRows() {
@@ -385,20 +565,25 @@ void XmlEventMappingDialog::populateRows() {
   }
 
   std::sort(groups.begin(), groups.end(), [](const CodeGroup& left, const CodeGroup& right) {
-    return QString::compare(left.displayCode, right.displayCode, Qt::CaseInsensitive) < 0;
+    QCollator collator;
+    collator.setCaseSensitivity(Qt::CaseInsensitive);
+    return collator.compare(left.displayCode, right.displayCode) < 0;
   });
 
   QStringList abbrevChoices(detectedAbbrevs.cbegin(), detectedAbbrevs.cend());
-  std::sort(abbrevChoices.begin(), abbrevChoices.end(),
-            [](const QString& left, const QString& right) {
-              return QString::compare(left, right, Qt::CaseInsensitive) < 0;
-            });
+  std::sort(abbrevChoices.begin(), abbrevChoices.end(), [](const QString& left, const QString& right) {
+    QCollator collator;
+    collator.setCaseSensitivity(Qt::CaseInsensitive);
+    return collator.compare(left, right) < 0;
+  });
   prependAbbrevIfAbsent(abbrevChoices, sessionHomeAbbrev_);
   prependAbbrevIfAbsent(abbrevChoices, sessionAwayAbbrev_);
   if (abbrevChoices.isEmpty()) {
     prependAbbrevIfAbsent(abbrevChoices, sessionHomeAbbrev_);
     prependAbbrevIfAbsent(abbrevChoices, sessionAwayAbbrev_);
   }
+
+  clearMappingTableUi();
 
   xmlHomeAbbrevCombo_->addItems(abbrevChoices);
   xmlAwayAbbrevCombo_->addItems(abbrevChoices);
@@ -413,46 +598,19 @@ void XmlEventMappingDialog::populateRows() {
     if (awayIndex >= 0) xmlAwayAbbrevCombo_->setCurrentIndex(awayIndex);
   }
 
-  mappingTable_->setRowCount(groups.size());
-  rows_.clear();
   rows_.reserve(groups.size());
-
-  const QStringList events = eventChoices();
-  const QString homeLabel =
-      teamSideDisplayLabel(QStringLiteral("Home"), sessionHomeAbbrev_, sessionAwayAbbrev_);
-  const QString awayLabel =
-      teamSideDisplayLabel(QStringLiteral("Away"), sessionHomeAbbrev_, sessionAwayAbbrev_);
-
-  int row = 0;
   for (const CodeGroup& group : groups) {
     MappingRow mappingRow;
     mappingRow.xmlCode = group.displayCode;
     mappingRow.count = group.count;
-
-    mappingTable_->setItem(row, kColCode, new QTableWidgetItem(group.displayCode));
-    mappingTable_->setItem(row, kColCount,
-                           new QTableWidgetItem(QString::number(mappingRow.count)));
-
-    auto eventCombo = makeTableComboWidget(mappingTable_);
-    mappingRow.eventCombo = eventCombo.get();
-    eventCombo->addItems(events);
-    embedTableCombo(mappingTable_, row, kColEvent, eventCombo.get());
-
-    auto teamCombo = makeTableComboWidget(mappingTable_);
-    mappingRow.teamCombo = teamCombo.get();
-    teamCombo->addItem(AppLocale::trUi("xml_import.mapping_team_none"), QString());
-    teamCombo->addItem(homeLabel, QStringLiteral("Home"));
-    teamCombo->addItem(awayLabel, QStringLiteral("Away"));
-    embedTableCombo(mappingTable_, row, kColTeam, teamCombo.get());
-
-    mappingRow.importItem = makeImportCheckItem();
-    mappingTable_->setItem(row, kColImport, mappingRow.importItem);
-
+    mappingRow.cachedImport = true;
     rows_.append(mappingRow);
-    ++row;
   }
 
-  configureMappingTable();
+  rebuildMappingTableFromRows();
+  if (mappingTable_ && mappingTable_->horizontalHeader()) {
+    mappingTable_->horizontalHeader()->setSortIndicator(sortColumn_, sortOrder_);
+  }
   onAbbrevMappingChanged();
 }
 
@@ -466,12 +624,136 @@ void XmlEventMappingDialog::configureMappingTable() {
   QHeaderView* header = mappingTable_->horizontalHeader();
   header->setStretchLastSection(false);
   header->setSectionResizeMode(kColCode, QHeaderView::Stretch);
+  header->setSectionResizeMode(kColTeam, QHeaderView::ResizeToContents);
   header->setSectionResizeMode(kColEvent, QHeaderView::Stretch);
   header->setSectionResizeMode(kColCount, QHeaderView::ResizeToContents);
-  header->setSectionResizeMode(kColTeam, QHeaderView::ResizeToContents);
   header->setSectionResizeMode(kColImport, QHeaderView::Fixed);
   mappingTable_->setColumnWidth(kColImport, 56);
   header->setMinimumSectionSize(72);
+}
+
+void XmlEventMappingDialog::sortMappingRows(int column, Qt::SortOrder order) {
+  if (!mappingTable_ || rows_.isEmpty()) return;
+  if (column < 0 || column >= mappingTable_->columnCount()) return;
+
+  cacheAllRowWidgetState();
+
+  QCollator collator;
+  collator.setCaseSensitivity(Qt::CaseInsensitive);
+
+  const auto compareRows = [&](const MappingRow& left, const MappingRow& right) {
+    int comparison = 0;
+    switch (column) {
+    case kColCode:
+      comparison = collator.compare(left.xmlCode, right.xmlCode);
+      break;
+    case kColTeam:
+      comparison = collator.compare(left.cachedTeamLabel, right.cachedTeamLabel);
+      break;
+    case kColEvent:
+      comparison = collator.compare(left.cachedEvent, right.cachedEvent);
+      break;
+    case kColCount:
+      if (left.count < right.count) comparison = -1;
+      else if (left.count > right.count) comparison = 1;
+      break;
+    case kColImport:
+      if (left.cachedImport != right.cachedImport) {
+        comparison = left.cachedImport ? -1 : 1;
+      }
+      break;
+    default:
+      break;
+    }
+    if (order == Qt::DescendingOrder) comparison = -comparison;
+    return comparison < 0;
+  };
+
+  std::stable_sort(rows_.begin(), rows_.end(), compareRows);
+
+  rebuildMappingTableFromRows();
+  if (QHeaderView* header = mappingTable_->horizontalHeader()) {
+    header->setSortIndicator(column, order);
+  }
+}
+
+void XmlEventMappingDialog::onMappingHeaderClicked(int logicalIndex) {
+  if (logicalIndex == sortColumn_) {
+    sortOrder_ =
+        sortOrder_ == Qt::AscendingOrder ? Qt::DescendingOrder : Qt::AscendingOrder;
+  } else {
+    sortColumn_ = logicalIndex;
+    sortOrder_ = Qt::AscendingOrder;
+  }
+  sortMappingRows(sortColumn_, sortOrder_);
+}
+
+void XmlEventMappingDialog::onSelectAllImportClicked() {
+  QSignalBlocker blocker(mappingTable_);
+  for (int row = 0; row < rows_.size(); ++row) {
+    setRowImportEnabled(row, true);
+  }
+  refreshAllRowImportStates();
+}
+
+void XmlEventMappingDialog::onDeselectAllImportClicked() {
+  QSignalBlocker blocker(mappingTable_);
+  for (int row = 0; row < rows_.size(); ++row) {
+    setRowImportEnabled(row, false);
+  }
+  refreshAllRowImportStates();
+}
+
+bool XmlEventMappingDialog::mappingBreakUiEnabled() const {
+  const QByteArray value = qgetenv("AVA_BREAK_UI");
+  return value == "1" || value == QByteArrayLiteral("true") ||
+         value == QByteArrayLiteral("xml_mapping");
+}
+
+QVector<XmlImporter::ParsedInstance> XmlEventMappingDialog::instancesForFixture(
+    MappingDataFixture fixture) const {
+  if (fixture == MappingDataFixture::Session) return sessionInstances_;
+  if (fixture == MappingDataFixture::Empty) return {};
+
+  auto make = [](const QString& code, qint64 startMs) {
+    XmlImporter::ParsedInstance instance;
+    instance.code = code;
+    instance.startMs = startMs;
+    instance.endMs = startMs + 1000;
+    return instance;
+  };
+
+  if (fixture == MappingDataFixture::One) {
+    return {make(QStringLiteral("HOME GOAL+"), 0)};
+  }
+
+  if (fixture == MappingDataFixture::WorstCase) {
+    return {
+        make(QStringLiteral("NORTHWIND PENALTY_CORNER_SEQUENCE_FINAL_REVISION_12+"), 0),
+        make(QStringLiteral("Seán O'Brien-Müller 16YD+"), 1000),
+        make(QStringLiteral("ĐẶNG THỊ NGỌC HÂN SHOT+"), 2000),
+        make(QStringLiteral("🦊 FOUL+"), 3000),
+        make(QStringLiteral("AWAY GOAL+"), 4000),
+        make(QStringLiteral("HOME GOAL-"), 5000),
+        make(QStringLiteral("Q1"), 6000),
+        make(QStringLiteral("HOME GOAL+"), 7000),
+    };
+  }
+
+  QVector<XmlImporter::ParsedInstance> instances;
+  instances.reserve(1000);
+  for (int index = 0; index < 1000; ++index) {
+    instances.append(make(QStringLiteral("HOME SHOT+"), static_cast<qint64>(index) * 1000));
+  }
+  return instances;
+}
+
+void XmlEventMappingDialog::applyMappingDataFixture(MappingDataFixture fixture) {
+  instances_ = instancesForFixture(fixture);
+  sortColumn_ = kColCode;
+  sortOrder_ = Qt::AscendingOrder;
+  populateRows();
+  applyAutoMappings();
 }
 
 bool XmlEventMappingDialog::isRowImportEnabled(int row) const {
@@ -819,11 +1101,18 @@ void XmlEventMappingDialog::applyUiStrings() {
   importButton_->setText(AppLocale::trUi("xml_import.import"));
   cancelButton_->setText(AppLocale::trUi("xml_import.cancel"));
 
+  if (selectAllImportButton_) {
+    selectAllImportButton_->setText(AppLocale::trUi("xml_import.mapping_select_all"));
+  }
+  if (deselectAllImportButton_) {
+    deselectAllImportButton_->setText(AppLocale::trUi("xml_import.mapping_deselect_all"));
+  }
+
   mappingTable_->setHorizontalHeaderLabels({
       AppLocale::trUi("xml_import.mapping_col_code"),
-      AppLocale::trUi("xml_import.mapping_col_count"),
-      AppLocale::trUi("xml_import.mapping_col_event"),
       AppLocale::trUi("xml_import.mapping_col_team"),
+      AppLocale::trUi("xml_import.mapping_col_event"),
+      AppLocale::trUi("xml_import.mapping_col_count"),
       AppLocale::trUi("xml_import.mapping_col_import"),
   });
 

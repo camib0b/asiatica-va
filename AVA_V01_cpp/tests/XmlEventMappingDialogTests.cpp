@@ -1,4 +1,7 @@
 #include "AppLocale.h"
+#include "EventCatalog.h"
+#include "EventDefaults.h"
+#include "TagEvent.h"
 #include "TagSession.h"
 #include "XmlEventMappingDialog.h"
 
@@ -7,18 +10,22 @@
 #include <QDate>
 #include <QDialog>
 #include <QEvent>
+#include <QHeaderView>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QTableWidget>
 #include <QTest>
 #include <QTimer>
+#include <QWheelEvent>
 
 namespace {
 
 constexpr int kCodeColumn = 0;
-constexpr int kCountColumn = 1;
-constexpr int kTeamColumn = 3;
+constexpr int kTeamColumn = 1;
+constexpr int kEventColumn = 2;
+constexpr int kCountColumn = 3;
+constexpr int kImportColumn = 4;
 
 class WarningCapture : public QObject {
 public:
@@ -97,6 +104,9 @@ class XmlEventMappingDialogTest : public QObject {
 private slots:
     void caseAndSurroundingWhitespaceShareOneMapping();
     void sameAbbreviationBlocksConfirm();
+    void selectAllAndDeselectAllImport();
+    void sortByCodeKeepsWidgetsAligned();
+    void unfocusedComboIgnoresWheel();
 };
 
 void XmlEventMappingDialogTest::caseAndSurroundingWhitespaceShareOneMapping() {
@@ -206,6 +216,94 @@ void XmlEventMappingDialogTest::sameAbbreviationBlocksConfirm() {
     QCOMPARE(imported.tags.at(0).team, QStringLiteral("Home"));
     QCOMPARE(imported.tags.at(1).team, QStringLiteral("Home"));
     QCOMPARE(imported.tags.at(2).team, QStringLiteral("Away"));
+}
+
+void XmlEventMappingDialogTest::selectAllAndDeselectAllImport() {
+    TagSession session;
+    setSessionAbbrevs(&session);
+    XmlEventMappingDialog dialog(mixedCaseInstances(), 0, &session);
+
+    auto* table = dialog.findChild<QTableWidget*>(QStringLiteral("XmlEventMappingTable"));
+    auto* deselectAll =
+        dialog.findChild<QPushButton*>(QStringLiteral("XmlMappingDeselectAllImportButton"));
+    auto* selectAll =
+        dialog.findChild<QPushButton*>(QStringLiteral("XmlMappingSelectAllImportButton"));
+    QVERIFY(table);
+    QVERIFY(deselectAll);
+    QVERIFY(selectAll);
+
+    deselectAll->click();
+    for (int row = 0; row < table->rowCount(); ++row) {
+        const QTableWidgetItem* importItem = table->item(row, kImportColumn);
+        QVERIFY(importItem);
+        QCOMPARE(importItem->checkState(), Qt::Unchecked);
+    }
+
+    selectAll->click();
+    for (int row = 0; row < table->rowCount(); ++row) {
+        const QTableWidgetItem* importItem = table->item(row, kImportColumn);
+        QVERIFY(importItem);
+        QCOMPARE(importItem->checkState(), Qt::Checked);
+    }
+}
+
+void XmlEventMappingDialogTest::sortByCodeKeepsWidgetsAligned() {
+    TagSession session;
+    setSessionAbbrevs(&session);
+    const QVector<XmlImporter::ParsedInstance> instances = {
+        makeInstance(QStringLiteral("HOME GOAL+"), 0, 1000),
+        makeInstance(QStringLiteral("AWAY SHOT+"), 2000, 3000),
+    };
+    XmlEventMappingDialog dialog(instances, 0, &session);
+
+    auto* table = dialog.findChild<QTableWidget*>(QStringLiteral("XmlEventMappingTable"));
+    QVERIFY(table);
+    QCOMPARE(table->rowCount(), 2);
+
+    dialog.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+
+    QHeaderView* header = table->horizontalHeader();
+    QVERIFY(header);
+    const int sectionIndex = header->visualIndex(kCodeColumn);
+    const QPoint headerPoint(header->sectionViewportPosition(sectionIndex) + 8,
+                             header->height() / 2);
+    QCOMPARE(header->sortIndicatorSection(), kCodeColumn);
+    QCOMPARE(header->sortIndicatorOrder(), Qt::AscendingOrder);
+    QCOMPARE(table->item(0, kCodeColumn)->text(), QStringLiteral("AWAY SHOT+"));
+
+    QTest::mouseClick(header->viewport(), Qt::LeftButton, {}, headerPoint);
+    QCOMPARE(header->sortIndicatorOrder(), Qt::DescendingOrder);
+
+    QCOMPARE(table->item(0, kCodeColumn)->text(), QStringLiteral("HOME GOAL+"));
+    QComboBox* firstEventCombo = comboInCell(table, 0, kEventColumn);
+    QVERIFY(firstEventCombo);
+    QCOMPARE(firstEventCombo->currentText(),
+             TagEvent::canonicalName(TagEvent::catalogKey(EventCatalog::EventId::Goal)));
+    QCOMPARE(teamForCode(table, QStringLiteral("HOME GOAL+")), QStringLiteral("Home"));
+}
+
+void XmlEventMappingDialogTest::unfocusedComboIgnoresWheel() {
+    TagSession session;
+    setSessionAbbrevs(&session);
+    XmlEventMappingDialog dialog(mixedCaseInstances(), 0, &session);
+
+    auto* table = dialog.findChild<QTableWidget*>(QStringLiteral("XmlEventMappingTable"));
+    QVERIFY(table);
+    const int goalRow = rowForCode(table, QStringLiteral("HOME GOAL+"));
+    QVERIFY(goalRow >= 0);
+
+    QComboBox* eventCombo = comboInCell(table, goalRow, kEventColumn);
+    QVERIFY(eventCombo);
+    QVERIFY(!eventCombo->hasFocus());
+    const int initialIndex = eventCombo->currentIndex();
+
+    const QPoint localPoint = eventCombo->rect().center();
+    QWheelEvent wheel(localPoint, eventCombo->mapToGlobal(localPoint), QPoint(), QPoint(0, 120),
+                      Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+    QApplication::sendEvent(eventCombo, &wheel);
+
+    QCOMPARE(eventCombo->currentIndex(), initialIndex);
 }
 
 int runXmlEventMappingDialogTests(int argc, char** argv) {

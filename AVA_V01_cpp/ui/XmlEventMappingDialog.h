@@ -9,6 +9,8 @@
 #include <QVector>
 #include <QtGlobal>
 
+#include <Qt>
+
 class QComboBox;
 class QLabel;
 class QPushButton;
@@ -45,6 +47,9 @@ public:
 private slots:
   void onImportClicked();
   void onAbbrevMappingChanged();
+  void onSelectAllImportClicked();
+  void onDeselectAllImportClicked();
+  void onMappingHeaderClicked(int logicalIndex);
 
 private:
   bool abbreviationsCurrentlyConflict() const;
@@ -53,9 +58,21 @@ private:
   struct MappingRow {
     QString xmlCode;
     int count = 0;
+    QString cachedEvent;
+    QString cachedTeam;
+    QString cachedTeamLabel;
+    bool cachedImport = true;
     QPointer<QComboBox> eventCombo;
     QPointer<QComboBox> teamCombo;
     QTableWidgetItem* importItem = nullptr;
+  };
+
+  enum class MappingDataFixture {
+    Session,
+    WorstCase,
+    Empty,
+    One,
+    Thousand,
   };
 
   struct ParsedTeamCode {
@@ -67,8 +84,16 @@ private:
 
   void buildUi();
   void populateRows();
+  void clearMappingTableUi();
+  void rebuildMappingTableFromRows();
+  void cacheRowWidgetState(int row);
+  void cacheAllRowWidgetState();
   void applyAutoMappings();
   void configureMappingTable();
+  void sortMappingRows(int column, Qt::SortOrder order);
+  void applyMappingDataFixture(MappingDataFixture fixture);
+  QVector<XmlImporter::ParsedInstance> instancesForFixture(MappingDataFixture fixture) const;
+  bool mappingBreakUiEnabled() const;
   void updateRowImportState(int row);
   void refreshAllRowImportStates();
   bool isRowImportEnabled(int row) const;
@@ -83,7 +108,10 @@ private:
   TagSession::GameTag gameTagFromInstance(const XmlImporter::ParsedInstance& instance,
                                           const CodeMapping& mapping) const;
 
+  QVector<XmlImporter::ParsedInstance> sessionInstances_;
   QVector<XmlImporter::ParsedInstance> instances_;
+  int sortColumn_ = 0;
+  Qt::SortOrder sortOrder_ = Qt::AscendingOrder;
   qint64 offsetMs_ = 0;
   const TagSession* session_ = nullptr;
   QString sessionHomeAbbrev_;
@@ -99,6 +127,9 @@ private:
   QPointer<QComboBox> xmlAwayAbbrevCombo_;
   QPointer<QLabel> abbrevConflictLabel_;
   QPointer<QTableWidget> mappingTable_;
+  QPointer<QPushButton> selectAllImportButton_;
+  QPointer<QPushButton> deselectAllImportButton_;
+  QPointer<QWidget> breakUiToggle_;
   QPointer<QPushButton> importButton_;
   QPointer<QPushButton> cancelButton_;
 
