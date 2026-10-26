@@ -143,6 +143,29 @@ ShootoutState::MarkerKind markerForOutcome(ShootoutState::Outcome outcome) {
     return ShootoutState::MarkerKind::Unknown;
 }
 
+/// When the attempt's result may appear. The mark is the S.O. press. Factory
+/// S.O. lead is short, so that press sits near the start of the attempt clip.
+/// A goal score stays up for the scoring goal's lag; the attempt uses that
+/// same hold at the end of its own clip. If the mark is already inside that
+/// hold, the mark is the outcome, the same instant a goal mark flips the
+/// match score. Callers that only know the mark leave the interval unusable
+/// and the outcome stays the mark.
+qint64 attemptOutcomeMs(qint64 markMs, qint64 intervalStartMs, qint64 intervalEndMs) {
+    const bool intervalContainsMark = intervalEndMs > intervalStartMs
+        && markMs >= intervalStartMs
+        && markMs <= intervalEndMs;
+    if (!intervalContainsMark) return markMs;
+
+    const EventCatalog::Node* scoringGoal = EventCatalog::scoringGoalMainEvent();
+    const qint64 holdMs = scoringGoal != nullptr ? scoringGoal->lagMs : 0;
+    if (holdMs <= 0) return markMs;
+    if ((intervalEndMs - markMs) <= holdMs) return markMs;
+
+    const qint64 nearEndMs = intervalEndMs - holdMs;
+    if (nearEndMs <= intervalStartMs) return markMs;
+    return nearEndMs;
+}
+
 QVector<ShootoutState::MarkerKind> markersForSide(
     const QVector<QPair<int, ShootoutState::Outcome>>& revealed,
     int inProgressSlot) {
@@ -199,6 +222,8 @@ QVector<ShootoutState::AnnotatedAttempt> ShootoutState::annotate(
         attempt.displaySlotIndex = openSlot;
         attempt.roundKind = ShootoutState::RoundKind::Regulation;
         attempt.roundNumber = openSlot + 1;
+        attempt.outcomeMs = attemptOutcomeMs(
+            event.markMs, event.intervalStartMs, event.intervalEndMs);
         if (openSlot >= ShootoutState::kRegulationRounds
             && regulationKnownAndTied(homeSlots, awaySlots)) {
             attempt.roundKind = ShootoutState::RoundKind::SuddenDeath;
@@ -228,6 +253,8 @@ ShootoutState ShootoutState::fromGameTags(const QVector<TagSession::GameTag>& ta
         SourceEvent event;
         event.tagId = tag.id;
         event.markMs = tag.markMs;
+        event.intervalStartMs = tag.startMs;
+        event.intervalEndMs = tag.endMs;
         event.teamKey = tag.team;
         event.followUps = tag.followUpChain();
         event.sourceOrder = sourceOrder;
@@ -265,7 +292,7 @@ ShootoutState::Snapshot ShootoutState::snapshotRevealedThrough(
     const AnnotatedAttempt* inProgress = nullptr;
 
     for (const AnnotatedAttempt& attempt : attempts_) {
-        if (attempt.markMs <= revealThroughMs) {
+        if (attempt.outcomeMs <= revealThroughMs) {
             latestRevealed = &attempt;
             if (!attempt.occupiesSlot) continue;
             QVector<QPair<int, Outcome>>& revealed =
@@ -274,8 +301,9 @@ ShootoutState::Snapshot ShootoutState::snapshotRevealedThrough(
             continue;
         }
         const bool matchesClip = highlightTagId != 0 && attempt.tagId == highlightTagId;
-        const bool markFallsInWindow = attempt.markMs <= highlightThroughMs;
-        if (inProgress == nullptr && (matchesClip || markFallsInWindow)) {
+        const bool fallsInWindow = attempt.markMs <= highlightThroughMs
+            || attempt.outcomeMs <= highlightThroughMs;
+        if (inProgress == nullptr && (matchesClip || fallsInWindow)) {
             inProgress = &attempt;
         }
     }
@@ -325,10 +353,20 @@ QVector<ShootoutState::TimedSnapshot> ShootoutState::phasesForClip(
     QVector<qint64> boundaries;
     if (showFromClipStart) boundaries.append(clip.startMs);
     for (const AnnotatedAttempt& attempt : attempts_) {
-        if (attempt.markMs > clip.startMs && attempt.markMs <= clip.endMs) {
+        // A clip that starts before the shoot-out still picks the board up at
+        // the attempt's mark. The result itself waits for the outcome, which
+        // may be later in this clip or not in it at all.
+        if (!showFromClipStart
+            && attempt.markMs > clip.startMs
+            && attempt.markMs <= clip.endMs
+            && attempt.markMs != attempt.outcomeMs) {
             boundaries.append(attempt.markMs);
         }
+        if (attempt.outcomeMs > clip.startMs && attempt.outcomeMs <= clip.endMs) {
+            boundaries.append(attempt.outcomeMs);
+        }
     }
+    std::sort(boundaries.begin(), boundaries.end());
     if (boundaries.isEmpty()) return phases;
 
     bool haveBoundary = false;
