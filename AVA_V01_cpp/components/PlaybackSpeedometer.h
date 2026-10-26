@@ -38,6 +38,8 @@ protected:
   void mouseMoveEvent(QMouseEvent* event) override;
   void mouseReleaseEvent(QMouseEvent* event) override;
   void mouseDoubleClickEvent(QMouseEvent* event) override;
+  void hideEvent(QHideEvent* event) override;
+  void changeEvent(QEvent* event) override;
 
 private:
   int readoutWidthPx() const;

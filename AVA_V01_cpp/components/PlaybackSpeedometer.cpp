@@ -2,6 +2,8 @@
 #include "PlaybackRates.h"
 #include "../style/TabularDigits.h"
 
+#include <QEvent>
+#include <QHideEvent>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
@@ -153,6 +155,7 @@ void PlaybackSpeedometer::finishDrag() {
     return;
   }
   dragging_ = false;
+  pressedOnReadout_ = false;
   if (mouseGrabber() == this) {
     releaseMouse();
   }
@@ -230,9 +233,18 @@ void PlaybackSpeedometer::mousePressEvent(QMouseEvent* event) {
     return;
   }
   pressedOnReadout_ = false;
+  // A second press can arrive before the release (a rapid click, or the
+  // platform delivering the rest of a double-click as another press). That
+  // press is still the same drag: starting again would stop the controls
+  // idle timer with no matching finish.
+  const bool dragWasOpen = dragging_;
   dragging_ = true;
-  grabMouse();
-  emit interactionStarted();
+  if (mouseGrabber() != this) {
+    grabMouse();
+  }
+  if (!dragWasOpen) {
+    emit interactionStarted();
+  }
   applyIndexFromX(position.x());
   event->accept();
 }
@@ -282,4 +294,16 @@ void PlaybackSpeedometer::mouseDoubleClickEvent(QMouseEvent* event) {
   }
   finishDrag();
   event->accept();
+}
+
+void PlaybackSpeedometer::hideEvent(QHideEvent* event) {
+  finishDrag();
+  QWidget::hideEvent(event);
+}
+
+void PlaybackSpeedometer::changeEvent(QEvent* event) {
+  QWidget::changeEvent(event);
+  if (event->type() == QEvent::EnabledChange && !isEnabled()) {
+    finishDrag();
+  }
 }

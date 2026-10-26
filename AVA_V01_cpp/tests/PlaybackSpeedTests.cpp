@@ -1,13 +1,19 @@
 #include "AppLocale.h"
 #include "PlaybackSpeedometer.h"
 #include "VideoControlsBar.h"
+#include "VideoPlayer.h"
 #include "WorkWindow.h"
 #include "TabularDigits.h"
 
+#include <QApplication>
+#include <QCursor>
+#include <QEvent>
 #include <QLayout>
+#include <QPropertyAnimation>
 #include <QPushButton>
 #include <QSignalSpy>
 #include <QTest>
+#include <QTimer>
 
 namespace {
 
@@ -36,6 +42,72 @@ void sendDoubleClick(QWidget* widget, const QPoint& position) {
   QTest::mouseEvent(QTest::MouseRelease, widget, Qt::LeftButton, Qt::NoModifier, position, 0);
 }
 
+void placeCursorOver(QWidget* widget) {
+  QCursor::setPos(widget->mapToGlobal(widget->rect().center()));
+  QApplication::processEvents();
+}
+
+void placeCursorOutsideControls(QWidget* controls) {
+  QCursor::setPos(controls->mapToGlobal(QPoint(-80, -80)));
+  QApplication::processEvents();
+}
+
+void sendLeave(QWidget* widget) {
+  QEvent leave(QEvent::Leave);
+  QApplication::sendEvent(widget, &leave);
+}
+
+struct ShownControls {
+  VideoPlayer player;
+  VideoControlsBar* bar = nullptr;
+  PlaybackSpeedometer* speed = nullptr;
+  QTimer* idleTimer = nullptr;
+  QPropertyAnimation* fade = nullptr;
+
+  bool open() {
+    player.resize(960, 540);
+    player.show();
+    if (!QTest::qWaitForWindowExposed(&player)) {
+      return false;
+    }
+    player.setControlsVisible(true);
+    player.setControlsEnabled(true);
+    QApplication::processEvents();
+    bar = player.controlsBar();
+    if (!bar || !bar->isVisible()) {
+      return false;
+    }
+    speed = bar->findChild<PlaybackSpeedometer*>();
+    idleTimer = player.findChild<QTimer*>(QStringLiteral("controlsIdleTimer"));
+    fade = player.findChild<QPropertyAnimation*>(QStringLiteral("controlsFadeAnimation"));
+    if (!speed || !idleTimer || !fade) {
+      return false;
+    }
+    fade->setDuration(0);
+    placeCursorOver(bar);
+    return true;
+  }
+};
+
+void reshowControls(ShownControls& controls) {
+  controls.player.setControlsVisible(true);
+  QApplication::processEvents();
+  placeCursorOver(controls.bar);
+}
+
+bool hideAfterPointerLeaves(ShownControls& controls) {
+  placeCursorOutsideControls(controls.bar);
+  sendLeave(controls.bar);
+  if (!controls.idleTimer->isActive()) {
+    return false;
+  }
+  // A zero-duration opacity animation never reaches the finished handler on
+  // the offscreen platform, so the fade needs a short real interval.
+  controls.fade->setDuration(30);
+  controls.idleTimer->start(0);
+  return QTest::qWaitFor([&controls]() { return !controls.bar->isVisible(); }, 1000);
+}
+
 }  // namespace
 
 class PlaybackSpeedTest : public QObject {
@@ -49,6 +121,8 @@ class PlaybackSpeedTest : public QObject {
   void readoutSitsBesideTheGrooveAndShowsTheRate();
   void controlsBarTooltipShowsTheSpeedShortcuts();
   void speedControlStaysBesideTransportInEveryMode();
+  void secondPressWhileDraggingDoesNotOpenAnotherSession();
+  void controlsHideAfterDoubleClickRapidClicksAndLeave();
 };
 
 void PlaybackSpeedTest::doubleClickOnTheTrackKeepsThatStep() {
@@ -236,6 +310,74 @@ void PlaybackSpeedTest::speedControlStaysBesideTransportInEveryMode() {
     QVERIFY(!speed->toolTip().isEmpty());
     QCOMPARE(speed->displayedRateText(), QStringLiteral("1.00x"));
   }
+}
+
+void PlaybackSpeedTest::secondPressWhileDraggingDoesNotOpenAnotherSession() {
+  PlaybackSpeedometer dial;
+  prepareDial(dial);
+  const QPoint fastEnd(dial.trackGrooveRect().right(), dial.trackGrooveRect().center().y());
+
+  QSignalSpy started(&dial, &PlaybackSpeedometer::interactionStarted);
+  QSignalSpy finished(&dial, &PlaybackSpeedometer::interactionFinished);
+  QVERIFY(started.isValid());
+  QVERIFY(finished.isValid());
+
+  QTest::mouseEvent(QTest::MousePress, &dial, Qt::LeftButton, Qt::NoModifier, fastEnd, 0);
+  QTest::mouseEvent(QTest::MousePress, &dial, Qt::LeftButton, Qt::NoModifier, fastEnd, 0);
+  QTest::mouseEvent(QTest::MouseRelease, &dial, Qt::LeftButton, Qt::NoModifier, fastEnd, 0);
+  QCOMPARE(started.count(), 1);
+  QCOMPARE(finished.count(), 1);
+
+  started.clear();
+  finished.clear();
+  QTest::mouseEvent(QTest::MousePress, &dial, Qt::LeftButton, Qt::NoModifier, fastEnd, 0);
+  QTest::mouseEvent(QTest::MouseDClick, &dial, Qt::LeftButton, Qt::NoModifier, fastEnd, 0);
+  QTest::mouseEvent(QTest::MouseRelease, &dial, Qt::LeftButton, Qt::NoModifier, fastEnd, 0);
+  QCOMPARE(started.count(), 1);
+  QCOMPARE(finished.count(), 1);
+}
+
+void PlaybackSpeedTest::controlsHideAfterDoubleClickRapidClicksAndLeave() {
+  ShownControls controls;
+  QVERIFY2(controls.open(), "speed controls did not show");
+
+  placeCursorOver(controls.bar);
+  sendDoubleClick(controls.speed, controls.speed->trackGrooveRect().center());
+  QVERIFY2(!controls.idleTimer->isActive(),
+           "double-click left the idle timer running while the pointer was still over the bar");
+  QVERIFY2(hideAfterPointerLeaves(controls),
+           "double-click left the speed controls visible after the pointer left");
+
+  reshowControls(controls);
+  QVERIFY(controls.bar->isVisible());
+  QSignalSpy started(controls.speed, &PlaybackSpeedometer::interactionStarted);
+  QSignalSpy finished(controls.speed, &PlaybackSpeedometer::interactionFinished);
+  const QPoint onTrack = controls.speed->trackGrooveRect().center();
+  for (int click = 0; click < 4; ++click) {
+    placeCursorOver(controls.bar);
+    QTest::mouseClick(controls.speed, Qt::LeftButton, Qt::NoModifier, onTrack);
+  }
+  QCOMPARE(started.count(), 4);
+  QCOMPARE(finished.count(), 4);
+  placeCursorOver(controls.bar);
+  QVERIFY(!controls.idleTimer->isActive());
+  QVERIFY2(hideAfterPointerLeaves(controls),
+           "rapid clicks left the speed controls visible after the pointer left");
+
+  reshowControls(controls);
+  placeCursorOver(controls.bar);
+  QTest::mousePress(controls.speed, Qt::LeftButton, Qt::NoModifier, onTrack);
+  QVERIFY(!controls.idleTimer->isActive());
+  placeCursorOutsideControls(controls.bar);
+  sendLeave(controls.bar);
+  QVERIFY2(!controls.idleTimer->isActive(),
+           "leaving during a speed drag armed the idle timer");
+  QTest::mouseRelease(controls.speed, Qt::LeftButton, Qt::NoModifier, onTrack);
+  sendLeave(controls.bar);
+  QVERIFY2(controls.idleTimer->isActive(),
+           "releasing a speed drag outside the bar did not arm the idle timer");
+  controls.idleTimer->start(0);
+  QVERIFY(QTest::qWaitFor([&controls]() { return !controls.bar->isVisible(); }, 1000));
 }
 
 int runPlaybackSpeedTests(int argc, char** argv) {
