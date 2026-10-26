@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PresentationInstancesModel.h"
+#include "PresentationSelectionBreakdown.h"
 
 #include "../state/TagSession.h"
 
@@ -11,6 +12,7 @@
 #include <QWidget>
 #include <QtGlobal>
 
+class PresentationSelectionPopup;
 class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
@@ -18,6 +20,7 @@ class QEvent;
 class QLabel;
 class QPushButton;
 class QTableView;
+class QTimer;
 class QToolButton;
 
 /// Side panel of presentation mode: filters the session's tagged events, lets the user select the
@@ -68,9 +71,11 @@ private slots:
   void onLeadLagSpinChanged();
   void onApplyLeadLagToAllClicked();
   void onListFixtureChanged(int fixtureId);
+  void onSelectionMapFixtureChanged(int fixtureId);
 
 private:
   enum class ListFixture { Session, WorstCase, Empty, One, Thousand };
+  enum class SelectionMapFixture { Live, WorstCase, Empty, One };
 
   void buildUi();
   void rebuildEventFilterOptions();
@@ -84,6 +89,16 @@ private:
   void rebuildRows();
   void syncModelSelection();
   void updateSelectionSummary();
+  void syncSelectionBreakdown();
+  void showSelectionBreakdownPopup();
+  void hideSelectionBreakdownPopup();
+  void scheduleSelectionBreakdownHide();
+  void applySelectionBreakdownEvent(const TagEvent::MainEventKey& eventKey);
+  PresentationSelectionBreakdown::Result currentSelectionBreakdown() const;
+  int selectionBreakdownPopupWidth() const;
+  void placeSelectionBreakdownPopup();
+  bool selectionBreakdownContains(const QWidget* widget) const;
+  bool selectionBreakdownPointerInside() const;
   void updateApplyButtonLabel();
   void updateCurrentClipControlsEnabled();
   void updateShowNotesCheckboxVisibility();
@@ -112,6 +127,9 @@ private:
   QToolButton* selectAllButton_ = nullptr;
   QToolButton* selectNoneButton_ = nullptr;
   QLabel* selectionSummaryLabel_ = nullptr;
+  QPointer<PresentationSelectionPopup> selectionBreakdownPopup_;
+  QTimer* selectionBreakdownHideTimer_ = nullptr;
+  SelectionMapFixture selectionMapFixture_ = SelectionMapFixture::Live;
   PresentationInstancesModel* instancesModel_ = nullptr;
   QTableView* instancesTable_ = nullptr;
 

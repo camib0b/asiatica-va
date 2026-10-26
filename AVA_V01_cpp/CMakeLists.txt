@@ -31,6 +31,8 @@ qt_add_executable(AVA
   components/TeamColorPicker.cpp
   ui/PresentationPanel.cpp
   ui/PresentationInstancesModel.cpp
+  ui/PresentationSelectionBreakdown.cpp
+  ui/PresentationSelectionPopup.cpp
   ui/TagsTableModel.cpp
   ui/ClipDurationSettingsDialog.cpp
   ui/GameControlsContextMenu.cpp
@@ -191,6 +193,7 @@ qt_add_executable(AVAExportTests
   tests/TaggingToastTests.cpp
   tests/ModeChromeTests.cpp
   tests/PresentationFilterTests.cpp
+  tests/PresentationSelectionBreakdownTests.cpp
   tests/XmlEventMappingDialogTests.cpp
   tests/UiPolicyTests.cpp
   tests/WorkDataViewTests.cpp
@@ -201,6 +204,8 @@ qt_add_executable(AVAExportTests
   tests/MatchSessionFileTests.cpp
   ui/PresentationPanel.cpp
   ui/PresentationInstancesModel.cpp
+  ui/PresentationSelectionBreakdown.cpp
+  ui/PresentationSelectionPopup.cpp
   ui/XmlEventMappingDialog.cpp
   ui/GameSetupWindow.cpp
   ui/WorkWindow.cpp
