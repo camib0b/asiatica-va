@@ -33,6 +33,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPaintEvent>
+#include <QPolygon>
 #include <QPointer>
 #include <QPushButton>
 #include <QResizeEvent>
@@ -449,8 +450,117 @@ class PresentationFilterCombo final : public QComboBox {
   }
 };
 
+QString widestLeadLagValueText(const QDoubleSpinBox* spinBox) {
+  const QFontMetrics metrics = spinBox->fontMetrics();
+  const QString localizedMaximum =
+      spinBox->locale().toString(kMaxLeadLagSeconds, 'f', spinBox->decimals()) + spinBox->suffix();
+  QString widestText = localizedMaximum;
+  int widestAdvance = metrics.horizontalAdvance(localizedMaximum);
+  const QStringList extraSamples = {QStringLiteral("60.0 s"), QStringLiteral("60,0 s")};
+  for (const QString& sampleText : extraSamples) {
+    const int advance = metrics.horizontalAdvance(sampleText);
+    if (advance > widestAdvance) {
+      widestAdvance = advance;
+      widestText = sampleText;
+    }
+  }
+  return widestText;
+}
+
+int editFieldWidthForOuterWidth(const QDoubleSpinBox* spinBox, int outerWidth) {
+  QStyleOptionSpinBox option;
+  option.initFrom(spinBox);
+  option.subControls = QStyle::SC_All;
+  option.activeSubControls = QStyle::SC_None;
+  option.buttonSymbols = spinBox->buttonSymbols();
+  option.frame = spinBox->hasFrame();
+  option.rect = QRect(0, 0, outerWidth, qMax(1, spinBox->sizeHint().height()));
+  return spinBox->style()
+      ->subControlRect(QStyle::CC_SpinBox, &option, QStyle::SC_SpinBoxEditField, spinBox)
+      .width();
+}
+
+/// Values are at most two digits, one decimal, and the " s" suffix ("60.0 s" / "60,0 s").
+/// Size the field to that text instead of letting the row stretch it.
+void fitLeadLagSpinBoxToContent(QDoubleSpinBox* spinBox) {
+  if (!spinBox) return;
+  spinBox->ensurePolished();
+
+  const QString sampleText = widestLeadLagValueText(spinBox);
+  const int sampleAdvance = spinBox->fontMetrics().horizontalAdvance(sampleText);
+
+  QStyleOptionSpinBox option;
+  option.initFrom(spinBox);
+  option.subControls = QStyle::SC_All;
+  option.activeSubControls = QStyle::SC_None;
+  option.buttonSymbols = spinBox->buttonSymbols();
+  option.frame = spinBox->hasFrame();
+  const QSize textSize = spinBox->fontMetrics().size(Qt::TextSingleLine, sampleText);
+  int fittedWidth =
+      spinBox->style()->sizeFromContents(QStyle::CT_SpinBox, &option, textSize, spinBox).width();
+  fittedWidth = qMax(fittedWidth, sampleAdvance + 1);
+
+  const int editFieldWidth = editFieldWidthForOuterWidth(spinBox, fittedWidth);
+  if (editFieldWidth > 0 && editFieldWidth < sampleAdvance + 2) {
+    fittedWidth += sampleAdvance + 2 - editFieldWidth;
+  }
+
+  if (spinBox->minimumWidth() != fittedWidth || spinBox->maximumWidth() != fittedWidth) {
+    spinBox->setFixedWidth(fittedWidth);
+  }
+}
+
+/// The shared spin-button rule replaces the style indicator, so a lead/lag
+/// accent would otherwise be a blank strip. Draw the step arrows in the text
+/// color, which stays readable on the green and red tints.
+void paintStepArrow(QPainter* painter, const QRect& buttonRect, bool pointsUp, const QColor& color) {
+  if (!painter || buttonRect.width() < 5 || buttonRect.height() < 5 || !color.isValid()) return;
+  const int arrowWidth = qMax(5, (buttonRect.width() * 2) / 5);
+  const int arrowHeight = qMax(4, buttonRect.height() / 3);
+  const QPoint center = buttonRect.center();
+  const int halfWidth = arrowWidth / 2;
+  const int rise = arrowHeight / 2;
+  QPolygon triangle(3);
+  if (pointsUp) {
+    triangle.setPoint(0, center.x(), center.y() - rise);
+    triangle.setPoint(1, center.x() - halfWidth, center.y() + rise);
+    triangle.setPoint(2, center.x() + halfWidth, center.y() + rise);
+  } else {
+    triangle.setPoint(0, center.x(), center.y() + rise);
+    triangle.setPoint(1, center.x() - halfWidth, center.y() - rise);
+    triangle.setPoint(2, center.x() + halfWidth, center.y() - rise);
+  }
+  painter->save();
+  painter->setRenderHint(QPainter::Antialiasing, true);
+  painter->setPen(Qt::NoPen);
+  painter->setBrush(color);
+  painter->drawPolygon(triangle);
+  painter->restore();
+}
+
+class LeadLagSpinBox final : public QDoubleSpinBox {
+ public:
+  explicit LeadLagSpinBox(QWidget* parent) : QDoubleSpinBox(parent) {}
+
+ protected:
+  void paintEvent(QPaintEvent* event) override {
+    QDoubleSpinBox::paintEvent(event);
+    QStyleOptionSpinBox option;
+    initStyleOption(&option);
+    if (option.buttonSymbols == QAbstractSpinBox::NoButtons) return;
+    const QRect upButtonRect =
+        style()->subControlRect(QStyle::CC_SpinBox, &option, QStyle::SC_SpinBoxUp, this);
+    const QRect downButtonRect =
+        style()->subControlRect(QStyle::CC_SpinBox, &option, QStyle::SC_SpinBoxDown, this);
+    QPainter painter(this);
+    const QColor arrowColor = palette().color(QPalette::Text);
+    paintStepArrow(&painter, upButtonRect, true, arrowColor);
+    paintStepArrow(&painter, downButtonRect, false, arrowColor);
+  }
+};
+
 QDoubleSpinBox* makeLeadLagSpinBox(QWidget* parent) {
-  auto* spinBox = new QDoubleSpinBox(parent);
+  auto* spinBox = new LeadLagSpinBox(parent);
   spinBox->setRange(kMinLeadLagSeconds, kMaxLeadLagSeconds);
   spinBox->setSingleStep(kLeadLagStepSeconds);
   spinBox->setDecimals(1);
@@ -459,6 +569,7 @@ QDoubleSpinBox* makeLeadLagSpinBox(QWidget* parent) {
   spinBox->setButtonSymbols(QAbstractSpinBox::UpDownArrows);
   spinBox->setFocusPolicy(Qt::ClickFocus);
   spinBox->setKeyboardTracking(true);
+  spinBox->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
   return spinBox;
 }
 
@@ -691,6 +802,15 @@ void PresentationPanel::buildUi() {
           &PresentationPanel::onInstancesTableContextMenu);
   rootLayout->addWidget(instancesTable_, 1);
 
+  // Export belongs to the selected-clip list. Lead/lag is the timing control for
+  // the clip on screen, so it sits under export, beside the trim bar.
+  exportButton_ = new QPushButton(this);
+  exportButton_->setObjectName(QStringLiteral("PresentationExportButton"));
+  exportButton_->setCursor(Qt::PointingHandCursor);
+  Style::setVariant(exportButton_, "primary");
+  connect(exportButton_, &QPushButton::clicked, this, &PresentationPanel::exportRequested);
+  rootLayout->addWidget(exportButton_);
+
   auto* separator = new QFrame(this);
   separator->setFrameShape(QFrame::HLine);
   Style::setRole(separator, "separator");
@@ -704,10 +824,11 @@ void PresentationPanel::buildUi() {
   leadLabel_ = new QLabel(this);
   leadLabel_->setObjectName(QStringLiteral("PresentationLeadLabel"));
   Style::setRole(leadLabel_, "muted");
-  leadLabel_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+  leadLabel_->setWordWrap(false);
+  leadLabel_->setAlignment(Qt::AlignLeft | Qt::AlignBottom);
+  leadLabel_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
   leadSpinBox_ = makeLeadLagSpinBox(this);
   leadSpinBox_->setObjectName(QStringLiteral("LeadSpinBox"));
-  leadSpinBox_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   connect(leadSpinBox_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
           &PresentationPanel::onLeadLagSpinChanged);
   connect(leadSpinBox_, &QAbstractSpinBox::editingFinished, this, [this]() {
@@ -717,33 +838,35 @@ void PresentationPanel::buildUi() {
   lagLabel_ = new QLabel(this);
   lagLabel_->setObjectName(QStringLiteral("PresentationLagLabel"));
   Style::setRole(lagLabel_, "muted");
-  lagLabel_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+  lagLabel_->setWordWrap(false);
+  lagLabel_->setAlignment(Qt::AlignLeft | Qt::AlignBottom);
+  lagLabel_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
   lagSpinBox_ = makeLeadLagSpinBox(this);
   lagSpinBox_->setObjectName(QStringLiteral("LagSpinBox"));
-  lagSpinBox_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   connect(lagSpinBox_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
           &PresentationPanel::onLeadLagSpinChanged);
   connect(lagSpinBox_, &QAbstractSpinBox::editingFinished, this, [this]() {
     if (lagSpinBox_ && lagSpinBox_->hasFocus()) lagSpinBox_->clearFocus();
   });
 
-  auto* leadRow = new QHBoxLayout();
-  leadRow->setContentsMargins(0, 0, 0, 0);
-  leadRow->setSpacing(8);
-  leadRow->addWidget(leadLabel_);
-  leadRow->addWidget(leadSpinBox_, 1);
-  rootLayout->addLayout(leadRow);
-
-  auto* lagRow = new QHBoxLayout();
-  lagRow->setContentsMargins(0, 0, 0, 0);
-  lagRow->setSpacing(8);
-  lagRow->addWidget(lagLabel_);
-  lagRow->addWidget(lagSpinBox_, 1);
-  rootLayout->addLayout(lagRow);
+  // Titles on the first row, fields on the second. Column 2 takes leftover
+  // width so the fields stay content-sized on the left.
+  auto* leadLagGrid = new QGridLayout();
+  leadLagGrid->setContentsMargins(0, 0, 0, 0);
+  leadLagGrid->setHorizontalSpacing(12);
+  leadLagGrid->setVerticalSpacing(4);
+  leadLagGrid->addWidget(leadLabel_, 0, 0, Qt::AlignLeft | Qt::AlignBottom);
+  leadLagGrid->addWidget(lagLabel_, 0, 1, Qt::AlignLeft | Qt::AlignBottom);
+  leadLagGrid->addWidget(leadSpinBox_, 1, 0, Qt::AlignLeft | Qt::AlignVCenter);
+  leadLagGrid->addWidget(lagSpinBox_, 1, 1, Qt::AlignLeft | Qt::AlignVCenter);
+  leadLagGrid->setColumnStretch(0, 0);
+  leadLagGrid->setColumnStretch(1, 0);
+  leadLagGrid->setColumnStretch(2, 1);
+  rootLayout->addLayout(leadLagGrid);
 
   auto* applyToAllButton = new WrappingTextButton(QStringLiteral("ApplyToAllButton"), this);
   applyToAllButton_ = applyToAllButton;
-  Style::setVariant(applyToAllButton_, "outline");
+  Style::setVariant(applyToAllButton_, "secondary");
   connect(applyToAllButton_, &QPushButton::clicked, this,
           &PresentationPanel::onApplyLeadLagToAllClicked);
   rootLayout->addWidget(applyToAllButton_);
@@ -754,13 +877,6 @@ void PresentationPanel::buildUi() {
   showNotesCheckBox_->setChecked(true);
   connect(showNotesCheckBox_, &QCheckBox::toggled, this, &PresentationPanel::showNotesToggled);
   rootLayout->addWidget(showNotesCheckBox_);
-
-  exportButton_ = new QPushButton(this);
-  exportButton_->setObjectName(QStringLiteral("PresentationExportButton"));
-  exportButton_->setCursor(Qt::PointingHandCursor);
-  Style::setVariant(exportButton_, "primary");
-  connect(exportButton_, &QPushButton::clicked, this, &PresentationPanel::exportRequested);
-  rootLayout->addWidget(exportButton_);
 
   keyboardHintLabel_ = new QLabel(this);
   keyboardHintLabel_->setObjectName(QStringLiteral("PresentationKeyboardHint"));
@@ -804,6 +920,23 @@ void PresentationPanel::applyUiStrings() {
                                      AppLocale::trUi("tags.col_event")});
 
   refreshFromSession();
+  fitLeadLagSpinBoxToContent(leadSpinBox_);
+  fitLeadLagSpinBoxToContent(lagSpinBox_);
+}
+
+void PresentationPanel::changeEvent(QEvent* event) {
+  QWidget::changeEvent(event);
+  if (!event) return;
+  switch (event->type()) {
+  case QEvent::StyleChange:
+  case QEvent::FontChange:
+  case QEvent::LanguageChange:
+    fitLeadLagSpinBoxToContent(leadSpinBox_);
+    fitLeadLagSpinBoxToContent(lagSpinBox_);
+    break;
+  default:
+    break;
+  }
 }
 
 // ---------------------------------------------------------------------------

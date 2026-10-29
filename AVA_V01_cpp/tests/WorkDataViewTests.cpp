@@ -13,18 +13,28 @@
 #include <QComboBox>
 #include <QDate>
 #include <QDoubleSpinBox>
+#include <QEvent>
 #include <QFile>
 #include <QFont>
+#include <QFrame>
+#include <QHash>
 #include <QHeaderView>
+#include <QHoverEvent>
+#include <QImage>
 #include <QLabel>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSignalSpy>
+#include <QStyle>
 #include <QStyleFactory>
+#include <QStyleOptionSpinBox>
 #include <QTableView>
 #include <QTest>
 #include <QToolButton>
 #include <QTreeWidget>
+
+#include <algorithm>
+#include <cmath>
 
 namespace {
 
@@ -64,15 +74,123 @@ void expectColumnsFit(QTableView* table) {
   QCOMPARE(table->horizontalScrollBar()->maximum(), 0);
 }
 
-QPushButton* outlinePushButton(QWidget* parent) {
-  for (QPushButton* button : parent->findChildren<QPushButton*>()) {
-    if (button->property("variant").toString() == QStringLiteral("outline")) return button;
-  }
-  return nullptr;
+QPushButton* applyToAllButton(QWidget* parent) {
+  return parent->findChild<QPushButton*>(QStringLiteral("ApplyToAllButton"));
 }
 
 QLabel* applyToAllLabel(QWidget* parent) {
   return parent->findChild<QLabel*>(QStringLiteral("ApplyToAllButtonLabel"));
+}
+
+double srgbChannelLuminance(int component) {
+  const double encoded = component / 255.0;
+  if (encoded <= 0.04045) return encoded / 12.92;
+  return std::pow((encoded + 0.055) / 1.055, 2.4);
+}
+
+double relativeLuminance(const QColor& color) {
+  return 0.2126 * srgbChannelLuminance(color.red()) + 0.7152 * srgbChannelLuminance(color.green()) +
+         0.0722 * srgbChannelLuminance(color.blue());
+}
+
+double contrastRatio(const QColor& first, const QColor& second) {
+  const double firstLuminance = relativeLuminance(first);
+  const double secondLuminance = relativeLuminance(second);
+  const double lighter = std::max(firstLuminance, secondLuminance);
+  const double darker = std::min(firstLuminance, secondLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+QColor opaqueColor(QRgb pixel) {
+  const QColor color = QColor::fromRgba(pixel);
+  if (color.alpha() >= 255) return color;
+  const double alpha = color.alpha() / 255.0;
+  return QColor(qRound(color.red() * alpha + 255.0 * (1.0 - alpha)),
+                qRound(color.green() * alpha + 255.0 * (1.0 - alpha)),
+                qRound(color.blue() * alpha + 255.0 * (1.0 - alpha)));
+}
+
+struct ContrastSample {
+  QColor background;
+  QColor foreground;
+  double ratio = 0.0;
+  bool valid = false;
+};
+
+QImage renderWidget(QWidget* widget) {
+  widget->ensurePolished();
+  QImage image(qMax(1, widget->width()), qMax(1, widget->height()), QImage::Format_ARGB32);
+  image.fill(Qt::white);
+  widget->render(&image);
+  return image;
+}
+
+ContrastSample extremeAgainstCommonBackground(const QImage& image, const QRect& area, bool pickDarkest) {
+  ContrastSample sample;
+  const QRect bounds = area.intersected(image.rect());
+  if (bounds.width() < 2 || bounds.height() < 2) return sample;
+
+  QHash<QRgb, int> counts;
+  QColor extreme = pickDarkest ? QColor(255, 255, 255) : QColor(0, 0, 0);
+  double extremeLuminance = pickDarkest ? 2.0 : -1.0;
+  for (int y = bounds.top(); y <= bounds.bottom(); ++y) {
+    for (int x = bounds.left(); x <= bounds.right(); ++x) {
+      const QColor color = opaqueColor(image.pixel(x, y));
+      counts[color.rgb()] += 1;
+      const double luminance = relativeLuminance(color);
+      const bool replacesExtreme =
+          pickDarkest ? luminance < extremeLuminance : luminance > extremeLuminance;
+      if (replacesExtreme) {
+        extremeLuminance = luminance;
+        extreme = color;
+      }
+    }
+  }
+
+  QRgb backgroundKey = 0;
+  int backgroundCount = -1;
+  for (auto iterator = counts.cbegin(); iterator != counts.cend(); ++iterator) {
+    if (iterator.value() > backgroundCount) {
+      backgroundCount = iterator.value();
+      backgroundKey = iterator.key();
+    }
+  }
+  sample.background = QColor::fromRgb(backgroundKey);
+  sample.foreground = extreme;
+  sample.ratio = contrastRatio(sample.foreground, sample.background);
+  sample.valid = backgroundCount > 0;
+  return sample;
+}
+
+ContrastSample darkestAgainstCommonBackground(const QImage& image, const QRect& area) {
+  return extremeAgainstCommonBackground(image, area, true);
+}
+
+ContrastSample lightestAgainstCommonBackground(const QImage& image, const QRect& area) {
+  return extremeAgainstCommonBackground(image, area, false);
+}
+
+QString contrastSampleText(const QString& label, const ContrastSample& sample) {
+  return QStringLiteral("%1 fg %2 bg %3 ratio %4")
+      .arg(label)
+      .arg(sample.foreground.name(QColor::HexRgb))
+      .arg(sample.background.name(QColor::HexRgb))
+      .arg(sample.ratio, 0, 'f', 2);
+}
+
+QString contrastFailure(const QString& label, const ContrastSample& sample, double minimumRatio) {
+  if (sample.valid && sample.ratio + 0.05 >= minimumRatio) return {};
+  return contrastSampleText(label, sample);
+}
+
+QRect spinSubControlRect(const QDoubleSpinBox* spinBox, QStyle::SubControl subControl) {
+  QStyleOptionSpinBox option;
+  option.initFrom(spinBox);
+  option.subControls = QStyle::SC_All;
+  option.activeSubControls = QStyle::SC_None;
+  option.buttonSymbols = spinBox->buttonSymbols();
+  option.frame = spinBox->hasFrame();
+  return spinBox->style()->subControlRect(QStyle::CC_SpinBox, &option, subControl, spinBox);
 }
 
 int presentationTimeColumnWidth(qint64 markMs) {
@@ -100,6 +218,8 @@ private slots:
   void breakUiToggleSwapsFixturesWithoutChangingSelection();
   void modelKeepsChecksHighlightAndEscapesTooltips();
   void applyLabelAbbreviationsAndSteadyTimeDigits();
+  void exportSitsUnderTheListAndLeadLagSharesARow();
+  void leadLagControlsMeetStateContrast();
 };
 
 void WorkDataViewTest::initTestCase() {
@@ -203,7 +323,7 @@ void WorkDataViewTest::presentationListKeepsSelectionAndFitsTheSideColumn() {
   QLabel* applyLabel = applyToAllLabel(&panel);
   QVERIFY(applyButton);
   QVERIFY(applyLabel);
-  QCOMPARE(applyButton->property("variant").toString(), QStringLiteral("outline"));
+  QCOMPARE(applyButton->property("variant").toString(), QStringLiteral("secondary"));
   QCOMPARE(applyButton->text(), QString());
   QCOMPARE(applyLabel->text(), AppLocale::trUi("presentation.apply_to_all"));
   QVERIFY(applyLabel->wordWrap());
@@ -456,7 +576,8 @@ void WorkDataViewTest::applyLabelAbbreviationsAndSteadyTimeDigits() {
   auto* lagSpin = panel.findChild<QDoubleSpinBox*>(QStringLiteral("LagSpinBox"));
   QVERIFY(leadSpin);
   QVERIFY(lagSpin);
-  QVERIFY(leadSpin->mapTo(&panel, QPoint(0, 0)).y() != lagSpin->mapTo(&panel, QPoint(0, 0)).y());
+  QCOMPARE(leadSpin->mapTo(&panel, QPoint(0, 0)).y(), lagSpin->mapTo(&panel, QPoint(0, 0)).y());
+  QVERIFY(leadSpin->mapTo(&panel, QPoint(0, 0)).x() < lagSpin->mapTo(&panel, QPoint(0, 0)).x());
   QVERIFY(teamFilter->view());
   QVERIFY(teamFilter->view()->hasMouseTracking());
 
@@ -483,11 +604,11 @@ void WorkDataViewTest::applyLabelAbbreviationsAndSteadyTimeDigits() {
   }
   QVERIFY(homeRow >= 0);
 
-  QPushButton* applyButton = outlinePushButton(&panel);
+  QPushButton* applyButton = applyToAllButton(&panel);
   QLabel* applyLabel = applyToAllLabel(&panel);
   QVERIFY(applyButton);
   QVERIFY(applyLabel);
-  QCOMPARE(applyButton->property("variant").toString(), QStringLiteral("outline"));
+  QCOMPARE(applyButton->property("variant").toString(), QStringLiteral("secondary"));
   QCOMPARE(applyButton->text(), QString());
   QCOMPARE(applyLabel->text(), QStringLiteral("Apply to all selected clips"));
   QCOMPARE(applyButton->accessibleName(), applyLabel->text());
@@ -575,6 +696,313 @@ void WorkDataViewTest::applyLabelAbbreviationsAndSteadyTimeDigits() {
            QStringLiteral("Home"));
   QCOMPARE(unnamedTeamFilter->itemText(unnamedTeamFilter->findData(QStringLiteral("Away"))),
            QStringLiteral("Away"));
+}
+
+void WorkDataViewTest::exportSitsUnderTheListAndLeadLagSharesARow() {
+  AppLocale::setLanguage(AppLocale::Language::Spanish);
+
+  TagSession session;
+  session.setGameTeams(QStringLiteral("Home Club"), QStringLiteral("Away Club"), QString(),
+                       QString());
+  session.addTag(playTag(QStringLiteral("Goal"), QStringLiteral("Home"), 8000));
+
+  PresentationPanel panel;
+  panel.setTagSession(&session);
+  showPanel(panel, 255);
+
+  QTableView* table = instancesTable(panel);
+  QPushButton* exportButton =
+      panel.findChild<QPushButton*>(QStringLiteral("PresentationExportButton"));
+  QLabel* currentClipTitle = panel.findChild<QLabel*>(QStringLiteral("PresentationCurrentClipTitle"));
+  QLabel* leadLabel = panel.findChild<QLabel*>(QStringLiteral("PresentationLeadLabel"));
+  QLabel* lagLabel = panel.findChild<QLabel*>(QStringLiteral("PresentationLagLabel"));
+  auto* leadSpin = panel.findChild<QDoubleSpinBox*>(QStringLiteral("LeadSpinBox"));
+  auto* lagSpin = panel.findChild<QDoubleSpinBox*>(QStringLiteral("LagSpinBox"));
+  QPushButton* applyButton = applyToAllButton(&panel);
+  QLabel* keyboardHint = panel.findChild<QLabel*>(QStringLiteral("PresentationKeyboardHint"));
+  QVERIFY(table);
+  QVERIFY(exportButton);
+  QVERIFY(currentClipTitle);
+  QVERIFY(leadLabel);
+  QVERIFY(lagLabel);
+  QVERIFY(leadSpin);
+  QVERIFY(lagSpin);
+  QVERIFY(applyButton);
+  QVERIFY(keyboardHint);
+
+  const auto topOf = [&panel](const QWidget* widget) {
+    return widget->mapTo(&panel, QPoint(0, 0)).y();
+  };
+  const auto bottomOf = [&panel](const QWidget* widget) {
+    return widget->mapTo(&panel, QPoint(0, widget->height())).y();
+  };
+  const auto leftOf = [&panel](const QWidget* widget) {
+    return widget->mapTo(&panel, QPoint(0, 0)).x();
+  };
+  const auto rightOf = [&panel](const QWidget* widget) {
+    return widget->mapTo(&panel, QPoint(widget->width(), 0)).x();
+  };
+
+  const int listToExportGap = topOf(exportButton) - bottomOf(table);
+  QVERIFY2(listToExportGap >= 0 && listToExportGap <= 12,
+           qPrintable(QStringLiteral("list-to-export gap %1").arg(listToExportGap)));
+  QVERIFY(bottomOf(exportButton) <= topOf(currentClipTitle));
+  QVERIFY(topOf(applyButton) >= bottomOf(leadSpin));
+  QVERIFY(topOf(applyButton) > bottomOf(exportButton));
+  QVERIFY(topOf(keyboardHint) >= bottomOf(applyButton));
+
+  QFrame* separator = nullptr;
+  for (QFrame* frame : panel.findChildren<QFrame*>()) {
+    if (frame->property("role").toString() == QStringLiteral("separator")) separator = frame;
+  }
+  QVERIFY(separator);
+  QVERIFY(topOf(separator) >= bottomOf(exportButton));
+  QVERIFY(bottomOf(separator) <= topOf(currentClipTitle));
+
+  QCOMPARE(topOf(leadLabel), topOf(lagLabel));
+  QCOMPARE(topOf(leadSpin), topOf(lagSpin));
+  QVERIFY(bottomOf(leadLabel) <= topOf(leadSpin));
+  QVERIFY(bottomOf(lagLabel) <= topOf(lagSpin));
+  QCOMPARE(leftOf(leadLabel), leftOf(leadSpin));
+  QCOMPARE(leftOf(lagLabel), leftOf(lagSpin));
+  QVERIFY(leftOf(leadSpin) < leftOf(lagSpin));
+  QVERIFY(rightOf(leadSpin) <= leftOf(lagSpin));
+  QVERIFY(rightOf(leadLabel) <= leftOf(lagLabel));
+  QVERIFY(rightOf(lagSpin) <= panel.width());
+  QVERIFY(rightOf(lagLabel) <= panel.width());
+  QVERIFY(leadSpin->width() * 2 < panel.width());
+  QVERIFY(lagSpin->width() * 2 < panel.width());
+  QCOMPARE(leadSpin->width(), lagSpin->width());
+
+  const auto editFieldFits = [](const QDoubleSpinBox* spinBox, const QString& sampleText) {
+    QStyleOptionSpinBox option;
+    option.initFrom(spinBox);
+    option.subControls = QStyle::SC_All;
+    option.frame = spinBox->hasFrame();
+    option.buttonSymbols = spinBox->buttonSymbols();
+    const int editWidth =
+        spinBox->style()
+            ->subControlRect(QStyle::CC_SpinBox, &option, QStyle::SC_SpinBoxEditField, spinBox)
+            .width();
+    return spinBox->fontMetrics().horizontalAdvance(sampleText) <= editWidth;
+  };
+  QVERIFY(editFieldFits(leadSpin, QStringLiteral("60.0 s")));
+  QVERIFY(editFieldFits(leadSpin, QStringLiteral("60,0 s")));
+  QVERIFY(editFieldFits(lagSpin, QStringLiteral("60.0 s")));
+  QVERIFY(editFieldFits(lagSpin, QStringLiteral("60,0 s")));
+
+  QCOMPARE(currentClipTitle->text(), QStringLiteral("Clip actual"));
+  QCOMPARE(leadLabel->text(), QStringLiteral("Anticipación"));
+  QCOMPARE(lagLabel->text(), QStringLiteral("Retardo"));
+  QCOMPARE(exportButton->text(), QStringLiteral("Exportar clips seleccionados"));
+  QCOMPARE(exportButton->property("variant").toString(), QStringLiteral("primary"));
+  QCOMPARE(applyButton->property("variant").toString(), QStringLiteral("secondary"));
+  QCOMPARE(applyToAllLabel(&panel)->text(), QStringLiteral("Aplicar a todos los clips seleccionados"));
+
+  AppLocale::setLanguage(AppLocale::Language::English);
+  panel.applyUiStrings();
+  showPanel(panel, 255);
+  QCOMPARE(currentClipTitle->text(), QStringLiteral("Current clip"));
+  QCOMPARE(leadLabel->text(), QStringLiteral("Lead"));
+  QCOMPARE(lagLabel->text(), QStringLiteral("Lag"));
+  QCOMPARE(exportButton->text(), QStringLiteral("Export selected clips"));
+  QCOMPARE(applyToAllLabel(&panel)->text(), QStringLiteral("Apply to all selected clips"));
+  QCOMPARE(topOf(leadSpin), topOf(lagSpin));
+  QCOMPARE(leftOf(leadLabel), leftOf(leadSpin));
+  QCOMPARE(leftOf(lagLabel), leftOf(lagSpin));
+  QVERIFY(leadSpin->width() * 2 < panel.width());
+  QVERIFY(rightOf(lagLabel) <= panel.width());
+  QVERIFY(rightOf(lagSpin) <= panel.width());
+}
+
+void WorkDataViewTest::leadLagControlsMeetStateContrast() {
+  AppLocale::setLanguage(AppLocale::Language::English);
+
+  TagSession session;
+  session.setGameTeams(QStringLiteral("Home Club"), QStringLiteral("Away Club"), QString(),
+                       QString());
+  session.addTag(playTag(QStringLiteral("Goal"), QStringLiteral("Home"), 8000));
+
+  QWidget appRoot;
+  appRoot.setObjectName(QStringLiteral("AppRoot"));
+  PresentationPanel panel(&appRoot);
+  panel.setTagSession(&session);
+  panel.setCurrentClip(0, 3500, 7500);
+  appRoot.setFixedSize(320, 640);
+  panel.setGeometry(0, 0, 320, 640);
+  appRoot.show();
+  QApplication::processEvents();
+
+  QPushButton* applyButton = applyToAllButton(&panel);
+  QPushButton* exportButton =
+      panel.findChild<QPushButton*>(QStringLiteral("PresentationExportButton"));
+  auto* leadSpin = panel.findChild<QDoubleSpinBox*>(QStringLiteral("LeadSpinBox"));
+  auto* lagSpin = panel.findChild<QDoubleSpinBox*>(QStringLiteral("LagSpinBox"));
+  QVERIFY(applyButton);
+  QVERIFY(exportButton);
+  QVERIFY(leadSpin);
+  QVERIFY(lagSpin);
+  QVERIFY(applyButton->isEnabled());
+  QVERIFY(leadSpin->isEnabled());
+  QCOMPARE(leadSpin->value(), 3.5);
+  QCOMPARE(lagSpin->value(), 7.5);
+
+  const auto textContrastError = [](const QString& label, QWidget* widget, const QRect& area,
+                                   double minimumRatio, bool lightOnDark) {
+    const ContrastSample sample =
+        lightOnDark ? lightestAgainstCommonBackground(renderWidget(widget), area)
+                    : darkestAgainstCommonBackground(renderWidget(widget), area);
+    return contrastFailure(label, sample, minimumRatio);
+  };
+  const auto edgeContrastError = [](const QString& label, QWidget* widget) {
+    const QImage image = renderWidget(widget);
+    const QColor edgeColor = opaqueColor(image.pixel(image.width() / 2, 0));
+    const ContrastSample sample{Qt::white, edgeColor, contrastRatio(edgeColor, Qt::white), true};
+    return contrastFailure(label, sample, 3.0);
+  };
+  const auto spinContrastError = [](const QString& stateName, QDoubleSpinBox* spinBox) {
+    const QRect editField =
+        spinSubControlRect(spinBox, QStyle::SC_SpinBoxEditField).adjusted(1, 1, -1, -1);
+    const QRect upButton = spinSubControlRect(spinBox, QStyle::SC_SpinBoxUp).adjusted(1, 1, -1, -1);
+    const QRect downButton =
+        spinSubControlRect(spinBox, QStyle::SC_SpinBoxDown).adjusted(1, 1, -1, -1);
+    const QImage image = renderWidget(spinBox);
+    const QString textError = contrastFailure(stateName + QStringLiteral(" text"),
+                                              darkestAgainstCommonBackground(image, editField), 4.5);
+    if (!textError.isEmpty()) return textError;
+    const QString upError = contrastFailure(stateName + QStringLiteral(" up"),
+                                            darkestAgainstCommonBackground(image, upButton), 3.0);
+    if (!upError.isEmpty()) return upError;
+    const QString downError = contrastFailure(stateName + QStringLiteral(" down"),
+                                              darkestAgainstCommonBackground(image, downButton), 3.0);
+    if (!downError.isEmpty()) return downError;
+    const QColor borderColor = opaqueColor(image.pixel(image.width() / 2, 0));
+    const ContrastSample borderSample{Qt::white, borderColor, contrastRatio(borderColor, Qt::white), true};
+    return contrastFailure(stateName + QStringLiteral(" border"), borderSample, 3.0);
+  };
+  const auto checkSpinStates = [&](const QString& name, QDoubleSpinBox* spinBox) {
+    QString error = spinContrastError(name + QStringLiteral(" enabled"), spinBox);
+    if (!error.isEmpty()) return error;
+    const QRect upButton = spinSubControlRect(spinBox, QStyle::SC_SpinBoxUp);
+    QTest::mouseMove(spinBox, upButton.center());
+    QApplication::processEvents();
+    error = spinContrastError(name + QStringLiteral(" hover"), spinBox);
+    if (!error.isEmpty()) return error;
+    spinBox->setFocus(Qt::OtherFocusReason);
+    QApplication::processEvents();
+    error = spinContrastError(name + QStringLiteral(" focus"), spinBox);
+    if (!error.isEmpty()) return error;
+    QTest::mousePress(spinBox, Qt::LeftButton, Qt::NoModifier, upButton.center());
+    QApplication::processEvents();
+    error = spinContrastError(name + QStringLiteral(" pressed"), spinBox);
+    QTest::mouseRelease(spinBox, Qt::LeftButton, Qt::NoModifier, upButton.center());
+    spinBox->clearFocus();
+    return error;
+  };
+
+  auto* leadLabel = panel.findChild<QLabel*>(QStringLiteral("PresentationLeadLabel"));
+  auto* lagLabel = panel.findChild<QLabel*>(QStringLiteral("PresentationLagLabel"));
+  auto* currentClipTitle = panel.findChild<QLabel*>(QStringLiteral("PresentationCurrentClipTitle"));
+  QVERIFY(leadLabel);
+  QVERIFY(lagLabel);
+  QVERIFY(currentClipTitle);
+
+  const QRect applyInterior = applyButton->rect().adjusted(8, 8, -8, -8);
+  QString   contrastError =
+      textContrastError(QStringLiteral("apply enabled"), applyButton, applyInterior, 4.5, false);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+  contrastError = edgeContrastError(QStringLiteral("apply enabled edge"), applyButton);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+
+  applyButton->setAttribute(Qt::WA_Hover, true);
+  QTest::mouseMove(applyButton, applyButton->rect().center());
+  QApplication::processEvents();
+  contrastError = textContrastError(QStringLiteral("apply hover"), applyButton, applyInterior, 4.5, false);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+
+  applyButton->setDown(true);
+  QApplication::processEvents();
+  contrastError = textContrastError(QStringLiteral("apply pressed"), applyButton, applyInterior, 4.5, false);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+  applyButton->setDown(false);
+
+  applyButton->setFocus(Qt::OtherFocusReason);
+  QApplication::processEvents();
+  contrastError = textContrastError(QStringLiteral("apply focus"), applyButton, applyInterior, 4.5, false);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+  applyButton->clearFocus();
+
+  const QRect exportInterior = exportButton->rect().adjusted(8, 8, -8, -8);
+  contrastError =
+      textContrastError(QStringLiteral("export enabled"), exportButton, exportInterior, 4.5, true);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+  exportButton->setAttribute(Qt::WA_Hover, true);
+  QTest::mouseMove(exportButton, exportButton->rect().center());
+  QApplication::processEvents();
+  contrastError =
+      textContrastError(QStringLiteral("export hover"), exportButton, exportInterior, 4.5, true);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+  exportButton->setDown(true);
+  QApplication::processEvents();
+  contrastError =
+      textContrastError(QStringLiteral("export pressed"), exportButton, exportInterior, 4.5, true);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+  exportButton->setDown(false);
+  exportButton->setFocus(Qt::OtherFocusReason);
+  QApplication::processEvents();
+  contrastError =
+      textContrastError(QStringLiteral("export focus"), exportButton, exportInterior, 4.5, true);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+  exportButton->clearFocus();
+
+  const QImage appRootImage = renderWidget(&appRoot);
+  const auto labelOnPanelError = [&](const QString& name, QWidget* widget) {
+    const QPoint origin = widget->mapTo(&appRoot, QPoint(0, 0));
+    const QRect area(origin, widget->size());
+    ContrastSample sample = darkestAgainstCommonBackground(appRootImage, area);
+    const QColor surface = opaqueColor(appRootImage.pixel(origin));
+    sample.background = surface;
+    sample.ratio = contrastRatio(sample.foreground, surface);
+    return contrastFailure(name, sample, 4.5);
+  };
+  contrastError = labelOnPanelError(QStringLiteral("lead label"), leadLabel);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+  contrastError = labelOnPanelError(QStringLiteral("lag label"), lagLabel);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+  contrastError = labelOnPanelError(QStringLiteral("current clip title"), currentClipTitle);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+
+  contrastError = checkSpinStates(QStringLiteral("lead"), leadSpin);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+  contrastError = checkSpinStates(QStringLiteral("lag"), lagSpin);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+
+  panel.setExportEnabled(false);
+  panel.clearCurrentClip();
+  QApplication::processEvents();
+  QVERIFY(!applyButton->isEnabled());
+  QVERIFY(!leadSpin->isEnabled());
+  QVERIFY(!exportButton->isEnabled());
+  contrastError = textContrastError(QStringLiteral("apply disabled"), applyButton, applyInterior, 4.5, false);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+  contrastError = edgeContrastError(QStringLiteral("apply disabled edge"), applyButton);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+  contrastError =
+      textContrastError(QStringLiteral("export disabled"), exportButton, exportInterior, 4.5, false);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+  contrastError = edgeContrastError(QStringLiteral("export disabled edge"), exportButton);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+  contrastError = spinContrastError(QStringLiteral("lead disabled"), leadSpin);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+  contrastError = spinContrastError(QStringLiteral("lag disabled"), lagSpin);
+  QVERIFY2(contrastError.isEmpty(), qPrintable(contrastError));
+
+  const auto disabledStepFill = [](QDoubleSpinBox* spinBox) {
+    const QRect upButton = spinSubControlRect(spinBox, QStyle::SC_SpinBoxUp).adjusted(1, 1, -1, -1);
+    return darkestAgainstCommonBackground(renderWidget(spinBox), upButton).background;
+  };
+  QCOMPARE(disabledStepFill(leadSpin), QColor(QStringLiteral("#f4f4f5")));
+  QCOMPARE(disabledStepFill(lagSpin), QColor(QStringLiteral("#f4f4f5")));
 }
 
 int runWorkDataViewTests(int argc, char** argv) {
