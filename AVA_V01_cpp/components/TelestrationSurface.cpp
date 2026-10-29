@@ -17,7 +17,6 @@ namespace {
 
 constexpr double kMinimumStrokePixels = 4.0;
 constexpr double kFreehandSampleNormalizedDistance = 0.004;
-constexpr int kToolBarMarginPixels = 10;
 
 Telestration::ShapeKind shapeKindForTool(Telestration::Tool tool) {
     switch (tool) {
@@ -45,6 +44,7 @@ double normalizedDistance(const Telestration::Point& start, const Telestration::
 TelestrationSurface::TelestrationSurface(QObject* parent)
     : QObject(parent),
       presentationMode_(false),
+      toolsRequestedVisible_(false),
       forcedDrawingId_(0),
       strokeActive_(false) {}
 
@@ -101,6 +101,7 @@ void TelestrationSurface::setPresentationMode(bool presenting) {
     if (presentationMode_ == presenting) return;
     presentationMode_ = presenting;
     refreshVisibility();
+    applyToolBarVisibility();
 }
 
 void TelestrationSurface::setForcedVisibleDrawingId(quint64 drawingId) {
@@ -116,10 +117,8 @@ void TelestrationSurface::setToolsEnabled(bool enabled) {
 }
 
 void TelestrationSurface::setToolsVisible(bool visible) {
-    if (toolBar_ == nullptr) return;
-    toolBar_->setVisible(visible);
-    if (visible) positionToolBar();
-    if (!visible) cancelStroke();
+    toolsRequestedVisible_ = visible;
+    applyToolBarVisibility();
 }
 
 void TelestrationSurface::relayout() {
@@ -150,7 +149,8 @@ void TelestrationSurface::relayout() {
 bool TelestrationSurface::handleViewportEvent(QObject* watched, QEvent* event) {
     Q_UNUSED(watched);
     if (event == nullptr || toolBar_ == nullptr || videoItem_ == nullptr) return false;
-    if (toolBar_->tool() == Telestration::Tool::None) return false;
+    // A tool left armed from presenting mode must not draw once the bar is hidden.
+    if (!toolBar_->isVisible() || toolBar_->tool() == Telestration::Tool::None) return false;
     if (player_ != nullptr && player_->playbackState() == QMediaPlayer::PlayingState) return false;
 
     if (event->type() == QEvent::MouseButtonPress) {
@@ -250,15 +250,33 @@ void TelestrationSurface::updateToolCursor() {
     view_->viewport()->setCursor(armed ? Qt::CrossCursor : Qt::ArrowCursor);
 }
 
+void TelestrationSurface::applyToolBarVisibility() {
+    if (toolBar_ == nullptr) return;
+    const bool showToolbar = presentationMode_ && toolsRequestedVisible_;
+    if (!showToolbar) {
+        const bool wasVisible = toolBar_->isVisible();
+        toolBar_->hide();
+        if (wasVisible || strokeActive_) cancelStroke();
+        updateToolCursor();
+        return;
+    }
+    toolBar_->show();
+    positionToolBar();
+    updateToolCursor();
+}
+
 void TelestrationSurface::positionToolBar() {
     if (toolBar_ == nullptr || view_ == nullptr || view_->viewport() == nullptr) return;
     toolBar_->adjustSize();
-    const QSize viewportSize = view_->viewport()->size();
-    const int x = kToolBarMarginPixels;
-    const int availableHeight = viewportSize.height() - toolBar_->height() - (kToolBarMarginPixels * 2);
-    const int y = kToolBarMarginPixels + std::max(0, availableHeight / 2);
-    toolBar_->move(x, y);
+    toolBar_->setVideoRectangle(videoRectangleInViewport());
     toolBar_->raise();
+}
+
+QRect TelestrationSurface::videoRectangleInViewport() const {
+    if (view_ == nullptr || videoItem_ == nullptr) return {};
+    const QRectF sceneRectangle = videoItem_->sceneBoundingRect();
+    if (sceneRectangle.isEmpty()) return {};
+    return view_->mapFromScene(sceneRectangle).boundingRect();
 }
 
 QRectF TelestrationSurface::videoSceneRectangle() const {

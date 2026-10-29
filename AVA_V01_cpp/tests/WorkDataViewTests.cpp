@@ -16,11 +16,14 @@
 #include <QFile>
 #include <QFont>
 #include <QHeaderView>
+#include <QImage>
 #include <QLabel>
+#include <QPainter>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSignalSpy>
 #include <QStyleFactory>
+#include <QStyleOptionViewItem>
 #include <QTableView>
 #include <QTest>
 #include <QToolButton>
@@ -75,6 +78,45 @@ QLabel* applyToAllLabel(QWidget* parent) {
   return parent->findChild<QLabel*>(QStringLiteral("ApplyToAllButtonLabel"));
 }
 
+void expectRgb(const QColor& actual, const QColor& expected, const QString& description) {
+  const QString message = QStringLiteral("%1 rgb %2,%3,%4 alpha %5, expected %6,%7,%8")
+                              .arg(description)
+                              .arg(actual.red())
+                              .arg(actual.green())
+                              .arg(actual.blue())
+                              .arg(actual.alpha())
+                              .arg(expected.red())
+                              .arg(expected.green())
+                              .arg(expected.blue());
+  QVERIFY2(actual.red() == expected.red() && actual.green() == expected.green()
+               && actual.blue() == expected.blue(),
+           qPrintable(message));
+}
+
+QImage paintClipCell(QTableView* table, const QModelIndex& index, QStyle::State extraState) {
+  const QSize cellSize = table->visualRect(index).size().expandedTo(QSize(1, 1));
+  QImage image(cellSize, QImage::Format_ARGB32_Premultiplied);
+  image.fill(Qt::white);
+  QPainter painter(&image);
+  QStyleOptionViewItem option;
+  option.initFrom(table);
+  option.widget = table;
+  option.rect = QRect(QPoint(0, 0), image.size());
+  option.state = QStyle::State_Enabled | QStyle::State_Active | extraState;
+  table->itemDelegateForIndex(index)->paint(&painter, option, index);
+  painter.end();
+  return image;
+}
+
+QImage renderClipViewport(QTableView* table) {
+  QImage image(table->viewport()->size(), QImage::Format_ARGB32_Premultiplied);
+  image.fill(Qt::white);
+  QPainter painter(&image);
+  table->viewport()->render(&painter);
+  painter.end();
+  return image;
+}
+
 int presentationTimeColumnWidth(qint64 markMs) {
   TagSession session;
   session.setGameTeams(QStringLiteral("Home Club"), QStringLiteral("Away Club"), QString(),
@@ -97,6 +139,7 @@ private slots:
   void cleanup();
   void sharedChromeMatchesAcrossTheThreeLists();
   void presentationListKeepsSelectionAndFitsTheSideColumn();
+  void presentationSelectionIsDistinctFromHoverAndFocus();
   void breakUiToggleSwapsFixturesWithoutChangingSelection();
   void modelKeepsChecksHighlightAndEscapesTooltips();
   void applyLabelAbbreviationsAndSteadyTimeDigits();
@@ -114,6 +157,10 @@ void WorkDataViewTest::initTestCase() {
   QVERIFY(stylesheet.contains(QStringLiteral("QAbstractItemView[role=\"workList\"]")));
   QVERIFY(stylesheet.contains(QStringLiteral("QAbstractItemView[role=\"workList\"]::item:hover")));
   QVERIFY(stylesheet.contains(QStringLiteral("QAbstractItemView[role=\"workList\"]::item:selected")));
+  QVERIFY(stylesheet.contains(QStringLiteral("background: #f4f4f5")));
+  QVERIFY(stylesheet.contains(QStringLiteral("QTableView#PresentationInstancesTable::item:selected")));
+  QVERIFY(stylesheet.contains(QStringLiteral("background: #93C5FD")));
+  QVERIFY(stylesheet.contains(QStringLiteral("QTableView#PresentationInstancesTable::item:hover")));
   QVERIFY(stylesheet.contains(QStringLiteral("QTableView[role=\"workList\"]::indicator")));
   QVERIFY(!stylesheet.contains(QStringLiteral("QTableView#TagsTable")));
   qApp->setStyleSheet(stylesheet);
@@ -259,6 +306,114 @@ void WorkDataViewTest::presentationListKeepsSelectionAndFitsTheSideColumn() {
       table->model()->data(table->model()->index(homeRow, 2), Qt::BackgroundRole);
   QVERIFY(highlight.canConvert<QBrush>());
   QCOMPARE(highlight.value<QBrush>().color(), Style::ThemeColors::playheadHighlight());
+}
+
+void WorkDataViewTest::presentationSelectionIsDistinctFromHoverAndFocus() {
+  qunsetenv("AVA_BREAK_UI");
+  AppLocale::setLanguage(AppLocale::Language::English);
+
+  TagSession session;
+  session.setGameTeams(QStringLiteral("Home Club"), QStringLiteral("Away Club"), QString(),
+                       QString());
+  session.addTag(playTag(QStringLiteral("Circle Entry"), QStringLiteral("Home"), 125000));
+  session.addTag(playTag(QStringLiteral("Goal"), QStringLiteral("Away"), 8000));
+
+  PresentationPanel panel;
+  panel.setTagSession(&session);
+  showPanel(panel, 320);
+
+  QTableView* table = instancesTable(panel);
+  QVERIFY(table);
+  QVERIFY(table->itemDelegate() != nullptr);
+  QVERIFY(table->itemDelegateForColumn(0) != table->itemDelegate());
+  QCOMPARE(table->itemDelegateForIndex(table->model()->index(0, 1)), table->itemDelegate());
+  QCOMPARE(table->itemDelegateForIndex(table->model()->index(0, 2)), table->itemDelegate());
+
+  int homeRow = -1;
+  int awayRow = -1;
+  for (int row = 0; row < table->model()->rowCount(); ++row) {
+    const QString team =
+        table->model()->data(table->model()->index(row, 1), Qt::DisplayRole).toString();
+    if (team == QStringLiteral("Home Club")) homeRow = row;
+    if (team == QStringLiteral("Away Club")) awayRow = row;
+    QVERIFY(table->model()->flags(table->model()->index(row, 1)).testFlag(Qt::ItemIsEnabled));
+  }
+  QVERIFY(homeRow >= 0);
+  QVERIFY(awayRow >= 0);
+  QVERIFY(homeRow != awayRow);
+
+  const QModelIndex awayEvent = table->model()->index(awayRow, 2);
+  const QModelIndex awayTime = table->model()->index(awayRow, 0);
+  const QColor playhead = Style::ThemeColors::playheadHighlight();
+  const QColor ring = Style::ThemeColors::ring();
+
+  const QImage hoverOnly = paintClipCell(table, awayEvent, QStyle::State_MouseOver);
+  const QColor hoverInterior = hoverOnly.pixelColor(QPoint(hoverOnly.width() - 3, 4));
+  QVERIFY(hoverInterior != playhead);
+  QVERIFY(hoverInterior.red() > 180);
+
+  const QImage focusOnly = paintClipCell(table, awayEvent, QStyle::State_HasFocus);
+  expectRgb(focusOnly.pixelColor(QPoint(0, focusOnly.height() / 2)), ring,
+            QStringLiteral("focus ring"));
+  const QColor focusInterior = focusOnly.pixelColor(QPoint(focusOnly.width() - 3, 4));
+  QVERIFY(focusInterior != playhead);
+  QVERIFY(focusInterior != ring);
+
+  const QImage selected = paintClipCell(table, awayEvent, QStyle::State_Selected);
+  expectRgb(selected.pixelColor(QPoint(selected.width() - 3, 4)), playhead,
+            QStringLiteral("selected fill"));
+  const QImage selectedTime = paintClipCell(table, awayTime, QStyle::State_Selected);
+  expectRgb(selectedTime.pixelColor(QPoint(1, 4)), ring, QStringLiteral("selected accent"));
+
+  const QImage selectedHover =
+      paintClipCell(table, awayEvent, QStyle::State_Selected | QStyle::State_MouseOver);
+  expectRgb(selectedHover.pixelColor(QPoint(selectedHover.width() - 3, 4)), playhead,
+            QStringLiteral("selected hover fill"));
+
+  const QImage selectedFocus =
+      paintClipCell(table, awayEvent, QStyle::State_Selected | QStyle::State_HasFocus);
+  expectRgb(selectedFocus.pixelColor(QPoint(0, selectedFocus.height() / 2)), ring,
+            QStringLiteral("selected focus ring"));
+  expectRgb(selectedFocus.pixelColor(QPoint(selectedFocus.width() - 3, 4)), playhead,
+            QStringLiteral("selected focus fill"));
+
+  panel.setCurrentClip(0, 3000, 5000);
+  QVERIFY(!table->selectionModel()->isRowSelected(homeRow, QModelIndex()));
+  const QModelIndex homeEvent = table->model()->index(homeRow, 2);
+  const QModelIndex homeTime = table->model()->index(homeRow, 0);
+  const QImage currentClip = paintClipCell(table, homeEvent, QStyle::State_None);
+  expectRgb(currentClip.pixelColor(QPoint(currentClip.width() - 3, 4)), playhead,
+            QStringLiteral("current clip fill"));
+  const QImage currentTime = paintClipCell(table, homeTime, QStyle::State_None);
+  expectRgb(currentTime.pixelColor(QPoint(1, 4)), ring, QStringLiteral("current clip accent"));
+
+  const QImage currentRendered = renderClipViewport(table);
+  const QRect homeEventRect = table->visualRect(homeEvent);
+  const QRect homeTimeRect = table->visualRect(homeTime);
+  QVERIFY(homeEventRect.width() > 8);
+  QVERIFY(homeTimeRect.width() > 8);
+  expectRgb(currentRendered.pixelColor(homeEventRect.topLeft() + QPoint(homeEventRect.width() - 3, 4)),
+            playhead, QStringLiteral("rendered current clip"));
+  expectRgb(currentRendered.pixelColor(homeTimeRect.topLeft() + QPoint(1, 4)), ring,
+            QStringLiteral("rendered current accent"));
+  const QRect awayEventRect = table->visualRect(awayEvent);
+  const QColor renderedAway =
+      currentRendered.pixelColor(awayEventRect.topLeft() + QPoint(awayEventRect.width() - 3, 4));
+  QVERIFY(renderedAway != playhead);
+
+  panel.clearCurrentClip();
+  table->clearSelection();
+  table->selectRow(awayRow);
+  QVERIFY(table->selectionModel()->isRowSelected(awayRow, QModelIndex()));
+  QVERIFY(!table->selectionModel()->isRowSelected(homeRow, QModelIndex()));
+  const QImage selectedRendered = renderClipViewport(table);
+  expectRgb(selectedRendered.pixelColor(awayEventRect.topLeft() + QPoint(awayEventRect.width() - 3, 4)),
+            playhead, QStringLiteral("rendered selected row"));
+  expectRgb(selectedRendered.pixelColor(table->visualRect(awayTime).topLeft() + QPoint(1, 4)), ring,
+            QStringLiteral("rendered selected accent"));
+  const QColor renderedHome =
+      selectedRendered.pixelColor(homeEventRect.topLeft() + QPoint(homeEventRect.width() - 3, 4));
+  QVERIFY(renderedHome != playhead);
 }
 
 void WorkDataViewTest::breakUiToggleSwapsFixturesWithoutChangingSelection() {

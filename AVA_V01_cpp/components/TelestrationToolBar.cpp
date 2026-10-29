@@ -4,12 +4,20 @@
 #include "../i18n/LocaleNotifier.h"
 #include "../style/StyleProps.h"
 
+#include <QApplication>
+#include <QEvent>
 #include <QHBoxLayout>
+#include <QHideEvent>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPen>
 #include <QPushButton>
+#include <QSettings>
 #include <QVBoxLayout>
+
+#include <algorithm>
+#include <limits>
 
 namespace {
 
@@ -74,12 +82,140 @@ QPushButton* makeSwatchButton(QWidget* parent, const QString& objectName) {
     return button;
 }
 
+constexpr QLatin1StringView kToolbarAnchorSettingsKey("telestration/toolbarAnchor");
+
+int alignedStart(int areaStart, int areaLength, int itemLength, int alignment) {
+    if (itemLength >= areaLength) return areaStart;
+    if (alignment < 0) return areaStart;
+    if (alignment > 0) return areaStart + areaLength - itemLength;
+    return areaStart + (areaLength - itemLength) / 2;
+}
+
+int clampStart(int desired, int areaStart, int areaLength, int itemLength) {
+    if (itemLength >= areaLength) return areaStart;
+    const int maximum = areaStart + areaLength - itemLength;
+    return std::clamp(desired, areaStart, maximum);
+}
+
+QRect insetVideoRectangle(const QRect& videoRectangle, int marginPixels) {
+    if (marginPixels > 0 && videoRectangle.width() > marginPixels * 2
+        && videoRectangle.height() > marginPixels * 2) {
+        return videoRectangle.adjusted(marginPixels, marginPixels, -marginPixels, -marginPixels);
+    }
+    return videoRectangle;
+}
+
+QPoint clampedOrigin(const QPoint& desiredOrigin, const QRect& videoRectangle, const QSize& toolbarSize) {
+    return QPoint(clampStart(desiredOrigin.x(), videoRectangle.left(), videoRectangle.width(),
+                             toolbarSize.width()),
+                  clampStart(desiredOrigin.y(), videoRectangle.top(), videoRectangle.height(),
+                             toolbarSize.height()));
+}
+
 }  // namespace
+
+namespace TelestrationToolBarPlacement {
+
+QPoint originForAnchor(Anchor anchor,
+                       const QRect& videoRectangle,
+                       const QSize& toolbarSize,
+                       int marginPixels) {
+    if (!videoRectangle.isValid() || videoRectangle.isEmpty()) return videoRectangle.topLeft();
+
+    int horizontalAlignment = 0;
+    int verticalAlignment = -1;
+    switch (anchor) {
+    case Anchor::TopLeft:
+        horizontalAlignment = -1;
+        verticalAlignment = -1;
+        break;
+    case Anchor::TopCenter:
+        horizontalAlignment = 0;
+        verticalAlignment = -1;
+        break;
+    case Anchor::TopRight:
+        horizontalAlignment = 1;
+        verticalAlignment = -1;
+        break;
+    case Anchor::MiddleLeft:
+        horizontalAlignment = -1;
+        verticalAlignment = 0;
+        break;
+    case Anchor::MiddleRight:
+        horizontalAlignment = 1;
+        verticalAlignment = 0;
+        break;
+    case Anchor::BottomLeft:
+        horizontalAlignment = -1;
+        verticalAlignment = 1;
+        break;
+    case Anchor::BottomCenter:
+        horizontalAlignment = 0;
+        verticalAlignment = 1;
+        break;
+    case Anchor::BottomRight:
+        horizontalAlignment = 1;
+        verticalAlignment = 1;
+        break;
+    }
+
+    const QRect inset = insetVideoRectangle(videoRectangle, marginPixels);
+    const QPoint seated(alignedStart(inset.left(), inset.width(), toolbarSize.width(),
+                                     horizontalAlignment),
+                        alignedStart(inset.top(), inset.height(), toolbarSize.height(),
+                                     verticalAlignment));
+    return clampedOrigin(seated, videoRectangle, toolbarSize);
+}
+
+Anchor nearestAnchor(const QPoint& desiredOrigin,
+                     const QRect& videoRectangle,
+                     const QSize& toolbarSize,
+                     int marginPixels) {
+    constexpr Anchor anchors[] = {
+        Anchor::TopLeft,    Anchor::TopCenter,  Anchor::TopRight,   Anchor::MiddleLeft,
+        Anchor::MiddleRight, Anchor::BottomLeft, Anchor::BottomCenter, Anchor::BottomRight,
+    };
+    Anchor bestAnchor = Anchor::TopLeft;
+    qint64 bestDistance = std::numeric_limits<qint64>::max();
+    for (const Anchor candidate : anchors) {
+        const QPoint origin = originForAnchor(candidate, videoRectangle, toolbarSize, marginPixels);
+        const qint64 deltaX = qint64(origin.x()) - qint64(desiredOrigin.x());
+        const qint64 deltaY = qint64(origin.y()) - qint64(desiredOrigin.y());
+        const qint64 distance = (deltaX * deltaX) + (deltaY * deltaY);
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            bestAnchor = candidate;
+        }
+    }
+    return bestAnchor;
+}
+
+Anchor storedAnchor() {
+    QSettings settings;
+    bool converted = false;
+    const int storedValue = settings.value(kToolbarAnchorSettingsKey,
+                                           int(Anchor::MiddleLeft)).toInt(&converted);
+    const int firstAnchor = int(Anchor::TopLeft);
+    const int lastAnchor = int(Anchor::BottomRight);
+    if (!converted || storedValue < firstAnchor || storedValue > lastAnchor) {
+        return Anchor::MiddleLeft;
+    }
+    return static_cast<Anchor>(storedValue);
+}
+
+void storeAnchor(Anchor anchor) {
+    QSettings settings;
+    settings.setValue(kToolbarAnchorSettingsKey, int(anchor));
+    settings.sync();
+}
+
+}  // namespace TelestrationToolBarPlacement
 
 TelestrationToolBar::TelestrationToolBar(QWidget* parent)
     : QWidget(parent),
       tool_(Telestration::Tool::None),
-      inkColor_(Telestration::InkColor::White) {
+      inkColor_(Telestration::InkColor::White),
+      anchor_(TelestrationToolBarPlacement::storedAnchor()) {
     setObjectName(QStringLiteral("TelestrationToolBar"));
     setAttribute(Qt::WA_StyledBackground, true);
     setFocusPolicy(Qt::NoFocus);
@@ -150,8 +286,13 @@ TelestrationToolBar::TelestrationToolBar(QWidget* parent)
     whiteButton_->setChecked(true);
     refreshToolIcons();
     refreshSwatchIcons();
+    setCursor(Qt::OpenHandCursor);
+    installDragFilters();
     applyUiStrings();
-    adjustSize();
+}
+
+TelestrationToolBar::~TelestrationToolBar() {
+    clearDragCursor();
 }
 
 void TelestrationToolBar::setActionsEnabled(bool enabled) {
@@ -173,7 +314,7 @@ void TelestrationToolBar::applyUiStrings() {
         undoButton_->setText(AppLocale::trUi("telestration.undo"));
         undoButton_->setToolTip(AppLocale::trUi("telestration.undo"));
     }
-    adjustSize();
+    applyPlacement();
 }
 
 void TelestrationToolBar::selectTool(Telestration::Tool tool) {
@@ -221,4 +362,159 @@ void TelestrationToolBar::refreshSwatchIcons() {
     assign(blackButton_, Telestration::InkColor::Black);
     assign(blueButton_, Telestration::InkColor::Blue);
     assign(redButton_, Telestration::InkColor::Red);
+}
+
+void TelestrationToolBar::setVideoRectangle(const QRect& videoRectangle) {
+    if (videoRectangle_ == videoRectangle) {
+        if (!pressActive_) applyPlacement();
+        return;
+    }
+    videoRectangle_ = videoRectangle;
+    if (pressActive_) cancelDrag();
+    else applyPlacement();
+}
+
+void TelestrationToolBar::setAnchor(TelestrationToolBarPlacement::Anchor anchor, bool remember) {
+    anchor_ = anchor;
+    if (remember) TelestrationToolBarPlacement::storeAnchor(anchor_);
+    if (pressActive_) cancelDrag();
+    else applyPlacement();
+}
+
+void TelestrationToolBar::mousePressEvent(QMouseEvent* event) {
+    if (event != nullptr && event->button() == Qt::LeftButton) {
+        beginPress(event, nullptr);
+        event->accept();
+        return;
+    }
+    QWidget::mousePressEvent(event);
+}
+
+void TelestrationToolBar::mouseMoveEvent(QMouseEvent* event) {
+    if (pressActive_ && pressedButton_ == nullptr && event != nullptr) {
+        advanceDrag(event->globalPosition());
+        event->accept();
+        return;
+    }
+    QWidget::mouseMoveEvent(event);
+}
+
+void TelestrationToolBar::mouseReleaseEvent(QMouseEvent* event) {
+    if (pressActive_ && pressedButton_ == nullptr && event != nullptr
+        && event->button() == Qt::LeftButton) {
+        const bool dragged = dragStarted_;
+        finishPress(dragged);
+        event->accept();
+        return;
+    }
+    QWidget::mouseReleaseEvent(event);
+}
+
+void TelestrationToolBar::hideEvent(QHideEvent* event) {
+    cancelDrag();
+    QWidget::hideEvent(event);
+}
+
+bool TelestrationToolBar::eventFilter(QObject* watched, QEvent* event) {
+    auto* button = qobject_cast<QPushButton*>(watched);
+    if (button == nullptr || event == nullptr) return QWidget::eventFilter(watched, event);
+
+    if (event->type() == QEvent::MouseButtonPress) {
+        auto* mouseEvent = static_cast<QMouseEvent*>(event);
+        if (mouseEvent->button() == Qt::LeftButton) beginPress(mouseEvent, button);
+        return false;
+    }
+    if (event->type() == QEvent::MouseMove && pressActive_ && pressedButton_ == button) {
+        auto* mouseEvent = static_cast<QMouseEvent*>(event);
+        if (advanceDrag(mouseEvent->globalPosition())) return true;
+        return false;
+    }
+    if (event->type() == QEvent::MouseButtonRelease && pressActive_ && pressedButton_ == button) {
+        auto* mouseEvent = static_cast<QMouseEvent*>(event);
+        if (mouseEvent->button() != Qt::LeftButton) return false;
+        const bool swallowRelease = dragStarted_;
+        finishPress(swallowRelease);
+        return swallowRelease;
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
+void TelestrationToolBar::installDragFilters() {
+    QPushButton* buttons[] = {
+        arrowButton_, dottedArrowButton_, circleButton_, freehandButton_,
+        whiteButton_, blackButton_, blueButton_, redButton_, undoButton_,
+    };
+    for (QPushButton* button : buttons) {
+        if (button != nullptr) button->installEventFilter(this);
+    }
+}
+
+void TelestrationToolBar::beginPress(const QMouseEvent* mouseEvent, QPushButton* button) {
+    if (!isEnabled() || mouseEvent == nullptr || mouseEvent->button() != Qt::LeftButton) return;
+    pressActive_ = true;
+    dragStarted_ = false;
+    pressGlobal_ = mouseEvent->globalPosition();
+    pressToolbarPosition_ = pos();
+    pressedButton_ = button;
+}
+
+bool TelestrationToolBar::advanceDrag(const QPointF& globalPosition) {
+    if (!pressActive_) return false;
+    const QPoint delta = (globalPosition - pressGlobal_).toPoint();
+    if (!dragStarted_) {
+        if (delta.manhattanLength() < QApplication::startDragDistance()) return false;
+        dragStarted_ = true;
+        if (pressedButton_ != nullptr) pressedButton_->setDown(false);
+        if (!dragCursorActive_) {
+            QApplication::setOverrideCursor(Qt::ClosedHandCursor);
+            dragCursorActive_ = true;
+        }
+    }
+    move(clampedToolbarOrigin(pressToolbarPosition_ + delta));
+    return true;
+}
+
+void TelestrationToolBar::finishPress(bool dragged) {
+    pressActive_ = false;
+    dragStarted_ = false;
+    pressedButton_ = nullptr;
+    clearDragCursor();
+    if (dragged) snapToNearestAnchor(true);
+}
+
+void TelestrationToolBar::cancelDrag() {
+    if (!pressActive_ && !dragCursorActive_) return;
+    if (pressedButton_ != nullptr) pressedButton_->setDown(false);
+    pressActive_ = false;
+    dragStarted_ = false;
+    pressedButton_ = nullptr;
+    clearDragCursor();
+    applyPlacement();
+}
+
+void TelestrationToolBar::clearDragCursor() {
+    if (!dragCursorActive_) return;
+    QApplication::restoreOverrideCursor();
+    dragCursorActive_ = false;
+}
+
+void TelestrationToolBar::applyPlacement() {
+    adjustSize();
+    if (!videoRectangle_.isValid() || videoRectangle_.isEmpty()) return;
+    move(TelestrationToolBarPlacement::originForAnchor(
+        anchor_, videoRectangle_, size(), TelestrationToolBarPlacement::kMarginPixels));
+}
+
+void TelestrationToolBar::snapToNearestAnchor(bool remember) {
+    if (videoRectangle_.isValid() && !videoRectangle_.isEmpty()) {
+        anchor_ = TelestrationToolBarPlacement::nearestAnchor(
+            pos(), videoRectangle_, size(), TelestrationToolBarPlacement::kMarginPixels);
+    }
+    if (remember) TelestrationToolBarPlacement::storeAnchor(anchor_);
+    applyPlacement();
+}
+
+QPoint TelestrationToolBar::clampedToolbarOrigin(const QPoint& desiredOrigin) const {
+    if (!videoRectangle_.isValid() || videoRectangle_.isEmpty()) return desiredOrigin;
+    return clampedOrigin(desiredOrigin, videoRectangle_, size());
 }
