@@ -31,4 +31,10 @@ struct SyncAnchorResult {
 /// \a found is false when \p instances is empty or every instance lacks a code.
 SyncAnchorResult syncAnchorInstance(const QVector<ParsedInstance>& instances);
 
+/// Offset that places the sync anchor's start at \p playheadMs.
+/// The sync dialog proposes the current playback position as that playhead.
+inline qint64 syncOffsetMsForPlayhead(qint64 playheadMs, qint64 anchorStartMs) {
+  return playheadMs - anchorStartMs;
+}
+
 } // namespace XmlImporter

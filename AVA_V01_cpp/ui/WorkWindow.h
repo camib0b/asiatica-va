@@ -16,11 +16,15 @@
 #include "TagsTableModel.h"
 #include "XmlEventMappingDialog.h"
 
+#include <QPointer>
+
 #include <memory>
 #include <optional>
 
+class QEvent;
 class QLabel;
 class QAction;
+class QResizeEvent;
 class QToolButton;
 class QTableView;
 class QHBoxLayout;
@@ -65,6 +69,10 @@ public:
 
   /// Tagging column on the left: video keeps any width above this cap.
   static constexpr int kMaximumTaggingSidePanelWidthPx = 500;
+
+  /// Padding around the work surface. The XML drop ring stays inside this band
+  /// on the top and sides, on the app background.
+  static constexpr int kContentMarginPx = 12;
 
   /// Whether a source video is loaded. Path, stack index, and widget visibility
   /// are not substitutes for this.
@@ -121,6 +129,10 @@ private slots:
   void onPresentationExportClipRequested(int tagSessionIndex);
   void startPresentationExportForClips(const QVector<PresentationQueue::Clip>& clipsToExport);
   void enforceTaggingSidePanelWidthCap();
+
+protected:
+  bool eventFilter(QObject* watched, QEvent* event) override;
+  void resizeEvent(QResizeEvent* event) override;
 
 private:
   bool exportXmlAndNotesBeforeReplace();
@@ -280,6 +292,14 @@ private:
       const ExportSettingsDialog::Result& settings,
       const QVector<PresentationQueue::Clip>& queuedClips) const;
 
+  bool xmlImportAvailable() const;
+  bool xmlFileDropAllowed() const;
+  void installXmlDragWatch();
+  void watchWidgetForXmlDrag(QWidget* widget);
+  bool handleXmlDragEvent(QEvent* event);
+  void setXmlDropHighlightVisible(bool visible);
+  void importXmlFromFile(const QString& filePath);
+
   std::optional<TagSession::ImportMode> promptXmlImportMode();
   std::optional<qint64> promptXmlSyncOffset(
       const XmlImporter::SyncAnchorResult& anchor,
@@ -389,4 +409,8 @@ private:
   std::unique_ptr<QTemporaryDir> activePlaybackPrepDirectory_;
   std::unique_ptr<VideoConcatenator> activeConcatenator_;
   std::unique_ptr<QTemporaryDir> activeConcatTemporaryDirectory_;
+
+  QPointer<QWidget> xmlDropHighlight_;
+  bool xmlDragClaimed_ = false;
+  bool xmlImportActive_ = false;
 };
