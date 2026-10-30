@@ -310,7 +310,12 @@ void InteractionGuardTest::replaceVideoDialogReturnsTheClickedChoice() {
         QCOMPARE(chooseReplaceVideoAction(&tagged, nullptr), ReplaceVideoChoice::Cancel);
     }
     QVERIFY(cancelSnapshot.foundButton);
+
+    #ifndef Q_OS_MACOS
+    // macOS message boxes have no window title (Apple HIG), so Qt drops it there.
     QCOMPARE(cancelSnapshot.title, QStringLiteral("Sustituir video"));
+    #endif
+
     QCOMPARE(cancelSnapshot.text, QStringLiteral("Sustituir el video borra todas las marcas y las notas."));
     QVERIFY(cancelSnapshot.buttonTexts.contains(QStringLiteral("Exportar XML y notas")));
     QVERIFY(cancelSnapshot.buttonTexts.contains(QStringLiteral("Sustituir sin exportar")));

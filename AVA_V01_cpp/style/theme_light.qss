@@ -1014,12 +1014,13 @@ QWidget#PresentationPanel QPushButton[variant="primary"]:focus {
 QWidget#PresentationPanel QPushButton[variant="primary"]:disabled {
   color: #52525b;
   background: #f4f4f5;
-  border: 1px solid #e4e4e7;
+  border: 1px solid #71717a;
 }
 
-/* The apply-to-selected label wraps inside the button. The button's own
-   padding is cleared so a focus ring cannot shrink the text box and clip
-   the ends. The label padding is the text inset; C++ reads it back. */
+/* Apply is a rare action inside the lead/lag section, not a second export.
+   Padding stays 0 so the wrapped label owns the text inset and a focus ring
+   cannot clip the ends. Fill and text follow the secondary button; the border
+   is zinc-500 so the edge clears 3:1 on white and on the fill. */
 QWidget#PresentationPanel QPushButton#ApplyToAllButton,
 QWidget#PresentationPanel QPushButton#ApplyToAllButton:hover,
 QWidget#PresentationPanel QPushButton#ApplyToAllButton:pressed,
@@ -1029,16 +1030,80 @@ QWidget#PresentationPanel QPushButton#ApplyToAllButton:disabled {
   min-height: 0px;
 }
 
+QWidget#PresentationPanel QPushButton#ApplyToAllButton {
+  background: #f4f4f5;
+  border: 1px solid #71717a;
+  color: #18181b;
+  font-weight: 500;
+}
+
+QWidget#PresentationPanel QPushButton#ApplyToAllButton:hover {
+  background: #e4e4e7;
+  border-color: #52525b;
+  color: #18181b;
+}
+
+QWidget#PresentationPanel QPushButton#ApplyToAllButton:pressed {
+  background: #d4d4d8;
+  border-color: #52525b;
+  color: #18181b;
+}
+
+QWidget#PresentationPanel QPushButton#ApplyToAllButton:focus {
+  background: #f4f4f5;
+  border: 2px solid #18181b;
+  color: #18181b;
+}
+
+QWidget#PresentationPanel QPushButton#ApplyToAllButton:disabled {
+  background: #f4f4f5;
+  border: 1px solid #71717a;
+  color: #52525b;
+}
+
+/* Color lives on the label itself. A :disabled (or :hover) pseudo-state on the
+   parent button matches this label in every state, so the last parent-state
+   rule would paint the disabled gray while Apply is enabled. The button
+   disables its label with it, so the label's own :disabled is the state. */
 QWidget#PresentationPanel QPushButton#ApplyToAllButton QLabel#ApplyToAllButtonLabel {
   background: transparent;
-  color: #09090b;
+  color: #18181b;
   font-size: 14px;
   font-weight: 500;
   padding: 8px 12px;
 }
 
-QWidget#PresentationPanel QPushButton#ApplyToAllButton:disabled QLabel#ApplyToAllButtonLabel {
-  color: rgba(9, 9, 11, 0.40);
+QWidget#PresentationPanel QPushButton#ApplyToAllButton QLabel#ApplyToAllButtonLabel:disabled {
+  color: #52525b;
+}
+
+/* Lead/lag values are at most "60.0 s". C++ sizes the fields to that text.
+   Zinc-500 border clears 3:1 on white; focus uses the shared ring token. */
+QDoubleSpinBox#LeadSpinBox,
+QDoubleSpinBox#LagSpinBox {
+  background: #FFFFFF;
+  border: 1px solid #71717a;
+  color: #09090b;
+}
+
+QDoubleSpinBox#LeadSpinBox:hover,
+QDoubleSpinBox#LagSpinBox:hover {
+  border-color: #52525b;
+  color: #09090b;
+}
+
+QDoubleSpinBox#LeadSpinBox:focus,
+QDoubleSpinBox#LagSpinBox:focus {
+  background: #FFFFFF;
+  border: 1px solid #18181b;
+  color: #09090b;
+}
+
+QDoubleSpinBox#LeadSpinBox:disabled,
+QDoubleSpinBox#LagSpinBox:disabled {
+  background: #f4f4f5;
+  border: 1px solid #71717a;
+  color: #52525b;
 }
 
 QDoubleSpinBox#LeadSpinBox::up-button,
@@ -1051,6 +1116,11 @@ QDoubleSpinBox#LeadSpinBox::down-button:hover {
   background-color: rgba(72, 199, 142, 0.40);
 }
 
+QDoubleSpinBox#LeadSpinBox::up-button:pressed,
+QDoubleSpinBox#LeadSpinBox::down-button:pressed {
+  background-color: rgba(72, 199, 142, 0.55);
+}
+
 QDoubleSpinBox#LagSpinBox::up-button,
 QDoubleSpinBox#LagSpinBox::down-button {
   background-color: rgba(248, 113, 113, 0.18);
@@ -1059,6 +1129,18 @@ QDoubleSpinBox#LagSpinBox::down-button {
 QDoubleSpinBox#LagSpinBox::up-button:hover,
 QDoubleSpinBox#LagSpinBox::down-button:hover {
   background-color: rgba(248, 113, 113, 0.40);
+}
+
+QDoubleSpinBox#LagSpinBox::up-button:pressed,
+QDoubleSpinBox#LagSpinBox::down-button:pressed {
+  background-color: rgba(248, 113, 113, 0.55);
+}
+
+QDoubleSpinBox#LeadSpinBox::up-button:disabled,
+QDoubleSpinBox#LeadSpinBox::down-button:disabled,
+QDoubleSpinBox#LagSpinBox::up-button:disabled,
+QDoubleSpinBox#LagSpinBox::down-button:disabled {
+  background-color: #f4f4f5;
 }
 
 /* The selection summary is a control only when the checked clips are not

@@ -52,6 +52,7 @@ public:
 
 protected:
   bool eventFilter(QObject* watched, QEvent* event) override;
+  void changeEvent(QEvent* event) override;
 
 signals:
   void selectedTagIndexesChanged(const QVector<int>& tagSessionIndexes);
