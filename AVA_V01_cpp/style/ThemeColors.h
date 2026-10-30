@@ -6,7 +6,8 @@
 namespace Style {
 namespace ThemeColors {
 
-// Programmatic playhead highlight; distinct from QTableWidget selection in theme_light.qss.
+// Playhead wash. The presentation clip list uses this for the row that is
+// selected or on screen. Other work lists keep the quieter zinc selection.
 inline QColor playheadHighlight(int alpha = 255) {
   return QColor(147, 197, 253, alpha);
 }

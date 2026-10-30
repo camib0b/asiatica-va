@@ -10,6 +10,7 @@
 #include "../state/TimeConvert.h"
 #include "../style/StyleProps.h"
 #include "../style/TabularDigits.h"
+#include "../style/ThemeColors.h"
 #include "../style/WorkDataView.h"
 #include "QtPtr.h"
 #include "TagRowDisplay.h"
@@ -82,31 +83,164 @@ bool mouseHitsSpinBoxButton(const QDoubleSpinBox* spinBox, const QPoint& localPo
   return upRect.contains(localPos) || downRect.contains(localPos);
 }
 
-/// Time column only. Draws the checkbox and row chrome with the style, then the
-/// timestamp with fixed digit slots so proportional figures do not shift.
-class TabularTimeDelegate final : public QStyledItemDelegate {
+constexpr int kSelectedClipAccentWidth = 3;
+constexpr int kClipFocusRingWidth = 2;
+
+bool indexIsCurrentClip(const QModelIndex& index) {
+  const QVariant background = index.data(Qt::BackgroundRole);
+  if (!background.canConvert<QBrush>()) return false;
+  const QBrush brush = background.value<QBrush>();
+  return brush.style() != Qt::NoBrush && brush.color().alpha() > 0;
+}
+
+QString singleLineClipText(QString text) {
+  text.replace(QLatin1Char('\n'), QLatin1Char(' '));
+  text.replace(QChar::ParagraphSeparator, QLatin1Char(' '));
+  return text;
+}
+
+void paintFocusRing(QPainter* painter, const QRect& cell) {
+  if (!painter || cell.width() < kClipFocusRingWidth * 2 || cell.height() < kClipFocusRingWidth * 2) {
+    return;
+  }
+  const QColor ring = Style::ThemeColors::ring();
+  painter->fillRect(QRect(cell.left(), cell.top(), cell.width(), kClipFocusRingWidth), ring);
+  painter->fillRect(QRect(cell.left(), cell.bottom() - (kClipFocusRingWidth - 1), cell.width(),
+                          kClipFocusRingWidth),
+                    ring);
+  painter->fillRect(QRect(cell.left(), cell.top(), kClipFocusRingWidth, cell.height()), ring);
+  painter->fillRect(QRect(cell.right() - (kClipFocusRingWidth - 1), cell.top(), kClipFocusRingWidth,
+                          cell.height()),
+                    ring);
+}
+
+void paintSelectedClipAccent(QPainter* painter, const QRect& cell) {
+  if (!painter || cell.width() < kSelectedClipAccentWidth) return;
+  painter->fillRect(QRect(cell.left(), cell.top(), kSelectedClipAccentWidth, cell.height()),
+                    Style::ThemeColors::ring());
+}
+
+void paintCheckIndicator(QPainter* painter, const QStyleOptionViewItem& option) {
+  if (!painter || !(option.features & QStyleOptionViewItem::HasCheckIndicator)) return;
+  const QWidget* widget = option.widget;
+  QStyle* style = widget ? widget->style() : QApplication::style();
+  QStyleOptionViewItem checkOption = option;
+  checkOption.rect = style->subElementRect(QStyle::SE_ItemViewItemCheckIndicator, &option, widget);
+  if (checkOption.rect.isEmpty()) return;
+  // The row fill is the selection. The indicator keeps its own face so the
+  // check stays the same control as on an unselected row.
+  checkOption.state &= ~(QStyle::State_Selected | QStyle::State_HasFocus | QStyle::State_On |
+                         QStyle::State_Off | QStyle::State_NoChange);
+  if (option.checkState == Qt::Checked) {
+    checkOption.state |= QStyle::State_On;
+  } else if (option.checkState == Qt::PartiallyChecked) {
+    checkOption.state |= QStyle::State_NoChange;
+  } else {
+    checkOption.state |= QStyle::State_Off;
+  }
+  style->drawPrimitive(QStyle::PE_IndicatorItemViewItemCheck, &checkOption, painter, widget);
+}
+
+/// Clip rows. The work-list stylesheet paints selection and hover with the same
+/// zinc wash, and that wash covers the model's current-clip brush. Selected and
+/// current rows are filled here from the playhead token; hover stays on the
+/// stylesheet. Focus is a ring, not another fill.
+class PresentationClipDelegate : public QStyledItemDelegate {
  public:
   using QStyledItemDelegate::QStyledItemDelegate;
 
   void paint(QPainter* painter, const QStyleOptionViewItem& option,
              const QModelIndex& index) const override {
+    if (!painter) return;
     QStyleOptionViewItem styledOption = option;
     initStyleOption(&styledOption, index);
-    const QString displayText = styledOption.text;
-    styledOption.text.clear();
+
+    const bool currentClip = indexIsCurrentClip(index);
+    const bool selected = styledOption.state.testFlag(QStyle::State_Selected);
+    const bool focused = styledOption.state.testFlag(QStyle::State_HasFocus);
+    const bool emphasized = currentClip || selected;
+
+    if (!emphasized) {
+      paintRestingRow(painter, styledOption, index);
+      if (focused) paintFocusRing(painter, styledOption.rect);
+      return;
+    }
+
+    painter->fillRect(styledOption.rect, Style::ThemeColors::playheadHighlight());
+    if (focused) paintFocusRing(painter, styledOption.rect);
 
     const QWidget* widget = styledOption.widget;
     QStyle* style = widget ? widget->style() : QApplication::style();
-    style->drawControl(QStyle::CE_ItemViewItem, &styledOption, painter, widget);
+    paintCheckIndicator(painter, styledOption);
 
-    if (displayText.isEmpty() || !painter) return;
+    QRect textRectangle = style->subElementRect(QStyle::SE_ItemViewItemText, &styledOption, widget);
+    if (index.column() == 0) {
+      const int accentRight = styledOption.rect.left() + kSelectedClipAccentWidth;
+      if (textRectangle.left() < accentRight) textRectangle.setLeft(accentRight);
+    }
+    paintItemText(painter, styledOption, textRectangle);
+    // After the checkbox and the timestamp, so the edge stays visible.
+    if (index.column() == 0) paintSelectedClipAccent(painter, styledOption.rect);
+  }
 
+ protected:
+  virtual bool paintsTabularTime() const { return false; }
+
+  virtual void paintItemText(QPainter* painter, const QStyleOptionViewItem& option,
+                             const QRect& textRectangle) const {
+    if (!painter || option.text.isEmpty() || textRectangle.isEmpty()) return;
+    const QString singleLine = singleLineClipText(option.text);
+    const Qt::TextElideMode elideMode =
+        option.textElideMode == Qt::ElideNone ? Qt::ElideRight : option.textElideMode;
+    const QString elided =
+        option.fontMetrics.elidedText(singleLine, elideMode, textRectangle.width());
+    painter->save();
+    painter->setFont(option.font);
+    painter->setPen(Style::ThemeColors::foreground());
+    painter->setClipRect(textRectangle);
+    painter->drawText(textRectangle, int(option.displayAlignment), elided);
+    painter->restore();
+  }
+
+ private:
+  void paintRestingRow(QPainter* painter, const QStyleOptionViewItem& option,
+                       const QModelIndex& index) const {
+    QStyleOptionViewItem restingOption = option;
+    // The ring is drawn after the stylesheet so :focus does not restyle the fill.
+    restingOption.state &= ~QStyle::State_HasFocus;
+    if (!paintsTabularTime()) {
+      QStyledItemDelegate::paint(painter, restingOption, index);
+      return;
+    }
+
+    const QString displayText = restingOption.text;
+    restingOption.text.clear();
+    const QWidget* widget = restingOption.widget;
+    QStyle* style = widget ? widget->style() : QApplication::style();
+    style->drawControl(QStyle::CE_ItemViewItem, &restingOption, painter, widget);
+    restingOption.text = displayText;
     const QRect textRectangle =
-        style->subElementRect(QStyle::SE_ItemViewItemText, &styledOption, widget);
-    // QSS selection-color matches the normal text color. HighlightedText on
-    // Fusion is white, which would disappear against the zinc selection fill.
-    const QColor textColor = styledOption.palette.color(QPalette::Text);
-    Style::drawTabularText(painter, textRectangle, displayText, styledOption.font, textColor);
+        style->subElementRect(QStyle::SE_ItemViewItemText, &restingOption, widget);
+    paintItemText(painter, restingOption, textRectangle);
+  }
+};
+
+/// Time column only. Draws the checkbox and row chrome with the clip delegate,
+/// then the timestamp with fixed digit slots so proportional figures do not shift.
+class TabularTimeDelegate final : public PresentationClipDelegate {
+ public:
+  using PresentationClipDelegate::PresentationClipDelegate;
+
+ protected:
+  bool paintsTabularTime() const override { return true; }
+
+  void paintItemText(QPainter* painter, const QStyleOptionViewItem& option,
+                     const QRect& textRectangle) const override {
+    if (!painter || option.text.isEmpty() || textRectangle.isEmpty()) return;
+    // Same foreground as the other cells in this row. HighlightedText on Fusion
+    // is white and would disappear on the playhead wash.
+    Style::drawTabularText(painter, textRectangle, option.text, option.font,
+                           Style::ThemeColors::foreground());
   }
 
   QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override {
@@ -680,6 +814,8 @@ void PresentationPanel::buildUi() {
   instancesTable_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
   instancesTable_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
   instancesTable_->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+  auto clipDelegate = makeQtPtr<PresentationClipDelegate>(instancesTable_);
+  instancesTable_->setItemDelegate(clipDelegate.get());
   auto timeColumnDelegate = makeQtPtr<TabularTimeDelegate>(instancesTable_);
   instancesTable_->setItemDelegateForColumn(0, timeColumnDelegate.get());
   connect(instancesModel_, &PresentationInstancesModel::checkStateChanged, this,
