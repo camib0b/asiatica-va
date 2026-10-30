@@ -34,7 +34,9 @@
 #include "../export/PlaybackVideoPreparer.h"
 #include "../export/SessionNotesWriter.h"
 #include "../export/XmlImporter.h"
+#include "../export/XmlImportDrop.h"
 #include "ReplaceVideoConfirmation.h"
+#include "XmlDropHighlight.h"
 #include "TextInputFocus.h"
 #include "XmlSyncDialog.h"
 #include "XmlEventMappingDialog.h"
@@ -99,7 +101,11 @@ void setToolButtonFlashState(QToolButton* button, bool flashing) {
 #include <QApplication>
 #include <QDebug>
 #include <QAbstractSpinBox>
+#include <QChildEvent>
 #include <QComboBox>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QResizeEvent>
 #include <QTextEdit>
 
 namespace {
@@ -123,6 +129,18 @@ void configureModeToolButton(QToolButton* button, const QString& objectName, boo
     Style::setSize(button, "sm");
     button->setCursor(Qt::PointingHandCursor);
 }
+
+class XmlImportActivityGuard {
+public:
+    explicit XmlImportActivityGuard(bool& active) : active_(active) { active_ = true; }
+    ~XmlImportActivityGuard() { active_ = false; }
+
+    XmlImportActivityGuard(const XmlImportActivityGuard&) = delete;
+    XmlImportActivityGuard& operator=(const XmlImportActivityGuard&) = delete;
+
+private:
+    bool& active_;
+};
 
 QString pathWithXmlSuffix(const QString& chosenPath) {
     const QFileInfo chosenInfo(chosenPath);
@@ -295,9 +313,15 @@ WorkWindow::WorkWindow(QWidget* parent)
     wireSignals();
     applyModeChrome();
     applyUiStrings();
+    installXmlDragWatch();
 }
 
 WorkWindow::~WorkWindow() {
+    // ~QWidget can emit focusChanged after this WorkWindow destructor has finished.
+    if (QApplication* application = qobject_cast<QApplication*>(QApplication::instance())) {
+        disconnect(application, &QApplication::focusChanged, this,
+                   &WorkWindow::onApplicationFocusWidgetChanged);
+    }
     notesController_->flushPendingClipNote();
     notesController_->saveMatchNoteDebounceFired();
     saveOpenMatchSession();
@@ -913,7 +937,8 @@ void WorkWindow::buildUi() {
     contentStack_ = new QStackedWidget(this);
     mainContentContainer_ = new QWidget(this);
     auto* mainContentLayout = new QVBoxLayout(mainContentContainer_);
-    mainContentLayout->setContentsMargins(12, 12, 12, 12);
+    mainContentLayout->setContentsMargins(kContentMarginPx, kContentMarginPx, kContentMarginPx,
+                                          kContentMarginPx);
     mainContentLayout->setSpacing(4);
     mainContentLayout->addWidget(buildTopToolbar(mainContentContainer_));
 
@@ -2054,7 +2079,7 @@ void WorkWindow::onEditGameControls() {
 }
 
 void WorkWindow::onImportXml() {
-    if (!tagSession_ || !videoPlayer_ || !hasOpenVideo()) return;
+    if (!xmlImportAvailable()) return;
 
     const QString filePath = QFileDialog::getOpenFileName(
         this,
@@ -2062,6 +2087,110 @@ void WorkWindow::onImportXml() {
         exportDefaultDirectoryPath_.isEmpty() ? QString() : exportDefaultDirectoryPath_,
         AppLocale::trUi("file.xml_filter"));
     if (filePath.isEmpty()) return;
+    importXmlFromFile(filePath);
+}
+
+bool WorkWindow::xmlImportAvailable() const {
+    return tagSession_ != nullptr && videoPlayer_ != nullptr && hasOpenVideo();
+}
+
+bool WorkWindow::xmlFileDropAllowed() const {
+    if (!xmlImportAvailable()) return false;
+    return XmlImportDrop::sessionAllowsDrop(true, static_cast<int>(tagSession_->tags().size()));
+}
+
+void WorkWindow::installXmlDragWatch() {
+    setAcceptDrops(true);
+    watchWidgetForXmlDrag(this);
+}
+
+void WorkWindow::watchWidgetForXmlDrag(QWidget* widget) {
+    if (widget == nullptr) return;
+    widget->installEventFilter(this);
+    const QList<QWidget*> descendants = widget->findChildren<QWidget*>();
+    for (QWidget* descendant : descendants) {
+        if (descendant != nullptr) descendant->installEventFilter(this);
+    }
+}
+
+bool WorkWindow::eventFilter(QObject* watched, QEvent* event) {
+    if (event == nullptr || watched == nullptr) return false;
+
+    if (event->type() == QEvent::ChildAdded) {
+        auto* childEvent = static_cast<QChildEvent*>(event);
+        if (auto* childWidget = qobject_cast<QWidget*>(childEvent->child())) {
+            watchWidgetForXmlDrag(childWidget);
+        }
+        return false;
+    }
+
+    const QEvent::Type eventType = event->type();
+    const bool dragEvent = eventType == QEvent::DragEnter || eventType == QEvent::DragMove ||
+                           eventType == QEvent::DragLeave || eventType == QEvent::Drop;
+    if (!dragEvent) return false;
+
+    auto* widget = qobject_cast<QWidget*>(watched);
+    if (widget == nullptr) return false;
+    if (widget != this && !isAncestorOf(widget)) return false;
+    if (QApplication::activeModalWidget() != nullptr) return false;
+    return handleXmlDragEvent(event);
+}
+
+bool WorkWindow::handleXmlDragEvent(QEvent* event) {
+    if (event->type() == QEvent::DragLeave) {
+        const bool claimed = xmlDragClaimed_;
+        xmlDragClaimed_ = false;
+        setXmlDropHighlightVisible(false);
+        return claimed;
+    }
+
+    auto* dropEvent = static_cast<QDropEvent*>(event);
+    const XmlImportDrop::Offer offer =
+        XmlImportDrop::classify(dropEvent->mimeData(), xmlFileDropAllowed());
+    if (offer.decision == XmlImportDrop::Decision::Unrelated) return false;
+
+    if (offer.decision == XmlImportDrop::Decision::Reject) {
+        dropEvent->ignore();
+        setXmlDropHighlightVisible(false);
+        if (event->type() == QEvent::Drop) xmlDragClaimed_ = false;
+        else xmlDragClaimed_ = true;
+        return true;
+    }
+
+    dropEvent->acceptProposedAction();
+    if (event->type() == QEvent::Drop) {
+        xmlDragClaimed_ = false;
+        setXmlDropHighlightVisible(false);
+        importXmlFromFile(offer.filePath);
+        return true;
+    }
+    xmlDragClaimed_ = true;
+    setXmlDropHighlightVisible(true);
+    return true;
+}
+
+void WorkWindow::setXmlDropHighlightVisible(bool visible) {
+    if (!visible) {
+        if (xmlDropHighlight_) xmlDropHighlight_->hide();
+        return;
+    }
+    if (!xmlDropHighlight_) {
+        auto highlight = makeQtPtr<XmlDropHighlight>(this);
+        xmlDropHighlight_ = highlight.get();
+    }
+    xmlDropHighlight_->setGeometry(rect());
+    xmlDropHighlight_->raise();
+    xmlDropHighlight_->show();
+}
+
+void WorkWindow::resizeEvent(QResizeEvent* event) {
+    QWidget::resizeEvent(event);
+    if (xmlDropHighlight_) xmlDropHighlight_->setGeometry(rect());
+}
+
+void WorkWindow::importXmlFromFile(const QString& filePath) {
+    if (xmlImportActive_ || !xmlImportAvailable() || filePath.isEmpty()) return;
+    const XmlImportActivityGuard activity(xmlImportActive_);
 
     QVector<XmlImporter::ParsedInstance> instances;
     QString parseError;

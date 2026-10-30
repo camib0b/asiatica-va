@@ -38,6 +38,7 @@ qt_add_executable(AVA
   ui/GameControlsContextMenu.cpp
   ui/GameControlsEditorDialog.cpp
   ui/XmlSyncDialog.cpp
+  ui/XmlDropHighlight.cpp
   ui/XmlEventMappingDialog.cpp
   ui/StatsWindow.cpp
   ui/ReplaceVideoConfirmation.cpp
@@ -195,6 +196,7 @@ qt_add_executable(AVAExportTests
   tests/PresentationFilterTests.cpp
   tests/PresentationSelectionBreakdownTests.cpp
   tests/XmlEventMappingDialogTests.cpp
+  tests/XmlFileDropTests.cpp
   tests/UiPolicyTests.cpp
   tests/WorkDataViewTests.cpp
   tests/WorkWindowCorrectnessTests.cpp
@@ -207,6 +209,7 @@ qt_add_executable(AVAExportTests
   ui/PresentationSelectionBreakdown.cpp
   ui/PresentationSelectionPopup.cpp
   ui/XmlEventMappingDialog.cpp
+  ui/XmlDropHighlight.cpp
   ui/GameSetupWindow.cpp
   ui/WorkWindow.cpp
   ui/PlaybackTemporaryDirectoryController.cpp

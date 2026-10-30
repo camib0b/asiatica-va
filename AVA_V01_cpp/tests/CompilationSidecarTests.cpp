@@ -1307,6 +1307,7 @@ int runModeChromeTests(int argc, char** argv);
 int runPresentationFilterTests(int argc, char** argv);
 int runPresentationSelectionBreakdownTests(int argc, char** argv);
 int runXmlEventMappingDialogTests(int argc, char** argv);
+int runXmlFileDropTests(int argc, char** argv);
 int runUiPolicyTests(int argc, char** argv);
 int runWorkDataViewTests(int argc, char** argv);
 int runWorkWindowCorrectnessTests(int argc, char** argv);
@@ -1368,6 +1369,10 @@ int main(int argc, char** argv) {
     const int mappingStatus = runXmlEventMappingDialogTests(argc, argv);
     if (mappingStatus != 0) {
         return mappingStatus;
+    }
+    const int xmlDropStatus = runXmlFileDropTests(argc, argv);
+    if (xmlDropStatus != 0) {
+        return xmlDropStatus;
     }
     const int uiPolicyStatus = runUiPolicyTests(argc, argv);
     if (uiPolicyStatus != 0) {

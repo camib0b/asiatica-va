@@ -126,7 +126,7 @@ void XmlSyncDialog::applyUiStrings() {
 }
 
 void XmlSyncDialog::onVideoPositionChanged(qint64 positionMs) {
-  offsetMs_ = positionMs - anchorInstance_.startMs;
+  offsetMs_ = XmlImporter::syncOffsetMsForPlayhead(positionMs, anchorInstance_.startMs);
   updatePreview();
 }
 
