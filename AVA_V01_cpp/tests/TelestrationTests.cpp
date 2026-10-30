@@ -3,13 +3,18 @@
 #include "ExportClipBuilder.h"
 #include "ExportSettingsDialog.h"
 #include "Telestration.h"
+#include "TelestrationToolBar.h"
 #include "VideoPlayer.h"
 
+#include <QApplication>
 #include <QCheckBox>
+#include <QEvent>
 #include <QGraphicsVideoItem>
 #include <QGraphicsView>
 #include <QImage>
 #include <QPainter>
+#include <QPushButton>
+#include <QSettings>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QVideoSink>
@@ -90,6 +95,54 @@ ClipFilterGraphInput plainGraph() {
     return input;
 }
 
+class ViewportPressCounter : public QObject {
+public:
+    int pressCount = 0;
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override {
+        Q_UNUSED(watched);
+        if (event != nullptr && event->type() == QEvent::MouseButtonPress) ++pressCount;
+        return false;
+    }
+};
+
+QGraphicsVideoItem* videoItemIn(VideoPlayer& player) {
+    auto* view = qobject_cast<QGraphicsView*>(player.videoFrame());
+    if (view == nullptr || view->scene() == nullptr) return nullptr;
+    const QList<QGraphicsItem*> items = view->scene()->items();
+    for (QGraphicsItem* item : items) {
+        if (auto* videoItem = qgraphicsitem_cast<QGraphicsVideoItem*>(item)) return videoItem;
+    }
+    return nullptr;
+}
+
+TelestrationToolBar* toolbarIn(VideoPlayer& player) {
+    return player.findChild<TelestrationToolBar*>(QStringLiteral("TelestrationToolBar"));
+}
+
+void showPlayer(VideoPlayer& player, const QSize& size) {
+    player.setFixedSize(size);
+    player.show();
+    QApplication::processEvents();
+}
+
+void expectToolbarSeated(const TelestrationToolBar* toolbar) {
+    QVERIFY(toolbar != nullptr);
+    QVERIFY(toolbar->videoRectangle().isValid());
+    const QPoint expected = TelestrationToolBarPlacement::originForAnchor(
+        toolbar->anchor(), toolbar->videoRectangle(), toolbar->size(),
+        TelestrationToolBarPlacement::kMarginPixels);
+    QCOMPARE(toolbar->pos(), expected);
+    QVERIFY(toolbar->videoRectangle().contains(toolbar->geometry()));
+}
+
+void presentPlayer(VideoPlayer& player) {
+    player.setControlsVisible(true);
+    player.setPresentationDrawingsActive(true);
+    QApplication::processEvents();
+}
+
 TagSession::GameTag passTag(qint64 startMs, qint64 endMs, qint64 markMs) {
     TagSession::GameTag tag;
     tag.mainEventId = EventCatalog::EventId::Pass;
@@ -106,6 +159,8 @@ class TelestrationTest : public QObject {
     Q_OBJECT
 
 private slots:
+    void init();
+    void cleanup();
     void normalizedCoordinatesRoundTripAndClamp();
     void sharedPainterMatchesGraphicsItemAndPng();
     void timelineWindowAndFreezeCues();
@@ -115,7 +170,22 @@ private slots:
     void exportFilterTimesDrawingsOverMovingVideo();
     void includeDrawingsCheckboxDefaultsOff();
     void videoPictureUsesGraphicsViewSink();
+    void toolbarAnchorMathClampsToTheVideoPerimeter();
+    void toolbarIsVisibleOnlyInPresentingMode();
+    void toolbarDragSnapsToThePictureAndDoesNotDraw();
 };
+
+void TelestrationTest::init() {
+    QSettings settings;
+    settings.remove(QStringLiteral("telestration/toolbarAnchor"));
+    settings.sync();
+}
+
+void TelestrationTest::cleanup() {
+    QSettings settings;
+    settings.remove(QStringLiteral("telestration/toolbarAnchor"));
+    settings.sync();
+}
 
 void TelestrationTest::normalizedCoordinatesRoundTripAndClamp() {
     const QRectF picture(0, 0, 200, 100);
@@ -405,6 +475,154 @@ void TelestrationTest::videoPictureUsesGraphicsViewSink() {
 
     auto* toolbar = view->viewport()->findChild<QWidget*>(QStringLiteral("TelestrationToolBar"));
     QVERIFY(toolbar != nullptr);
+    QVERIFY(!toolbar->isVisible());
+}
+
+void TelestrationTest::toolbarAnchorMathClampsToTheVideoPerimeter() {
+    using Anchor = TelestrationToolBarPlacement::Anchor;
+    const QRect video(0, 0, 640, 360);
+    const QSize toolbarSize(100, 60);
+    constexpr int margin = TelestrationToolBarPlacement::kMarginPixels;
+
+    QCOMPARE(TelestrationToolBarPlacement::originForAnchor(Anchor::TopLeft, video, toolbarSize, margin),
+             QPoint(10, 10));
+    QCOMPARE(TelestrationToolBarPlacement::originForAnchor(Anchor::TopRight, video, toolbarSize, margin),
+             QPoint(530, 10));
+    QCOMPARE(TelestrationToolBarPlacement::originForAnchor(Anchor::MiddleLeft, video, toolbarSize, margin),
+             QPoint(10, 150));
+    QCOMPARE(TelestrationToolBarPlacement::originForAnchor(Anchor::BottomRight, video, toolbarSize, margin),
+             QPoint(530, 290));
+
+    QCOMPARE(TelestrationToolBarPlacement::nearestAnchor(QPoint(-1000, -1000), video, toolbarSize, margin),
+             Anchor::TopLeft);
+    QCOMPARE(TelestrationToolBarPlacement::nearestAnchor(QPoint(10000, 10000), video, toolbarSize, margin),
+             Anchor::BottomRight);
+
+    const QSize oversized(800, 400);
+    QCOMPARE(TelestrationToolBarPlacement::originForAnchor(Anchor::BottomRight, video, oversized, margin),
+             QPoint(0, 0));
+    QCOMPARE(TelestrationToolBarPlacement::nearestAnchor(QPoint(10000, 10000), video, oversized, margin),
+             Anchor::TopLeft);
+
+    const QRect letterbox(100, 40, 400, 220);
+    const QSize letterboxBar(80, 40);
+    QCOMPARE(TelestrationToolBarPlacement::originForAnchor(Anchor::TopLeft, letterbox, letterboxBar, margin),
+             QPoint(110, 50));
+    QCOMPARE(TelestrationToolBarPlacement::originForAnchor(Anchor::MiddleRight, letterbox, letterboxBar, margin),
+             QPoint(410, 130));
+    const QRect middleRightBar(QPoint(410, 130), letterboxBar);
+    QVERIFY(letterbox.contains(middleRightBar));
+}
+
+void TelestrationTest::toolbarIsVisibleOnlyInPresentingMode() {
+    VideoPlayer player;
+    showPlayer(player, QSize(900, 640));
+    TelestrationToolBar* toolbar = toolbarIn(player);
+    QVERIFY(toolbar != nullptr);
+    QVERIFY(!toolbar->isVisible());
+
+    player.setControlsVisible(true);
+    QApplication::processEvents();
+    QVERIFY(!toolbar->isVisible());
+
+    player.setPresentationDrawingsActive(true);
+    QApplication::processEvents();
+    QVERIFY(toolbar->isVisible());
+    QCOMPARE(toolbar->anchor(), TelestrationToolBarPlacement::Anchor::MiddleLeft);
+    expectToolbarSeated(toolbar);
+
+    auto* view = qobject_cast<QGraphicsView*>(player.videoFrame());
+    QVERIFY(view != nullptr);
+    QGraphicsVideoItem* videoItem = videoItemIn(player);
+    QVERIFY(videoItem != nullptr);
+    const QRect mapped = view->mapFromScene(videoItem->sceneBoundingRect()).boundingRect();
+    QCOMPARE(toolbar->videoRectangle().x(), mapped.x());
+    QCOMPARE(toolbar->videoRectangle().y(), mapped.y());
+    QVERIFY(qAbs(toolbar->videoRectangle().width() - mapped.width()) <= 1);
+    QVERIFY(qAbs(toolbar->videoRectangle().height() - mapped.height()) <= 1);
+
+    player.setPresentationDrawingsActive(false);
+    QVERIFY(!toolbar->isVisible());
+
+    player.setPresentationDrawingsActive(true);
+    QVERIFY(toolbar->isVisible());
+    player.setControlsVisible(false);
+    QVERIFY(!toolbar->isVisible());
+}
+
+void TelestrationTest::toolbarDragSnapsToThePictureAndDoesNotDraw() {
+    Telestration::Session session;
+    VideoPlayer player;
+    player.setTelestrationSession(&session);
+    showPlayer(player, QSize(900, 640));
+    presentPlayer(player);
+    // Drawing controls stay disabled until a video is open. Enable them so a
+    // real click can arm a tool, and a drag of that same button must not.
+    player.setControlsEnabled(true);
+
+    TelestrationToolBar* toolbar = toolbarIn(player);
+    QVERIFY(toolbar != nullptr);
+    QVERIFY(toolbar->isVisible());
+    expectToolbarSeated(toolbar);
+    QCOMPARE(toolbar->tool(), Telestration::Tool::None);
+
+    auto* view = qobject_cast<QGraphicsView*>(player.videoFrame());
+    QVERIFY(view != nullptr);
+    QVERIFY(view->viewport() != nullptr);
+    ViewportPressCounter pressCounter;
+    view->viewport()->installEventFilter(&pressCounter);
+
+    auto* arrowButton = toolbar->findChild<QPushButton*>(QStringLiteral("TelestrationArrowButton"));
+    QVERIFY(arrowButton != nullptr);
+    const QPoint pressLocal = arrowButton->rect().center();
+    const QPoint bottomRight = TelestrationToolBarPlacement::originForAnchor(
+        TelestrationToolBarPlacement::Anchor::BottomRight, toolbar->videoRectangle(), toolbar->size(),
+        TelestrationToolBarPlacement::kMarginPixels);
+    const QPoint dragDelta = bottomRight - toolbar->pos();
+    QVERIFY(dragDelta.manhattanLength() > QApplication::startDragDistance());
+    const QPoint releaseLocal = pressLocal + dragDelta;
+
+    QTest::mousePress(arrowButton, Qt::LeftButton, Qt::NoModifier, pressLocal);
+    QTest::mouseMove(arrowButton, releaseLocal);
+    QTest::mouseRelease(arrowButton, Qt::LeftButton, Qt::NoModifier, releaseLocal);
+
+    QCOMPARE(toolbar->tool(), Telestration::Tool::None);
+    QCOMPARE(pressCounter.pressCount, 0);
+    QCOMPARE(toolbar->anchor(), TelestrationToolBarPlacement::Anchor::BottomRight);
+    expectToolbarSeated(toolbar);
+    view->viewport()->removeEventFilter(&pressCounter);
+
+    QVERIFY(arrowButton->isEnabled());
+    QTest::mouseClick(arrowButton, Qt::LeftButton);
+    QCOMPARE(toolbar->tool(), Telestration::Tool::Arrow);
+
+    player.setPresentationDrawingsActive(false);
+    QVERIFY(!toolbar->isVisible());
+    const QPoint picturePoint = view->viewport()->rect().center();
+    QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, picturePoint);
+    QTest::mouseMove(view->viewport(), picturePoint + QPoint(48, 24));
+    QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, picturePoint + QPoint(48, 24));
+    QCOMPARE(session.drawings().size(), 0);
+
+    player.setControlsVisible(true);
+    player.setPresentationDrawingsActive(true);
+    QApplication::processEvents();
+    QVERIFY(toolbar->isVisible());
+    toolbar->setAnchor(TelestrationToolBarPlacement::Anchor::BottomRight, false);
+    player.setFixedSize(640, 480);
+    QApplication::processEvents();
+    QCOMPARE(toolbar->anchor(), TelestrationToolBarPlacement::Anchor::BottomRight);
+    expectToolbarSeated(toolbar);
+
+    toolbar->setAnchor(TelestrationToolBarPlacement::Anchor::TopCenter, true);
+    VideoPlayer restoredPlayer;
+    showPlayer(restoredPlayer, QSize(900, 640));
+    presentPlayer(restoredPlayer);
+    TelestrationToolBar* restoredToolbar = toolbarIn(restoredPlayer);
+    QVERIFY(restoredToolbar != nullptr);
+    QVERIFY(restoredToolbar->isVisible());
+    QCOMPARE(restoredToolbar->anchor(), TelestrationToolBarPlacement::Anchor::TopCenter);
+    expectToolbarSeated(restoredToolbar);
 }
 
 int runTelestrationTests(int argc, char** argv) {

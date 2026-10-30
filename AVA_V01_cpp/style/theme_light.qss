@@ -1300,6 +1300,37 @@ QAbstractItemView[role="workList"]::item:hover {
   background: rgba(244, 244, 245, 0.5);
 }
 
+/* Presentation clip list. The shared work-list selection (#f4f4f5) is the same
+   family as the row hairline, the alternate row, and hover, so the selected
+   clip disappears. This table uses the playhead wash (#93C5FD, ThemeColors::
+   playheadHighlight) for the selected row. Hover stays the zinc wash and does
+   not replace a selected row. Focus is the ring (#18181b), not a second fill.
+   The delegate paints a ring-colored edge on the current/selected row because
+   a left edge cannot be expressed on one cell of a row from QSS alone. */
+QTableView#PresentationInstancesTable {
+  selection-background-color: #93C5FD;
+  selection-color: #09090b;
+}
+
+QTableView#PresentationInstancesTable::item:hover {
+  background: rgba(244, 244, 245, 0.5);
+  color: #09090b;
+}
+
+QTableView#PresentationInstancesTable::item:selected,
+QTableView#PresentationInstancesTable::item:selected:hover {
+  background: #93C5FD;
+  color: #09090b;
+}
+
+QTableView#PresentationInstancesTable::item:focus,
+QTableView#PresentationInstancesTable::item:selected:focus {
+  color: #09090b;
+}
+
+/* The focus ring and the selected-row edge are drawn by the clip delegate.
+   A QSS border would change item padding and shift the timestamp. */
+
 QTableView[role="workList"]::indicator {
   width: 16px;
   height: 16px;

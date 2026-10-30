@@ -5,6 +5,7 @@
 #include <QHash>
 #include <QObject>
 #include <QPointer>
+#include <QRect>
 #include <QVector>
 
 #include <functional>
@@ -41,7 +42,9 @@ private:
     void rebuildItems();
     void refreshVisibility();
     void updateToolCursor();
+    void applyToolBarVisibility();
     void positionToolBar();
+    QRect videoRectangleInViewport() const;
     QRectF videoSceneRectangle() const;
     std::optional<Telestration::Point> normalizedPointInPicture(const QPoint& viewportPosition,
                                                                 bool* insidePicture) const;
@@ -62,6 +65,7 @@ private:
     QHash<quint64, DrawingGraphicsItem*> drawingItems_;
     DrawingGraphicsItem* previewItem_ = nullptr;
     bool presentationMode_ = false;
+    bool toolsRequestedVisible_ = false;
     quint64 forcedDrawingId_ = 0;
     bool strokeActive_ = false;
     QVector<Telestration::Point> strokePoints_;

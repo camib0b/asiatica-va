@@ -6,7 +6,8 @@
 namespace Style {
 namespace ThemeColors {
 
-// Programmatic playhead highlight; distinct from QTableWidget selection in theme_light.qss.
+// Playhead wash. The presentation clip list uses this for the row that is
+// selected or on screen. Other work lists keep the quieter zinc selection.
 inline QColor playheadHighlight(int alpha = 255) {
   return QColor(147, 197, 253, alpha);
 }
@@ -23,6 +24,8 @@ inline QColor hoverBorder() { return QColor(QStringLiteral("#d4d4d8")); } // zin
 inline QColor gameControlBorder() { return QColor(QStringLiteral("#a1a1aa")); }
 inline QColor gameControlHoverBorder() { return QColor(QStringLiteral("#71717a")); }
 inline QColor surface() { return QColor(QStringLiteral("#ffffff")); }
+// --primary-foreground / zinc-50. QWidget#ExportJobsBar uses the same fill.
+inline QColor primaryForeground() { return QColor(QStringLiteral("#fafafa")); }
 inline QColor hoverSurface() { return QColor(QStringLiteral("#f4f4f5")); } // zinc-100
 inline QColor pressedSurface() { return QColor(QStringLiteral("#e4e4e7")); }
 inline QColor accent() { return QColor(QStringLiteral("#B08A2E")); } // QLabel[role="accent"]
