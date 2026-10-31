@@ -1398,6 +1398,7 @@ void PresentationPanel::onInstancesTableContextMenu(const QPoint& position) {
   QMenu menu(instancesTable_);
   QAction* exportAction = menu.addAction(AppLocale::trUi("presentation.export_this_clip"));
   exportAction->setObjectName(QStringLiteral("PresentationExportClipAction"));
+  exportAction->setEnabled(exportButton_ && exportButton_->isEnabled());
   QObject::connect(exportAction, &QAction::triggered, this, [this, tagSessionIndex]() {
     emit exportClipRequested(tagSessionIndex);
   });
@@ -1660,7 +1661,10 @@ void PresentationPanel::updateShowNotesCheckboxVisibility() {
   showNotesCheckBox_->setVisible(selectionHasAnyNotes());
 }
 
-void PresentationPanel::setExportEnabled(bool enabled) { exportButton_->setEnabled(enabled); }
+void PresentationPanel::setExportEnabled(bool enabled) {
+  exportButton_->setEnabled(enabled);
+  exportButton_->setCursor(enabled ? Qt::PointingHandCursor : Qt::ArrowCursor);
+}
 
 void PresentationPanel::updateCurrentClipControlsEnabled() {
   const bool hasCurrentClip =

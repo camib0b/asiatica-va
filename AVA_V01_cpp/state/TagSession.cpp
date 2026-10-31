@@ -354,7 +354,10 @@ void TagSession::removeGameTimeTagId(quint64 id) {
 }
 
 void TagSession::restoreGameTimeStateFromTags() {
-  resetGameTimeState();
+  gameStartAnchorMs_ = -1;
+  for (int quarterIndex = 0; quarterIndex < kQuarterCount; ++quarterIndex) {
+    closedQuarters_[quarterIndex] = ClosedQuarterSpan{};
+  }
 
   for (const GameTimeTagRecord& record : gameTimeTags_) {
     if (record.quarterIndex < 0) {
@@ -372,19 +375,23 @@ void TagSession::restoreGameTimeStateFromTags() {
     ++closedPrefixCount;
   }
 
+  QuarterPhase phase = QuarterPhase::NotStarted;
+  int quarterIndex = -1;
+  qint64 quarterStartMs = 0;
   if (closedPrefixCount == kQuarterCount) {
-    quarterPhase_ = QuarterPhase::GameEnded;
-    // No quarter is in progress. currentQuarterIndex_ stays -1 (reset above).
-    // periodLabelAtTimestampMs reads closedQuarters_[Q4], not this index.
+    phase = QuarterPhase::GameEnded;
+    // No quarter is in progress. periodLabelAtTimestampMs reads
+    // closedQuarters_[Q4], not the in-progress index.
   } else if (closedPrefixCount > 0) {
-    quarterPhase_ = QuarterPhase::QuarterInProgress;
-    currentQuarterIndex_ = closedPrefixCount;
-    currentQuarterStartMs_ = closedQuarters_[closedPrefixCount - 1].endMs;
+    phase = QuarterPhase::QuarterInProgress;
+    quarterIndex = closedPrefixCount;
+    quarterStartMs = closedQuarters_[closedPrefixCount - 1].endMs;
   } else if (gameStartAnchorMs_ >= 0) {
-    quarterPhase_ = QuarterPhase::QuarterInProgress;
-    currentQuarterIndex_ = 0;
-    currentQuarterStartMs_ = gameStartAnchorMs_;
+    phase = QuarterPhase::QuarterInProgress;
+    quarterIndex = 0;
+    quarterStartMs = gameStartAnchorMs_;
   }
+  commitQuarterPhase(phase, quarterIndex, quarterStartMs);
 }
 
 bool TagSession::removeTag(int index) {
@@ -479,14 +486,42 @@ void TagSession::applyDefaultsToUntrimmedTags(const QString& mainEvent, qint64 l
   }
 }
 
+bool TagSession::isLegalQuarterSnapshot(QuarterPhase phase, int currentQuarterIndex) {
+  switch (phase) {
+    case QuarterPhase::NotStarted:
+    case QuarterPhase::GameEnded:
+      return currentQuarterIndex < 0;
+    case QuarterPhase::QuarterInProgress:
+      return currentQuarterIndex >= 0 && currentQuarterIndex < kQuarterCount;
+  }
+  return false;
+}
+
+bool TagSession::commitQuarterPhase(QuarterPhase phase,
+                                    int currentQuarterIndex,
+                                    qint64 quarterStartMs) {
+  if (!isLegalQuarterSnapshot(phase, currentQuarterIndex)) {
+    qWarning("TagSession: refused illegal quarter snapshot phase=%d index=%d",
+             static_cast<int>(phase), currentQuarterIndex);
+    Q_ASSERT_X(false, "TagSession::commitQuarterPhase", "illegal quarter snapshot");
+    return false;
+  }
+
+  const bool visibleChange =
+      quarterPhase_ != phase || currentQuarterIndex_ != currentQuarterIndex;
+  quarterPhase_ = phase;
+  currentQuarterIndex_ = currentQuarterIndex;
+  currentQuarterStartMs_ = quarterStartMs;
+  if (visibleChange) emit quarterPhaseChanged();
+  return true;
+}
+
 void TagSession::resetGameTimeState() {
   gameStartAnchorMs_ = -1;
-  currentQuarterIndex_ = -1;
-  currentQuarterStartMs_ = 0;
-  quarterPhase_ = QuarterPhase::NotStarted;
   for (int quarterIndex = 0; quarterIndex < kQuarterCount; ++quarterIndex) {
     closedQuarters_[quarterIndex] = ClosedQuarterSpan{};
   }
+  commitQuarterPhase(QuarterPhase::NotStarted, -1, 0);
 }
 
 QString TagSession::periodLabelAtTimestampMs(qint64 positionMs) const {

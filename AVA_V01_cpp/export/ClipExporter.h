@@ -68,6 +68,14 @@ public:
     };
     Q_ENUM(Activity)
 
+    /// Set where the export ends. ExportJobManager does not infer this from the message.
+    enum class Outcome {
+        Succeeded,
+        Failed,
+        Cancelled,
+    };
+    Q_ENUM(Outcome)
+
     explicit ClipExporter(QObject* parent = nullptr);
     ~ClipExporter() override;
 
@@ -92,7 +100,7 @@ public:
 
 signals:
     void progressChanged(int currentClip, int totalClips, Activity activity);
-    void exportFinished(bool success, const QString& message);
+    void exportFinished(Outcome outcome, const QString& message);
 
 private slots:
     void onClipProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
@@ -116,7 +124,7 @@ private:
     void discardPartialSidecar();
     void cleanup();
     void stopAndDiscardProcess();
-    void finishExport(bool success, const QString& message);
+    void finishExport(Outcome outcome, const QString& message);
     void startFfmpegJob(const QStringList& arguments, bool concatenating);
     /// Probe callbacks land after cancelExport() has set cancelled_. Finish the
     /// export once, with the same cancelled message as the encode path.

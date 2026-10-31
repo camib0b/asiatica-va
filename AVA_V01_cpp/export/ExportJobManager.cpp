@@ -1,5 +1,7 @@
 #include "ExportJobManager.h"
 
+#include "ExportJobTransition.h"
+
 #include "AppLocale.h"
 #include "ClipExporter.h"
 #include "ExportClipBuilder.h"
@@ -250,10 +252,47 @@ void ExportJobManager::discardExporter(Job& job) {
     dyingExporter->deleteLater();
 }
 
-void ExportJobManager::finishJob(Job& job, JobState state, const QString& message) {
-    if (job.state != JobState::Exporting) return;
-    job.state = state;
-    job.statusText = message;
+void ExportJobManager::finishJob(Job& job, ClipExporter::Outcome outcome, const QString& message) {
+    ExportJobTransition::Phase current = ExportJobTransition::Phase::Exporting;
+    switch (job.state) {
+    case JobState::Exporting:
+        current = ExportJobTransition::Phase::Exporting;
+        break;
+    case JobState::Succeeded:
+        current = ExportJobTransition::Phase::Succeeded;
+        break;
+    case JobState::Failed:
+        current = ExportJobTransition::Phase::Failed;
+        break;
+    case JobState::Cancelled:
+        current = ExportJobTransition::Phase::Cancelled;
+        break;
+    }
+
+    const ExportJobTransition::Decision decision =
+        ExportJobTransition::apply(current, outcome, message);
+    if (!decision.accepted) {
+        qWarning("ExportJobManager: refused outcome %d from phase %d",
+                 static_cast<int>(outcome), static_cast<int>(current));
+        Q_ASSERT_X(false, "ExportJobManager::finishJob", "illegal export job transition");
+        return;
+    }
+
+    switch (decision.phase) {
+    case ExportJobTransition::Phase::Exporting:
+        job.state = JobState::Exporting;
+        break;
+    case ExportJobTransition::Phase::Succeeded:
+        job.state = JobState::Succeeded;
+        break;
+    case ExportJobTransition::Phase::Failed:
+        job.state = JobState::Failed;
+        break;
+    case ExportJobTransition::Phase::Cancelled:
+        job.state = JobState::Cancelled;
+        break;
+    }
+    job.statusText = decision.statusText;
     discardExporter(job);
     emit jobsChanged();
 }
@@ -316,14 +355,13 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
     job->totalClips = request.clips.size();
 
     if (request.format == ExportOutputFormat::Xml) {
-        job->state = JobState::Succeeded;
-        job->statusText = AppLocale::trUi("export.xml_success");
         jobs_.push_back(std::move(job));
-        emit jobsChanged();
+        finishJob(*jobs_.back(),
+                  ClipExporter::Outcome::Succeeded,
+                  AppLocale::trUi("export.xml_success"));
         return true;
     }
 
-    job->state = JobState::Exporting;
     job->currentClip = 0;
     updateExportingStatus(*job);
     job->exportSession = std::move(exportSession);
@@ -355,25 +393,28 @@ bool ExportJobManager::startJob(const ExportJobRequest& request, QString* errorM
         emit jobsChanged();
     });
     connect(exporter, &ClipExporter::exportFinished, exporter,
-            [this, jobPointer, snapshotSession](bool success, const QString& message) {
+            [this, jobPointer, snapshotSession](ClipExporter::Outcome outcome, const QString& message) {
         if (jobPointer->state != JobState::Exporting) return;
-        if (!success) {
-            const bool cancelled = message.contains(QStringLiteral("cancelled"), Qt::CaseInsensitive);
+        if (outcome == ClipExporter::Outcome::Cancelled) {
             finishJob(*jobPointer,
-                      cancelled ? JobState::Cancelled : JobState::Failed,
-                      cancelled ? AppLocale::trUi("export.job_cancelled") : message);
+                      ClipExporter::Outcome::Cancelled,
+                      AppLocale::trUi("export.job_cancelled"));
+            return;
+        }
+        if (outcome == ClipExporter::Outcome::Failed) {
+            finishJob(*jobPointer, ClipExporter::Outcome::Failed, message);
             return;
         }
         if (jobPointer->format == ExportOutputFormat::Both && !jobPointer->xmlPath.isEmpty()) {
             QString xmlError;
             if (!XmlExporter::writeAllInstances(snapshotSession, jobPointer->xmlPath, &xmlError)) {
                 finishJob(*jobPointer,
-                          JobState::Failed,
+                          ClipExporter::Outcome::Failed,
                           xmlError.isEmpty() ? AppLocale::trUi("export.xml_failed") : xmlError);
                 return;
             }
         }
-        finishJob(*jobPointer, JobState::Succeeded, AppLocale::trUi("export.done"));
+        finishJob(*jobPointer, ClipExporter::Outcome::Succeeded, AppLocale::trUi("export.done"));
     });
 
     jobs_.push_back(std::move(job));
@@ -386,7 +427,7 @@ void ExportJobManager::cancelJob(int jobId) {
     Job* job = jobById(jobId);
     if (!job) return;
     if (job->state != JobState::Exporting) return;
-    finishJob(*job, JobState::Cancelled, AppLocale::trUi("export.job_cancelled"));
+    finishJob(*job, ClipExporter::Outcome::Cancelled, AppLocale::trUi("export.job_cancelled"));
 }
 
 void ExportJobManager::dismissJob(int jobId) {

@@ -314,6 +314,7 @@ WorkWindow::WorkWindow(QWidget* parent)
     applyModeChrome();
     applyUiStrings();
     installXmlDragWatch();
+    applyVideoCommandAvailability();
 }
 
 WorkWindow::~WorkWindow() {
@@ -498,7 +499,13 @@ void WorkWindow::abortVideoOpen(const QString& errorMessage) {
     if (!errorMessage.isEmpty()) {
         QMessageBox::warning(this, AppLocale::trUi("app.title"), errorMessage);
     }
-    onCloseVideo();
+    // Wait keeps the export. Closing anyway would leave the open half-applied:
+    // pending paths, suspended notes, and a stage that no longer matches the player.
+    if (!confirmExportAllowsVideoRelease()) {
+        abandonFailedVideoOpen();
+        return;
+    }
+    closeVideoAfterExportCheck();
 }
 
 void WorkWindow::applyUiStrings() const {
@@ -612,7 +619,9 @@ void WorkWindow::setTagSession(TagSession* session) {
 }
 
 void WorkWindow::saveOpenMatchSession() {
-    if (workStage_ != WorkStage::VideoOpen || matchSourcePaths_.isEmpty() || tagSession_ == nullptr) return;
+    const bool committedVideo = workStage_ == VideoOpenStage::Stage::VideoOpen ||
+                                workStage_ == VideoOpenStage::Stage::Replacing;
+    if (!committedVideo || matchSourcePaths_.isEmpty() || tagSession_ == nullptr) return;
     notesController_->flushPendingClipNote();
     notesController_->saveMatchNoteDebounceFired();
     const MatchSessionFile::Document document = MatchSessionFile::capture(
@@ -687,8 +696,6 @@ void WorkWindow::connectTagSessionSignals() {
     tagSessionConnections_.append(connect(
         tagSession_, &TagSession::tagsChanged, this, &WorkWindow::onTagSessionTagsChanged));
     tagSessionConnections_.append(connect(
-        tagSession_, &TagSession::tagsImported, this, &WorkWindow::onTagSessionTagsImported));
-    tagSessionConnections_.append(connect(
         tagSession_, &TagSession::gameMetadataChanged, this, &WorkWindow::onTagSessionGameMetadataChanged));
     tagSessionConnections_.append(connect(
         tagSession_, &TagSession::eventLabelOverridesChanged, this,
@@ -700,18 +707,6 @@ void WorkWindow::onTagSessionTagsChanged(quint64 addedTagId) {
     tagsTableController_->syncFilterMenu();
     tagsTableController_->refreshTagsTableRows();
     if (addedTagId != 0) flashNewTagRow(addedTagId);
-    if (gameControls_) {
-        gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
-                                        tagSession_->currentQuarterIndex());
-    }
-}
-
-void WorkWindow::onTagSessionTagsImported() {
-    if (!tagSession_) return;
-    if (gameControls_) {
-        gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
-                                        tagSession_->currentQuarterIndex());
-    }
 }
 
 void WorkWindow::onTagSessionGameMetadataChanged() {
@@ -730,6 +725,32 @@ void WorkWindow::setModeToggleButtonsChecked() {
     if (modePresentingButton_) modePresentingButton_->setChecked(mode_ == Mode::Presenting);
 }
 
+bool WorkWindow::isAllowedModeTransition(Mode from, Mode to) {
+    auto known = [](Mode mode) {
+        switch (mode) {
+        case Mode::Tagging:
+        case Mode::Analyzing:
+        case Mode::Presenting:
+            return true;
+        }
+        return false;
+    };
+    return known(from) && known(to);
+}
+
+bool WorkWindow::transitionMode(Mode mode) {
+    if (!isAllowedModeTransition(mode_, mode)) {
+        qWarning("WorkWindow: refused illegal mode transition from %d to %d",
+                 static_cast<int>(mode_), static_cast<int>(mode));
+        Q_ASSERT_X(false, "WorkWindow::transitionMode", "illegal work mode transition");
+        return false;
+    }
+    if (mode_ == mode) return true;
+    mode_ = mode;
+    emit workModeChanged();
+    return true;
+}
+
 void WorkWindow::setMode(Mode mode) {
     if (mode_ == mode) {
         syncModeToggleChecks();
@@ -739,7 +760,7 @@ void WorkWindow::setMode(Mode mode) {
     if (mode_ == Mode::Presenting && mode != Mode::Presenting) {
         presentationPlaybackController_->leavePresentationPlayback();
     }
-    mode_ = mode;
+    if (!transitionMode(mode)) return;
     applyModeChrome();
     if (mode == Mode::Presenting) {
         if (presentationPanel_) presentationPanel_->refreshFromSession();
@@ -753,7 +774,10 @@ void WorkWindow::setMode(Mode mode) {
 void WorkWindow::leavePresentingForVideoChange() {
     // Closing or loading a video leaves Presenting. The next video would otherwise
     // open there with the Tab filter already removed, and setMode would not install it again.
-    mode_ = Mode::Tagging;
+    // Order stays: Tagging, detach the Tab filter, then chrome.
+    if (mode_ != Mode::Tagging) {
+        if (!transitionMode(Mode::Tagging)) return;
+    }
     presentationPlaybackController_->detachPresentationKeyboardShortcuts();
     applyModeChrome();
     syncModeToggleChecks();
@@ -1053,7 +1077,9 @@ void WorkWindow::buildVideoSettingsMenu(QHBoxLayout* videoControlsLayout) {
     closeVideoAction_ = videoMenu->addAction(QString());
     videoMenu->addSeparator();
     importXmlAction_ = videoMenu->addAction(QString());
+    importXmlAction_->setObjectName(QStringLiteral("ImportXmlAction"));
     exportXmlAction_ = videoMenu->addAction(QString());
+    exportXmlAction_->setObjectName(QStringLiteral("ExportXmlAction"));
     clipDurationSettingsAction_ = videoMenu->addAction(QString());
     editGameControlsAction_ = videoMenu->addAction(QString());
     videoMenu->addSeparator();
@@ -1563,12 +1589,180 @@ void WorkWindow::wireApplicationFocusSignals() {
 }
 
 
+namespace {
+
+VideoOpenStage::Action flightActionForStage(VideoOpenStage::Stage stage) {
+    if (stage == VideoOpenStage::Stage::VideoOpen ||
+        stage == VideoOpenStage::Stage::Replacing) {
+        return VideoOpenStage::Action::BeginReplace;
+    }
+    return VideoOpenStage::Action::BeginPreparation;
+}
+
+}  // namespace
+
+void WorkWindow::captureSettledVideoSnapshot() {
+    SettledVideoSnapshot snapshot;
+    snapshot.valid = true;
+    snapshot.sourceVideoPath = sourceVideoPath_;
+    snapshot.matchSourcePaths = matchSourcePaths_;
+    snapshot.exportDefaultDirectoryPath = exportDefaultDirectoryPath_;
+    snapshot.contentStackIndex = contentStack_ ? contentStack_->currentIndex() : 0;
+    if (tagSession_ != nullptr) {
+        snapshot.metadataCaptured = true;
+        snapshot.homeTeamName = tagSession_->homeTeamName();
+        snapshot.awayTeamName = tagSession_->awayTeamName();
+        snapshot.homeTeamColor = tagSession_->homeTeamColor();
+        snapshot.awayTeamColor = tagSession_->awayTeamColor();
+        snapshot.gameDate = tagSession_->gameDate();
+        snapshot.homeAbbrev = tagSession_->homeAbbrev();
+        snapshot.awayAbbrev = tagSession_->awayAbbrev();
+    }
+    settledVideoSnapshot_ = snapshot;
+}
+
+/// Abandon effect of commitVideoStage. Not a second entry point.
+void WorkWindow::restoreSettledVideoSnapshot() {
+    if (!settledVideoSnapshot_.valid) {
+        sourceVideoPath_.clear();
+        matchSourcePaths_.clear();
+        exportDefaultDirectoryPath_.clear();
+        settledVideoSnapshot_ = {};
+        return;
+    }
+
+    sourceVideoPath_ = settledVideoSnapshot_.sourceVideoPath;
+    matchSourcePaths_ = settledVideoSnapshot_.matchSourcePaths;
+    exportDefaultDirectoryPath_ = settledVideoSnapshot_.exportDefaultDirectoryPath;
+    if (contentStack_ != nullptr) {
+        contentStack_->setCurrentIndex(settledVideoSnapshot_.contentStackIndex);
+    }
+    if (settledVideoSnapshot_.metadataCaptured && tagSession_ != nullptr) {
+        tagSession_->setGameTeams(settledVideoSnapshot_.homeTeamName,
+                                  settledVideoSnapshot_.awayTeamName,
+                                  settledVideoSnapshot_.homeTeamColor,
+                                  settledVideoSnapshot_.awayTeamColor);
+        tagSession_->setGameMetadata(settledVideoSnapshot_.gameDate,
+                                     settledVideoSnapshot_.homeAbbrev,
+                                     settledVideoSnapshot_.awayAbbrev);
+    }
+    settledVideoSnapshot_ = {};
+}
+
+WorkWindow::VideoStageCommitResult WorkWindow::commitVideoStage(
+    VideoOpenStage::Action action, const VideoStageInput& input) {
+    const VideoOpenStage::Result reduced = VideoOpenStage::reduce(workStage_, action);
+    if (!reduced.accepted) {
+        qWarning("WorkWindow: refused video transition %s from %s",
+                 VideoOpenStage::actionName(action),
+                 VideoOpenStage::stageName(workStage_));
+        Q_ASSERT_X(false, "WorkWindow::commitVideoStage", "illegal video stage transition");
+        return {};
+    }
+
+    const VideoOpenStage::Stage previousStage = workStage_;
+    const bool enteringFlight =
+        (previousStage == VideoOpenStage::Stage::NoVideo &&
+         reduced.stage == VideoOpenStage::Stage::Preparing) ||
+        (previousStage == VideoOpenStage::Stage::VideoOpen &&
+         reduced.stage == VideoOpenStage::Stage::Replacing);
+    if (enteringFlight) {
+        captureSettledVideoSnapshot();
+    }
+
+    VideoStageCommitResult result;
+    result.accepted = true;
+    switch (action) {
+    case VideoOpenStage::Action::BeginPreparation:
+    case VideoOpenStage::Action::BeginReplace:
+        pendingMatchSourcePaths_ = input.pendingMatchSourcePaths;
+        pendingMetadataConfirmed_ = input.pendingMetadataConfirmed;
+        if (input.updateExportDirectory) {
+            exportDefaultDirectoryPath_ = input.exportDirectory;
+        }
+        break;
+    case VideoOpenStage::Action::CommitOpened:
+        if (!pendingMatchSourcePaths_.isEmpty()) {
+            matchSourcePaths_ = pendingMatchSourcePaths_;
+        } else if (matchSourcePaths_.isEmpty()) {
+            matchSourcePaths_ =
+                MatchSessionFile::normalizedSourcePaths(QStringList{input.sourceVideoPath});
+        }
+        result.keepMetadata = pendingMetadataConfirmed_;
+        pendingMatchSourcePaths_.clear();
+        pendingMetadataConfirmed_ = false;
+        sourceVideoPath_ = input.sourceVideoPath;
+        settledVideoSnapshot_ = {};
+        break;
+    case VideoOpenStage::Action::Close:
+        sourceVideoPath_.clear();
+        matchSourcePaths_.clear();
+        pendingMatchSourcePaths_.clear();
+        pendingMetadataConfirmed_ = false;
+        exportDefaultDirectoryPath_.clear();
+        settledVideoSnapshot_ = {};
+        break;
+    case VideoOpenStage::Action::AbandonFailedOpen:
+        restoreSettledVideoSnapshot();
+        pendingMatchSourcePaths_.clear();
+        pendingMetadataConfirmed_ = false;
+        break;
+    }
+
+    workStage_ = reduced.stage;
+    emit workStageChanged();
+    applyVideoCommandAvailability();
+    return result;
+}
+
+void WorkWindow::closeVideoAfterExportCheck() {
+    ++playbackPreparationGeneration_;
+    ++videoConcatenationGeneration_;
+    saveOpenMatchSession();
+    commitVideoStage(VideoOpenStage::Action::Close, {});
+    showSessionFileWarning(false);
+    if (tagToast_) tagToast_->dismissImmediately();
+    capturedMainEvent_.reset();
+    if (tagSession_) tagSession_->clear();
+    if (telestrationSession_) telestrationSession_->clear();
+    if (tagsModel_) tagsModel_->setRows({});
+    if (gameControls_) gameControls_->setTeamSide(TagSession::TeamSide::Unspecified);
+    if (videoPlayer_) videoPlayer_->setControlsVisible(false);
+    setVideoMuteButtonEnabled(false);
+    updateVideoMuteButton(false);
+    if (gameControls_) gameControls_->resetGameTimeState();
+    if (workOuterSplitter_) workOuterSplitter_->hide();
+    if (modeTaggingButton_) modeTaggingButton_->hide();
+    if (modeAnalyzingButton_) modeAnalyzingButton_->hide();
+    if (modePresentingButton_) modePresentingButton_->hide();
+    if (modeToggleTrack_) modeToggleTrack_->syncToMode(false);
+    if (presentationQueue_) presentationQueue_->clear();
+    presentationPlaybackController_->resetPresentationForVideoChange();
+    releaseTransientResources();
+    emit videoClosed();
+    refreshPlaybackShortcutFocusGate();
+}
+
+void WorkWindow::abandonFailedVideoOpen() {
+    commitVideoStage(VideoOpenStage::Action::AbandonFailedOpen, {});
+    notesController_->resumeNoteDebounceTimers();
+}
+
+void WorkWindow::applyVideoCommandAvailability() {
+    const bool allowed = videoImportAndExportAllowed();
+    if (importXmlAction_) importXmlAction_->setEnabled(allowed);
+    if (exportXmlAction_) exportXmlAction_->setEnabled(allowed);
+    if (presentationPanel_) presentationPanel_->setExportEnabled(allowed);
+}
+
 void WorkWindow::showTeamSetupForVideo(const QString& filePath, const QStringList& sourceVideoPaths) {
     if (!gameSetupWidget_ || !contentStack_) return;
     gameSetupWidget_->setVideoPath(filePath);
     const QStringList sources = sourceVideoPaths.isEmpty() ? QStringList{filePath} : sourceVideoPaths;
-    pendingMatchSourcePaths_ = MatchSessionFile::normalizedSourcePaths(sources);
-    pendingMetadataConfirmed_ = false;
+    VideoStageInput input;
+    input.pendingMatchSourcePaths = MatchSessionFile::normalizedSourcePaths(sources);
+    input.pendingMetadataConfirmed = false;
+    if (!commitVideoStage(flightActionForStage(workStage_), input).accepted) return;
     const MatchSessionFile::LoadResult loaded =
         MatchSessionFile::loadForSources(pendingMatchSourcePaths_);
     if (loaded.status == MatchSessionFile::LoadStatus::Loaded) {
@@ -1623,7 +1817,10 @@ void WorkWindow::applyConfirmedGameSetup(const QString& filePath,
                                          const QDate& gameDate,
                                          const QString& homeAbbrev,
                                          const QString& awayAbbrev) {
-    pendingMetadataConfirmed_ = true;
+    VideoStageInput input;
+    input.pendingMatchSourcePaths = pendingMatchSourcePaths_;
+    input.pendingMetadataConfirmed = true;
+    if (!commitVideoStage(flightActionForStage(workStage_), input).accepted) return;
     if (tagSession_) {
         tagSession_->setGameTeams(homeName, awayName, homeColor, awayColor);
         tagSession_->setGameMetadata(gameDate, homeAbbrev, awayAbbrev);
@@ -1633,21 +1830,15 @@ void WorkWindow::applyConfirmedGameSetup(const QString& filePath,
 }
 
 void WorkWindow::onGameStartRequested() {
+    // Returning here leaves the panel where it is. The panel does not advance
+    // until the session emits quarterPhaseChanged.
     if (!videoPlayer_ || !tagSession_) return;
-    if (tagSession_->startGame(videoPlayer_->currentPositionMs())) return;
-    if (gameControls_) {
-        gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
-                                        tagSession_->currentQuarterIndex());
-    }
+    tagSession_->startGame(videoPlayer_->currentPositionMs());
 }
 
 void WorkWindow::onNextQuarterRequested() {
     if (!videoPlayer_ || !tagSession_) return;
-    if (tagSession_->advanceQuarter(videoPlayer_->currentPositionMs())) return;
-    if (gameControls_) {
-        gameControls_->restoreGamePhase(tagSession_->quarterPhase(),
-                                        tagSession_->currentQuarterIndex());
-    }
+    tagSession_->advanceQuarter(videoPlayer_->currentPositionMs());
 }
 
 void WorkWindow::onGameSetupCancelled() {
@@ -1656,19 +1847,28 @@ void WorkWindow::onGameSetupCancelled() {
 
 void WorkWindow::loadVideoFromFile(const QString& filePath) {
     if (filePath.isEmpty()) return;
+
+    VideoStageInput input;
     if (pendingMatchSourcePaths_.isEmpty() && matchSourcePaths_.isEmpty()) {
-        pendingMatchSourcePaths_ = MatchSessionFile::normalizedSourcePaths(QStringList{filePath});
-        pendingMetadataConfirmed_ = false;
+        input.pendingMatchSourcePaths =
+            MatchSessionFile::normalizedSourcePaths(QStringList{filePath});
+        input.pendingMetadataConfirmed = false;
+    } else {
+        input.pendingMatchSourcePaths = pendingMatchSourcePaths_;
+        input.pendingMetadataConfirmed = pendingMetadataConfirmed_;
     }
+    if (!commitVideoStage(flightActionForStage(workStage_), input).accepted) return;
 
     ++playbackPreparationGeneration_;
     activePlaybackPreparer_.reset();
     activePlaybackPrepDirectory_.reset();
     notesController_->suspendNoteDebounceTimers();
-    playbackTemporaryDirectoryController_->releasePlaybackPrepTemporaryDirectory();
 
     if (!PlaybackVideoPreparer::requiresTranscodeForPlayback(filePath)) {
         finishOpeningVideo(filePath, filePath);
+        if (workStage_ == VideoOpenStage::Stage::VideoOpen) {
+            playbackTemporaryDirectoryController_->releasePlaybackPrepTemporaryDirectory();
+        }
         return;
     }
 
@@ -1705,23 +1905,22 @@ void WorkWindow::loadVideoFromFile(const QString& filePath) {
 
 void WorkWindow::finishOpeningVideo(const QString& filePath, const QString& playbackPath) {
     saveOpenMatchSession();
-    if (!pendingMatchSourcePaths_.isEmpty()) {
-        matchSourcePaths_ = pendingMatchSourcePaths_;
-    } else if (matchSourcePaths_.isEmpty()) {
-        matchSourcePaths_ = MatchSessionFile::normalizedSourcePaths(QStringList{filePath});
-    }
-    pendingMatchSourcePaths_.clear();
-    const bool keepMetadata = pendingMetadataConfirmed_;
-    pendingMetadataConfirmed_ = false;
-
-    sourceVideoPath_ = filePath;
-    workStage_ = WorkStage::VideoOpen;
+    VideoStageInput input;
+    input.sourceVideoPath = filePath;
+    const VideoStageCommitResult committed =
+        commitVideoStage(VideoOpenStage::Action::CommitOpened, input);
+    if (!committed.accepted) return;
+    if (workStage_ != VideoOpenStage::Stage::VideoOpen) return;
     resetSessionForOpenedVideo();
     showPlayerForOpenedVideo(playbackPath);
+    if (workStage_ != VideoOpenStage::Stage::VideoOpen) return;
     showWorkChromeForOpenedVideo();
     resetPresentationForOpenedVideo();
-    restoreOpenedMatchSession(keepMetadata);
+    restoreOpenedMatchSession(committed.keepMetadata);
     refreshSurfacesForOpenedVideo();
+    if (workStage_ != VideoOpenStage::Stage::VideoOpen) return;
+    playbackTemporaryDirectoryController_->releaseConcatenatedDirectoryIfUnneeded(
+        filePath, playbackPath);
 }
 
 void WorkWindow::resetSessionForOpenedVideo() {
@@ -1763,8 +1962,8 @@ void WorkWindow::resetPresentationForOpenedVideo() {
     presentationPlaybackController_->resetPresentationForVideoChange();
     if (presentationPanel_) {
         presentationPanel_->refreshFromSession();
-        presentationPanel_->setExportEnabled(true);
     }
+    applyVideoCommandAvailability();
     presentationPlaybackController_->updatePresentationStage();
 }
 
@@ -1865,10 +2064,14 @@ void WorkWindow::onReplaceVideo() {
 }
 
 void WorkWindow::replaceOpenVideoWithFile(const QString& filePath) {
-    pendingMatchSourcePaths_ = MatchSessionFile::normalizedSourcePaths(QStringList{filePath});
-    pendingMetadataConfirmed_ = false;
-    releaseTransientResources();
-    setExportDefaultDirectoryFromVideoPath(filePath);
+    VideoStageInput input;
+    input.pendingMatchSourcePaths =
+        MatchSessionFile::normalizedSourcePaths(QStringList{filePath});
+    input.pendingMetadataConfirmed = false;
+    input.updateExportDirectory = true;
+    input.exportDirectory = QFileInfo(filePath).absolutePath();
+    if (!commitVideoStage(flightActionForStage(workStage_), input).accepted) return;
+    playbackTemporaryDirectoryController_->cleanupPendingConcatenation();
     loadVideoFromFile(filePath);
 }
 
@@ -1878,7 +2081,6 @@ void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
         notesController_->resumeNoteDebounceTimers();
         return;
     }
-    setExportDefaultDirectoryFromVideoPath(filePaths.first());
 
     ++videoConcatenationGeneration_;
     activeConcatenator_.reset();
@@ -1893,11 +2095,21 @@ void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
         return;
     }
 
+    VideoStageInput input;
+    input.pendingMatchSourcePaths = MatchSessionFile::normalizedSourcePaths(filePaths);
+    input.pendingMetadataConfirmed = false;
+    input.updateExportDirectory = true;
+    input.exportDirectory = QFileInfo(filePaths.first()).absolutePath();
+    if (!commitVideoStage(flightActionForStage(workStage_), input).accepted) {
+        notesController_->resumeNoteDebounceTimers();
+        return;
+    }
+
     const int generation = videoConcatenationGeneration_;
     activeConcatTemporaryDirectory_ = std::move(tempDir);
     activeConcatenator_ = std::make_unique<VideoConcatenator>();
     connect(activeConcatenator_.get(), &VideoConcatenator::runFinished, this,
-            [this, generation, filePaths](const VideoConcatenationResult& result) {
+            [this, generation](const VideoConcatenationResult& result) {
                 if (generation != videoConcatenationGeneration_) return;
                 std::unique_ptr<QTemporaryDir> finishedDirectory =
                     std::move(activeConcatTemporaryDirectory_);
@@ -1906,13 +2118,10 @@ void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
                     if (!result.errorMessage.isEmpty()) {
                         QMessageBox::warning(this, AppLocale::trUi("app.title"), result.errorMessage);
                     }
-                    notesController_->resumeNoteDebounceTimers();
+                    abandonFailedVideoOpen();
                     return;
                 }
                 const QString outputPath = result.outputPath;
-                pendingMatchSourcePaths_ = MatchSessionFile::normalizedSourcePaths(filePaths);
-                pendingMetadataConfirmed_ = false;
-                releaseTransientResources();
                 setConcatenatedVideoTemporaryDirectory(std::move(finishedDirectory));
                 loadVideoFromFile(outputPath);
             },
@@ -1923,48 +2132,18 @@ void WorkWindow::replaceOpenVideoWithConcatenation(QStringList filePaths) {
 
 void WorkWindow::onCloseVideo() {
     if (!confirmExportAllowsVideoRelease()) return;
-    saveOpenMatchSession();
-    workStage_ = WorkStage::NoVideo;
-    matchSourcePaths_.clear();
-    pendingMatchSourcePaths_.clear();
-    pendingMetadataConfirmed_ = false;
-    showSessionFileWarning(false);
-    sourceVideoPath_.clear();
-    if (tagToast_) tagToast_->dismissImmediately();
-    capturedMainEvent_.reset();
-    if (gameControls_) gameControls_->setTeamSide(TagSession::TeamSide::Unspecified);
-    if (videoPlayer_) videoPlayer_->setControlsVisible(false);
-    setVideoMuteButtonEnabled(false);
-    updateVideoMuteButton(false);
-    if (gameControls_) gameControls_->resetGameTimeState();
-    if (workOuterSplitter_) workOuterSplitter_->hide();
-    if (modeTaggingButton_) modeTaggingButton_->hide();
-    if (modeAnalyzingButton_) modeAnalyzingButton_->hide();
-    if (modePresentingButton_) modePresentingButton_->hide();
-    if (modeToggleTrack_) modeToggleTrack_->syncToMode(false);
-    if (presentationQueue_) presentationQueue_->clear();
-    if (presentationPanel_) presentationPanel_->setExportEnabled(false);
-    presentationPlaybackController_->resetPresentationForVideoChange();
-
-    if (tagSession_) tagSession_->clear();
-    if (telestrationSession_) telestrationSession_->clear();
-    if (tagsModel_) tagsModel_->setRows({});
-
-    releaseTransientResources();
-    exportDefaultDirectoryPath_.clear();
-    emit videoClosed();
-    refreshPlaybackShortcutFocusGate();
+    closeVideoAfterExportCheck();
 }
 
 void WorkWindow::onPresentationExportRequested() {
-    if (!tagSession_ || !hasOpenVideo() || !exportJobManager_) return;
+    if (!tagSession_ || !videoImportAndExportAllowed() || !exportJobManager_) return;
 
     const QVector<PresentationQueue::Clip> queuedClips = copyPresentationQueueClips();
     startPresentationExportForClips(queuedClips);
 }
 
 void WorkWindow::onPresentationExportClipRequested(int tagSessionIndex) {
-    if (!tagSession_ || !hasOpenVideo() || !exportJobManager_ || !presentationQueue_) return;
+    if (!tagSession_ || !videoImportAndExportAllowed() || !exportJobManager_ || !presentationQueue_) return;
     if (!tagSession_->isValidTagIndex(tagSessionIndex)) return;
 
     const PresentationQueue::Clip clip = presentationQueue_->clipFromSessionIndex(tagSessionIndex);
@@ -1975,7 +2154,7 @@ void WorkWindow::onPresentationExportClipRequested(int tagSessionIndex) {
 
 void WorkWindow::startPresentationExportForClips(
     const QVector<PresentationQueue::Clip>& clipsToExport) {
-    if (!tagSession_ || !hasOpenVideo() || !exportJobManager_ || clipsToExport.isEmpty()) return;
+    if (!tagSession_ || !videoImportAndExportAllowed() || !exportJobManager_ || clipsToExport.isEmpty()) return;
 
     ExportSettingsDialog dialog(
         tagSession_,
@@ -2042,7 +2221,7 @@ ExportJobRequest WorkWindow::buildPresentationExportRequest(
 }
 
 void WorkWindow::onExportXml() {
-    if (!tagSession_ || !hasOpenVideo() || !exportJobManager_) return;
+    if (!tagSession_ || !videoImportAndExportAllowed() || !exportJobManager_) return;
 
     if (tagSession_->tags().isEmpty()) {
         QMessageBox::warning(this,
@@ -2091,7 +2270,7 @@ void WorkWindow::onImportXml() {
 }
 
 bool WorkWindow::xmlImportAvailable() const {
-    return tagSession_ != nullptr && videoPlayer_ != nullptr && hasOpenVideo();
+    return tagSession_ != nullptr && videoPlayer_ != nullptr && videoImportAndExportAllowed();
 }
 
 bool WorkWindow::xmlFileDropAllowed() const {

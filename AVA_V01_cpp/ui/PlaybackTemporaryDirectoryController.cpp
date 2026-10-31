@@ -90,6 +90,15 @@ void PlaybackTemporaryDirectoryController::releasePlaybackPrepTemporaryDirectory
   retainOrDeleteTemporaryDirectory(playbackPrepTempDir_);
 }
 
+void PlaybackTemporaryDirectoryController::releaseConcatenatedDirectoryIfUnneeded(
+    const QString& sourcePath, const QString& playbackPath) {
+  if (!concatenatedVideoTempDir_) return;
+  const QString directoryPath = QDir(concatenatedVideoTempDir_->path()).absolutePath();
+  if (ExportOutputPath::pathIsInsideDirectory(sourcePath, directoryPath)) return;
+  if (ExportOutputPath::pathIsInsideDirectory(playbackPath, directoryPath)) return;
+  releaseConcatenatedVideoTemporaryDirectory();
+}
+
 void PlaybackTemporaryDirectoryController::retainOrDeleteTemporaryDirectory(
     std::unique_ptr<QTemporaryDir>& directory) {
   if (!directory) return;

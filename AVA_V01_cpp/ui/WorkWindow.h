@@ -13,6 +13,7 @@
 
 #include "../export/ExportSettingsDialog.h"
 #include "../state/PresentationQueue.h"
+#include "../state/VideoOpenStage.h"
 #include "TagsTableModel.h"
 #include "XmlEventMappingDialog.h"
 
@@ -61,11 +62,17 @@ namespace Telestration {
 class Session;
 }
 
+class ExplicitStateMachineTest;
+
 class WorkWindow final : public QWidget {
   Q_OBJECT
 
 public:
   enum class Mode { Tagging, Analyzing, Presenting };
+
+  /// Every real mode may move to every real mode, including staying put.
+  /// An out-of-range value is refused.
+  static bool isAllowedModeTransition(Mode from, Mode to);
 
   /// Tagging column on the left: video keeps any width above this cap.
   static constexpr int kMaximumTaggingSidePanelWidthPx = 500;
@@ -73,10 +80,6 @@ public:
   /// Padding around the work surface. The XML drop ring stays inside this band
   /// on the top and sides, on the app background.
   static constexpr int kContentMarginPx = 12;
-
-  /// Whether a source video is loaded. Path, stack index, and widget visibility
-  /// are not substitutes for this.
-  enum class WorkStage { NoVideo, VideoOpen };
 
   explicit WorkWindow(QWidget* parent = nullptr);
   ~WorkWindow() override;
@@ -89,11 +92,23 @@ public:
   void setPendingConcatenation(std::unique_ptr<VideoConcatenator> concatenator);
   void releaseTransientResources();
   Mode mode() const { return mode_; }
-  bool hasOpenVideo() const { return workStage_ == WorkStage::VideoOpen; }
+  VideoOpenStage::Stage workStage() const { return workStage_; }
+  /// True while a committed video is on screen, including during replace.
+  /// Preparing (no committed video yet) is false.
+  bool hasOpenVideo() const {
+    return workStage_ == VideoOpenStage::Stage::VideoOpen ||
+           workStage_ == VideoOpenStage::Stage::Replacing;
+  }
+  /// XML import and presentation/XML export. False while preparing or replacing.
+  bool videoImportAndExportAllowed() const {
+    return VideoOpenStage::allowsXmlImportAndExport(workStage_);
+  }
   void setMode(Mode mode);
 
 signals:
   void videoClosed();
+  void workStageChanged();
+  void workModeChanged();
 
 private slots:
   void onReplaceVideo();
@@ -254,17 +269,40 @@ private:
   void placeSidePanelForMode(bool isTagging);
   void updateTagToastForMode(bool isTagging);
   void setModeToggleButtonsChecked();
-  /// Video close or load while Presenting. Assigns Tagging directly, detaches the Tab
-  /// filter, then applies chrome. setMode would flush notes and commit ModeExit first.
+  /// Video close or load while Presenting. Moves to Tagging through transitionMode,
+  /// detaches the Tab filter, then applies chrome. setMode would flush notes and
+  /// commit ModeExit first.
   void leavePresentingForVideoChange();
+  /// Only writer of mode_.
+  bool transitionMode(Mode mode);
 
   void bindTagSessionToSurfaces();
   void connectTagSessionSignals();
   void onTagSessionTagsChanged(quint64 addedTagId);
-  void onTagSessionTagsImported();
   void onTagSessionGameMetadataChanged();
 
   void finishOpeningVideo(const QString& filePath, const QString& playbackPath);
+
+  struct VideoStageInput {
+    QStringList pendingMatchSourcePaths;
+    bool pendingMetadataConfirmed = false;
+    bool updateExportDirectory = false;
+    QString exportDirectory;
+    QString sourceVideoPath;
+  };
+  struct VideoStageCommitResult {
+    bool accepted = false;
+    bool keepMetadata = false;
+  };
+  /// Only writer of workStage_, sourceVideoPath_, matchSourcePaths_,
+  /// pendingMatchSourcePaths_, and pendingMetadataConfirmed_.
+  VideoStageCommitResult commitVideoStage(VideoOpenStage::Action action,
+                                          const VideoStageInput& input);
+  void captureSettledVideoSnapshot();
+  void restoreSettledVideoSnapshot();
+  void closeVideoAfterExportCheck();
+  void abandonFailedVideoOpen();
+  void applyVideoCommandAvailability();
   void applyConfirmedGameSetup(const QString& filePath,
                                const QString& homeName,
                                const QString& awayName,
@@ -312,7 +350,7 @@ private:
 
   // Mode and layout
   Mode mode_ = Mode::Tagging;
-  WorkStage workStage_ = WorkStage::NoVideo;
+  VideoOpenStage::Stage workStage_ = VideoOpenStage::Stage::NoVideo;
   QStackedWidget* contentStack_ = nullptr;
   QWidget* mainContentContainer_ = nullptr;
   GameSetupWindow* gameSetupWidget_ = nullptr;
@@ -383,10 +421,29 @@ private:
   /// Canonical source videos for the match that is open. Not the temporary
   /// playback file.
   QStringList matchSourcePaths_;
-  /// Sources for a video that is still opening. Committed in finishOpeningVideo.
+  /// Sources for a video that is still opening. Written only by commitVideoStage.
   QStringList pendingMatchSourcePaths_;
   /// True when the setup form confirmed team metadata for the pending sources.
+  /// Written only by commitVideoStage.
   bool pendingMetadataConfirmed_ = false;
+  /// Last settled video, restored when a failed open is abandoned so an export
+  /// the user chose to keep is not left against a half-finished open.
+  struct SettledVideoSnapshot {
+    bool valid = false;
+    QString sourceVideoPath;
+    QStringList matchSourcePaths;
+    QString exportDefaultDirectoryPath;
+    int contentStackIndex = 0;
+    bool metadataCaptured = false;
+    QString homeTeamName;
+    QString awayTeamName;
+    QString homeTeamColor;
+    QString awayTeamColor;
+    QDate gameDate;
+    QString homeAbbrev;
+    QString awayAbbrev;
+  };
+  SettledVideoSnapshot settledVideoSnapshot_;
   /// True while the open match's session file is corrupt or a newer version.
   /// Saves leave that file on disk.
   bool sessionFileUnreadable_ = false;
@@ -413,4 +470,6 @@ private:
   QPointer<QWidget> xmlDropHighlight_;
   bool xmlDragClaimed_ = false;
   bool xmlImportActive_ = false;
+
+  friend class ExplicitStateMachineTest;
 };

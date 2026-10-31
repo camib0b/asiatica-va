@@ -204,6 +204,7 @@ qt_add_executable(AVAExportTests
   tests/PlaybackSpeedTests.cpp
   tests/TelestrationTests.cpp
   tests/MatchSessionFileTests.cpp
+  tests/StateMachineTests.cpp
   ui/PresentationPanel.cpp
   ui/PresentationInstancesModel.cpp
   ui/PresentationSelectionBreakdown.cpp
