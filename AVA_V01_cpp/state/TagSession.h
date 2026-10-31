@@ -186,9 +186,10 @@ public:
   void applyDefaultsToUntrimmedTags(const QString& mainEvent, qint64 leadMs, qint64 lagMs);
 
   // ---- Game-time anchor & quarter tracking ----
-  // Quarter phase, the in-progress index, and the start anchor are derived from
-  // quarter tags. startGame() and advanceQuarter() are the only mutators; they
-  // add the tag, restore state, and emit through addTag().
+  // Quarter phase and the in-progress index are derived from quarter tags.
+  // startGame() and advanceQuarter() add the tag; restore writes the phase
+  // through commitQuarterPhase(), which is the only writer. The controls panel
+  // observes quarterPhaseChanged() and does not keep its own phase.
   qint64 gameStartAnchorMs() const { return gameStartAnchorMs_; }
   bool hasGameStartAnchor() const { return gameStartAnchorMs_ >= 0; }
 
@@ -216,6 +217,10 @@ public:
   /// the game has ended. Empty before the game starts. Not a playhead lookup.
   QString currentPeriodLabel() const;
 
+  /// QuarterInProgress requires an index in 0..3. NotStarted and GameEnded have
+  /// no in-progress quarter (index < 0). Anything else is refused.
+  static bool isLegalQuarterSnapshot(QuarterPhase phase, int currentQuarterIndex);
+
   const QVector<GameTag>& tags() const { return tags_; }
   const QHash<TagEvent::MainEventKey, int>& mainEventCounts() const { return mainEventCounts_; }
   const QHash<TagEvent::MainEventKey, QHash<TagEvent::FollowUpChain, int>>& followUpCountsByMainEvent()
@@ -242,6 +247,8 @@ signals:
   void tagsChanged(quint64 addedTagId = 0);
   /// Team names/colors, date, or abbreviations changed.
   void gameMetadataChanged();
+  /// Quarter phase or the in-progress quarter index changed.
+  void quarterPhaseChanged();
   /// A label, shortcut, or hidden override was stored or cleared.
   void eventLabelOverridesChanged();
 
@@ -274,6 +281,10 @@ private:
   /// Rebuilds phase, current quarter, start anchor, and closed-quarter spans from
   /// gameTimeTags_. Call after the index changes — not after ordinary play-tag edits.
   void restoreGameTimeStateFromTags();
+  /// Only writer of quarterPhase_ and currentQuarterIndex_. Refuses an illegal
+  /// snapshot (Q_ASSERT in debug) and emits quarterPhaseChanged() when the
+  /// visible phase changes.
+  bool commitQuarterPhase(QuarterPhase phase, int currentQuarterIndex, qint64 quarterStartMs);
   void assignStableId(GameTag& tag);
   void resetGameTimeState();
 

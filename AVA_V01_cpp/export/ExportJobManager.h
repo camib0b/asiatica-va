@@ -138,7 +138,8 @@ private:
     const Job* jobById(int jobId) const;
     ExportJobSnapshot snapshotFor(const Job& job) const;
     void updateExportingStatus(Job& job);
-    void finishJob(Job& job, JobState state, const QString& message);
+    /// Only writer of Job::state after the job is constructed.
+    void finishJob(Job& job, ClipExporter::Outcome outcome, const QString& message);
     void discardExporter(Job& job);
     bool pathIsOccupied(const QString& path) const;
     static QString canonicalPath(const QString& path);

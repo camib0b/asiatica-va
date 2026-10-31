@@ -190,6 +190,11 @@ void InteractionGuardTest::quarterAdvanceIgnoresAutoRepeat() {
     controls->setFocus(Qt::OtherFocusReason);
     QVERIFY(QTest::qWaitFor([&] { return controls->hasFocus(); }));
 
+    TagSession session;
+    controls->setTagSession(&session);
+    connect(controls, &GameControls::gameStartRequested, &session, [&session]() {
+        session.startGame(0);
+    });
     QSignalSpy gameStarted(controls, &GameControls::gameStartRequested);
     QKeyEvent repeatedStart(QEvent::KeyPress, Qt::Key_G, Qt::NoModifier, QStringLiteral("g"), true);
     QApplication::sendEvent(controls, &repeatedStart);

@@ -36,6 +36,10 @@ public:
   VideoConcatenator* pendingConcatenator() const;
 
   void releasePlaybackPrepTemporaryDirectory();
+  /// Drops the concat directory when neither path is inside it. A path inside
+  /// it is the open playback file or the export source, so the directory stays.
+  void releaseConcatenatedDirectoryIfUnneeded(const QString& sourcePath,
+                                             const QString& playbackPath);
   void cleanupPendingConcatenation();
   void releaseTransientResources();
   /// Window destructor path. Disconnects the player, drops the open file, then

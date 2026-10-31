@@ -1319,6 +1319,7 @@ int runTimelineScrubTests(int argc, char** argv);
 int runPlaybackSpeedTests(int argc, char** argv);
 int runTelestrationTests(int argc, char** argv);
 int runMatchSessionFileTests(int argc, char** argv);
+int runStateMachineTests(int argc, char** argv);
 
 int main(int argc, char** argv) {
     QApplication application(argc, argv);
@@ -1413,6 +1414,10 @@ int main(int argc, char** argv) {
     const int matchSessionStatus = runMatchSessionFileTests(argc, argv);
     if (matchSessionStatus != 0) {
         return matchSessionStatus;
+    }
+    const int stateMachineStatus = runStateMachineTests(argc, argv);
+    if (stateMachineStatus != 0) {
+        return stateMachineStatus;
     }
     int status = 0;
     {

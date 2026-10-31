@@ -805,6 +805,11 @@ void EventCatalogTest::gameControlsGridMatchesTheCatalogOrder() {
   QCOMPARE(committed.at(0).at(1).toString(), QString());
 
   captured.clear();
+  TagSession session;
+  controls.setTagSession(&session);
+  connect(&controls, &GameControls::gameStartRequested, &session, [&session]() {
+    session.startGame(0);
+  });
   QSignalSpy gameStarted(&controls, &GameControls::gameStartRequested);
   QSignalSpy nextQuarter(&controls, &GameControls::nextQuarterRequested);
   QTest::keyClick(&controls, Qt::Key_G);

@@ -29,9 +29,15 @@ Move up to a transition table or `QStateMachine` only with about six or more sta
 - Two states with one transition do not need a machine.
 - Nested machines need a real hierarchy. A diagram that is not kept current is noise.
 
-## Current code (do not fix in passing)
+## Current owners
 
-`WorkWindow::WorkStage` in `AVA_V01_cpp/ui/WorkWindow.h` has no transition function. `WorkWindow.cpp` assigns `workStage_` directly in `finishOpeningVideo` and `onCloseVideo`. Related path, session, and chrome updates are spread across those functions and the helpers they call. `WorkWindow::Mode` has `setMode`, and `leavePresentingForVideoChange` also assigns `mode_` directly. Treat both as cautionary references.
+Copy these. Do not assign the fields from a second function.
+
+- Video open, replace, and close: `VideoOpenStage::reduce` decides the next stage. `WorkWindow::commitVideoStage` is the only writer of that stage and of the source paths that belong to it. XML import and export are allowed only in `VideoOpen`.
+- Quarter phase: `TagSession::commitQuarterPhase` is the only writer. `GameControls` paints from `quarterPhaseChanged` and does not store a phase.
+- Work mode: `WorkWindow::transitionMode` is the only writer of `mode_`. `setMode` and `leavePresentingForVideoChange` call it. They do not assign `mode_` themselves.
+- Export jobs: `ClipExporter::finishExport` sets `ClipExporter::Outcome`. `ExportJobTransition::apply` maps that outcome without reading the message. `ExportJobManager::finishJob` is the only writer of the job state.
+- Presentation playback: `PresentationPlayback::reduce` decides. `PresentationPlaybackController::commitPresentationPlayback` is the only assignment of `presentationPlayback_`.
 
 ## Review checklist
 

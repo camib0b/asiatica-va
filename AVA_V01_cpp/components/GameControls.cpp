@@ -527,10 +527,11 @@ QPushButton* focusUpFromEntry(const QVector<FocusNavEntry>& entries, const Focus
 GameControls::GameControls(QWidget* parent)
     : QWidget(parent),
       followUpState_(),
-      gamePhase_(GamePhase::NotStarted),
       activeMainButton_(nullptr),
       teamSide_(TagSession::TeamSide::Unspecified),
       labelOverrides_(),
+      quarterPhaseConnection_(),
+      animateNextQuarterChange_(false),
       arrangingFollowUps_(false),
       applyingTitleFit_(false),
       stackedHeightUpdateQueued_(false),
@@ -583,9 +584,12 @@ void GameControls::setEventLabelOverrides(const EventLabelOverrides::Table& over
 void GameControls::setTagSession(TagSession* session) {
   if (labelOverrideConnection_) QObject::disconnect(labelOverrideConnection_);
   labelOverrideConnection_ = {};
+  if (quarterPhaseConnection_) QObject::disconnect(quarterPhaseConnection_);
+  quarterPhaseConnection_ = {};
   tagSession_ = session;
   if (!tagSession_) {
     setEventLabelOverrides(EventLabelOverrides::Table{});
+    syncQuarterFromSession();
     return;
   }
   labelOverrideConnection_ =
@@ -593,7 +597,14 @@ void GameControls::setTagSession(TagSession* session) {
         if (!tagSession_ || breakFixtureActive_) return;
         setEventLabelOverrides(tagSession_->eventLabelOverrides());
       });
+  quarterPhaseConnection_ =
+      connect(tagSession_, &TagSession::quarterPhaseChanged, this, [this]() {
+        const bool animate = animateNextQuarterChange_;
+        animateNextQuarterChange_ = false;
+        updateGameTimeUi(animate);
+      });
   setEventLabelOverrides(tagSession_->eventLabelOverrides());
+  syncQuarterFromSession();
 }
 
 void GameControls::refreshMainButtonTitles() {
@@ -778,44 +789,41 @@ void GameControls::installControlContextMenu(QPushButton* button) {
 }
 
 void GameControls::resetGameTimeState() {
-  gamePhase_ = GamePhase::NotStarted;
-  updateGameTimeUi(false);
+  syncQuarterFromSession();
 }
 
-void GameControls::restoreGamePhase(TagSession::QuarterPhase phase, int currentQuarterIndex) {
-  switch (phase) {
+GameControls::DisplayedQuarter GameControls::displayedQuarter() const {
+  if (tagSession_ == nullptr) return DisplayedQuarter::NotStarted;
+  switch (tagSession_->quarterPhase()) {
     case TagSession::QuarterPhase::NotStarted:
-      gamePhase_ = GamePhase::NotStarted;
-      break;
+      return DisplayedQuarter::NotStarted;
     case TagSession::QuarterPhase::GameEnded:
-      gamePhase_ = GamePhase::Ended;
-      break;
+      return DisplayedQuarter::Ended;
     case TagSession::QuarterPhase::QuarterInProgress:
-      switch (currentQuarterIndex) {
-        case 0: gamePhase_ = GamePhase::Q1; break;
-        case 1: gamePhase_ = GamePhase::Q2; break;
-        case 2: gamePhase_ = GamePhase::Q3; break;
-        case 3: gamePhase_ = GamePhase::Q4; break;
+      switch (tagSession_->currentQuarterIndex()) {
+        case 0: return DisplayedQuarter::Q1;
+        case 1: return DisplayedQuarter::Q2;
+        case 2: return DisplayedQuarter::Q3;
+        case 3: return DisplayedQuarter::Q4;
         default:
-          qWarning("GameControls::restoreGamePhase: unexpected quarter index %d",
-                   currentQuarterIndex);
-          Q_ASSERT(currentQuarterIndex >= 0 && currentQuarterIndex < 4);
-          gamePhase_ = GamePhase::NotStarted;
-          break;
+          return DisplayedQuarter::NotStarted;
       }
-      break;
   }
+  return DisplayedQuarter::NotStarted;
+}
+
+void GameControls::syncQuarterFromSession() {
   updateGameTimeUi(false);
 }
 
 QString GameControls::currentPeriodName() const {
-  switch (gamePhase_) {
-    case GamePhase::Q1: return QStringLiteral("Q1");
-    case GamePhase::Q2: return QStringLiteral("Q2");
-    case GamePhase::Q3: return QStringLiteral("Q3");
-    case GamePhase::Q4: return QStringLiteral("Q4");
-    case GamePhase::NotStarted:
-    case GamePhase::Ended:
+  switch (displayedQuarter()) {
+    case DisplayedQuarter::Q1: return QStringLiteral("Q1");
+    case DisplayedQuarter::Q2: return QStringLiteral("Q2");
+    case DisplayedQuarter::Q3: return QStringLiteral("Q3");
+    case DisplayedQuarter::Q4: return QStringLiteral("Q4");
+    case DisplayedQuarter::NotStarted:
+    case DisplayedQuarter::Ended:
       return QString();
   }
   return QString();
@@ -824,42 +832,46 @@ QString GameControls::currentPeriodName() const {
 void GameControls::updateGameTimeUi(bool animateQuarterChange) {
   if (!periodAdvanceButton_ || !periodAdvanceTitleLabel_) return;
 
+  const DisplayedQuarter quarter = displayedQuarter();
   const char* titleKey = "gamecontrols.start_game";
-  switch (gamePhase_) {
-    case GamePhase::NotStarted:
+  switch (quarter) {
+    case DisplayedQuarter::NotStarted:
       titleKey = "gamecontrols.start_game";
       break;
-    case GamePhase::Q1:
+    case DisplayedQuarter::Q1:
       titleKey = "gamecontrols.start_q2";
       break;
-    case GamePhase::Q2:
+    case DisplayedQuarter::Q2:
       titleKey = "gamecontrols.start_q3";
       break;
-    case GamePhase::Q3:
+    case DisplayedQuarter::Q3:
       titleKey = "gamecontrols.start_q4";
       break;
-    case GamePhase::Q4:
-    case GamePhase::Ended:
+    case DisplayedQuarter::Q4:
+    case DisplayedQuarter::Ended:
       titleKey = "gamecontrols.end_game";
       break;
   }
   periodAdvanceTitleLabel_->setProperty("fullLabel", AppLocale::trUi(titleKey));
-  periodAdvanceButton_->setEnabled(gamePhase_ != GamePhase::Ended);
+  const bool advanceEnabled = quarter != DisplayedQuarter::Ended;
+  periodAdvanceButton_->setEnabled(advanceEnabled);
+  periodAdvanceButton_->setCursor(advanceEnabled ? Qt::PointingHandCursor : Qt::ArrowCursor);
   periodAdvanceButton_->setMinimumWidth(0);
   refreshPeriodButtonTitle();
   updateQuarterTrack(animateQuarterChange);
 }
 
 void GameControls::updateQuarterTrack(bool animateQuarterChange) {
-  const bool gameEnded = (gamePhase_ == GamePhase::Ended);
+  const DisplayedQuarter quarter = displayedQuarter();
+  const bool gameEnded = quarter == DisplayedQuarter::Ended;
   int currentQuarterIndex = -1;
-  switch (gamePhase_) {
-    case GamePhase::Q1: currentQuarterIndex = 0; break;
-    case GamePhase::Q2: currentQuarterIndex = 1; break;
-    case GamePhase::Q3: currentQuarterIndex = 2; break;
-    case GamePhase::Q4: currentQuarterIndex = 3; break;
-    case GamePhase::NotStarted:
-    case GamePhase::Ended:
+  switch (quarter) {
+    case DisplayedQuarter::Q1: currentQuarterIndex = 0; break;
+    case DisplayedQuarter::Q2: currentQuarterIndex = 1; break;
+    case DisplayedQuarter::Q3: currentQuarterIndex = 2; break;
+    case DisplayedQuarter::Q4: currentQuarterIndex = 3; break;
+    case DisplayedQuarter::NotStarted:
+    case DisplayedQuarter::Ended:
       currentQuarterIndex = -1;
       break;
   }
@@ -913,7 +925,7 @@ void GameControls::updateQuarterTrack(bool animateQuarterChange) {
   }
 
   if (!quarterTrack_) return;
-  if (gamePhase_ == GamePhase::NotStarted) {
+  if (quarter == DisplayedQuarter::NotStarted) {
     quarterTrack_->setAccessibleName(QStringLiteral("Quarter progress, not started"));
   } else if (gameEnded) {
     quarterTrack_->setAccessibleName(QStringLiteral("Quarter progress, game ended"));
@@ -926,23 +938,14 @@ void GameControls::updateQuarterTrack(bool animateQuarterChange) {
 }
 
 void GameControls::onPeriodAdvanceButtonClicked() {
-  if (gamePhase_ == GamePhase::Ended) return;
+  const DisplayedQuarter quarter = displayedQuarter();
+  if (quarter == DisplayedQuarter::Ended) return;
   flashButtonBorder(periodAdvanceButton_);
-  if (gamePhase_ == GamePhase::NotStarted) {
-    gamePhase_ = GamePhase::Q1;
-    updateGameTimeUi(true);
-    emit gameStartRequested();
-    return;
-  }
-  switch (gamePhase_) {
-    case GamePhase::Q1: gamePhase_ = GamePhase::Q2; break;
-    case GamePhase::Q2: gamePhase_ = GamePhase::Q3; break;
-    case GamePhase::Q3: gamePhase_ = GamePhase::Q4; break;
-    case GamePhase::Q4: gamePhase_ = GamePhase::Ended; break;
-    default: return;
-  }
-  updateGameTimeUi(true);
-  emit nextQuarterRequested();
+  // The session accepts or refuses. The panel paints only from quarterPhaseChanged.
+  animateNextQuarterChange_ = true;
+  if (quarter == DisplayedQuarter::NotStarted) emit gameStartRequested();
+  else emit nextQuarterRequested();
+  animateNextQuarterChange_ = false;
 }
 
 void GameControls::setActiveMainButton(QPushButton* button) {

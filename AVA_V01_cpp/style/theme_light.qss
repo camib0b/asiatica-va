@@ -456,6 +456,11 @@ QPushButton[variant="gameControl"]:disabled QLabel,
 QPushButton[variant="gameControlFollowUp"]:disabled QLabel {
   color: #52525b;
 }
+/* #e4e4e7 on #f4f4f5 is below 3:1. Match the export button's disabled border. */
+QPushButton[variant="gameControl"]:disabled,
+QPushButton[variant="gameControlFollowUp"]:disabled {
+  border: 1px solid #71717a;
+}
 
 /* =========================
    Inputs
@@ -1252,7 +1257,7 @@ QMenu::item:selected {
 }
 
 QMenu::item:disabled {
-  color: #a1a1aa;
+  color: #52525b;
 }
 
 QMenu::separator {

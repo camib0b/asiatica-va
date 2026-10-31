@@ -44,11 +44,9 @@ public:
   /// Side that will be stored on the next tag. GameControls is the only owner.
   TagSession::TeamSide selectedTeamSide() const { return teamSide_; }
 
-  /// Resets the period-advance UI back to the "no game started" state.
+  /// Paints the period-advance control from the tag session. The session is the
+  /// only owner of the quarter; this does not store a second phase.
   void resetGameTimeState();
-
-  /// Syncs the period-advance button and quarter track with imported or restored session quarter state.
-  void restoreGamePhase(TagSession::QuarterPhase phase, int currentQuarterIndex);
 
   /// Returns the canonical period name (\c "Q1".."Q4") of the quarter currently in progress,
   /// or an empty string when no quarter is in progress.
@@ -131,6 +129,17 @@ private:
   QList<QPushButton*> focusableButtonsOrder() const;
   void focusNextInDirection(Qt::Key key);
   void applyTeamOnlyTabNavigation(bool forwardTab);
+  enum class DisplayedQuarter {
+    NotStarted,
+    Q1,
+    Q2,
+    Q3,
+    Q4,
+    Ended,
+  };
+
+  DisplayedQuarter displayedQuarter() const;
+  void syncQuarterFromSession();
   void updateGameTimeUi(bool animateQuarterChange);
   void updateQuarterTrack(bool animateQuarterChange);
   void updateStackedButtonHeight(QPushButton* button);
@@ -154,12 +163,6 @@ protected:
   void resizeEvent(QResizeEvent* event) override;
   void showEvent(QShowEvent* event) override;
 
-  enum class GamePhase {
-    NotStarted,        // Period-advance enabled; starts the game.
-    Q1, Q2, Q3, Q4,    // Quarter in progress; next click starts the next Q or ends the game.
-    Ended,             // All quarters closed; period-advance disabled.
-  };
-
   QGridLayout* followUpLayout_ = nullptr;
   QWidget* followUpContainer_ = nullptr;
   int followUpColumnCount_ = 1;
@@ -180,7 +183,6 @@ protected:
   QHash<int, QPushButton*> mainEventButtonsById_;
 
   FollowUpState followUpState_{};
-  GamePhase gamePhase_ = GamePhase::NotStarted;
   QPushButton* activeMainButton_ = nullptr;
   QList<QPushButton*> followUpButtons_;
 
@@ -192,6 +194,10 @@ protected:
   EventLabelOverrides::Table labelOverrides_;
   QPointer<TagSession> tagSession_;
   QMetaObject::Connection labelOverrideConnection_;
+  QMetaObject::Connection quarterPhaseConnection_;
+  /// Set for the click that asked the session to advance. The session signal
+  /// consumes it. A refused advance never changes the painted quarter.
+  bool animateNextQuarterChange_ = false;
 
   QVector<QLabel*> mainButtonTitleLabels_;
 
