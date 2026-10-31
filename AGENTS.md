@@ -16,3 +16,7 @@ Do **not** record demo videos, walkthrough artifacts, or run browser walkthrough
 When opening work for review, use a single pull request unless the user asks otherwise.
 
 UI changes must apply `.cursor/skills/break-ui/SKILL.md` to affected screens before opening a PR.
+
+## C++ state and flags
+
+When a change in `AVA_V01_cpp/` adds a bool, a phase, or a mode, follow `.cursor/rules/state-machines.mdc`. That file is the gate for a state machine versus a plain bool. Do not restate it in other agent instruction files.

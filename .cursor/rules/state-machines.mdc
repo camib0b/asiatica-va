@@ -1,0 +1,41 @@
+---
+description: Add a C++ state machine only when flags can combine illegally; otherwise keep a bool
+globs: AVA_V01_cpp/**
+alwaysApply: false
+---
+
+# State machines, not boolean soup
+
+A plain bool stays a bool. Introduce an explicit state machine only when at least one of these is true:
+
+- Two or more flags, nullable fields, or optionals jointly decide one behavior, so impossible combinations become possible.
+- The concept has three or more states, or an in-between phase (loading, transcoding, concatenating, exporting) that can be cancelled or fail.
+- Some actions must be blocked in certain states, such as export or XML import during a video replace.
+- The same state is held in two places, such as the game quarter in both the controls panel and the tag session.
+
+## Smallest form first
+
+Use one `enum class` and one private transition function, for example `transitionTo(NewState)`. That function is the only writer of the state field. It validates the allowed transitions, updates dependent data in one place, emits a signal, and logs an illegal attempt (`Q_ASSERT` in debug). Derive enabled and visible UI from the state. A second set of flags that are checked on their own will drift.
+
+Model long-running work as an explicit state, such as a Preparing state between NoVideo and VideoOpen. One owner holds each state. Other objects observe it through signals or queries.
+
+Copy that ownership from presentation playback. `PresentationPlayback::reduce` in `AVA_V01_cpp/state/PresentationPlayback.cpp` is the only function that decides the next playback state. `PresentationPlaybackController::commitPresentationPlayback` in `AVA_V01_cpp/ui/PresentationPlaybackController.cpp` is the only assignment of `presentationPlayback_`. Callers pass an action. For a simple phase, use `enum class` plus `transitionTo`. Reach for the reducer shape only when the next state depends on an action and returns effects.
+
+Move up to a transition table or `QStateMachine` only with about six or more states, or when there is a real hierarchy.
+
+## Leave these alone
+
+- Independent on/off toggles stay bools. An enum around them adds names and no rules.
+- Two states with one transition do not need a machine.
+- Nested machines need a real hierarchy. A diagram that is not kept current is noise.
+
+## Current code (do not fix in passing)
+
+`WorkWindow::WorkStage` in `AVA_V01_cpp/ui/WorkWindow.h` has no transition function. `WorkWindow.cpp` assigns `workStage_` directly in `finishOpeningVideo` and `onCloseVideo`. Related path, session, and chrome updates are spread across those functions and the helpers they call. `WorkWindow::Mode` has `setMode`, and `leavePresentingForVideoChange` also assigns `mode_` directly. Treat both as cautionary references.
+
+## Review checklist
+
+- Each new bool member is justified against the gate above.
+- Nothing writes the state field outside the transition function.
+- A new machine has a unit test for an illegal transition.
+- Enabled and visible UI is derived from the state, and no second object stores a copy of it.
