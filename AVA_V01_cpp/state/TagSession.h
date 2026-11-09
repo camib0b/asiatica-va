@@ -216,6 +216,11 @@ public:
   /// Period stored on a newly tagged event: the in-progress quarter, or Q4 once
   /// the game has ended. Empty before the game starts. Not a playhead lookup.
   QString currentPeriodLabel() const;
+  /// Quarter written onto a tag the analyst just committed at \p markMs.
+  /// A mark inside a closed quarter, including that quarter's exact end, keeps
+  /// the closed quarter. The in-progress label is used only when the mark is
+  /// not inside any span.
+  QString periodRecordedForNewTag(qint64 markMs) const;
 
   /// QuarterInProgress requires an index in 0..3. NotStarted and GameEnded have
   /// no in-progress quarter (index < 0). Anything else is refused.

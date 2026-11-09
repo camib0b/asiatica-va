@@ -28,6 +28,7 @@ private slots:
     void currentPeriodFollowsQuarterTags();
     void advanceQuarterDerivesTheNextQuarterFromTheTag();
     void advanceQuarterRejectsAGameThatIsNotInProgress();
+    void newTagKeepsTheClosedQuarterAtItsExactEnd();
     void eventPathTakesPrecedenceOverHiddenMains();
     void selectAllAndSelectNoneAreSymmetric();
 };
@@ -167,6 +168,24 @@ void WorkStateTest::advanceQuarterDerivesTheNextQuarterFromTheTag() {
     QVERIFY(!session.advanceQuarter(9000));
     QCOMPARE(session.tags().size(), tagCount);
     QCOMPARE(session.currentPeriodLabel(), EventDefaults::quarterCode(3));
+}
+
+void WorkStateTest::newTagKeepsTheClosedQuarterAtItsExactEnd() {
+    TagSession session;
+    QVERIFY(session.startGame(0));
+    QVERIFY(session.advanceQuarter(10000));
+    QCOMPARE(session.currentPeriodLabel(), EventDefaults::quarterCode(1));
+    QCOMPARE(session.periodLabelAtTimestampMs(10000), EventDefaults::quarterCode(0));
+
+    // The breaking input: the mark is the exact whistle that closed Q1 while
+    // Q2 is already the quarter in progress. The in-progress label is Q2.
+    QCOMPARE(session.periodRecordedForNewTag(10000), EventDefaults::quarterCode(0));
+    QCOMPARE(session.periodRecordedForNewTag(0), EventDefaults::quarterCode(0));
+    QCOMPARE(session.periodRecordedForNewTag(10001), EventDefaults::quarterCode(1));
+
+    TagSession beforeTheGame;
+    QVERIFY(beforeTheGame.periodRecordedForNewTag(0).isEmpty());
+    QVERIFY(beforeTheGame.currentPeriodLabel().isEmpty());
 }
 
 void WorkStateTest::advanceQuarterRejectsAGameThatIsNotInProgress() {

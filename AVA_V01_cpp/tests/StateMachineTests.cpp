@@ -58,6 +58,7 @@ private slots:
     void quarterSnapshotRefusesAnIllegalIndex();
     void panelStaysWithTheSessionWhenAdvanceIsRefused();
     void periodClickDoesNothingWithoutATagSession();
+    void tagAtTheClosedQuarterWhistleStoresThatQuarter();
     void modeAllowsEveryRealModeAndRefusesAnUnknownValue();
     void failedExportMessageContainingCancelledStaysFailed();
     void clipExporterEmptySourceFinishesFailed();
@@ -291,6 +292,37 @@ void ExplicitStateMachineTest::periodClickDoesNothingWithoutATagSession() {
     periodButton->click();
     QCOMPARE(periodTitle->property("fullLabel").toString(), startGame);
     QCOMPARE(periodButton->cursor().shape(), Qt::PointingHandCursor);
+}
+
+void ExplicitStateMachineTest::tagAtTheClosedQuarterWhistleStoresThatQuarter() {
+    TagSession session;
+    WorkWindow window;
+    window.setTagSession(&session);
+    QVERIFY(session.startGame(0));
+    QVERIFY(session.advanceQuarter(10000));
+    QCOMPARE(session.currentPeriodLabel(), QStringLiteral("Q2"));
+
+    auto* controls = window.findChild<GameControls*>();
+    QVERIFY(controls != nullptr);
+    controls->setTeamSide(TagSession::TeamSide::Home);
+
+    QPushButton* fiftyYard = nullptr;
+    for (QPushButton* button : controls->findChildren<QPushButton*>()) {
+        if (button->property("gameEventName").toString() == QLatin1String("50-yd")) {
+            fiftyYard = button;
+            break;
+        }
+    }
+    QVERIFY(fiftyYard != nullptr);
+    fiftyYard->click();
+
+    const TagSession::GameTag* tagged = nullptr;
+    for (const TagSession::GameTag& tag : session.tags()) {
+        if (tag.mainEventId == EventCatalog::EventId::FiftyYard) tagged = &tag;
+    }
+    QVERIFY(tagged != nullptr);
+    QCOMPARE(tagged->markMs, qint64{0});
+    QCOMPARE(tagged->period, QStringLiteral("Q1"));
 }
 
 void ExplicitStateMachineTest::modeAllowsEveryRealModeAndRefusesAnUnknownValue() {

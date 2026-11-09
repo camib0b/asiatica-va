@@ -607,3 +607,9 @@ QString TagSession::currentPeriodLabel() const {
   }
   return QString();
 }
+
+QString TagSession::periodRecordedForNewTag(qint64 markMs) const {
+  const QString quarterAtMark = periodLabelAtTimestampMs(markMs);
+  if (!quarterAtMark.isEmpty()) return quarterAtMark;
+  return currentPeriodLabel();
+}

@@ -946,7 +946,6 @@ void WorkWindow::enforceTaggingSidePanelWidthCap() {
 
 WorkWindow::PendingTagPeriodAndTeam WorkWindow::pendingTagPeriodAndTeam() const {
     PendingTagPeriodAndTeam context;
-    if (tagSession_) context.period = tagSession_->currentPeriodLabel();
     if (gameControls_) context.team = gameControls_->selectedTeamSide();
     return context;
 }
@@ -1485,7 +1484,7 @@ void WorkWindow::commitTagFromGameControls(const QString& mainEvent, const QStri
                    "follow-up payload is not in the catalog");
     }
     tag.markMs = markMs;
-    tag.period = context.period;
+    tag.period = tagSession_->periodRecordedForNewTag(markMs);
     tag.team = TagSession::teamSideKey(context.team);
     // tag.startMs / tag.endMs left at 0 so TagSession::addTag seeds them from EventDefaults.
     tagSession_->addTag(tag);
