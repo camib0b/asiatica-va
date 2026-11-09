@@ -25,13 +25,6 @@ QString cellText(const TagsTableModel::Row& row, int column) {
   }
 }
 
-QColor textOnTeamColor(const QColor& background) {
-  if (!background.isValid() || background.alpha() == 0) return QColor(QStringLiteral("#09090b"));
-  // Same cutoff as the on-video tag confirmation: light kits keep dark type.
-  if (background.lightness() >= 150) return QColor(QStringLiteral("#09090b"));
-  return QColor(QStringLiteral("#fafafa"));
-}
-
 } // namespace
 
 TagsTableModel::TagsTableModel(QObject* parent) : QAbstractTableModel(parent) {}
@@ -115,7 +108,7 @@ QVariant TagsTableModel::data(const QModelIndex& index, int role) const {
   }
 
   if (role == Qt::ForegroundRole && column == kTeamColumn && row.teamBackground.isValid()) {
-    return QBrush(textOnTeamColor(row.teamBackground));
+    return QBrush(QColor(9, 9, 11));
   }
 
   return {};
