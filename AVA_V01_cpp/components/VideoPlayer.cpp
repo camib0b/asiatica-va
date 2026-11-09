@@ -210,7 +210,7 @@ void VideoPlayer::buildUi() {
     videoControlsBar_ = new VideoControlsBar(this);
     videoTimelineBar_ = new TimelineBar(this);
     videoTimelineBar_->setObjectName(QStringLiteral("VideoTimelineBar"));
-    videoTimelineBar_->setMinimumHeight(44);
+    videoTimelineBar_->setMinimumHeight(32);
     videoTimelineBar_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     videoTimelineBar_->setAttribute(Qt::WA_StyledBackground, true);
     stageLayout->addWidget(videoTimelineBar_, 0);

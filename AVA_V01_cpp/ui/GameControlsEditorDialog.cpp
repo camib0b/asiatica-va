@@ -14,6 +14,7 @@
 #include "../style/StyleProps.h"
 #include "../style/ThemeColors.h"
 
+#include <QAbstractButton>
 #include <QBrush>
 #include <QCheckBox>
 #include <QComboBox>
@@ -183,6 +184,16 @@ GameControlsEditorDialog::GameControlsEditorDialog(TagSession* session, QWidget*
 
   connect(&LocaleNotifier::instance(), &LocaleNotifier::languageChanged, this,
           &GameControlsEditorDialog::applyUiStrings);
+
+  for (QAbstractButton* button : findChildren<QAbstractButton*>()) {
+    Style::usePointingHandCursor(button);
+  }
+  for (QComboBox* combo : findChildren<QComboBox*>()) {
+    Style::usePointingHandCursor(combo);
+  }
+  if (followUpTree_ && followUpTree_->viewport()) {
+    Style::usePointingHandCursorOnRows(followUpTree_);
+  }
 }
 
 void GameControlsEditorDialog::buildUi() {
@@ -396,7 +407,7 @@ void GameControlsEditorDialog::buildGrid(QWidget* host) {
       button->setFocusPolicy(Qt::ClickFocus);
       button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
       button->setMinimumWidth(0);
-      button->setMinimumHeight(52);
+      button->setMinimumHeight(44);
       button->installEventFilter(this);
 
       auto buttonLayout = makeQtPtr<QVBoxLayout>(button.get());

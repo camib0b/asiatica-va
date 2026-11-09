@@ -1,5 +1,6 @@
 #include "PlaybackSpeedometer.h"
 #include "PlaybackRates.h"
+#include "../style/StyleProps.h"
 #include "../style/TabularDigits.h"
 
 #include <QEvent>
@@ -16,7 +17,7 @@
 #include <cmath>
 
 namespace {
-constexpr int kMinimumHeightPx = 20;
+constexpr int kMinimumHeightPx = 28;
 constexpr int kPreferredTrackWidthPx = 120;
 constexpr int kTrackLeftMarginPx = 8;
 constexpr int kReadoutGapPx = 10;
@@ -39,7 +40,7 @@ PlaybackSpeedometer::PlaybackSpeedometer(QWidget* parent)
       flashing_(false) {
   setObjectName(QStringLiteral("PlaybackSpeedometer"));
   setFocusPolicy(Qt::NoFocus);
-  setCursor(Qt::PointingHandCursor);
+  Style::usePointingHandCursor(this);
   setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
   setAttribute(Qt::WA_Hover, true);
 }

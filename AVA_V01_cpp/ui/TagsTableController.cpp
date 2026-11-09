@@ -5,6 +5,7 @@
 #include "../state/EventLabelResolver.h"
 #include "../state/TagEvent.h"
 #include "../state/TagSession.h"
+#include "../style/TextFit.h"
 #include "NotesController.h"
 #include "TagRowDisplay.h"
 #include "TagsTableModel.h"
@@ -25,6 +26,15 @@
 #include <algorithm>
 
 namespace {
+
+void publishFilterIndicator(QLabel* indicator, const QString& text) {
+  if (!indicator) return;
+  if (auto* elidingIndicator = dynamic_cast<Style::ElidingLabel*>(indicator)) {
+    elidingIndicator->setFullText(text);
+    return;
+  }
+  indicator->setText(text);
+}
 
 /// Sets a reentrancy flag for this scope and restores the value it had on entry.
 class ScopedReentrancyFlag {
@@ -220,7 +230,7 @@ void TagsTableController::updateFilterIndicator() const {
   if (tagFilter_.eventPath.has_value() && !tagFilter_.eventPath->mainEvent.isEmpty()) {
     const QString pathText = EventLabelResolver::tagLine(tagFilter_.eventPath->mainEvent,
                                                          tagFilter_.eventPath->followUps, tagSession_);
-    tagsFilterIndicator_->setText(AppLocale::trUi("filter.indicator") + pathText);
+    publishFilterIndicator(tagsFilterIndicator_, AppLocale::trUi("filter.indicator") + pathText);
     tagsFilterIndicator_->show();
     return;
   }
@@ -241,7 +251,8 @@ void TagsTableController::updateFilterIndicator() const {
   }
 
   shownLabels.sort(Qt::CaseInsensitive);
-  tagsFilterIndicator_->setText(AppLocale::trUi("filter.indicator") + shownLabels.join(QStringLiteral(", ")));
+  publishFilterIndicator(tagsFilterIndicator_,
+                         AppLocale::trUi("filter.indicator") + shownLabels.join(QStringLiteral(", ")));
   tagsFilterIndicator_->show();
 }
 
