@@ -1,6 +1,6 @@
 # Codebase Architecture
 
-- main.cpp  is the application entry point containing main(). It initializes a QApplication with metadata and icon, applies a light theme, bootstraps configuration/locale/defaults, creates and shows the MainWindow on the stack, then runs the Qt event loop.
+- main.cpp  is the application entry point containing main(). It initializes a QApplication with metadata and icon, applies a light theme, bootstraps configuration/locale/defaults, creates and shows the MainWindow on the stack, then runs the Qt event loop. A coach build (Contents/Resources/ava-coach-build) that is missing ffmpeg or ffprobe shows a critical dialog and does not search Homebrew.
 
 ## UI Views
 

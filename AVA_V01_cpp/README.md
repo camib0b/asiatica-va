@@ -3,16 +3,20 @@ field-hockey specific clipping and video-analysis tool
 
 ## App icon (macOS Dock / Finder)
 
-Pre-made icons live in `AppIcon.iconset/`. To build `AppIcon.icns` for the app bundle (Dock and Finder), run from the project root:
+Pre-made icons live in `AppIcon.iconset/`. `AppIcon.icns` is committed, and an Apple build regenerates it from that iconset with `iconutil`. To refresh the committed file:
 
 ```bash
 ./scripts/make_icns.sh
 ```
 
-If `iconutil` reports "Invalid Iconset", run that command from Terminal (outside Cursor). Alternatively, create `AppIcon.icns` in Xcode (File → New → App Icons) or with another tool and place it in the project root. CMake will use it when building the `.app` bundle.
+`package_macos.sh` runs that before the Release build. CMake always puts the icon in the app bundle.
 
 ## Distributing a coach build
 
-See [DISTRIBUTION.md](../DISTRIBUTION.md) at the repo root: bundled FFmpeg helpers, `macdeployqt` packaging, and Apple notarization (must run on your Mac).
+See [DISTRIBUTION.md](../DISTRIBUTION.md). From this directory:
 
-Clip export uses `ffmpeg` / `ffprobe` from `AVA.app/Contents/Helpers/` in a packaged build. Local cmake runs still use Homebrew FFmpeg if present (`/opt/homebrew/bin`). Coaches do not install Homebrew. Operator: `./scripts/vendor_ffmpeg_macos.sh` then `./scripts/package_macos.sh` (see `third_party/ffmpeg/README.md`).
+```bash
+./scripts/release_macos.sh
+```
+
+A coach build uses `ffmpeg` and `ffprobe` from `AVA.app/Contents/Helpers/`. If either helper is missing it shows a dialog and does not search Homebrew. A local cmake build that was not packaged still uses Homebrew FFmpeg when it is installed (`/opt/homebrew/bin`). Coaches do not install Homebrew. Pins and the download script are in `third_party/ffmpeg/README.md`.

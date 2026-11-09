@@ -1,0 +1,121 @@
+name: macOS release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Check the macOS release scripts
+        run: shellcheck -x -P AVA_V01_cpp/scripts AVA_V01_cpp/scripts/*.sh
+      - name: Run the Linux-side release helper tests
+        run: bash AVA_V01_cpp/scripts/macos_release_common_test.sh
+
+  # macos-14 is an Apple Silicon runner. Pull requests stop at shellcheck.
+  package:
+    if: github.event_name != 'pull_request'
+    runs-on: macos-14
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require a complete signing setup, or none
+        env:
+          HAS_CERTIFICATE: ${{ secrets.AVA_APPLE_CERTIFICATE_P12_BASE64 != '' }}
+          HAS_CERTIFICATE_PASSWORD: ${{ secrets.AVA_APPLE_CERTIFICATE_PASSWORD != '' }}
+          HAS_APPLE_ID: ${{ secrets.AVA_APPLE_ID != '' }}
+          HAS_TEAM_ID: ${{ secrets.AVA_APPLE_TEAM_ID != '' }}
+          HAS_APP_PASSWORD: ${{ secrets.AVA_APPLE_APP_SPECIFIC_PASSWORD != '' }}
+        run: |
+          set -euo pipefail
+          present=0
+          missing=0
+          report() {
+            local label="$1"
+            local present_flag="$2"
+            if [[ "$present_flag" == "true" ]]; then
+              present=$((present + 1))
+            else
+              echo "Missing secret: ${label}"
+              missing=$((missing + 1))
+            fi
+          }
+          report "AVA_APPLE_CERTIFICATE_P12_BASE64" "$HAS_CERTIFICATE"
+          report "AVA_APPLE_CERTIFICATE_PASSWORD" "$HAS_CERTIFICATE_PASSWORD"
+          report "AVA_APPLE_ID" "$HAS_APPLE_ID"
+          report "AVA_APPLE_TEAM_ID" "$HAS_TEAM_ID"
+          report "AVA_APPLE_APP_SPECIFIC_PASSWORD" "$HAS_APP_PASSWORD"
+          if [[ "$present" -gt 0 && "$missing" -gt 0 ]]; then
+            echo "Set every signing secret, or none of them. An unsigned build is uploaded only when none are set."
+            exit 1
+          fi
+          if [[ "$present" -eq 0 ]]; then
+            echo "SIGNING_ENABLED=false" >> "$GITHUB_ENV"
+            echo "ARTIFACT_NAME=AVA-macos-arm64-unsigned" >> "$GITHUB_ENV"
+            echo "No signing secrets. The artifact will be unsigned."
+          else
+            echo "SIGNING_ENABLED=true" >> "$GITHUB_ENV"
+            echo "ARTIFACT_NAME=AVA-macos-arm64" >> "$GITHUB_ENV"
+            echo "Signing secrets are complete."
+          fi
+
+      - name: Install Qt
+        run: |
+          set -euo pipefail
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          brew install qt cmake ninja
+
+      - name: Package an unsigned Apple Silicon app
+        run: ./AVA_V01_cpp/scripts/package_macos.sh
+
+      - name: Import the Developer ID certificate
+        if: env.SIGNING_ENABLED == 'true'
+        env:
+          CERT_P12_BASE64: ${{ secrets.AVA_APPLE_CERTIFICATE_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.AVA_APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keychain_password="$(openssl rand -base64 32)"
+          keychain_path="${RUNNER_TEMP}/ava-signing.keychain-db"
+          certificate_path="${RUNNER_TEMP}/certificate.p12"
+          printf '%s\n' "$CERT_P12_BASE64" | base64 -D > "$certificate_path"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          # Omit -t cert so the private key is imported with the certificate.
+          security import "$certificate_path" -k "$keychain_path" -P "$CERT_PASSWORD" -A -f pkcs12 -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+          security default-keychain -s "$keychain_path"
+          rm -f "$certificate_path"
+
+      - name: Sign and notarize
+        if: env.SIGNING_ENABLED == 'true'
+        env:
+          APPLE_ID: ${{ secrets.AVA_APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.AVA_APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.AVA_APPLE_APP_SPECIFIC_PASSWORD }}
+          AVA_CODESIGN_IDENTITY: ${{ secrets.AVA_CODESIGN_IDENTITY }}
+          AVA_KEYCHAIN_PATH: ${{ runner.temp }}/ava-signing.keychain-db
+        run: ./AVA_V01_cpp/scripts/sign_and_notarize.sh
+
+      - name: Upload the DMG and zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: |
+            AVA_V01_cpp/dist/*.dmg
+            AVA_V01_cpp/dist/*.zip
+            AVA_V01_cpp/dist/release-info.txt
+          if-no-files-found: error

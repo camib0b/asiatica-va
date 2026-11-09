@@ -1296,6 +1296,7 @@ void CompilationSidecarExportTest::failedSingleClipExportKeepsExistingFile() {
 
 #include "CompilationSidecarTests.moc"
 
+int runFfmpegLocatorTests(int argc, char** argv);
 int runEventCatalogTests(int argc, char** argv);
 int runEventLabelOverrideTests(int argc, char** argv);
 int runGameControlsEditorTests(int argc, char** argv);
@@ -1323,6 +1324,10 @@ int runStateMachineTests(int argc, char** argv);
 
 int main(int argc, char** argv) {
     QApplication application(argc, argv);
+    const int ffmpegLocatorStatus = runFfmpegLocatorTests(argc, argv);
+    if (ffmpegLocatorStatus != 0) {
+        return ffmpegLocatorStatus;
+    }
     const int encoderStatus = runExportVideoEncoderTests(argc, argv);
     if (encoderStatus != 0) {
         return encoderStatus;

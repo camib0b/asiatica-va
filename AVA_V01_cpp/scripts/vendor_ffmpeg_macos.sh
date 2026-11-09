@@ -48,6 +48,16 @@ vendor_one() {
   local zip_path="$DOWNLOAD_DIR/$zip_name"
   local dest_dir="$VENDOR_ROOT/$arch"
   local dest_path="$dest_dir/$tool_name"
+  local pin_stamp="${dest_path}.pin"
+
+  if [[ -x "$dest_path" && -f "$pin_stamp" ]]; then
+    local stamped_sha256
+    stamped_sha256="$(tr -d '[:space:]' < "$pin_stamp")"
+    if [[ "$stamped_sha256" == "$expected_sha256" ]]; then
+      echo "Already vendored $tool_name ($arch) -> $dest_path"
+      return 0
+    fi
+  fi
 
   echo "Downloading $tool_name ($arch)"
   curl -fL --retry 3 --retry-delay 2 -o "$zip_path" "$url"
@@ -65,8 +75,14 @@ vendor_one() {
   extract_dir="$(mktemp -d "${TMPDIR:-/tmp}/ava-ffmpeg.XXXXXX")"
   unzip -q -o "$zip_path" -d "$extract_dir"
 
-  local extracted_binary
-  extracted_binary="$(find "$extract_dir" -type f -name "$tool_name" | head -n 1)"
+  local extracted_binary=""
+  local candidate
+  while IFS= read -r candidate; do
+    if [[ -f "$candidate" ]]; then
+      extracted_binary="$candidate"
+      break
+    fi
+  done < <(find "$extract_dir" -type f -name "$tool_name")
   if [[ -z "$extracted_binary" || ! -f "$extracted_binary" ]]; then
     echo "Zip did not contain $tool_name: $zip_path" >&2
     rm -rf "$extract_dir"
@@ -94,6 +110,7 @@ vendor_one() {
   cp "$extracted_binary" "$dest_path"
   chmod 755 "$dest_path"
   xattr -cr "$dest_path" 2>/dev/null || true
+  printf '%s\n' "$expected_sha256" > "$pin_stamp"
   rm -rf "$extract_dir"
   echo "  -> $dest_path"
 }
@@ -107,4 +124,4 @@ rm -rf "$DOWNLOAD_DIR"
 
 echo
 echo "Vendored static FFmpeg into $VENDOR_ROOT"
-echo "Next: ./AVA_V01_cpp/scripts/package_macos.sh"
+echo "Next: ./AVA_V01_cpp/scripts/release_macos.sh"

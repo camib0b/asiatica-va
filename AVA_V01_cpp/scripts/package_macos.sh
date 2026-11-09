@@ -1,152 +1,127 @@
 #!/usr/bin/env bash
-# Build a distributable AVA.app on Camila's Mac (Qt must be installed).
-# This does NOT sign or notarize. Gatekeeper will still warn until she runs
-# scripts/sign_and_notarize.sh with her Apple Developer ID.
-# Bundles static ffmpeg/ffprobe into Contents/Helpers after macdeployqt
-# (run scripts/vendor_ffmpeg_macos.sh first, or this script will invoke it).
+# Build an unsigned Apple Silicon AVA.app and a DMG with an Applications alias.
+# This does not sign or notarize. Gatekeeper will warn until release_macos.sh
+# (or sign_and_notarize.sh) runs with a Developer ID certificate.
 #
 # Usage (from anywhere):
 #   ./AVA_V01_cpp/scripts/package_macos.sh
 
 set -euo pipefail
 
-if [[ "$(uname -s)" != "Darwin" ]]; then
-  echo "package_macos.sh must run on macOS (Camila's Mac)."
-  echo "This cloud/Linux environment cannot run macdeployqt or produce a coach-ready .app."
-  exit 1
-fi
+AVA_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=macos_release_common.sh
+source "${AVA_SCRIPT_DIR}/macos_release_common.sh"
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DIST="$ROOT/dist"
-BUILD="$ROOT/build-release"
+ava_require_macos
 
-find_macdeployqt() {
-  if [[ -n "${MACDEPLOYQT:-}" && -x "$MACDEPLOYQT" ]]; then
-    echo "$MACDEPLOYQT"
-    return
-  fi
-  if command -v macdeployqt >/dev/null 2>&1; then
-    command -v macdeployqt
-    return
-  fi
-  local qmake_bin=""
-  if command -v qmake6 >/dev/null 2>&1; then
-    qmake_bin="$(command -v qmake6)"
-  elif command -v qmake >/dev/null 2>&1; then
-    qmake_bin="$(command -v qmake)"
-  fi
-  if [[ -n "$qmake_bin" ]]; then
-    local candidate
-    candidate="$(dirname "$qmake_bin")/macdeployqt"
-    if [[ -x "$candidate" ]]; then
-      echo "$candidate"
-      return
-    fi
-  fi
-  if command -v brew >/dev/null 2>&1; then
-    local prefix
-    prefix="$(brew --prefix qt 2>/dev/null || brew --prefix qt@6 2>/dev/null || true)"
-    if [[ -n "$prefix" && -x "$prefix/bin/macdeployqt" ]]; then
-      echo "$prefix/bin/macdeployqt"
-      return
-    fi
-  fi
-  echo "Could not find macdeployqt. Install Qt 6 (brew install qt) and retry." >&2
-  exit 1
-}
+CMAKE_LISTS="${AVA_CPP_ROOT}/CMakeLists.txt"
+ARCHITECTURE="$(ava_cmake_string AVA_MACOS_ARCHITECTURE "$CMAKE_LISTS")" || exit 1
+DEPLOYMENT_TARGET="$(ava_cmake_string AVA_MACOS_DEPLOYMENT_TARGET "$CMAKE_LISTS")" || exit 1
+APP_VERSION="$(ava_cmake_string AVA_APP_VERSION "$CMAKE_LISTS")" || exit 1
+ava_require_host_architecture "$ARCHITECTURE"
 
-MACDEPLOYQT_BIN="$(find_macdeployqt)"
+DISTRIBUTION_DIRECTORY="${AVA_CPP_ROOT}/dist"
+BUILD_DIRECTORY="${AVA_CPP_ROOT}/build-release"
+VENDOR_ROOT="${AVA_CPP_ROOT}/third_party/ffmpeg/macos"
 
-cmake -S "$ROOT" -B "$BUILD" \
-  -DCMAKE_BUILD_TYPE=Release
+"${AVA_SCRIPT_DIR}/make_icns.sh"
 
-cmake --build "$BUILD" --config Release
-
-APP_SRC="$(find "$BUILD" -name 'AVA.app' -maxdepth 3 | head -n 1)"
-if [[ -z "$APP_SRC" ]]; then
-  echo "Build succeeded but AVA.app was not found under $BUILD" >&2
-  exit 1
-fi
-
-rm -rf "$DIST"
-mkdir -p "$DIST"
-cp -R "$APP_SRC" "$DIST/AVA.app"
-
-"$MACDEPLOYQT_BIN" "$DIST/AVA.app" -verbose=1
-
-# Copy static ffmpeg/ffprobe after macdeployqt so they stay in Contents/Helpers
-# (not next to the Qt executable, which confuses macdeployqt).
-HELPERS_DIR="$DIST/AVA.app/Contents/Helpers"
-VENDOR_FFMPEG_ROOT="$ROOT/third_party/ffmpeg/macos"
-HOST_ARCH="$(uname -m)"
-
-resolve_vendored_helper() {
-  local tool_name="$1"
-  if [[ -x "$VENDOR_FFMPEG_ROOT/universal/$tool_name" ]]; then
-    echo "$VENDOR_FFMPEG_ROOT/universal/$tool_name"
-    return 0
-  fi
-  if [[ -x "$VENDOR_FFMPEG_ROOT/$HOST_ARCH/$tool_name" ]]; then
-    echo "$VENDOR_FFMPEG_ROOT/$HOST_ARCH/$tool_name"
-    return 0
-  fi
-  return 1
-}
-
-FFMPEG_SRC=""
-FFPROBE_SRC=""
-FFMPEG_SRC="$(resolve_vendored_helper ffmpeg)" || true
-FFPROBE_SRC="$(resolve_vendored_helper ffprobe)" || true
-if [[ -z "$FFMPEG_SRC" || -z "$FFPROBE_SRC" ]]; then
-  echo "Vendored FFmpeg not found for $HOST_ARCH. Running vendor_ffmpeg_macos.sh..."
-  if ! "$ROOT/scripts/vendor_ffmpeg_macos.sh"; then
+FFMPEG_SOURCE="$(ava_resolve_vendored_helper ffmpeg "$ARCHITECTURE" "$VENDOR_ROOT" || true)"
+FFPROBE_SOURCE="$(ava_resolve_vendored_helper ffprobe "$ARCHITECTURE" "$VENDOR_ROOT" || true)"
+if [[ -z "$FFMPEG_SOURCE" || -z "$FFPROBE_SOURCE" ]]; then
+  echo "Vendored FFmpeg not found for ${ARCHITECTURE}. Running vendor_ffmpeg_macos.sh..."
+  if ! "${AVA_SCRIPT_DIR}/vendor_ffmpeg_macos.sh"; then
     echo "FFmpeg download failed, so packaging cannot bundle ffmpeg and ffprobe." >&2
-    echo "Check the error above (network, disk space, or the download itself). Then retry:" >&2
-    echo "  $ROOT/scripts/vendor_ffmpeg_macos.sh" >&2
-    echo "  $ROOT/scripts/package_macos.sh" >&2
+    echo "Read the error above, then retry:" >&2
+    echo "  ${AVA_SCRIPT_DIR}/vendor_ffmpeg_macos.sh" >&2
+    echo "  ${AVA_SCRIPT_DIR}/package_macos.sh" >&2
     exit 1
   fi
-  FFMPEG_SRC="$(resolve_vendored_helper ffmpeg)" || true
-  FFPROBE_SRC="$(resolve_vendored_helper ffprobe)" || true
+  FFMPEG_SOURCE="$(ava_resolve_vendored_helper ffmpeg "$ARCHITECTURE" "$VENDOR_ROOT" || true)"
+  FFPROBE_SOURCE="$(ava_resolve_vendored_helper ffprobe "$ARCHITECTURE" "$VENDOR_ROOT" || true)"
 fi
-if [[ -z "$FFMPEG_SRC" || -z "$FFPROBE_SRC" ]]; then
-  echo "FFmpeg download finished, but ffmpeg and ffprobe are still missing for $HOST_ARCH." >&2
-  echo "Expected them under third_party/ffmpeg/macos/$HOST_ARCH/ (or universal/)." >&2
-  echo "The app would ship without the tools it needs to export and play some videos." >&2
-  echo "Re-run the vendor script and read its output, then package again:" >&2
-  echo "  $ROOT/scripts/vendor_ffmpeg_macos.sh" >&2
-  echo "  $ROOT/scripts/package_macos.sh" >&2
+if [[ -z "$FFMPEG_SOURCE" || -z "$FFPROBE_SOURCE" ]]; then
+  echo "FFmpeg download finished, but ffmpeg and ffprobe are still missing for ${ARCHITECTURE}." >&2
+  echo "Expected them under third_party/ffmpeg/macos/${ARCHITECTURE}/ (or universal/)." >&2
   exit 1
 fi
 
-mkdir -p "$HELPERS_DIR"
-cp "$FFMPEG_SRC" "$HELPERS_DIR/ffmpeg"
-cp "$FFPROBE_SRC" "$HELPERS_DIR/ffprobe"
-chmod 755 "$HELPERS_DIR/ffmpeg" "$HELPERS_DIR/ffprobe"
-xattr -cr "$HELPERS_DIR/ffmpeg" "$HELPERS_DIR/ffprobe" 2>/dev/null || true
+MACDEPLOYQT_BIN="$(ava_find_macdeployqt)" || exit 1
+QT_PREFIX="$(ava_qt_prefix_from_tool "$MACDEPLOYQT_BIN")" || exit 1
+if [[ -n "${CMAKE_PREFIX_PATH:-}" ]]; then
+  CMAKE_PREFIX_ARGUMENT="${QT_PREFIX};${CMAKE_PREFIX_PATH}"
+else
+  CMAKE_PREFIX_ARGUMENT="${QT_PREFIX}"
+fi
+
+cmake -S "$AVA_CPP_ROOT" -B "$BUILD_DIRECTORY" \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_PREFIX_PATH="${CMAKE_PREFIX_ARGUMENT}" \
+  -DCMAKE_OSX_ARCHITECTURES="${ARCHITECTURE}" \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET="${DEPLOYMENT_TARGET}"
+
+cmake --build "$BUILD_DIRECTORY" --config Release --parallel
+
+BUILT_APP="$(ava_find_built_app "$BUILD_DIRECTORY")" || exit 1
+APPLICATION_BUNDLE="${DISTRIBUTION_DIRECTORY}/AVA.app"
+
+rm -rf "$DISTRIBUTION_DIRECTORY"
+mkdir -p "$DISTRIBUTION_DIRECTORY"
+ditto "$BUILT_APP" "$APPLICATION_BUNDLE"
+
+"$MACDEPLOYQT_BIN" "$APPLICATION_BUNDLE" -verbose=1 -always-overwrite
+
+HELPERS_DIRECTORY="${APPLICATION_BUNDLE}/Contents/Helpers"
+mkdir -p "$HELPERS_DIRECTORY"
+cp "$FFMPEG_SOURCE" "${HELPERS_DIRECTORY}/ffmpeg"
+cp "$FFPROBE_SOURCE" "${HELPERS_DIRECTORY}/ffprobe"
+chmod 755 "${HELPERS_DIRECTORY}/ffmpeg" "${HELPERS_DIRECTORY}/ffprobe"
+xattr -cr "${HELPERS_DIRECTORY}/ffmpeg" "${HELPERS_DIRECTORY}/ffprobe" 2>/dev/null || true
+
+for helper_name in ffmpeg ffprobe; do
+  helper_path="${HELPERS_DIRECTORY}/${helper_name}"
+  ava_assert_macho "$helper_path"
+  ava_assert_contains_architecture "$helper_path" "$ARCHITECTURE"
+  ava_reject_homebrew_linkage "$helper_path"
+done
+
+ava_write_coach_marker "$APPLICATION_BUNDLE" "$APP_VERSION" "$ARCHITECTURE" "$DEPLOYMENT_TARGET"
+ava_assert_bundle_metadata "$APPLICATION_BUNDLE" "$APP_VERSION" "$ARCHITECTURE" "$DEPLOYMENT_TARGET"
 
 print_helper_version_line() {
   local helper_path="$1"
   local version_output
-  version_output="$("$helper_path" -version 2>&1)"
+  version_output="$("$helper_path" -version 2>&1 || true)"
   echo "  ${version_output%%$'\n'*}"
 }
 
-echo "Bundled FFmpeg helpers into Contents/Helpers (after macdeployqt):"
-print_helper_version_line "$HELPERS_DIR/ffmpeg"
-print_helper_version_line "$HELPERS_DIR/ffprobe"
+echo "Bundled FFmpeg helpers into Contents/Helpers:"
+print_helper_version_line "${HELPERS_DIRECTORY}/ffmpeg"
+print_helper_version_line "${HELPERS_DIRECTORY}/ffprobe"
 
-ditto -c -k --keepParent "$DIST/AVA.app" "$DIST/AVA.app.zip"
+ARTIFACT_BASENAME="$(ava_distribution_basename "$APP_VERSION" "$ARCHITECTURE")"
+ZIP_PATH="${DISTRIBUTION_DIRECTORY}/${ARTIFACT_BASENAME}.app.zip"
+DISK_IMAGE_PATH="${DISTRIBUTION_DIRECTORY}/${ARTIFACT_BASENAME}.dmg"
+GIT_SHA="$(ava_git_sha "$(cd "${AVA_CPP_ROOT}/.." && pwd)")"
 
-hdiutil create -volname "AVA" -srcfolder "$DIST/AVA.app" -ov -format UDZO "$DIST/AVA.dmg"
+ava_write_release_info \
+  "${DISTRIBUTION_DIRECTORY}/release-info.txt" \
+  "$APP_VERSION" \
+  "$ARCHITECTURE" \
+  "$DEPLOYMENT_TARGET" \
+  "$GIT_SHA"
+ava_write_application_zip "$APPLICATION_BUNDLE" "$ZIP_PATH"
+ava_create_dmg "$APPLICATION_BUNDLE" "$DISK_IMAGE_PATH" "AVA"
+ava_verify_dmg_layout "$DISK_IMAGE_PATH"
 
 echo
-echo "Built:"
-echo "  $DIST/AVA.app"
-echo "  $DIST/AVA.app.zip"
-echo "  $DIST/AVA.dmg"
+echo "Unsigned coach build:"
+echo "  ${APPLICATION_BUNDLE}"
+echo "  ${ZIP_PATH}"
+echo "  ${DISK_IMAGE_PATH}"
 echo
-echo "Next: sign and notarize on this Mac (see DISTRIBUTION.md):"
-echo "  ./AVA_V01_cpp/scripts/sign_and_notarize.sh"
-echo
-echo "Without notarization, macOS Gatekeeper will scare non-technical coaches."
+echo "This DMG is not notarized. Do not send it to coaches."
+echo "On this Mac, after the Developer ID certificate and notarytool profile exist:"
+echo "  ${AVA_SCRIPT_DIR}/release_macos.sh"
+echo "Or, if this folder was just built:"
+echo "  ${AVA_SCRIPT_DIR}/sign_and_notarize.sh"
