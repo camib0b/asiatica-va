@@ -3,10 +3,12 @@
 #include "GameControls.h"
 #include "TagSession.h"
 #include "TagToastOverlay.h"
+#include "TaggingKeys.h"
 #include "TextFit.h"
 #include "WorkWindow.h"
 
 #include <QApplication>
+#include <QKeyEvent>
 #include <QFile>
 #include <QFontMetrics>
 #include <QHash>
@@ -198,6 +200,8 @@ private slots:
   void escapeKeepsTheMainTag();
   void mouseAndKeyboardBothPublishTheShortcut();
   void shotChainPublishesEachAnswer();
+  void shortcutDecisionKeepsQuarterRepeatAndFollowUpRepeatApart();
+  void repeatedFollowUpDigitWalksTheOpenChain();
   void keyboardRowsFollowQwertyOffsets();
   void longTeamNamesDoNotWidenThePanel();
   void fitButtonTitleKeepsWordsInsideTheLine();
@@ -453,6 +457,73 @@ void TaggingToastTest::shotChainPublishesEachAnswer() {
   QCOMPARE(committed.count(), 1);
   QCOMPARE(committed.at(0).at(0).toString(), QStringLiteral("Shot"));
   QCOMPARE(committed.at(0).at(1).toString(), QStringLiteral("On target \u2192 Saved"));
+}
+
+void TaggingToastTest::shortcutDecisionKeepsQuarterRepeatAndFollowUpRepeatApart() {
+  TaggingKeys::Context idle;
+  idle.autoRepeat = true;
+  idle.keySelectsMainEvent = true;
+  const TaggingKeys::Decision heldShot = TaggingKeys::decide(Qt::Key_D, idle);
+  QCOMPARE(heldShot.action, TaggingKeys::Action::ActivateMainEvent);
+
+  TaggingKeys::Context quarter;
+  quarter.autoRepeat = true;
+  const TaggingKeys::Decision heldQuarter = TaggingKeys::decide(Qt::Key_H, quarter);
+  QCOMPARE(heldQuarter.action, TaggingKeys::Action::Swallow);
+
+  TaggingKeys::Context reassigned;
+  reassigned.keySelectsMainEvent = true;
+  const TaggingKeys::Decision shotOnG = TaggingKeys::decide(Qt::Key_G, reassigned);
+  QCOMPARE(shotOnG.action, TaggingKeys::Action::ActivateMainEvent);
+  reassigned.autoRepeat = true;
+  const TaggingKeys::Decision heldReassigned = TaggingKeys::decide(Qt::Key_G, reassigned);
+  QCOMPARE(heldReassigned.action, TaggingKeys::Action::Swallow);
+
+  TaggingKeys::Context open;
+  open.autoRepeat = true;
+  open.followUpPromptOpen = true;
+  open.followUpRowVisible = true;
+  open.followUpChoiceCount = 3;
+  const TaggingKeys::Decision heldDigit = TaggingKeys::decide(Qt::Key_1, open);
+  QCOMPARE(heldDigit.action, TaggingKeys::Action::ChooseFollowUp);
+  QCOMPARE(heldDigit.followUpIndex, 0);
+
+  open.autoRepeat = false;
+  open.followUpPromptOpen = true;
+  const TaggingKeys::Decision escape = TaggingKeys::decide(Qt::Key_Escape, open);
+  QCOMPARE(escape.action, TaggingKeys::Action::CancelFollowUp);
+  open.followUpPromptOpen = false;
+  QCOMPARE(TaggingKeys::decide(Qt::Key_Escape, open).action, TaggingKeys::Action::Ignore);
+
+  TaggingKeys::Context arrows;
+  arrows.autoRepeat = true;
+  arrows.followUpPromptOpen = true;
+  QCOMPARE(TaggingKeys::decide(Qt::Key_Right, arrows).action, TaggingKeys::Action::Ignore);
+}
+
+void TaggingToastTest::repeatedFollowUpDigitWalksTheOpenChain() {
+  GameControls controls;
+  controls.setTeamSide(TagSession::TeamSide::Home);
+  controls.resize(420, 760);
+  controls.show();
+  settleLayout(&controls);
+
+  QSignalSpy advanced(&controls, &GameControls::tagSequenceAdvanced);
+  QTest::keyClick(&controls, Qt::Key_D);
+  QCOMPARE(advanced.count(), 1);
+  QCOMPARE(advanced.at(0).at(1).toString(), QStringLiteral("Shot"));
+
+  QKeyEvent heldDigit(QEvent::KeyPress, Qt::Key_1, Qt::NoModifier, QStringLiteral("1"), true);
+  QApplication::sendEvent(&controls, &heldDigit);
+  QCOMPARE(advanced.count(), 2);
+  QCOMPARE(advanced.at(1).at(1).toString(), QStringLiteral("On target"));
+  QCOMPARE(advanced.at(1).at(4).toBool(), false);
+
+  QKeyEvent heldShot(QEvent::KeyPress, Qt::Key_D, Qt::NoModifier, QStringLiteral("d"), true);
+  QApplication::sendEvent(&controls, &heldShot);
+  QCOMPARE(advanced.count(), 3);
+  QCOMPARE(advanced.at(2).at(1).toString(), QStringLiteral("Shot"));
+  QCOMPARE(advanced.at(2).at(4).toBool(), true);
 }
 
 void TaggingToastTest::keyboardRowsFollowQwertyOffsets() {
