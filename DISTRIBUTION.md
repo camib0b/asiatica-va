@@ -53,21 +53,37 @@ The password stays in the keychain. It is not written into the repo.
 
 ## Release
 
-From the repo:
+From a clean checkout on your Mac:
 
 ```bash
 ./AVA_V01_cpp/scripts/release_macos.sh
 ```
 
-The script downloads the pinned static ffmpeg and ffprobe, builds a Release Apple Silicon app for macOS 12 or later, copies the helpers into `Contents/Helpers`, deploys Qt, and writes a DMG with an Applications alias. It signs nested code from the inside out with the hardened-runtime entitlements, notarizes and staples the app, then signs, notarizes, and staples the DMG.
+That bumps the patch number (`0.1.0` → `0.1.1`), downloads the pinned static ffmpeg and ffprobe, builds a Release Apple Silicon app for macOS 12 or later, copies the helpers into `Contents/Helpers`, deploys Qt, and writes a DMG with an Applications alias. It signs nested code from the inside out with the hardened-runtime entitlements, notarizes and staples the app, then signs, notarizes, and staples the DMG. After that succeeds it commits `AVA_V01_cpp/VERSION` and creates the tag `v0.1.1`. It does not push.
 
-Upload this file:
-
-```text
-AVA_V01_cpp/dist/AVA-0.1.0-arm64.dmg
+```bash
+./AVA_V01_cpp/scripts/release_macos.sh --minor
+./AVA_V01_cpp/scripts/release_macos.sh --major
+./AVA_V01_cpp/scripts/release_macos.sh --push
+./AVA_V01_cpp/scripts/release_macos.sh --minor --push
 ```
 
-The version in the name comes from `AVA_APP_VERSION` at the top of `AVA_V01_cpp/CMakeLists.txt`. An unsigned DMG is not a release. The script stops when notarization fails, and it says so before the signing step as well.
+`--minor` is `0.1.0` → `0.2.0`. `--major` is `0.1.0` → `1.0.0`. `--push` also pushes the current branch and the new tag.
+
+The script refuses to start when git shows uncommitted changes. If the build or notarization fails, it puts `VERSION` back and does not commit or tag. An unsigned DMG is not a release.
+
+Upload the DMG path the script prints. The first release from the current `VERSION` file is:
+
+```text
+AVA_V01_cpp/dist/AVA-0.1.1-arm64.dmg
+```
+
+When you leave off `--push`, the script prints:
+
+```bash
+git push origin HEAD
+git push origin v0.1.1
+```
 
 ## Check the result
 
@@ -76,7 +92,7 @@ The script runs these checks. Run them again if you want to see the result yours
 ```bash
 spctl --assess --type execute --verbose=4 AVA_V01_cpp/dist/AVA.app
 xcrun stapler validate AVA_V01_cpp/dist/AVA.app
-xcrun stapler validate AVA_V01_cpp/dist/AVA-0.1.0-arm64.dmg
+xcrun stapler validate AVA_V01_cpp/dist/AVA-0.1.1-arm64.dmg
 ```
 
 Gatekeeper should say `accepted` and `source=Notarized Developer ID`. `stapler validate` says the ticket is attached, so the coach's Mac can open AVA without asking Apple first.
@@ -101,7 +117,7 @@ xcrun notarytool log <submission-id> --keychain-profile "ava-notarize"
 
 ## Optional GitHub Actions build
 
-`.github/workflows/macos-release.yml` builds an unsigned DMG on a Mac runner when you run the workflow by hand or push a `v*` tag. Pull requests only run shellcheck.
+`.github/workflows/macos-release.yml` builds the version already recorded in `VERSION` when you run the workflow by hand or push a `v*` tag. It does not bump the version or create a tag. Pull requests only run shellcheck. An unsigned DMG is what it uploads when the signing secrets are unset.
 
 It signs and notarizes when every one of these repository secrets is set:
 
@@ -121,4 +137,6 @@ The DMG from `release_macos.sh` on your Mac is enough for the first coaches. The
 
 ## Version and minimum system
 
-`AVA_APP_VERSION`, `AVA_MACOS_DEPLOYMENT_TARGET` (`12.0`), and `AVA_MACOS_ARCHITECTURE` (`arm64`) are the three `set(...)` lines at the top of `AVA_V01_cpp/CMakeLists.txt`. The DMG name, `CFBundleShortVersionString`, and `LSMinimumSystemVersion` follow those lines.
+`AVA_V01_cpp/VERSION` is the only app version. Do not edit it by hand. The first value line is the marketing version (`CFBundleShortVersionString`, the DMG filename, and the version the app shows). The second value line is the build number (`CFBundleVersion`). It increases by one on every successful release, including a minor or major bump.
+
+`AVA_MACOS_DEPLOYMENT_TARGET` (`12.0`) and `AVA_MACOS_ARCHITECTURE` (`arm64`) are the `set(...)` lines at the top of `AVA_V01_cpp/CMakeLists.txt`. `LSMinimumSystemVersion` follows the deployment target.

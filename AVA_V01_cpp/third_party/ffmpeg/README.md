@@ -26,7 +26,7 @@ That reads the pinned URLs and SHA256s in `macos/SHA256PINS`, downloads both arc
 | Recipes | https://gitlab.com/martinr92/ffmpeg |
 | Pin file | `macos/SHA256PINS` (SHA256 of each zip, not the extracted binary) |
 
-To bump the pin: replace the four zip URLs and hashes in `SHA256PINS`, re-run `vendor_ffmpeg_macos.sh`, then `release_macos.sh`.
+To bump the pin: replace the four zip URLs and hashes in `SHA256PINS`, re-run `vendor_ffmpeg_macos.sh`, then `release_macos.sh` when you want to ship. That command also bumps AVA's version.
 
 ## License
 

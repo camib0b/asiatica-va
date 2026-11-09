@@ -17,7 +17,8 @@ ava_require_macos
 CMAKE_LISTS="${AVA_CPP_ROOT}/CMakeLists.txt"
 ARCHITECTURE="$(ava_cmake_string AVA_MACOS_ARCHITECTURE "$CMAKE_LISTS")" || exit 1
 DEPLOYMENT_TARGET="$(ava_cmake_string AVA_MACOS_DEPLOYMENT_TARGET "$CMAKE_LISTS")" || exit 1
-APP_VERSION="$(ava_cmake_string AVA_APP_VERSION "$CMAKE_LISTS")" || exit 1
+APP_VERSION="$(ava_read_marketing_version "$AVA_VERSION_FILE")" || exit 1
+APP_BUILD="$(ava_read_build_number "$AVA_VERSION_FILE")" || exit 1
 ava_require_host_architecture "$ARCHITECTURE"
 
 DISTRIBUTION_DIRECTORY="${AVA_CPP_ROOT}/dist"
@@ -85,8 +86,8 @@ for helper_name in ffmpeg ffprobe; do
   ava_reject_homebrew_linkage "$helper_path"
 done
 
-ava_write_coach_marker "$APPLICATION_BUNDLE" "$APP_VERSION" "$ARCHITECTURE" "$DEPLOYMENT_TARGET"
-ava_assert_bundle_metadata "$APPLICATION_BUNDLE" "$APP_VERSION" "$ARCHITECTURE" "$DEPLOYMENT_TARGET"
+ava_write_coach_marker "$APPLICATION_BUNDLE" "$APP_VERSION" "$APP_BUILD" "$ARCHITECTURE" "$DEPLOYMENT_TARGET"
+ava_assert_bundle_metadata "$APPLICATION_BUNDLE" "$APP_VERSION" "$APP_BUILD" "$ARCHITECTURE" "$DEPLOYMENT_TARGET"
 
 print_helper_version_line() {
   local helper_path="$1"
@@ -107,6 +108,7 @@ GIT_SHA="$(ava_git_sha "$(cd "${AVA_CPP_ROOT}/.." && pwd)")"
 ava_write_release_info \
   "${DISTRIBUTION_DIRECTORY}/release-info.txt" \
   "$APP_VERSION" \
+  "$APP_BUILD" \
   "$ARCHITECTURE" \
   "$DEPLOYMENT_TARGET" \
   "$GIT_SHA"

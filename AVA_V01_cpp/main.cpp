@@ -1,6 +1,7 @@
 #include "ui/MainWindow.h"
 #include "i18n/AppLocale.h"
 #include "state/EventDefaults.h"
+#include "AvaVersion.h"
 #include "FfmpegLocator.h"
 #include "XaiConfig.h"
 #include <QApplication>
@@ -49,6 +50,7 @@ int main(int argc, char* argv[]) {
         QApplication app(argc, argv);
         app.setOrganizationName(QStringLiteral("AsiaticaVA"));
         app.setApplicationName(QStringLiteral("AVA"));
+        app.setApplicationVersion(AvaVersion::current());
         app.setWindowIcon(QIcon(":/ava-icon.png"));
 
         try {

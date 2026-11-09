@@ -22,10 +22,51 @@ assert_equal() {
 }
 
 CMAKE_LISTS="${AVA_CPP_ROOT}/CMakeLists.txt"
-assert_equal "$(ava_cmake_string AVA_APP_VERSION "$CMAKE_LISTS")" "0.1.0" "app version"
+current_version="$(ava_read_marketing_version "$AVA_VERSION_FILE")"
+current_build="$(ava_read_build_number "$AVA_VERSION_FILE")"
+if [[ -z "$current_version" || -z "$current_build" ]]; then
+  fail "VERSION did not parse"
+fi
+next_version="$(ava_bump_marketing_version "$current_version" patch)"
+next_build="$(ava_next_build_number "$current_build")"
+if [[ "$next_version" == "$current_version" || "$next_build" == "$current_build" ]]; then
+  fail "a release bump should change both the marketing version and the build number"
+fi
 assert_equal "$(ava_cmake_string AVA_MACOS_DEPLOYMENT_TARGET "$CMAKE_LISTS")" "12.0" "deployment target"
 assert_equal "$(ava_cmake_string AVA_MACOS_ARCHITECTURE "$CMAKE_LISTS")" "arm64" "architecture"
-assert_equal "$(ava_distribution_basename "0.1.0" "arm64")" "AVA-0.1.0-arm64" "artifact name"
+assert_equal "$(ava_distribution_basename "0.1.1" "arm64")" "AVA-0.1.1-arm64" "artifact name"
+assert_equal "$(ava_bump_marketing_version 0.1.0 patch)" "0.1.1" "patch bump"
+assert_equal "$(ava_bump_marketing_version 0.1.0 minor)" "0.2.0" "minor bump"
+assert_equal "$(ava_bump_marketing_version 0.1.0 major)" "1.0.0" "major bump"
+assert_equal "$(ava_bump_marketing_version 0.1.9 patch)" "0.1.10" "patch carries"
+assert_equal "$(ava_bump_marketing_version 1.9.9 minor)" "1.10.0" "minor carries"
+assert_equal "$(ava_bump_marketing_version 9.9.9 major)" "10.0.0" "major carries"
+assert_equal "$(ava_bump_marketing_version 0.1.09 patch)" "0.1.10" "decimal not octal"
+assert_equal "$(ava_next_build_number 1)" "2" "next build"
+assert_equal "$(ava_next_build_number 9)" "10" "build carries"
+assert_equal "$(ava_parse_release_args)" "patch 0" "default args"
+assert_equal "$(ava_parse_release_args --minor)" "minor 0" "minor arg"
+assert_equal "$(ava_parse_release_args --major --push)" "major 1" "major and push"
+assert_equal "$(ava_parse_release_args --push --patch)" "patch 1" "push and patch"
+assert_equal "$(ava_parse_release_args --help)" "help" "help arg"
+if ava_bump_marketing_version 1.2 extra >/dev/null 2>&1; then
+  fail "invalid bump should fail"
+fi
+if ava_parse_release_args --minor --major >/dev/null 2>&1; then
+  fail "two bump flags should fail"
+fi
+if ava_parse_release_args --foo >/dev/null 2>&1; then
+  fail "unknown flag should fail"
+fi
+
+VERSION_FIXTURE="$(mktemp "${TMPDIR:-/tmp}/ava-version.XXXXXX")"
+ava_write_version_file "$VERSION_FIXTURE" "0.2.0" "4"
+assert_equal "$(ava_read_marketing_version "$VERSION_FIXTURE")" "0.2.0" "written version"
+assert_equal "$(ava_read_build_number "$VERSION_FIXTURE")" "4" "written build"
+rm -f "$VERSION_FIXTURE"
+if ava_read_marketing_version "${VERSION_FIXTURE}.missing" >/dev/null 2>&1; then
+  fail "missing VERSION should fail"
+fi
 
 if ava_cmake_string AVA_DOES_NOT_EXIST "$CMAKE_LISTS" >/dev/null 2>&1; then
   fail "missing cmake variable should fail"
@@ -95,5 +136,27 @@ else
     fail "ava_require_macos should pass on macOS"
   fi
 fi
+
+RELEASE_REPO="$(mktemp -d "${TMPDIR:-/tmp}/ava-release-repo.XXXXXX")"
+git -C "$RELEASE_REPO" init -q
+git -C "$RELEASE_REPO" config user.email "ava-release-test@example.com"
+git -C "$RELEASE_REPO" config user.name "AVA release test"
+ava_require_clean_worktree "$RELEASE_REPO"
+printf 'note\n' > "${RELEASE_REPO}/note.txt"
+if ava_require_clean_worktree "$RELEASE_REPO" >/dev/null 2>&1; then
+  fail "a dirty tree should be refused"
+fi
+git -C "$RELEASE_REPO" add note.txt
+git -C "$RELEASE_REPO" commit -q -m "Initial"
+ava_require_clean_worktree "$RELEASE_REPO"
+ava_require_release_branch "$RELEASE_REPO"
+if ava_release_tag_exists "$RELEASE_REPO" "0.1.1"; then
+  fail "v0.1.1 should not exist yet"
+fi
+git -C "$RELEASE_REPO" tag -a v0.1.1 -m "AVA 0.1.1"
+if ! ava_release_tag_exists "$RELEASE_REPO" "0.1.1"; then
+  fail "v0.1.1 should exist"
+fi
+rm -rf "$RELEASE_REPO"
 
 echo "macos_release_common_test: ok"

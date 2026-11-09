@@ -11,6 +11,8 @@ fi
 AVA_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC2034 # Callers that source this file read AVA_CPP_ROOT.
 AVA_CPP_ROOT="$(cd "${AVA_SCRIPT_DIR}/.." && pwd)"
+# shellcheck disable=SC2034 # Callers that source this file read AVA_VERSION_FILE.
+AVA_VERSION_FILE="${AVA_CPP_ROOT}/VERSION"
 
 # Keep this file name in sync with FfmpegLocator.cpp (ava-coach-build).
 AVA_COACH_BUILD_MARKER_NAME="ava-coach-build"
@@ -38,6 +40,166 @@ ava_cmake_string() {
     return 1
   fi
   printf '%s\n' "$value"
+}
+
+ava_trim_line() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s\n' "$value"
+}
+
+ava_version_file_field() {
+  local path="$1"
+  local wanted_index="$2"
+  local line count=0 value=""
+  if [[ ! -f "$path" ]]; then
+    echo "Missing version file: ${path}" >&2
+    return 1
+  fi
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="$(ava_trim_line "$line")"
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    count=$((count + 1))
+    if [[ "$count" -eq "$wanted_index" ]]; then
+      value="$line"
+    fi
+  done < "$path"
+  if [[ "$count" -ne 2 || -z "$value" ]]; then
+    echo "VERSION must contain a marketing version and a build number: ${path}" >&2
+    return 1
+  fi
+  printf '%s\n' "$value"
+}
+
+ava_read_marketing_version() {
+  local path="$1"
+  local version
+  version="$(ava_version_file_field "$path" 1)" || return 1
+  if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Marketing version '${version}' in ${path} is not MAJOR.MINOR.PATCH." >&2
+    return 1
+  fi
+  printf '%s\n' "$version"
+}
+
+ava_read_build_number() {
+  local path="$1"
+  local build_number
+  build_number="$(ava_version_file_field "$path" 2)" || return 1
+  if [[ ! "$build_number" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Build number '${build_number}' in ${path} is not a positive integer." >&2
+    return 1
+  fi
+  printf '%s\n' "$build_number"
+}
+
+ava_bump_marketing_version() {
+  local version="$1"
+  local part="$2"
+  local major minor patch
+  if [[ ! "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+    echo "Version '${version}' is not MAJOR.MINOR.PATCH." >&2
+    return 1
+  fi
+  major=$((10#${BASH_REMATCH[1]}))
+  minor=$((10#${BASH_REMATCH[2]}))
+  patch=$((10#${BASH_REMATCH[3]}))
+  case "$part" in
+    patch) patch=$((patch + 1)) ;;
+    minor)
+      minor=$((minor + 1))
+      patch=0
+      ;;
+    major)
+      major=$((major + 1))
+      minor=0
+      patch=0
+      ;;
+    *)
+      echo "Unknown version bump '${part}'. Use patch, minor, or major." >&2
+      return 1
+      ;;
+  esac
+  printf '%s.%s.%s\n' "$major" "$minor" "$patch"
+}
+
+ava_next_build_number() {
+  local build_number="$1"
+  if [[ ! "$build_number" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Build number '${build_number}' is not a positive integer." >&2
+    return 1
+  fi
+  echo $((10#$build_number + 1))
+}
+
+ava_write_version_file() {
+  local path="$1"
+  local version="$2"
+  local build_number="$3"
+  local directory temporary
+  directory="$(dirname "$path")"
+  temporary="$(mktemp "${directory}/VERSION.XXXXXX")"
+  cat > "$temporary" <<EOF
+# Marketing version (MAJOR.MINOR.PATCH). release_macos.sh is the only writer.
+${version}
+# CFBundleVersion. Increases by one on every successful release.
+${build_number}
+EOF
+  mv "$temporary" "$path"
+}
+
+ava_parse_release_args() {
+  local part="patch" push_release=0 saw_part=0 arg
+  for arg in "$@"; do
+    case "$arg" in
+      --patch|--minor|--major)
+        if [[ "$saw_part" -eq 1 ]]; then
+          echo "Pass only one of --patch, --minor, or --major." >&2
+          return 1
+        fi
+        saw_part=1
+        part="${arg#--}"
+        ;;
+      --push) push_release=1 ;;
+      -h|--help)
+        printf 'help\n'
+        return 0
+        ;;
+      *)
+        echo "Unknown argument: ${arg}" >&2
+        echo "Usage: release_macos.sh [--patch|--minor|--major] [--push]" >&2
+        return 1
+        ;;
+    esac
+  done
+  printf '%s %s\n' "$part" "$push_release"
+}
+
+ava_require_clean_worktree() {
+  local repository_root="$1"
+  local dirty
+  dirty="$(git -C "$repository_root" status --porcelain)"
+  if [[ -n "$dirty" ]]; then
+    echo "Refusing to release: the working tree has uncommitted changes." >&2
+    printf '%s\n' "$dirty" >&2
+    echo "Commit or stash them, then run release_macos.sh again." >&2
+    return 1
+  fi
+}
+
+ava_require_release_branch() {
+  local repository_root="$1"
+  if ! git -C "$repository_root" symbolic-ref --quiet HEAD >/dev/null; then
+    echo "Refusing to release from a detached HEAD. Check out a branch first." >&2
+    return 1
+  fi
+}
+
+ava_release_tag_exists() {
+  local repository_root="$1"
+  local version="$2"
+  git -C "$repository_root" rev-parse --verify --quiet "refs/tags/v${version}" >/dev/null
 }
 
 ava_require_host_architecture() {
@@ -209,8 +371,9 @@ ava_reject_homebrew_linkage() {
 ava_assert_bundle_metadata() {
   local application_bundle="$1"
   local expected_version="$2"
-  local expected_architecture="$3"
-  local expected_deployment_target="$4"
+  local expected_build="$3"
+  local expected_architecture="$4"
+  local expected_deployment_target="$5"
   local plist_path="${application_bundle}/Contents/Info.plist"
   local binary_path="${application_bundle}/Contents/MacOS/AVA"
   local short_version bundle_version minimum_macos binary_minos icon_name
@@ -218,8 +381,8 @@ ava_assert_bundle_metadata() {
   bundle_version="$(ava_plist_string CFBundleVersion "$plist_path")"
   minimum_macos="$(ava_plist_string LSMinimumSystemVersion "$plist_path")"
   icon_name="$(ava_plist_string CFBundleIconFile "$plist_path")"
-  if [[ "$short_version" != "$expected_version" || "$bundle_version" != "$expected_version" ]]; then
-    echo "Bundle version is ${short_version} / ${bundle_version}, CMakeLists says ${expected_version}." >&2
+  if [[ "$short_version" != "$expected_version" || "$bundle_version" != "$expected_build" ]]; then
+    echo "Bundle version is ${short_version} / ${bundle_version}, VERSION says ${expected_version} / ${expected_build}." >&2
     return 1
   fi
   if [[ "$minimum_macos" != "$expected_deployment_target" ]]; then
@@ -265,12 +428,14 @@ ava_resolve_vendored_helper() {
 ava_write_coach_marker() {
   local application_bundle="$1"
   local version="$2"
-  local architecture="$3"
-  local deployment_target="$4"
+  local build_number="$3"
+  local architecture="$4"
+  local deployment_target="$5"
   local marker_path="${application_bundle}/Contents/Resources/${AVA_COACH_BUILD_MARKER_NAME}"
   mkdir -p "$(dirname "$marker_path")"
   cat > "$marker_path" <<EOF
 version=${version}
+build=${build_number}
 architecture=${architecture}
 minimum_macos=${deployment_target}
 EOF
@@ -279,11 +444,13 @@ EOF
 ava_write_release_info() {
   local info_path="$1"
   local version="$2"
-  local architecture="$3"
-  local deployment_target="$4"
-  local git_sha="$5"
+  local build_number="$3"
+  local architecture="$4"
+  local deployment_target="$5"
+  local git_sha="$6"
   cat > "$info_path" <<EOF
 version=${version}
+build=${build_number}
 architecture=${architecture}
 minimum_macos=${deployment_target}
 git_sha=${git_sha}

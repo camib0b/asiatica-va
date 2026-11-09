@@ -28,7 +28,8 @@ ava_require_macos
 CMAKE_LISTS="${AVA_CPP_ROOT}/CMakeLists.txt"
 ARCHITECTURE="$(ava_cmake_string AVA_MACOS_ARCHITECTURE "$CMAKE_LISTS")" || exit 1
 DEPLOYMENT_TARGET="$(ava_cmake_string AVA_MACOS_DEPLOYMENT_TARGET "$CMAKE_LISTS")" || exit 1
-APP_VERSION="$(ava_cmake_string AVA_APP_VERSION "$CMAKE_LISTS")" || exit 1
+APP_VERSION="$(ava_read_marketing_version "$AVA_VERSION_FILE")" || exit 1
+APP_BUILD="$(ava_read_build_number "$AVA_VERSION_FILE")" || exit 1
 APPLICATION_BUNDLE="${AVA_CPP_ROOT}/dist/AVA.app"
 DISTRIBUTION_DIRECTORY="${AVA_CPP_ROOT}/dist"
 NOTARY_PROFILE="${NOTARYTOOL_PROFILE:-ava-notarize}"
@@ -58,7 +59,7 @@ echo "Signing inside out with ${IDENTITY}"
 echo "codesign --deep is not used."
 ava_sign_application "$APPLICATION_BUNDLE" "$IDENTITY" "$APPLICATION_ENTITLEMENTS" "$HELPER_ENTITLEMENTS"
 ava_verify_signed_application "$APPLICATION_BUNDLE"
-ava_assert_bundle_metadata "$APPLICATION_BUNDLE" "$APP_VERSION" "$ARCHITECTURE" "$DEPLOYMENT_TARGET"
+ava_assert_bundle_metadata "$APPLICATION_BUNDLE" "$APP_VERSION" "$APP_BUILD" "$ARCHITECTURE" "$DEPLOYMENT_TARGET"
 
 NOTARIZATION_DIRECTORY="$(mktemp -d "${TMPDIR:-/tmp}/ava-notarize.XXXXXX")"
 NOTARIZATION_ZIP="${NOTARIZATION_DIRECTORY}/AVA.zip"
@@ -82,6 +83,7 @@ GIT_SHA="$(ava_git_sha "$(cd "${AVA_CPP_ROOT}/.." && pwd)")"
 ava_write_release_info \
   "${DISTRIBUTION_DIRECTORY}/release-info.txt" \
   "$APP_VERSION" \
+  "$APP_BUILD" \
   "$ARCHITECTURE" \
   "$DEPLOYMENT_TARGET" \
   "$GIT_SHA"

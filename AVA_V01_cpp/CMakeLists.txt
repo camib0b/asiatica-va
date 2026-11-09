@@ -1,9 +1,35 @@
 cmake_minimum_required(VERSION 3.16)
 
-# scripts/macos_release_common.sh reads these three lines. Keep them unindented.
-set(AVA_APP_VERSION "0.1.0")
+# scripts/macos_release_common.sh reads these two lines. Keep them unindented.
 set(AVA_MACOS_DEPLOYMENT_TARGET "12.0")
 set(AVA_MACOS_ARCHITECTURE "arm64")
+
+# AVA_V01_cpp/VERSION is the only app version. release_macos.sh writes it.
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" AVA_VERSION_FILE_LINES)
+set(AVA_APP_VERSION "")
+set(AVA_BUILD_NUMBER "")
+foreach(ava_version_line IN LISTS AVA_VERSION_FILE_LINES)
+  string(STRIP "${ava_version_line}" ava_version_line)
+  if(ava_version_line STREQUAL "" OR ava_version_line MATCHES "^#")
+    continue()
+  endif()
+  if(AVA_APP_VERSION STREQUAL "")
+    set(AVA_APP_VERSION "${ava_version_line}")
+  elseif(AVA_BUILD_NUMBER STREQUAL "")
+    set(AVA_BUILD_NUMBER "${ava_version_line}")
+  else()
+    message(FATAL_ERROR "VERSION has an unexpected extra line: ${ava_version_line}")
+  endif()
+endforeach()
+if(NOT AVA_APP_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
+  message(FATAL_ERROR
+    "VERSION marketing version must be MAJOR.MINOR.PATCH, got '${AVA_APP_VERSION}'.")
+endif()
+if(NOT AVA_BUILD_NUMBER MATCHES "^[1-9][0-9]*$")
+  message(FATAL_ERROR
+    "VERSION build number must be a positive integer, got '${AVA_BUILD_NUMBER}'.")
+endif()
+message(STATUS "AVA ${AVA_APP_VERSION} build ${AVA_BUILD_NUMBER}")
 
 # Set before project() so the Apple compiler gets -mmacosx-version-min and -arch.
 # Non-Apple hosts ignore both variables.
@@ -220,10 +246,11 @@ if(Git_FOUND)
     set(AVA_GIT_SHA "")
   endif()
 endif()
+set(AVA_VERSION_DISPLAY "${AVA_APP_VERSION} (${AVA_BUILD_NUMBER})")
 if(AVA_GIT_SHA STREQUAL "")
-  set(AVA_VERSION_STRING "${AVA_APP_VERSION}")
+  set(AVA_VERSION_STRING "${AVA_VERSION_DISPLAY}")
 else()
-  set(AVA_VERSION_STRING "${AVA_APP_VERSION}+${AVA_GIT_SHA}")
+  set(AVA_VERSION_STRING "${AVA_VERSION_DISPLAY}+${AVA_GIT_SHA}")
 endif()
 
 target_compile_definitions(AVA PRIVATE
@@ -232,7 +259,7 @@ target_compile_definitions(AVA PRIVATE
 
 if(APPLE)
   set_target_properties(AVA PROPERTIES
-    MACOSX_BUNDLE_BUNDLE_VERSION "${AVA_APP_VERSION}"
+    MACOSX_BUNDLE_BUNDLE_VERSION "${AVA_BUILD_NUMBER}"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${AVA_APP_VERSION}"
     MACOSX_BUNDLE_LONG_VERSION_STRING "${AVA_VERSION_STRING}"
     MACOSX_BUNDLE_INFO_STRING "AVA ${AVA_VERSION_STRING}"
