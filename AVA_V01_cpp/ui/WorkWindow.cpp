@@ -11,6 +11,7 @@
 #include "../style/Motion.h"
 #include "../style/StyleProps.h"
 #include "../style/ThemeColors.h"
+#include "../style/TextFit.h"
 #include "../style/WorkDataView.h"
 #include "../components/VideoPlayer.h"
 #include "../components/GameControls.h"
@@ -56,16 +57,13 @@
 #include <QToolButton>
 #include <QMenu>
 #include <QTimer>
-#include <QPointer>
 #include <QIcon>
+#include <QPointer>
 #include <QAbstractItemView>
 #include <QHeaderView>
 #include <QTableView>
 #include <QItemSelectionModel>
-#include <QPainter>
-#include <QPaintEvent>
 #include <QResizeEvent>
-#include <QPropertyAnimation>
 #include <QAction>
 #include <QKeySequence>
 
@@ -86,7 +84,6 @@ void setToolButtonFlashState(QToolButton* button, bool flashing) {
 #include <QColor>
 #include <QPlainTextEdit>
 #include <QScrollArea>
-#include <QIcon>
 #include <QFrame>
 #include <QBoxLayout>
 #include <QLayout>
@@ -127,7 +124,7 @@ void configureModeToolButton(QToolButton* button, const QString& objectName, boo
     button->setChecked(checked);
     Style::setVariant(button, "ghost");
     Style::setSize(button, "sm");
-    button->setCursor(Qt::PointingHandCursor);
+    Style::usePointingHandCursor(button);
 }
 
 class XmlImportActivityGuard {
@@ -153,140 +150,12 @@ QString pathWithXmlSuffix(const QString& chosenPath) {
 
 } // namespace
 
-class ModeLabelTint final : public QObject {
-    Q_OBJECT
-    Q_PROPERTY(QColor textColor READ textColor WRITE setTextColor)
-
-public:
-    explicit ModeLabelTint(QToolButton* button) : QObject(button), button_(button) {
-        setObjectName(QStringLiteral("motion.modeLabel"));
-    }
-
-    QColor textColor() const { return textColor_; }
-
-    void setTextColor(const QColor& color) {
-        if (textColor_ == color) return;
-        textColor_ = color;
-        if (!button_) return;
-        const QString selector = button_->objectName().isEmpty()
-            ? QStringLiteral("QToolButton")
-            : QStringLiteral("QToolButton#%1").arg(button_->objectName());
-        button_->setStyleSheet(QStringLiteral("%1 { color: %2; }").arg(selector, color.name(QColor::HexRgb)));
-    }
-
-private:
-    QPointer<QToolButton> button_;
-    QColor textColor_;
-};
-
 class ModeToggleTrack final : public QWidget {
-    Q_OBJECT
-    Q_PROPERTY(QRectF pillRect READ pillRect WRITE setPillRect)
-
 public:
     explicit ModeToggleTrack(QWidget* parent = nullptr) : QWidget(parent) {
         setObjectName(QStringLiteral("WorkModeToggleGroup"));
         setAttribute(Qt::WA_StyledBackground, true);
     }
-
-    void setButtons(QToolButton* tagging, QToolButton* analyzing, QToolButton* presenting) {
-        taggingButton_ = tagging;
-        analyzingButton_ = analyzing;
-        presentingButton_ = presenting;
-        tintFor(tagging);
-        tintFor(analyzing);
-        tintFor(presenting);
-    }
-
-    void syncToMode(bool animate) {
-        syncLabels(animate);
-        syncPillGeometry(animate);
-    }
-
-    QRectF pillRect() const { return pillRect_; }
-
-    void setPillRect(const QRectF& rect) {
-        if (pillRect_ == rect) return;
-        pillRect_ = rect;
-        update();
-    }
-
-protected:
-    void paintEvent(QPaintEvent* event) override {
-        QWidget::paintEvent(event);
-        if (pillRect_.width() < 1.0) return;
-        QPainter painter(this);
-        painter.setRenderHint(QPainter::Antialiasing, true);
-        painter.setPen(QPen(Style::ThemeColors::border(), 1.0));
-        painter.setBrush(Style::ThemeColors::surface());
-        painter.drawRoundedRect(pillRect_.adjusted(0.5, 0.5, -0.5, -0.5), 6.0, 6.0);
-    }
-
-    void resizeEvent(QResizeEvent* event) override {
-        QWidget::resizeEvent(event);
-        auto* animation = findChild<QPropertyAnimation*>(QStringLiteral("motion.property.pillRect"),
-                                                        Qt::FindDirectChildrenOnly);
-        const bool sliding = animation && animation->state() == QAbstractAnimation::Running;
-        syncPillGeometry(sliding);
-    }
-
-private:
-    ModeLabelTint* tintFor(QToolButton* button) {
-        if (!button) return nullptr;
-        auto* tint = button->findChild<ModeLabelTint*>(QStringLiteral("motion.modeLabel"),
-                                                       Qt::FindDirectChildrenOnly);
-        if (!tint) tint = new ModeLabelTint(button);
-        return tint;
-    }
-
-    QToolButton* activeButton() const {
-        if (taggingButton_ && taggingButton_->isChecked()) return taggingButton_;
-        if (analyzingButton_ && analyzingButton_->isChecked()) return analyzingButton_;
-        if (presentingButton_ && presentingButton_->isChecked()) return presentingButton_;
-        return taggingButton_;
-    }
-
-    QRectF rectForButton(QToolButton* button) const {
-        if (!button || !button->isVisible()) return {};
-        return QRectF(button->geometry()).adjusted(1.0, 1.0, -1.0, -1.0);
-    }
-
-    void syncLabels(bool animate) {
-        const int duration = animate ? Motion::kHoverIn : 0;
-        const QList<QPointer<QToolButton>> buttons = {taggingButton_, analyzingButton_, presentingButton_};
-        for (const QPointer<QToolButton>& button : buttons) {
-            if (!button) continue;
-            ModeLabelTint* tint = tintFor(button);
-            if (!tint) continue;
-            const QColor color = button->isChecked() ? Style::ThemeColors::foreground()
-                                                     : Style::ThemeColors::quietText();
-            Motion::animateColor(tint, "textColor", color, duration);
-        }
-    }
-
-    void syncPillGeometry(bool animate) {
-        const QRectF target = rectForButton(activeButton());
-        const QEasingCurve curve = Motion::strongOut();
-        if (target.width() < 1.0) {
-            if (pillRect_.width() >= 1.0) {
-                Motion::animateProperty(this, "pillRect", QVariant::fromValue(QRectF()), 0, curve);
-            }
-            return;
-        }
-        const bool instant = !animate || !pillPlaced_ || Motion::reduced();
-        Motion::animateProperty(this,
-                                "pillRect",
-                                QVariant::fromValue(target),
-                                instant ? 0 : Motion::kEnter,
-                                curve);
-        pillPlaced_ = true;
-    }
-
-    QPointer<QToolButton> taggingButton_;
-    QPointer<QToolButton> analyzingButton_;
-    QPointer<QToolButton> presentingButton_;
-    QRectF pillRect_;
-    bool pillPlaced_ = false;
 };
 
 WorkWindow::WorkWindow(QWidget* parent)
@@ -365,26 +234,8 @@ void WorkWindow::updateVideoMuteButton(bool muted) const {
         return;
     }
 
-    const QIcon volumeIcon = QIcon::fromTheme(QStringLiteral("audio-volume-high"));
-    const QIcon mutedIcon = QIcon::fromTheme(QStringLiteral("audio-volume-muted"));
-    if (muted) {
-        if (!mutedIcon.isNull()) {
-            videoMuteButton_->setIcon(mutedIcon);
-            videoMuteButton_->setText(QString());
-        } else {
-            videoMuteButton_->setIcon(QIcon());
-            videoMuteButton_->setText(QString::fromUtf8("\u{1F507}"));
-        }
-    } else {
-        if (!volumeIcon.isNull()) {
-            videoMuteButton_->setIcon(volumeIcon);
-            videoMuteButton_->setText(QString());
-        } else {
-            videoMuteButton_->setIcon(QIcon());
-            videoMuteButton_->setText(QString::fromUtf8("\u{1F50A}"));
-        }
-    }
-
+    videoMuteButton_->setIcon(QIcon());
+    videoMuteButton_->setText(muted ? AppLocale::trUi("vc.unmute") : AppLocale::trUi("vc.mute"));
     videoMuteButton_->setChecked(muted);
     videoMuteButton_->setToolTip(muted ? AppLocale::trUi("vc.tt.unmute") : AppLocale::trUi("vc.tt.mute"));
 }
@@ -528,6 +379,7 @@ void WorkWindow::applyUiStrings() const {
     if (editGameControlsAction_) {
         editGameControlsAction_->setText(AppLocale::trUi("menu.edit_controls"));
     }
+    if (videoMenuButton_) videoMenuButton_->setText(AppLocale::trUi("menu.more"));
     if (reduceMotionAction_) {
         reduceMotionAction_->setText(AppLocale::trUi("menu.reduce_motion"));
         reduceMotionAction_->setToolTip(AppLocale::trUi("menu.reduce_motion_tooltip"));
@@ -716,7 +568,6 @@ void WorkWindow::onTagSessionGameMetadataChanged() {
 
 void WorkWindow::syncModeToggleChecks() {
     setModeToggleButtonsChecked();
-    if (modeToggleTrack_) modeToggleTrack_->syncToMode(false);
 }
 
 void WorkWindow::setModeToggleButtonsChecked() {
@@ -767,7 +618,6 @@ void WorkWindow::setMode(Mode mode) {
         presentationPlaybackController_->enterPresentationPlayback();
     }
     setModeToggleButtonsChecked();
-    if (modeToggleTrack_) modeToggleTrack_->syncToMode(true);
     refreshPlaybackShortcutFocusGate();
 }
 
@@ -1021,13 +871,11 @@ void WorkWindow::buildModeToggle(QWidget* topRow, QHBoxLayout* topLayout) {
     configureModeToolButton(modePresentingButton_, QStringLiteral("WorkModePresentingButton"), false);
 
     auto* modeToggleLayout = new QHBoxLayout(modeToggleTrack_);
-    modeToggleLayout->setContentsMargins(3, 3, 3, 3);
-    modeToggleLayout->setSpacing(4);
+    modeToggleLayout->setContentsMargins(2, 2, 2, 2);
+    modeToggleLayout->setSpacing(2);
     modeToggleLayout->addWidget(modeTaggingButton_);
     modeToggleLayout->addWidget(modeAnalyzingButton_);
     modeToggleLayout->addWidget(modePresentingButton_);
-    modeToggleTrack_->setButtons(modeTaggingButton_, modeAnalyzingButton_, modePresentingButton_);
-    modeToggleTrack_->syncToMode(false);
     topLayout->addWidget(modeToggleTrack_);
     topLayout->addSpacing(16);
 }
@@ -1047,10 +895,10 @@ void WorkWindow::buildVideoMuteButton(QHBoxLayout* videoControlsLayout) {
     videoMuteButton_ = new QToolButton(this);
     videoMuteButton_->setObjectName(QStringLiteral("VideoMuteButton"));
     videoMuteButton_->setCheckable(true);
-    videoMuteButton_->setMinimumWidth(36);
+    videoMuteButton_->setMinimumWidth(0);
     Style::setVariant(videoMuteButton_, "ghost");
     Style::setSize(videoMuteButton_, "sm");
-    videoMuteButton_->setCursor(Qt::PointingHandCursor);
+    Style::usePointingHandCursor(videoMuteButton_);
     videoMuteButton_->setFocusPolicy(Qt::NoFocus);
     videoMuteButton_->setEnabled(false);
     updateVideoMuteButton(false);
@@ -1059,18 +907,13 @@ void WorkWindow::buildVideoMuteButton(QHBoxLayout* videoControlsLayout) {
 
 void WorkWindow::buildVideoSettingsMenu(QHBoxLayout* videoControlsLayout) {
     videoMenuButton_ = new QToolButton(this);
-    QIcon settingsIcon = QIcon::fromTheme("preferences-system");
-    if (!settingsIcon.isNull()) {
-        videoMenuButton_->setIcon(settingsIcon);
-        videoMenuButton_->setText(QString());
-    } else {
-        videoMenuButton_->setText(QString::fromUtf8("\u2699")); // gear
-    }
-    videoMenuButton_->setMinimumWidth(36);
+    videoMenuButton_->setObjectName(QStringLiteral("VideoMenuButton"));
+    videoMenuButton_->setText(AppLocale::trUi("menu.more"));
+    videoMenuButton_->setMinimumWidth(0);
     Style::setVariant(videoMenuButton_, "ghost");
     Style::setSize(videoMenuButton_, "sm");
     videoMenuButton_->setPopupMode(QToolButton::InstantPopup);
-    videoMenuButton_->setCursor(Qt::PointingHandCursor);
+    Style::usePointingHandCursor(videoMenuButton_);
     videoMenuButton_->setFocusPolicy(Qt::NoFocus);
     auto* videoMenu = new QMenu(videoMenuButton_);
     replaceVideoAction_ = videoMenu->addAction(QString());
@@ -1110,7 +953,7 @@ void WorkWindow::buildTagsSection() {
     tagsSection_ = new QWidget(this);
     auto* tagsSectionLayout = new QVBoxLayout(tagsSection_);
     tagsSectionLayout->setContentsMargins(0, 0, 0, 0);
-    tagsSectionLayout->setSpacing(6);
+    tagsSectionLayout->setSpacing(4);
     buildTagsHeaderRow(tagsSectionLayout);
     buildTagsTable(tagsSectionLayout);
 }
@@ -1122,29 +965,31 @@ void WorkWindow::buildTagsHeaderRow(QVBoxLayout* tagsSectionLayout) {
     tagsHeaderLayout->setSpacing(8);
 
     tagsHeaderLabel_ = new QLabel(tagsHeaderRow_);
-    Style::setRole(tagsHeaderLabel_, "h3");
+    Style::setRole(tagsHeaderLabel_, "muted");
 
     tagsFilterButton_ = new QToolButton(tagsHeaderRow_);
     Style::setVariant(tagsFilterButton_, "ghost");
     Style::setSize(tagsFilterButton_, "sm");
     tagsFilterButton_->setPopupMode(QToolButton::InstantPopup);
-    tagsFilterButton_->setCursor(Qt::PointingHandCursor);
+    Style::usePointingHandCursor(tagsFilterButton_);
     tagsRemoveFiltersButton_ = new QToolButton(tagsHeaderRow_);
     Style::setVariant(tagsRemoveFiltersButton_, "ghost");
     Style::setSize(tagsRemoveFiltersButton_, "sm");
-    tagsRemoveFiltersButton_->setCursor(Qt::PointingHandCursor);
+    Style::usePointingHandCursor(tagsRemoveFiltersButton_);
     tagsRemoveFiltersButton_->hide();
     buildTagsFilterMenu();
 
-    tagsFilterIndicator_ = new QLabel(tagsHeaderRow_);
-    tagsFilterIndicator_->setWordWrap(false);
+    auto* filterIndicator = new Style::ElidingLabel(tagsHeaderRow_);
+    filterIndicator->setMinimumWidth(0);
+    filterIndicator->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
+    tagsFilterIndicator_ = filterIndicator;
     Style::setRole(tagsFilterIndicator_, "muted");
     tagsFilterIndicator_->hide();
 
     undoLastTagButton_ = new QToolButton(tagsHeaderRow_);
     Style::setVariant(undoLastTagButton_, "ghost");
     Style::setSize(undoLastTagButton_, "sm");
-    undoLastTagButton_->setCursor(Qt::PointingHandCursor);
+    Style::usePointingHandCursor(undoLastTagButton_);
     Motion::installButtonHover(tagsFilterButton_, tagButtonColors());
     Motion::installButtonHover(tagsRemoveFiltersButton_, tagButtonColors());
     Motion::installButtonHover(undoLastTagButton_, tagButtonColors());
@@ -1338,7 +1183,6 @@ void WorkWindow::hideChromeUntilVideoOpens() {
     if (modeTaggingButton_) modeTaggingButton_->hide();
     if (modeAnalyzingButton_) modeAnalyzingButton_->hide();
     if (modePresentingButton_) modePresentingButton_->hide();
-    if (modeToggleTrack_) modeToggleTrack_->syncToMode(false);
 }
 
 void WorkWindow::buildPresentationUi() {
@@ -1735,7 +1579,6 @@ void WorkWindow::closeVideoAfterExportCheck() {
     if (modeTaggingButton_) modeTaggingButton_->hide();
     if (modeAnalyzingButton_) modeAnalyzingButton_->hide();
     if (modePresentingButton_) modePresentingButton_->hide();
-    if (modeToggleTrack_) modeToggleTrack_->syncToMode(false);
     if (presentationQueue_) presentationQueue_->clear();
     presentationPlaybackController_->resetPresentationForVideoChange();
     releaseTransientResources();
@@ -1950,11 +1793,6 @@ void WorkWindow::showWorkChromeForOpenedVideo() {
     if (modeTaggingButton_) modeTaggingButton_->show();
     if (modeAnalyzingButton_) modeAnalyzingButton_->show();
     if (modePresentingButton_) modePresentingButton_->show();
-    if (modeToggleTrack_) {
-        QTimer::singleShot(0, modeToggleTrack_, [track = QPointer<ModeToggleTrack>(modeToggleTrack_)]() {
-            if (track) track->syncToMode(false);
-        });
-    }
 }
 
 void WorkWindow::resetPresentationForOpenedVideo() {
@@ -2581,4 +2419,3 @@ void WorkWindow::onUndoLastTag() {
     tagSession_->removeTag(tagCount - 1);
 }
 
-#include "WorkWindow.moc"

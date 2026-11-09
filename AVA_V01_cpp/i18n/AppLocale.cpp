@@ -268,6 +268,7 @@ const QHash<QString, UiTranslation>& uiTranslationTable() {
       {QStringLiteral("presentation.empty_hint"),
        {QStringLiteral("Use Tab and Shift Tab to navigate between the clips you select."),
         QStringLiteral("Ocupa Tab y Shift Tab para navegar entre los clips que selecciones.")}},
+      {QStringLiteral("menu.more"), {QStringLiteral("Menu"), QStringLiteral("Menú")}},
       {QStringLiteral("menu.replace_video"),
        {QStringLiteral("Replace video with another one"),
         QStringLiteral("Sustituir video por otro")}},

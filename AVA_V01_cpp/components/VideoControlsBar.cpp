@@ -19,9 +19,9 @@
 namespace {
 constexpr qint64 kSeekStepMs = 2000;
 constexpr int kFlashDurationMs = 150;
-constexpr int kTrayCornerRadiusPx = 10;
-constexpr int kTrayFillAlpha = 122;      // ~48% of zinc-950
-constexpr int kTrayBorderAlpha = 31;     // ~12% white hairline
+constexpr int kTrayCornerRadiusPx = 4;
+constexpr int kTrayFillAlpha = 242;
+constexpr int kTrayBorderAlpha = 40;
 
 Motion::ButtonColors videoButtonColors() {
   Motion::ButtonColors colors;
@@ -64,8 +64,8 @@ void VideoControlsBar
   setAttribute(Qt::WA_StyledBackground, true);
 
   auto* layout = new QHBoxLayout(this);
-  layout->setContentsMargins(16, 14, 16, 14);
-  layout->setSpacing(10);
+  layout->setContentsMargins(8, 6, 8, 6);
+  layout->setSpacing(4);
 
   playPauseButton_ = new QPushButton(this);
   playPauseButton_->setObjectName(QStringLiteral("PlayPauseButton"));
@@ -94,13 +94,13 @@ void VideoControlsBar
 
   for (QPushButton* button : videoControlButtons) {
     Motion::installButtonHover(button, videoButtonColors());
+    Style::usePointingHandCursor(button);
   }
+  Style::usePointingHandCursor(speedometer_);
 
   layout->addWidget(playPauseButton_);
   layout->addWidget(backButton_);
   layout->addWidget(forwardButton_);
-  // Transport stays together. The speed dial sits immediately after it.
-  layout->addSpacing(6);
   layout->addWidget(speedometer_, 0, Qt::AlignVCenter);
 }
 
@@ -210,7 +210,7 @@ void VideoControlsBar::paintEvent(QPaintEvent* event) {
   QPainterPath trayPath;
   trayPath.addRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5),
                           kTrayCornerRadiusPx, kTrayCornerRadiusPx);
-  painter.fillPath(trayPath, QColor(9, 9, 11, kTrayFillAlpha));
+  painter.fillPath(trayPath, QColor(24, 24, 27, kTrayFillAlpha));
   painter.setPen(QPen(QColor(255, 255, 255, kTrayBorderAlpha), 1.0));
   painter.drawPath(trayPath);
 

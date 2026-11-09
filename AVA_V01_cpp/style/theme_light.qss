@@ -883,13 +883,13 @@ QToolButton[size="sm"]:focus {
 
 QToolButton#VideoMuteButton,
 QToolButton#VideoMenuButton {
-  padding: 4px;
-  min-width: 36px;
+  padding: 4px 10px;
+  min-width: 0px;
   min-height: 32px;
 }
 QToolButton#VideoMuteButton:focus,
 QToolButton#VideoMenuButton:focus {
-  padding: 3px;
+  padding: 3px 9px;
 }
 
 QToolButton#VideoMuteButton[flash="true"] {
@@ -912,45 +912,58 @@ QWidget#StatsTeamFilterRow QToolButton[variant="ghost"]:focus {
   border: 2px solid #18181b;
 }
 
-/* Mode toggle group */
+/* Mode toggle. One quiet track; the selected mode is a flat white segment.
+   Width follows the label, so a short word does not sit in an empty pill. */
 QWidget#WorkModeToggleGroup {
   background: #f4f4f5;
   border: 1px solid #e4e4e7;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 QToolButton#WorkModeTaggingButton,
 QToolButton#WorkModeAnalyzingButton,
 QToolButton#WorkModePresentingButton {
-  min-width: 100px;
+  min-width: 0px;
+  padding: 4px 12px;
   background: transparent;
   border: 1px solid transparent;
+  border-radius: 3px;
+  color: #71717a;
   font-weight: 500;
+}
+
+QToolButton#WorkModeTaggingButton:hover,
+QToolButton#WorkModeAnalyzingButton:hover,
+QToolButton#WorkModePresentingButton:hover {
+  background: #e4e4e7;
+  border: 1px solid transparent;
+  color: #09090b;
 }
 
 QToolButton#WorkModeTaggingButton:checked,
 QToolButton#WorkModeAnalyzingButton:checked,
-QToolButton#WorkModePresentingButton:checked {
-  background: transparent;
-  border: 1px solid transparent;
-  font-weight: 600;
-}
+QToolButton#WorkModePresentingButton:checked,
 QToolButton#WorkModeTaggingButton:checked:hover,
 QToolButton#WorkModeAnalyzingButton:checked:hover,
-QToolButton#WorkModePresentingButton:checked:hover,
-QToolButton#WorkModeTaggingButton:!checked:hover,
-QToolButton#WorkModeAnalyzingButton:!checked:hover,
-QToolButton#WorkModePresentingButton:!checked:hover {
-  background: transparent;
-  border: 1px solid transparent;
+QToolButton#WorkModePresentingButton:checked:hover {
+  background: #ffffff;
+  border: 1px solid #d4d4d8;
+  color: #09090b;
+  font-weight: 600;
 }
 
 QToolButton#WorkModeTaggingButton:focus,
 QToolButton#WorkModeAnalyzingButton:focus,
 QToolButton#WorkModePresentingButton:focus {
   border: 2px solid #18181b;
-  background: transparent;
-  padding: 3px 9px;
+  padding: 3px 11px;
+}
+
+QToolButton#WorkModeTaggingButton:checked:focus,
+QToolButton#WorkModeAnalyzingButton:checked:focus,
+QToolButton#WorkModePresentingButton:checked:focus {
+  background: #ffffff;
+  color: #09090b;
 }
 
 /* =========================
@@ -1463,7 +1476,9 @@ QSlider#TimelineSlider::handle:horizontal:hover {
 }
 
 /* =========================
-   Video controls bar (compact overlay chip)
+   Video controls bar
+   Solid tray, same 4px radius and 13px type as the rest of the tool.
+   The tray fill itself is painted in VideoControlsBar.
 ========================= */
 
 QWidget#VideoControlsBar {
@@ -1472,11 +1487,11 @@ QWidget#VideoControlsBar {
 }
 
 QWidget#VideoControlsBar QPushButton {
-  padding: 0 6px;
-  font-size: 11px;
-  min-height: 20px;
-  max-height: 20px;
-  border-radius: 6px;
+  padding: 0 8px;
+  font-size: 13px;
+  min-height: 28px;
+  max-height: 28px;
+  border-radius: 4px;
   border: none;
   color: #fafafa;
   background-color: transparent;
@@ -1504,10 +1519,10 @@ QWidget#VideoControlsBar QPushButton:focus {
 }
 
 QWidget#VideoControlsBar QPushButton#PlayPauseButton {
-  min-width: 20px;
-  max-width: 20px;
-  min-height: 20px;
-  max-height: 20px;
+  min-width: 28px;
+  max-width: 28px;
+  min-height: 28px;
+  max-height: 28px;
   padding: 0;
 }
 
@@ -1566,10 +1581,10 @@ QWidget#VideoControlsBar QPushButton:checked {
 }
 
 QWidget#VideoControlsBar QWidget#PlaybackSpeedometer {
-  min-height: 20px;
+  min-height: 28px;
   border: none;
   background: transparent;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 QWidget#VideoControlsBar QLabel {
@@ -1611,9 +1626,10 @@ QPushButton[size="lg"]:focus {
   padding: 9px 23px;
 }
 
-/* Compact game controls in the tagging column (left of the video while tagging).
-   Size, focus, and state rules elsewhere set 15–24px of horizontal padding;
-   these selectors win so the tagging side panel is not forced wide. */
+/* Tagging keys size to the title plus the shortcut. A 72px card left a band
+   of empty white inside every button. Height stays in C++: a stylesheet
+   min-height replaces that floor, and QWidget already owns the "size"
+   property, so a [size="sm"] rule never matches these buttons. */
 QWidget#TaggingRightCol QPushButton[variant="gameControl"],
 QWidget#TaggingRightCol QPushButton[variant="gameControl"][size="md"],
 QWidget#TaggingRightCol QPushButton[variant="gameControl"][size="lg"],
@@ -1628,15 +1644,8 @@ QWidget#TaggingRightCol QPushButton[variant="gameControl"][flash="true"],
 QWidget#TaggingRightCol QPushButton[variant="gameControl"][flash="true"]:focus,
 QWidget#TaggingRightCol QPushButton[variant="gameControl"][controlsHidden="true"],
 QWidget#TaggingRightCol QPushButton[variant="gameControl"][controlsHidden="true"]:focus {
-  padding: 4px 2px;
-  min-height: 72px;
-  border-radius: 6px;
-}
-QWidget#TaggingRightCol QPushButton[variant="gameControl"][size="sm"],
-QWidget#TaggingRightCol QPushButton[variant="gameControl"][size="sm"]:focus {
-  padding: 4px 2px;
-  min-height: 32px;
-  border-radius: 6px;
+  padding: 2px 4px;
+  border-radius: 4px;
 }
 QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"],
 QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"][size="md"],
@@ -1644,10 +1653,9 @@ QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"]:focus,
 QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"][size="md"]:focus,
 QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"][flash="true"],
 QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"][flash="true"]:focus {
-  padding: 4px 2px;
-  font-size: 11px;
-  min-height: 72px;
-  border-radius: 6px;
+  padding: 2px 4px;
+  font-size: 12px;
+  border-radius: 4px;
 }
 
 QLabel[role="quarterTrackLabel"] {
@@ -1889,9 +1897,9 @@ QWidget#ControlsEditorGrid QPushButton[variant="gameControl"][activeMain="true"]
 QWidget#ControlsEditorGrid QPushButton[variant="gameControl"][activeMain="true"]:focus,
 QWidget#ControlsEditorGrid QPushButton[variant="gameControl"][controlsHidden="true"],
 QWidget#ControlsEditorGrid QPushButton[variant="gameControl"][controlsHidden="true"]:focus {
-  padding: 4px 2px;
-  min-height: 52px;
-  border-radius: 6px;
+  padding: 2px 4px;
+  min-height: 44px;
+  border-radius: 4px;
 }
 
 QLabel[role="inlineError"] {

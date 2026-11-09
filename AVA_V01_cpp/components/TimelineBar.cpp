@@ -118,7 +118,7 @@ void TimelineBar::buildUi() {
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   auto* layout = new QHBoxLayout(this);
   layout->setContentsMargins(0, 0, 0, 0);
-  layout->setSpacing(10);
+  layout->setSpacing(8);
   layout->setAlignment(Qt::AlignVCenter);
 
   slider_ = new ClickSeekSlider(Qt::Horizontal, this);
@@ -127,18 +127,21 @@ void TimelineBar::buildUi() {
   slider_->setSingleStep(50);
   slider_->setPageStep(1000);
   slider_->setTracking(false); // you already found this feels better
-  slider_->setMinimumHeight(40);
+  slider_->setMinimumHeight(28);
+  Style::usePointingHandCursor(slider_);
   slider_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
   label_ = new QLabel("00:00 / 00:00", this);
   Style::setRole(label_, "muted");
-  label_->setMinimumWidth(160);
+  const int timeWidth =
+      label_->fontMetrics().horizontalAdvance(QStringLiteral("00:00:00 / 00:00:00")) + 8;
+  label_->setMinimumWidth(timeWidth);
   label_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
   label_->setCursor(Qt::IBeamCursor);
   label_->installEventFilter(this);
 
   timeEntry_ = new QLineEdit(this);
-  timeEntry_->setMinimumWidth(160);
+  timeEntry_->setMinimumWidth(timeWidth);
   timeEntry_->setAlignment(Qt::AlignRight);
   timeEntry_->setPlaceholderText(QStringLiteral("mm:ss"));
   Style::setRole(timeEntry_, "muted");

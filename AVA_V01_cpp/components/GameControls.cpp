@@ -43,8 +43,8 @@
 #include "../ui/QtPtr.h"
 
 namespace {
-constexpr int kQuarterSegmentHeightPx = 10;
-constexpr int kQuarterSegmentRadiusPx = 2;
+constexpr int kQuarterSegmentHeightPx = 6;
+constexpr int kQuarterSegmentRadiusPx = 1;
 }
 
 class QuarterSegmentBar final : public QWidget {
@@ -244,8 +244,8 @@ void configureFollowUpButton(QPushButton* button, const QString& canonicalKey,
   button->setProperty("gameEventKey", canonicalKey);
   button->setProperty("gameEventId", static_cast<int>(eventId));
   auto* layout = new QVBoxLayout(button);
-  layout->setContentsMargins(2, 4, 2, 4);
-  layout->setSpacing(2);
+  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setSpacing(0);
   auto* titleLabel = new QLabel(displayLabel, button);
   titleLabel->setProperty("gameEventName", canonicalKey);
   titleLabel->setProperty("gameEventId", static_cast<int>(eventId));
@@ -855,8 +855,6 @@ void GameControls::updateGameTimeUi(bool animateQuarterChange) {
   periodAdvanceTitleLabel_->setProperty("fullLabel", AppLocale::trUi(titleKey));
   const bool advanceEnabled = quarter != DisplayedQuarter::Ended;
   periodAdvanceButton_->setEnabled(advanceEnabled);
-  periodAdvanceButton_->setCursor(advanceEnabled ? Qt::PointingHandCursor : Qt::ArrowCursor);
-  periodAdvanceButton_->setMinimumWidth(0);
   refreshPeriodButtonTitle();
   updateQuarterTrack(animateQuarterChange);
 }
@@ -915,8 +913,7 @@ void GameControls::updateQuarterTrack(bool animateQuarterChange) {
     if (becameCurrent && segment && label) {
       Motion::animateProperty(segment, "fillProgress", 0.0, 0, curve);
       Motion::animateProperty(segment, "fillProgress", targetProgress, Motion::kMilestone, curve);
-      label->setTextColor(labelColor);
-      Motion::pulseOnce(label, "textColor", labelColor, Style::ThemeColors::accent(), Motion::kEnter);
+      Motion::animateColor(label, "textColor", labelColor, Motion::kEnter);
     } else {
       if (segment) Motion::animateProperty(segment, "fillProgress", targetProgress, 0, curve);
       if (label) Motion::animateColor(label, "textColor", labelColor, 0);
@@ -993,8 +990,8 @@ void GameControls::configureMainGameControlButton(QPushButton* button, const QSt
   button->setProperty("gameEventName", eventName);
   button->setProperty("shortcutHint", shortcutHint);
   auto* layout = new QVBoxLayout(button);
-  layout->setContentsMargins(2, 4, 2, 4);
-  layout->setSpacing(2);
+  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setSpacing(0);
   auto* titleLabel = new QLabel(eventName, button);
   titleLabel->setProperty("gameEventName", eventName);
   titleLabel->setProperty("gameEventId", button->property("gameEventId"));
@@ -1021,14 +1018,14 @@ void GameControls::configurePeriodAdvanceButton(QPushButton* button, const QStri
   if (!button) return;
   button->setText(QString());
   auto* layout = new QHBoxLayout(button);
-  layout->setContentsMargins(4, 4, 4, 4);
-  layout->setSpacing(8);
+  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setSpacing(6);
   periodAdvanceTitleLabel_ = new QLabel(button);
   periodAdvanceTitleLabel_->setTextFormat(Qt::PlainText);
   periodAdvanceTitleLabel_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
   periodAdvanceTitleLabel_->setWordWrap(false);
   periodAdvanceTitleLabel_->setMinimumWidth(0);
-  periodAdvanceTitleLabel_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+  periodAdvanceTitleLabel_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
   Style::setRole(periodAdvanceTitleLabel_, "gameControlTitle");
   periodAdvanceTitleLabel_->setAttribute(Qt::WA_TransparentForMouseEvents, true);
   auto* shortcutLabel = new QLabel(shortcutHint, button);
@@ -1048,27 +1045,30 @@ void GameControls::buildUi() {
   mainEventButtonsById_.clear();
   auto* mainLayout = new QVBoxLayout(this);
   mainLayout->setContentsMargins(0, 0, 0, 0);
-  mainLayout->setSpacing(12);
+  mainLayout->setSpacing(8);
 
   // Game-time row: period-advance button | segmented quarter track
   auto* gameTimeRowWidget = new QWidget(this);
   auto* gameTimeRowLayout = new QHBoxLayout(gameTimeRowWidget);
   gameTimeRowLayout->setContentsMargins(0, 0, 0, 0);
-  gameTimeRowLayout->setSpacing(8);
+  gameTimeRowLayout->setSpacing(6);
 
   periodAdvanceButton_ = new QPushButton(gameTimeRowWidget);
   Style::setVariant(periodAdvanceButton_, "gameControl");
   Style::setSize(periodAdvanceButton_, "sm");
   periodAdvanceButton_->setFocusPolicy(Qt::ClickFocus);
-  periodAdvanceButton_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+  // Minimum: "Start game" / "Iniciar partido" stay whole. The quarter track
+  // takes the leftover width. A Preferred button was shrinking to the shortcut.
+  periodAdvanceButton_->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
   periodAdvanceButton_->setMinimumWidth(0);
+  periodAdvanceButton_->setMinimumHeight(36);
   configurePeriodAdvanceButton(periodAdvanceButton_, QStringLiteral("G"));
 
   quarterTrack_ = new QWidget(gameTimeRowWidget);
   Style::setRole(quarterTrack_, "quarterTrack");
   auto* trackLayout = new QVBoxLayout(quarterTrack_);
   trackLayout->setContentsMargins(0, 0, 0, 0);
-  trackLayout->setSpacing(4);
+  trackLayout->setSpacing(2);
 
   auto* segmentsRow = new QWidget(quarterTrack_);
   segmentsRow->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -1107,20 +1107,20 @@ void GameControls::buildUi() {
   auto* teamRowWidget = new QWidget(this);
   auto* teamRowLayout = new QHBoxLayout(teamRowWidget);
   teamRowLayout->setContentsMargins(0, 0, 0, 0);
-  teamRowLayout->setSpacing(8);
+  teamRowLayout->setSpacing(4);
 
   homeTeamButton_ = new QPushButton(teamRowWidget);
   awayTeamButton_ = new QPushButton(teamRowWidget);
   homeTeamButton_->setText(homeTeamFollowUpLabel_);
   awayTeamButton_->setText(awayTeamFollowUpLabel_);
   for (auto* btn : {homeTeamButton_, awayTeamButton_}) {
-    Style::setSize(btn, "lg");
+    Style::setSize(btn, "sm");
     Style::setVariant(btn, "gameControl");
     btn->setFocusPolicy(Qt::StrongFocus);
     // Ignored width: a long club name must not push the video column aside.
     btn->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
     btn->setMinimumWidth(0);
-    btn->setMinimumHeight(64);
+    btn->setMinimumHeight(36);
   }
   teamRowLayout->addWidget(homeTeamButton_, 1);
   teamRowLayout->addWidget(awayTeamButton_, 1);
@@ -1154,7 +1154,7 @@ void GameControls::buildUi() {
       button->setFocusPolicy(Qt::ClickFocus);
       button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
       button->setMinimumWidth(0);
-      button->setMinimumHeight(52);
+      button->setMinimumHeight(44);
       rowButtons.append(button);
       mainEventButtons_.append(button);
     }
@@ -1170,14 +1170,20 @@ void GameControls::buildUi() {
   followUpContainer_->setMinimumWidth(0);
   followUpLayout_ = new QGridLayout(followUpContainer_);
   followUpLayout_->setContentsMargins(0, 0, 0, 0);
-  followUpLayout_->setSpacing(8);
+  followUpLayout_->setSpacing(4);
   followUpContainer_->installEventFilter(this);
 
   mainLayout->addWidget(gameTimeRowWidget);
   mainLayout->addWidget(teamRowWidget);
   mainLayout->addWidget(mainGridWidget);
   mainLayout->addWidget(followUpContainer_);
-  mainLayout->addStretch(1);
+
+  Style::usePointingHandCursor(periodAdvanceButton_);
+  Style::usePointingHandCursor(homeTeamButton_);
+  Style::usePointingHandCursor(awayTeamButton_);
+  for (QPushButton* button : mainEventButtons_) {
+    Style::usePointingHandCursor(button);
+  }
 
   QList<QPushButton*> motionButtons = {periodAdvanceButton_, homeTeamButton_, awayTeamButton_};
   motionButtons.append(mainEventButtons_);
@@ -1414,6 +1420,7 @@ void GameControls::presentFollowUpChoices(const QStringList& actions, FollowUpSt
     button->setFocusPolicy(Qt::ClickFocus);
     button->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
     button->setMinimumWidth(0);
+    Style::usePointingHandCursor(button);
 
     connect(button, &QPushButton::clicked, this, [this, button]() { flashButtonBorder(button); });
     connect(button, &QPushButton::clicked, this, &GameControls::onFollowUpButtonClicked);
@@ -1665,10 +1672,30 @@ void GameControls::refreshFollowUpTitles() {
 }
 
 void GameControls::refreshPeriodButtonTitle() {
-  if (!periodAdvanceTitleLabel_ || applyingTitleFit_) return;
-  applyingTitleFit_ = true;
-  applyFittedTitle(periodAdvanceTitleLabel_, 1);
-  applyingTitleFit_ = false;
+  if (!periodAdvanceTitleLabel_ || !periodAdvanceButton_) return;
+  const QString fullText = periodAdvanceTitleLabel_->property("fullLabel").toString();
+  periodAdvanceTitleLabel_->ensurePolished();
+  periodAdvanceTitleLabel_->setText(fullText);
+
+  const QLabel* shortcutLabel = shortcutLabelOnButton(periodAdvanceButton_);
+  const int shortcutWidth = shortcutLabel
+      ? shortcutLabel->fontMetrics().horizontalAdvance(shortcutLabel->text())
+      : 0;
+  const int titleWidth = periodAdvanceTitleLabel_->fontMetrics().horizontalAdvance(fullText);
+  const int spacing = periodAdvanceButton_->layout() ? periodAdvanceButton_->layout()->spacing() : 0;
+  QStyleOptionButton option;
+  option.initFrom(periodAdvanceButton_);
+  const int outerWidth = periodAdvanceButton_->style()->sizeFromContents(
+      QStyle::CT_PushButton,
+      &option,
+      QSize(titleWidth + shortcutWidth + spacing, periodAdvanceButton_->minimumHeight()),
+      periodAdvanceButton_).width();
+  if (periodAdvanceButton_->minimumWidth() != outerWidth) {
+    periodAdvanceButton_->setMinimumWidth(outerWidth);
+  }
+  if (QWidget* row = periodAdvanceButton_->parentWidget()) {
+    if (QLayout* rowLayout = row->layout()) rowLayout->activate();
+  }
 }
 
 int GameControls::columnCountForFollowUps(int availableWidth) const {
@@ -1831,6 +1858,7 @@ void GameControls::buildBreakToggle() {
     button->setMinimumWidth(0);
     button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     Style::setRole(button.get(), "breakUiSegment");
+    Style::usePointingHandCursor(button.get());
     grid->addWidget(button.get(), segment.row, segment.column);
     connect(button.get(), &QPushButton::clicked, this, [this, fixtureId = segment.fixtureId]() {
       applyBreakFixture(fixtureId);

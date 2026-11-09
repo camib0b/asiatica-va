@@ -43,6 +43,7 @@ inline int workDataViewRowHeight(const QAbstractItemView* view) {
 inline void configureWorkDataView(QAbstractItemView* view) {
   if (!view) return;
 
+  usePointingHandCursorOnRows(view);
   setRole(view, "workList");
   view->setAlternatingRowColors(true);
   view->setSelectionBehavior(QAbstractItemView::SelectRows);

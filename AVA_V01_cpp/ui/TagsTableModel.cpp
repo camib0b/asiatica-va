@@ -3,6 +3,7 @@
 #include "../style/ThemeColors.h"
 
 #include <QBrush>
+#include <QColor>
 #include <algorithm>
 
 namespace {
@@ -10,6 +11,19 @@ namespace {
 constexpr int kTimeColumn = 0;
 constexpr int kTeamColumn = 1;
 constexpr int kEventColumn = 2;
+
+QString cellText(const TagsTableModel::Row& row, int column) {
+  switch (column) {
+    case kTimeColumn:
+      return row.timeText;
+    case kTeamColumn:
+      return row.teamText;
+    case kEventColumn:
+      return row.eventText;
+    default:
+      return {};
+  }
+}
 
 } // namespace
 
@@ -67,17 +81,10 @@ QVariant TagsTableModel::data(const QModelIndex& index, int role) const {
   const Row& row = rows_.at(index.row());
   const int column = index.column();
 
-  if (role == Qt::DisplayRole) {
-    switch (column) {
-    case kTimeColumn:
-      return row.timeText;
-    case kTeamColumn:
-      return row.teamText;
-    case kEventColumn:
-      return row.eventText;
-    default:
-      return {};
-    }
+  if (role == Qt::DisplayRole || role == Qt::ToolTipRole) {
+    const QString text = cellText(row, column);
+    if (role == Qt::ToolTipRole && text.isEmpty()) return {};
+    return text;
   }
 
   if (role == Qt::TextAlignmentRole) {
