@@ -201,7 +201,7 @@ private slots:
   void mouseAndKeyboardBothPublishTheShortcut();
   void shotChainPublishesEachAnswer();
   void shortcutDecisionKeepsQuarterRepeatAndFollowUpRepeatApart();
-  void repeatedFollowUpDigitWalksTheOpenChain();
+  void repeatedFollowUpDigitStaysOnTheOpenQuestion();
   void keyboardRowsFollowQwertyOffsets();
   void longTeamNamesDoNotWidenThePanel();
   void fitButtonTitleKeepsWordsInsideTheLine();
@@ -485,10 +485,15 @@ void TaggingToastTest::shortcutDecisionKeepsQuarterRepeatAndFollowUpRepeatApart(
   open.followUpRowVisible = true;
   open.followUpChoiceCount = 3;
   const TaggingKeys::Decision heldDigit = TaggingKeys::decide(Qt::Key_1, open);
-  QCOMPARE(heldDigit.action, TaggingKeys::Action::ChooseFollowUp);
-  QCOMPARE(heldDigit.followUpIndex, 0);
+  QCOMPARE(heldDigit.action, TaggingKeys::Action::Swallow);
+  QCOMPARE(heldDigit.followUpIndex, -1);
+
+  open.keySelectsMainEvent = true;
+  const TaggingKeys::Decision heldShotWhileOpen = TaggingKeys::decide(Qt::Key_D, open);
+  QCOMPARE(heldShotWhileOpen.action, TaggingKeys::Action::Swallow);
 
   open.autoRepeat = false;
+  open.keySelectsMainEvent = false;
   open.followUpPromptOpen = true;
   const TaggingKeys::Decision escape = TaggingKeys::decide(Qt::Key_Escape, open);
   QCOMPARE(escape.action, TaggingKeys::Action::CancelFollowUp);
@@ -501,7 +506,7 @@ void TaggingToastTest::shortcutDecisionKeepsQuarterRepeatAndFollowUpRepeatApart(
   QCOMPARE(TaggingKeys::decide(Qt::Key_Right, arrows).action, TaggingKeys::Action::Ignore);
 }
 
-void TaggingToastTest::repeatedFollowUpDigitWalksTheOpenChain() {
+void TaggingToastTest::repeatedFollowUpDigitStaysOnTheOpenQuestion() {
   GameControls controls;
   controls.setTeamSide(TagSession::TeamSide::Home);
   controls.resize(420, 760);
@@ -513,17 +518,21 @@ void TaggingToastTest::repeatedFollowUpDigitWalksTheOpenChain() {
   QCOMPARE(advanced.count(), 1);
   QCOMPARE(advanced.at(0).at(1).toString(), QStringLiteral("Shot"));
 
+  // The breaking input: Shot's follow-ups are open, then the key-repeat of 1
+  // arrives before the coach releases it. That used to select "On target".
   QKeyEvent heldDigit(QEvent::KeyPress, Qt::Key_1, Qt::NoModifier, QStringLiteral("1"), true);
   QApplication::sendEvent(&controls, &heldDigit);
+  QCOMPARE(advanced.count(), 1);
+
+  // A held D while that question is open used to restart Shot and move the mark.
+  QKeyEvent heldShot(QEvent::KeyPress, Qt::Key_D, Qt::NoModifier, QStringLiteral("d"), true);
+  QApplication::sendEvent(&controls, &heldShot);
+  QCOMPARE(advanced.count(), 1);
+
+  QTest::keyClick(&controls, Qt::Key_1);
   QCOMPARE(advanced.count(), 2);
   QCOMPARE(advanced.at(1).at(1).toString(), QStringLiteral("On target"));
   QCOMPARE(advanced.at(1).at(4).toBool(), false);
-
-  QKeyEvent heldShot(QEvent::KeyPress, Qt::Key_D, Qt::NoModifier, QStringLiteral("d"), true);
-  QApplication::sendEvent(&controls, &heldShot);
-  QCOMPARE(advanced.count(), 3);
-  QCOMPARE(advanced.at(2).at(1).toString(), QStringLiteral("Shot"));
-  QCOMPARE(advanced.at(2).at(4).toBool(), true);
 }
 
 void TaggingToastTest::keyboardRowsFollowQwertyOffsets() {

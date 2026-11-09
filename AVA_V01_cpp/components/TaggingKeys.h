@@ -63,9 +63,17 @@ inline Decision decide(int key, const Context& context) {
     return decision;
   }
 
-  // Holding G or H would close several quarters. A held letter or digit still
-  // activates: the letter tags again, and the digit takes the next follow-up.
-  if (context.autoRepeat && isQuarterAdvanceKey(key)) {
+  if (decision.action == Action::Ignore) return decision;
+
+  // Holding G or H would close several quarters. Holding a tagging key while a
+  // follow-up question is open would restart that chain or take the first
+  // choice of the next level. A held main-event letter while no question is
+  // open still tags again. Arrow keys are Ignore, so holding one still moves
+  // focus.
+  const bool repeatWouldSkipQuarters = context.autoRepeat && isQuarterAdvanceKey(key);
+  const bool repeatWouldWalkTheOpenFollowUp =
+      context.autoRepeat && context.followUpPromptOpen;
+  if (repeatWouldSkipQuarters || repeatWouldWalkTheOpenFollowUp) {
     decision.action = Action::Swallow;
     decision.followUpIndex = -1;
   }
