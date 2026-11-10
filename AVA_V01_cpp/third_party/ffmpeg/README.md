@@ -15,7 +15,7 @@ That reads the pinned URLs and SHA256s in `macos/SHA256PINS`, downloads both arc
 - `macos/arm64/ffmpeg`, `macos/arm64/ffprobe`
 - `macos/x86_64/ffmpeg`, `macos/x86_64/ffprobe`
 
-`package_macos.sh` copies the **host** architecture (or `macos/universal/` if you create a `lipo` pair) into the `.app` **after** `macdeployqt`.
+`release_macos.sh` runs this download, then `package_macos.sh` copies the **arm64** binaries (or `macos/universal/` if you create a `lipo` pair) into the `.app` **after** `macdeployqt`. The coach DMG is Apple Silicon only.
 
 ## Pin / version
 
@@ -26,7 +26,7 @@ That reads the pinned URLs and SHA256s in `macos/SHA256PINS`, downloads both arc
 | Recipes | https://gitlab.com/martinr92/ffmpeg |
 | Pin file | `macos/SHA256PINS` (SHA256 of each zip, not the extracted binary) |
 
-To bump the pin: replace the four zip URLs and hashes in `SHA256PINS`, re-run `vendor_ffmpeg_macos.sh`, then `package_macos.sh`.
+To bump the pin: replace the four zip URLs and hashes in `SHA256PINS`, re-run `vendor_ffmpeg_macos.sh`, then `release_macos.sh` when you want to ship. That command also bumps AVA's version.
 
 ## License
 

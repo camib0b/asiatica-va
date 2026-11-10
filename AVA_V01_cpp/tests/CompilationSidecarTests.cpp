@@ -21,6 +21,7 @@
 #include <QJsonObject>
 #include <QLocale>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QTemporaryDir>
 #include <QXmlStreamReader>
 
@@ -797,7 +798,7 @@ void CompilationSidecarExportTest::exportsSidecarBesideCompilation() {
     QCOMPARE(root.value(QStringLiteral("code")).toString(), QStringLiteral("OR 16YD+"));
     QCOMPARE(root.value(QStringLiteral("overlayLabel")).toString(), QStringLiteral("OR - 16-yd"));
     QVERIFY(root.value(QStringLiteral("verified")).toBool());
-    QVERIFY(root.value(QStringLiteral("avaVersion")).toString().contains(QStringLiteral("0.1.0")));
+    QCOMPARE(root.value(QStringLiteral("avaVersion")).toString(), AvaVersion::current());
 
     const QString expectedXmlName =
         ExportClipBuilder::xmlReportBaseName(&session) + QStringLiteral(".xml");
@@ -984,7 +985,8 @@ void CompilationSidecarExportTest::exportsSidecarBesideCompilation() {
     QVERIFY(QFile::copy(jsonPath, examplePath));
     qInfo("sidecar example: %s", qPrintable(examplePath));
     qInfo("overlay frames: %s", qPrintable(spotDirectory));
-    QCOMPARE(AvaVersion::current().isEmpty(), false);
+    const QString avaVersion = AvaVersion::current();
+    QVERIFY(avaVersion.contains(QRegularExpression(QStringLiteral("^\\d+\\.\\d+\\.\\d+ \\(\\d+\\)"))));
 }
 
 void CompilationSidecarExportTest::cancelBeforeOutputReplaceDoesNotWriteSidecar() {
@@ -1296,6 +1298,7 @@ void CompilationSidecarExportTest::failedSingleClipExportKeepsExistingFile() {
 
 #include "CompilationSidecarTests.moc"
 
+int runFfmpegLocatorTests(int argc, char** argv);
 int runEventCatalogTests(int argc, char** argv);
 int runEventLabelOverrideTests(int argc, char** argv);
 int runGameControlsEditorTests(int argc, char** argv);
@@ -1323,6 +1326,10 @@ int runStateMachineTests(int argc, char** argv);
 
 int main(int argc, char** argv) {
     QApplication application(argc, argv);
+    const int ffmpegLocatorStatus = runFfmpegLocatorTests(argc, argv);
+    if (ffmpegLocatorStatus != 0) {
+        return ffmpegLocatorStatus;
+    }
     const int encoderStatus = runExportVideoEncoderTests(argc, argv);
     if (encoderStatus != 0) {
         return encoderStatus;

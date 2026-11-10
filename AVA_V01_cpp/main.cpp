@@ -1,10 +1,13 @@
 #include "ui/MainWindow.h"
 #include "i18n/AppLocale.h"
 #include "state/EventDefaults.h"
+#include "AvaVersion.h"
+#include "FfmpegLocator.h"
 #include "XaiConfig.h"
 #include <QApplication>
 #include <QIcon>
 #include <QMessageBox>
+#include <QStringList>
 #include <exception>
 #include <new>
 #include "style/theme.h"
@@ -18,6 +21,18 @@ QString exceptionDetail(const std::exception& exception) {
         return QStringLiteral("unknown error");
     }
     return QString::fromLocal8Bit(what);
+}
+
+void warnIfCoachBuildIsMissingFfmpeg() {
+    const QStringList missingTools = FfmpegLocator::missingPackagedTools();
+    if (missingTools.isEmpty()) {
+        return;
+    }
+    const QString message =
+        AppLocale::trUi("startup.packaged_ffmpeg_missing")
+            .arg(missingTools.join(QStringLiteral(", ")));
+    qCritical("%s", qPrintable(message));
+    QMessageBox::critical(nullptr, AppLocale::trUi("app.title"), message);
 }
 
 int reportFatalStartupError(const QString& message, bool showDialog) {
@@ -35,6 +50,7 @@ int main(int argc, char* argv[]) {
         QApplication app(argc, argv);
         app.setOrganizationName(QStringLiteral("AsiaticaVA"));
         app.setApplicationName(QStringLiteral("AVA"));
+        app.setApplicationVersion(AvaVersion::current());
         app.setWindowIcon(QIcon(":/ava-icon.png"));
 
         try {
@@ -43,6 +59,7 @@ int main(int argc, char* argv[]) {
             AppLocale::loadFromSettings();
             Motion::loadFromSettings();
             EventDefaults::loadFromSettings();
+            warnIfCoachBuildIsMissingFfmpeg();
 
             MainWindow w;
             w.show();

@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
-# Create AppIcon.icns from AppIcon.iconset for macOS app bundle / Dock icon.
-# Pre-made icons are already in AppIcon.iconset. Run from project root:
-#   ./scripts/make_icns.sh
-# If you see "Invalid Iconset", run this from Terminal (outside Cursor), or
-# create AppIcon.icns in Xcode (File > New > App Icons) and put it in the project root.
+# Create AppIcon.icns from AppIcon.iconset.
+# package_macos.sh runs this before the Release build. The committed
+# AppIcon.icns is the fallback when a build cannot run iconutil.
 
-set -e
+set -euo pipefail
+
 cd "$(dirname "$0")/.."
-ICONSET=AppIcon.iconset
-OUT=AppIcon.icns
+ICONSET="AppIcon.iconset"
+OUT="AppIcon.icns"
 
-[[ -d "$ICONSET" ]] || { echo "Missing $ICONSET"; exit 1; }
+if [[ ! -d "$ICONSET" ]]; then
+  echo "Missing ${ICONSET}." >&2
+  exit 1
+fi
+if ! command -v iconutil >/dev/null 2>&1; then
+  echo "iconutil is not on PATH. Install the Xcode command line tools and retry." >&2
+  exit 1
+fi
 iconutil -c icns "$ICONSET" -o "$OUT"
-echo "Created $OUT"
+echo "Created ${OUT}"

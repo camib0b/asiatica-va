@@ -94,7 +94,7 @@ public:
     /// file may already be at the output path, so the test can cancel there.
     static void setExportStepObserverForTests(void (*observer)(void* context), void* context);
 
-    /// Delegates to FfmpegLocator (bundled Helpers, then Homebrew/usr, then PATH).
+    /// Delegates to FfmpegLocator. A coach build uses Contents/Helpers only.
     static QString findFfmpeg();
     static QString findFfprobe();
 

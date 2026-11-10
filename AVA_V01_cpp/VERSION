@@ -1,0 +1,4 @@
+# Marketing version (MAJOR.MINOR.PATCH). release_macos.sh is the only writer.
+0.1.0
+# CFBundleVersion. Increases by one on every successful release.
+1
