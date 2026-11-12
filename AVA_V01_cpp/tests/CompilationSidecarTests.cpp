@@ -1321,6 +1321,7 @@ int runPlaybackSpeedTests(int argc, char** argv);
 int runTelestrationTests(int argc, char** argv);
 int runMatchSessionFileTests(int argc, char** argv);
 int runStateMachineTests(int argc, char** argv);
+int runQuarterChipTests(int argc, char** argv);
 
 int main(int argc, char** argv) {
     QApplication application(argc, argv);
@@ -1422,6 +1423,10 @@ int main(int argc, char** argv) {
     const int stateMachineStatus = runStateMachineTests(argc, argv);
     if (stateMachineStatus != 0) {
         return stateMachineStatus;
+    }
+    const int quarterChipStatus = runQuarterChipTests(argc, argv);
+    if (quarterChipStatus != 0) {
+        return quarterChipStatus;
     }
     int status = 0;
     {
