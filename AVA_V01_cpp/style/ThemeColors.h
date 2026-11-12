@@ -37,11 +37,6 @@ inline QColor errorText() { return QColor(QStringLiteral("#b91c1c")); }
 inline QColor transparent() { return QColor(0, 0, 0, 0); }
 inline QColor mutedForeground() { return QColor(QStringLiteral("#52525b")); } // zinc-600
 
-// Quarter track segments (QPainter; QWidget QSS does not paint empty frames).
-inline QColor quarterSegmentEmpty() { return border(); }
-inline QColor quarterSegmentCurrent() { return mutedForeground(); }
-inline QColor quarterSegmentComplete() { return ring(); }
-
 // ClipTrimBar (presentation trim track; QPainter-only, not QWidget QSS).
 inline QColor clipTrimTrackBackground() { return QColor(QStringLiteral("#323232")); }
 inline QColor clipTrimMarkLine() { return QColor(255, 200, 50, 180); }

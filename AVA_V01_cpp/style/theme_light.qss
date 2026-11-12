@@ -1669,12 +1669,35 @@ QWidget#TaggingRightCol QPushButton[variant="gameControlFollowUp"][flash="true"]
   border-radius: 4px;
 }
 
-QLabel[role="quarterTrackLabel"] {
-  font-size: 10px;
+/* Quarter chips beside the period button. Display only: the arrow cursor,
+   and no hover or pressed rules. Upcoming needs the zinc-500 stroke because
+   zinc-100 on the white panel is about 1.1:1. Current and done use a 1px
+   border in the fill color so the box does not jump when that stroke goes
+   away. Qt adds that border outside min-height, so 26px here is a 28px chip.
+   Radius matches the tagging keys. */
+QLabel[role="quarterSegment"] {
+  min-width: 24px;
+  min-height: 26px;
+  max-height: 26px;
+  padding: 0px;
+  border: 1px solid #71717a;
+  border-radius: 4px;
+  background: #f4f4f5;
+  color: #52525b;
+  font-size: 12px;
   font-weight: 400;
 }
-QLabel[role="quarterTrackLabel"][quarterState="current"] {
+QLabel[role="quarterSegment"][quarterState="current"] {
+  background: #18181b;
+  color: #fafafa;
+  border-color: #18181b;
   font-weight: 600;
+}
+QLabel[role="quarterSegment"][quarterState="complete"] {
+  background: #3f3f46;
+  color: #fafafa;
+  border-color: #3f3f46;
+  font-weight: 500;
 }
 
 /* =========================

@@ -44,8 +44,8 @@ public:
   /// Side that will be stored on the next tag. GameControls is the only owner.
   TagSession::TeamSide selectedTeamSide() const { return teamSide_; }
 
-  /// Paints the period-advance control from the tag session. The session is the
-  /// only owner of the quarter; this does not store a second phase.
+  /// Paints the period button and quarter chips from the tag session. The
+  /// session is the only owner of the quarter; this does not store a second phase.
   void resetGameTimeState();
 
   /// Returns the canonical period name (\c "Q1".."Q4") of the quarter currently in progress,
@@ -140,8 +140,8 @@ private:
 
   DisplayedQuarter displayedQuarter() const;
   void syncQuarterFromSession();
-  void updateGameTimeUi(bool animateQuarterChange);
-  void updateQuarterTrack(bool animateQuarterChange);
+  void updateGameTimeUi();
+  void updateQuarterTrack();
   void updateStackedButtonHeight(QPushButton* button);
   void updateAllStackedButtonHeights();
   void refreshFollowUpTitles();
@@ -170,9 +170,7 @@ protected:
   QPushButton* periodAdvanceButton_ = nullptr;
   QLabel* periodAdvanceTitleLabel_ = nullptr;
   QWidget* quarterTrack_ = nullptr;
-  std::array<QWidget*, 4> quarterSegments_{};
-  std::array<QLabel*, 4> quarterTrackLabels_{};
-  std::array<QString, 4> quarterSegmentStates_{};
+  std::array<QLabel*, 4> quarterChips_{};
 
   QPushButton* homeTeamButton_ = nullptr;
   QPushButton* awayTeamButton_ = nullptr;
@@ -195,9 +193,6 @@ protected:
   QPointer<TagSession> tagSession_;
   QMetaObject::Connection labelOverrideConnection_;
   QMetaObject::Connection quarterPhaseConnection_;
-  /// Set for the click that asked the session to advance. The session signal
-  /// consumes it. A refused advance never changes the painted quarter.
-  bool animateNextQuarterChange_ = false;
 
   QVector<QLabel*> mainButtonTitleLabels_;
 

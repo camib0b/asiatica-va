@@ -34,102 +34,21 @@
 #include <QColor>
 #include <QSizePolicy>
 #include <QLayout>
-#include <QPainter>
-#include <QPainterPath>
-#include <QPaintEvent>
 #include <QStyle>
 #include <QStyleOptionButton>
 
 #include "../ui/QtPtr.h"
 
 namespace {
-constexpr int kQuarterSegmentHeightPx = 6;
-constexpr int kQuarterSegmentRadiusPx = 1;
-}
-
-class QuarterSegmentBar final : public QWidget {
-  Q_OBJECT
-  Q_PROPERTY(qreal fillProgress READ fillProgress WRITE setFillProgress)
-
- public:
-  explicit QuarterSegmentBar(QWidget* parent = nullptr) : QWidget(parent) {
-    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    setFixedHeight(kQuarterSegmentHeightPx);
-    setFocusPolicy(Qt::NoFocus);
-    fillColor_ = Style::ThemeColors::quarterSegmentEmpty();
-  }
-
-  qreal fillProgress() const { return fillProgress_; }
-
-  void setFillProgress(qreal progress) {
-    const qreal clamped = qBound(0.0, progress, 1.0);
-    if (qAbs(fillProgress_ - clamped) < 0.001) return;
-    fillProgress_ = clamped;
-    update();
-  }
-
-  void setFillColor(const QColor& color) {
-    if (fillColor_ == color) return;
-    fillColor_ = color;
-    update();
-  }
-
-  QSize sizeHint() const override { return QSize(24, kQuarterSegmentHeightPx); }
-  QSize minimumSizeHint() const override { return QSize(8, kQuarterSegmentHeightPx); }
-
- protected:
-  void paintEvent(QPaintEvent*) override {
-    QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing, true);
-    const QRectF bounds = QRectF(rect());
-    QPainterPath clipPath;
-    clipPath.addRoundedRect(bounds, kQuarterSegmentRadiusPx, kQuarterSegmentRadiusPx);
-    painter.setClipPath(clipPath);
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(Style::ThemeColors::quarterSegmentEmpty());
-    painter.drawRect(bounds);
-    if (fillProgress_ <= 0.0) return;
-    painter.setBrush(fillColor_);
-    painter.drawRect(QRectF(bounds.left(), bounds.top(), bounds.width() * fillProgress_, bounds.height()));
-  }
-
- private:
-  qreal fillProgress_ = 0.0;
-  QColor fillColor_;
-};
-
-class QuarterTrackLabel final : public QLabel {
-  Q_OBJECT
-  Q_PROPERTY(QColor textColor READ textColor WRITE setTextColor)
-
- public:
-  explicit QuarterTrackLabel(const QString& text, QWidget* parent = nullptr) : QLabel(text, parent) {
-    setFocusPolicy(Qt::NoFocus);
-    textColor_ = Style::ThemeColors::faint();
-    applyColor();
-  }
-
-  QColor textColor() const { return textColor_; }
-
-  void setTextColor(const QColor& color) {
-    if (textColor_ == color) return;
-    textColor_ = color;
-    applyColor();
-  }
-
- private:
-  void applyColor() {
-    setStyleSheet(QStringLiteral("QLabel[role=\"quarterTrackLabel\"] { color: %1; }")
-                      .arg(textColor_.name(QColor::HexRgb)));
-  }
-
-  QColor textColor_;
-};
-
-namespace {
 
 constexpr QLatin1StringView kDefaultTeamSelectedBorderHex("#18181b");
 constexpr int kFlashDurationMs = 150;
+
+QString accessibleDescriptionForQuarterState(const QString& quarterState) {
+  if (quarterState == QLatin1String("current")) return QStringLiteral("Current");
+  if (quarterState == QLatin1String("complete")) return QStringLiteral("Done");
+  return QStringLiteral("Upcoming");
+}
 
 QString normalizeTeamColorHex(const QString& hex) {
   QString hexClean = hex.trimmed();
@@ -503,7 +422,6 @@ GameControls::GameControls(QWidget* parent)
       teamSide_(TagSession::TeamSide::Unspecified),
       labelOverrides_(),
       quarterPhaseConnection_(),
-      animateNextQuarterChange_(false),
       arrangingFollowUps_(false),
       applyingTitleFit_(false),
       stackedHeightUpdateQueued_(false),
@@ -571,9 +489,7 @@ void GameControls::setTagSession(TagSession* session) {
       });
   quarterPhaseConnection_ =
       connect(tagSession_, &TagSession::quarterPhaseChanged, this, [this]() {
-        const bool animate = animateNextQuarterChange_;
-        animateNextQuarterChange_ = false;
-        updateGameTimeUi(animate);
+        updateGameTimeUi();
       });
   setEventLabelOverrides(tagSession_->eventLabelOverrides());
   syncQuarterFromSession();
@@ -672,7 +588,7 @@ void GameControls::applyUiLanguage() {
       titleLabel->setProperty("fullLabel", fullText);
     }
   }
-  updateGameTimeUi(false);
+  updateGameTimeUi();
   updateBreakToggleLabels();
   relayoutFollowUpButtons();
 }
@@ -785,7 +701,7 @@ GameControls::DisplayedQuarter GameControls::displayedQuarter() const {
 }
 
 void GameControls::syncQuarterFromSession() {
-  updateGameTimeUi(false);
+  updateGameTimeUi();
 }
 
 QString GameControls::currentPeriodName() const {
@@ -801,7 +717,7 @@ QString GameControls::currentPeriodName() const {
   return QString();
 }
 
-void GameControls::updateGameTimeUi(bool animateQuarterChange) {
+void GameControls::updateGameTimeUi() {
   if (!periodAdvanceButton_ || !periodAdvanceTitleLabel_) return;
 
   const DisplayedQuarter quarter = displayedQuarter();
@@ -828,10 +744,10 @@ void GameControls::updateGameTimeUi(bool animateQuarterChange) {
   const bool advanceEnabled = quarter != DisplayedQuarter::Ended;
   periodAdvanceButton_->setEnabled(advanceEnabled);
   refreshPeriodButtonTitle();
-  updateQuarterTrack(animateQuarterChange);
+  updateQuarterTrack();
 }
 
-void GameControls::updateQuarterTrack(bool animateQuarterChange) {
+void GameControls::updateQuarterTrack() {
   const DisplayedQuarter quarter = displayedQuarter();
   const bool gameEnded = quarter == DisplayedQuarter::Ended;
   int currentQuarterIndex = -1;
@@ -846,51 +762,21 @@ void GameControls::updateQuarterTrack(bool animateQuarterChange) {
       break;
   }
 
-  const int quarterCount = static_cast<int>(quarterSegments_.size());
+  const int quarterCount = static_cast<int>(quarterChips_.size());
   for (int quarterIndex = 0; quarterIndex < quarterCount; ++quarterIndex) {
-    QString quarterState;
+    QString quarterState = QStringLiteral("empty");
     if (gameEnded || (currentQuarterIndex >= 0 && quarterIndex < currentQuarterIndex)) {
       quarterState = QStringLiteral("complete");
     } else if (quarterIndex == currentQuarterIndex) {
       quarterState = QStringLiteral("current");
-    } else {
-      quarterState = QStringLiteral("empty");
     }
 
-    auto* segment = qobject_cast<QuarterSegmentBar*>(quarterSegments_.at(quarterIndex));
-    auto* label = qobject_cast<QuarterTrackLabel*>(quarterTrackLabels_.at(quarterIndex));
-    if (segment) Style::setProp(segment, "quarterState", quarterState);
-    if (label) Style::setProp(label, "quarterState", quarterState);
-
-    const QString previousState = quarterSegmentStates_.at(quarterIndex);
-    const bool becameCurrent = animateQuarterChange
-        && quarterState == QLatin1String("current")
-        && previousState != QLatin1String("current");
-
-    QColor fillColor = Style::ThemeColors::quarterSegmentEmpty();
-    qreal targetProgress = 0.0;
-    if (quarterState == QLatin1String("complete")) {
-      fillColor = Style::ThemeColors::quarterSegmentComplete();
-      targetProgress = 1.0;
-    } else if (quarterState == QLatin1String("current")) {
-      fillColor = Style::ThemeColors::quarterSegmentCurrent();
-      targetProgress = 1.0;
-    }
-    if (segment) segment->setFillColor(fillColor);
-
-    const QColor labelColor = quarterState == QLatin1String("empty")
-        ? Style::ThemeColors::faint()
-        : Style::ThemeColors::foreground();
-    const QEasingCurve curve = Motion::strongOut();
-    if (becameCurrent && segment && label) {
-      Motion::animateProperty(segment, "fillProgress", 0.0, 0, curve);
-      Motion::animateProperty(segment, "fillProgress", targetProgress, Motion::kMilestone, curve);
-      Motion::animateColor(label, "textColor", labelColor, Motion::kEnter);
-    } else {
-      if (segment) Motion::animateProperty(segment, "fillProgress", targetProgress, 0, curve);
-      if (label) Motion::animateColor(label, "textColor", labelColor, 0);
-    }
-    quarterSegmentStates_.at(quarterIndex) = quarterState;
+    QLabel* chip = quarterChips_.at(quarterIndex);
+    if (!chip) continue;
+    // State is a QSS property. The chip repaints immediately. There is no
+    // geometry animation, and no color tween to keep in step with reduced motion.
+    Style::setProp(chip, "quarterState", quarterState);
+    chip->setAccessibleDescription(accessibleDescriptionForQuarterState(quarterState));
   }
 
   if (!quarterTrack_) return;
@@ -911,10 +797,8 @@ void GameControls::onPeriodAdvanceButtonClicked() {
   if (quarter == DisplayedQuarter::Ended) return;
   flashButtonBorder(periodAdvanceButton_);
   // The session accepts or refuses. The panel paints only from quarterPhaseChanged.
-  animateNextQuarterChange_ = true;
   if (quarter == DisplayedQuarter::NotStarted) emit gameStartRequested();
   else emit nextQuarterRequested();
-  animateNextQuarterChange_ = false;
 }
 
 void GameControls::setActiveMainButton(QPushButton* button) {
@@ -1019,7 +903,7 @@ void GameControls::buildUi() {
   mainLayout->setContentsMargins(0, 0, 0, 0);
   mainLayout->setSpacing(8);
 
-  // Game-time row: period-advance button | segmented quarter track
+  // Game-time row: period button beside the display-only quarter chips.
   auto* gameTimeRowWidget = new QWidget(this);
   auto* gameTimeRowLayout = new QHBoxLayout(gameTimeRowWidget);
   gameTimeRowLayout->setContentsMargins(0, 0, 0, 0);
@@ -1038,43 +922,34 @@ void GameControls::buildUi() {
 
   quarterTrack_ = new QWidget(gameTimeRowWidget);
   Style::setRole(quarterTrack_, "quarterTrack");
-  auto* trackLayout = new QVBoxLayout(quarterTrack_);
-  trackLayout->setContentsMargins(0, 0, 0, 0);
-  trackLayout->setSpacing(2);
-
-  auto* segmentsRow = new QWidget(quarterTrack_);
-  segmentsRow->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-  auto* segmentsLayout = new QHBoxLayout(segmentsRow);
-  segmentsLayout->setContentsMargins(0, 0, 0, 0);
-  segmentsLayout->setSpacing(3);
-
-  auto* labelsRow = new QWidget(quarterTrack_);
-  auto* labelsLayout = new QHBoxLayout(labelsRow);
-  labelsLayout->setContentsMargins(0, 0, 0, 0);
-  labelsLayout->setSpacing(3);
+  quarterTrack_->setFocusPolicy(Qt::NoFocus);
+  quarterTrack_->setCursor(Qt::ArrowCursor);
+  quarterTrack_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  auto* chipsLayout = new QHBoxLayout(quarterTrack_);
+  chipsLayout->setContentsMargins(0, 0, 0, 0);
+  chipsLayout->setSpacing(GameControlGrid::kKeyGapPx);
 
   const std::array<QString, 4> quarterNames = {
       QStringLiteral("Q1"), QStringLiteral("Q2"), QStringLiteral("Q3"), QStringLiteral("Q4")};
   for (int quarterIndex = 0; quarterIndex < static_cast<int>(quarterNames.size()); ++quarterIndex) {
-    auto* segment = new QuarterSegmentBar(segmentsRow);
-    Style::setRole(segment, "quarterSegment");
-    Style::setProp(segment, "quarterState", QStringLiteral("empty"));
-    quarterSegments_.at(quarterIndex) = segment;
-    segmentsLayout->addWidget(segment, 1);
-
-    auto* label = new QuarterTrackLabel(quarterNames.at(quarterIndex), labelsRow);
-    label->setAlignment(Qt::AlignCenter);
-    Style::setRole(label, "quarterTrackLabel");
-    Style::setProp(label, "quarterState", QStringLiteral("empty"));
-    quarterTrackLabels_.at(quarterIndex) = label;
-    labelsLayout->addWidget(label, 1);
+    const QString& quarterName = quarterNames.at(quarterIndex);
+    auto* chip = new QLabel(quarterName, quarterTrack_);
+    chip->setTextFormat(Qt::PlainText);
+    chip->setAlignment(Qt::AlignCenter);
+    chip->setFocusPolicy(Qt::NoFocus);
+    chip->setTextInteractionFlags(Qt::NoTextInteraction);
+    chip->setCursor(Qt::ArrowCursor);
+    chip->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    chip->setAccessibleName(quarterName);
+    Style::setRole(chip, "quarterSegment");
+    Style::setProp(chip, "quarterState", QStringLiteral("empty"));
+    chip->setAccessibleDescription(accessibleDescriptionForQuarterState(QStringLiteral("empty")));
+    quarterChips_.at(quarterIndex) = chip;
+    chipsLayout->addWidget(chip, 1, Qt::AlignVCenter);
   }
 
-  trackLayout->addWidget(segmentsRow);
-  trackLayout->addWidget(labelsRow);
-
-  gameTimeRowLayout->addWidget(periodAdvanceButton_, 0);
-  gameTimeRowLayout->addWidget(quarterTrack_, 1);
+  gameTimeRowLayout->addWidget(periodAdvanceButton_, 0, Qt::AlignVCenter);
+  gameTimeRowLayout->addWidget(quarterTrack_, 1, Qt::AlignVCenter);
 
   auto* teamRowWidget = new QWidget(this);
   auto* teamRowLayout = new QHBoxLayout(teamRowWidget);
@@ -2046,5 +1921,3 @@ void GameControls::keyPressEvent(QKeyEvent* event) {
   }
   QWidget::keyPressEvent(event);
 }
-
-#include "GameControls.moc"
