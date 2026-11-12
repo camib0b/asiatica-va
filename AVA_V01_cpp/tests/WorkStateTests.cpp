@@ -29,6 +29,7 @@ private slots:
     void advanceQuarterDerivesTheNextQuarterFromTheTag();
     void advanceQuarterRejectsAGameThatIsNotInProgress();
     void newTagKeepsTheClosedQuarterAtItsExactEnd();
+    void periodRecordedForNewTagFollowsTheMark();
     void eventPathTakesPrecedenceOverHiddenMains();
     void selectAllAndSelectNoneAreSymmetric();
 };
@@ -186,6 +187,48 @@ void WorkStateTest::newTagKeepsTheClosedQuarterAtItsExactEnd() {
     TagSession beforeTheGame;
     QVERIFY(beforeTheGame.periodRecordedForNewTag(0).isEmpty());
     QVERIFY(beforeTheGame.currentPeriodLabel().isEmpty());
+}
+
+void WorkStateTest::periodRecordedForNewTagFollowsTheMark() {
+    TagSession beforeTheGame;
+    QCOMPARE(beforeTheGame.periodRecordedForNewTag(-1), QString());
+    QCOMPARE(beforeTheGame.periodRecordedForNewTag(0), QString());
+
+    TagSession waiting;
+    QVERIFY(waiting.startGame(5000));
+    // The mark is before Q1 opens. Both the old in-progress label and the new
+    // helper say Q1.
+    QCOMPARE(waiting.currentPeriodLabel(), QStringLiteral("Q1"));
+    QCOMPARE(waiting.periodLabelAtTimestampMs(4999), QString());
+    QCOMPARE(waiting.periodRecordedForNewTag(4999), QStringLiteral("Q1"));
+    QCOMPARE(waiting.periodRecordedForNewTag(-5), QStringLiteral("Q1"));
+    QCOMPARE(waiting.periodRecordedForNewTag(5000), QStringLiteral("Q1"));
+
+    TagSession played;
+    QVERIFY(played.startGame(0));
+    QVERIFY(played.advanceQuarter(10000));
+    QVERIFY(played.advanceQuarter(20000));
+    // Q3 is in progress. Q1 is [0, 10000] and Q2 is [10000, 20000]. A shared
+    // boundary belongs to the earlier quarter.
+    QCOMPARE(played.currentPeriodLabel(), QStringLiteral("Q3"));
+    QCOMPARE(played.periodRecordedForNewTag(0), QStringLiteral("Q1"));
+    QCOMPARE(played.periodRecordedForNewTag(9999), QStringLiteral("Q1"));
+    QCOMPARE(played.periodRecordedForNewTag(10000), QStringLiteral("Q1"));
+    QCOMPARE(played.periodRecordedForNewTag(10001), QStringLiteral("Q2"));
+    QCOMPARE(played.periodRecordedForNewTag(20000), QStringLiteral("Q2"));
+    QCOMPARE(played.periodRecordedForNewTag(20001), QStringLiteral("Q3"));
+
+    QVERIFY(played.advanceQuarter(30000));
+    QVERIFY(played.advanceQuarter(40000));
+    QCOMPARE(played.quarterPhase(), TagSession::QuarterPhase::GameEnded);
+    QCOMPARE(played.currentPeriodLabel(), QStringLiteral("Q4"));
+    // 30000 is the end of Q3 and the start of Q4. The earlier quarter wins.
+    // A mark after the final whistle still belongs to Q4.
+    QCOMPARE(played.periodRecordedForNewTag(30000), QStringLiteral("Q3"));
+    QCOMPARE(played.periodRecordedForNewTag(30001), QStringLiteral("Q4"));
+    QCOMPARE(played.periodRecordedForNewTag(40000), QStringLiteral("Q4"));
+    QCOMPARE(played.periodRecordedForNewTag(40001), QStringLiteral("Q4"));
+    QCOMPARE(played.periodRecordedForNewTag(0), QStringLiteral("Q1"));
 }
 
 void WorkStateTest::advanceQuarterRejectsAGameThatIsNotInProgress() {
