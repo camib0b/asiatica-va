@@ -71,8 +71,10 @@ struct ButtonColors {
   QColor hoverBorder;
   QColor pressedBackground;
   QColor pressedBorder;
-  /// When true, keyboard focus keeps the zinc focus ring instead of the hover border.
+  /// When true, keyboard focus keeps a focus ring instead of the hover border.
   bool keepFocusRing = true;
+  /// Focus ring when keepFocusRing is set. An invalid color uses ThemeColors::ring().
+  QColor focusBorder;
 };
 
 /// Hover eases background and border via animateColor. Press snaps. The filter

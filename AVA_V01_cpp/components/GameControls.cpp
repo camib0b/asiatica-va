@@ -155,6 +155,9 @@ Motion::ButtonColors colorsForGameButton(const QPushButton* button, const QPushB
     colors.hoverBorder = hover;
     colors.pressedBackground = pressed;
     colors.pressedBorder = pressed;
+    // zinc-900 on the zinc-950 fill is 1.12:1. zinc-500 clears 3:1 against that
+    // fill, the hover fill, and the white panel behind the key.
+    colors.focusBorder = Style::ThemeColors::quietText();
     return colors;
   }
 
@@ -1466,6 +1469,20 @@ void GameControls::flashButtonBorder(QPushButton* button) {
     flashBackground = Style::ThemeColors::pressedSurface();
     flashBorder = colors.restBorder;
   }
+  Style::setState(button, "flash", true);
+  QTimer* flashTextTimer =
+      button->findChild<QTimer*>(QStringLiteral("gameControlFlashText"), Qt::FindDirectChildrenOnly);
+  if (!flashTextTimer) {
+    auto timer = makeQtPtr<QTimer>(button);
+    timer->setObjectName(QStringLiteral("gameControlFlashText"));
+    timer->setSingleShot(true);
+    flashTextTimer = timer.get();
+    connect(flashTextTimer, &QTimer::timeout, button, [guard = QPointer<QPushButton>(button)]() {
+      if (!guard) return;
+      Style::setState(guard.data(), "flash", false);
+    });
+  }
+  flashTextTimer->start(kFlashDurationMs + Motion::kHoverIn);
   Motion::flashButtonColors(button, flashBackground, flashBorder, kFlashDurationMs);
 }
 

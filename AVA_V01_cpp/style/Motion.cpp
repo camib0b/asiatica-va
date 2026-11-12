@@ -244,11 +244,13 @@ class ButtonColorDriver final : public QObject {
                         "}")
                         .arg(background, border);
     if (colors.keepFocusRing) {
+      const QColor focusColor =
+          colors.focusBorder.isValid() ? colors.focusBorder : Style::ThemeColors::ring();
       sheet += QStringLiteral(
                    "QPushButton:focus, QToolButton:focus {"
                    "  border-color: %1 !important;"
                    "}")
-                   .arg(Style::ThemeColors::ring().name(QColor::HexRgb));
+                   .arg(focusColor.name(QColor::HexRgb));
     }
     if (button_->styleSheet() == sheet) return;
     button_->setStyleSheet(sheet);
