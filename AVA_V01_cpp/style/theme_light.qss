@@ -1861,7 +1861,7 @@ QLineEdit#TeamColorHexEdit {
   min-height: 28px;
 }
 
-/* Hidden tagging keys stay in the QWERTY holes. The dashed stroke is the cue
+/* Hidden tagging keys stay in their grid cells. The dashed stroke is the cue
    that a click will not tag. Right-click still opens Show. */
 QPushButton[variant="gameControl"][controlsHidden="true"] {
   border: 1px dashed #71717a;

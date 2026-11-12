@@ -73,7 +73,6 @@ constexpr Node makeFollowUpNode(EventId id, const char* canonicalName, const cha
   node.mainEvent = false;
   node.buttonRow = kNoButtonGridPosition;
   node.buttonColumn = kNoButtonGridPosition;
-  node.buttonRowOffsetUnits = 0;
   applyBehavior(&node, behavior);
   node.childCount = static_cast<int>(sizeof...(ChildIds));
   if constexpr (sizeof...(ChildIds) > 0) {
@@ -102,7 +101,7 @@ constexpr Node makeMainEventNode(EventId id, const char* canonicalName, Qt::Key 
                                  const char* xmlCode, qint64 leadMs, qint64 lagMs,
                                  const char* spanish, PayloadLayout payloadLayout, bool switchesTeam,
                                  const char* displayLabel, int buttonRow, int buttonColumn,
-                                 int buttonRowOffsetUnits, Behavior behavior, ChildIds... childIds) {
+                                 Behavior behavior, ChildIds... childIds) {
   static_assert(sizeof...(ChildIds) <= kMaxFollowUpChildren, "too many follow-ups");
   Node node{};
   node.id = id;
@@ -118,7 +117,6 @@ constexpr Node makeMainEventNode(EventId id, const char* canonicalName, Qt::Key 
   node.mainEvent = true;
   node.buttonRow = buttonRow;
   node.buttonColumn = buttonColumn;
-  node.buttonRowOffsetUnits = buttonRowOffsetUnits;
   applyBehavior(&node, behavior);
   node.childCount = static_cast<int>(sizeof...(ChildIds));
   if constexpr (sizeof...(ChildIds) > 0) {
@@ -135,10 +133,10 @@ constexpr Node makeMainEvent(EventId id, const char* canonicalName, Qt::Key shor
                              const char* xmlCode, qint64 leadMs, qint64 lagMs,
                              const char* spanish, PayloadLayout payloadLayout, bool switchesTeam,
                              const char* displayLabel, int buttonRow, int buttonColumn,
-                             int buttonRowOffsetUnits, ChildIds... childIds) {
+                             ChildIds... childIds) {
   return makeMainEventNode(id, canonicalName, shortcut, xmlCode, leadMs, lagMs, spanish,
                            payloadLayout, switchesTeam, displayLabel, buttonRow, buttonColumn,
-                           buttonRowOffsetUnits, Behavior{}, childIds...);
+                           Behavior{}, childIds...);
 }
 
 template <typename... ChildIds>
@@ -146,64 +144,64 @@ constexpr Node makeMainEvent(EventId id, const char* canonicalName, Qt::Key shor
                              const char* xmlCode, qint64 leadMs, qint64 lagMs,
                              const char* spanish, PayloadLayout payloadLayout, bool switchesTeam,
                              const char* displayLabel, int buttonRow, int buttonColumn,
-                             int buttonRowOffsetUnits, Behavior behavior, ChildIds... childIds) {
+                             Behavior behavior, ChildIds... childIds) {
   return makeMainEventNode(id, canonicalName, shortcut, xmlCode, leadMs, lagMs, spanish,
                            payloadLayout, switchesTeam, displayLabel, buttonRow, buttonColumn,
-                           buttonRowOffsetUnits, behavior, childIds...);
+                           behavior, childIds...);
 }
 
 // Column order for makeMainEvent: id, canonical name, key, XML code, lead ms,
 // lag ms, Spanish (nullptr = same as the canonical name), payload layout,
 // switches team, display label (nullptr = canonical name), button row,
-// button column, row left offset in quarter-key units, then children.
+// button column, then children.
 // Main events stay in clip-duration settings order. QSettings groups use the
-// catalog id. The button row is the GameControls keyboard,
-// which is not this array order:
-//   row 0 offset 0: 16-yd, 50-yd, 75-yd, PC
-//   row 1 offset 1: Circle Entry, PC Foul, Shot, Goal
-//   row 2 offset 3: Pass, Special, Turnover, Card
-//   row 3 offset 3: PS, S.O.
+// catalog id. The button grid is not this array order. Rows share columns,
+// and the last row holds PS and S.O.:
+//   row 0: 16-yd, 50-yd, 75-yd, PC
+//   row 1: Circle Entry, PC Foul, Shot, Goal
+//   row 2: Pass, Special, Turnover, Card
+//   row 3: PS, S.O.
 const std::array<Node, 66>& catalogNodes() {
   static const std::array<Node, 66> nodes = {
       makeMainEvent(EventId::Goal, "Goal", Qt::Key_F, "GOAL", 10000, 2000, "Gol",
-                    PayloadLayout::TeamOnly, false, nullptr, 1, 3, 1, goalScores()),
+                    PayloadLayout::TeamOnly, false, nullptr, 1, 3, goalScores()),
       makeMainEvent(EventId::Shot, "Shot", Qt::Key_D, "SHOT", 5000, 5000, "Tiro",
-                    PayloadLayout::PlainChain, false, nullptr, 1, 2, 1, EventId::OnTarget,
+                    PayloadLayout::PlainChain, false, nullptr, 1, 2, EventId::OnTarget,
                     EventId::OffTarget, EventId::Blocked),
       makeMainEvent(EventId::PenaltyCorner, "PC", Qt::Key_R, "PC", 2000, 8000, "Corto",
-                    PayloadLayout::TeamThenChain, false, nullptr, 0, 3, 0, EventId::DirectShot,
+                    PayloadLayout::TeamThenChain, false, nullptr, 0, 3, EventId::DirectShot,
                     EventId::Variant, EventId::Ruined),
       makeMainEvent(EventId::PenaltyCornerFoul, "PC Foul", Qt::Key_S, "PCF", 5000, 2000,
-                    "Falta PC", PayloadLayout::TeamThenChain, false, nullptr, 1, 1, 1,
+                    "Falta PC", PayloadLayout::TeamThenChain, false, nullptr, 1, 1,
                     EventId::Foot, EventId::Stick, EventId::Danger, EventId::Other),
       makeMainEvent(EventId::Card, "Card", Qt::Key_V, "CARD", 6000, 3000, "Tarjeta",
-                    PayloadLayout::ChainThenTeam, false, nullptr, 2, 3, 3, EventId::Green,
+                    PayloadLayout::ChainThenTeam, false, nullptr, 2, 3, EventId::Green,
                     EventId::Yellow, EventId::Red),
       makeMainEvent(EventId::Pass, "Pass", Qt::Key_Z, "PASS", 3000, 5000, "Pase",
-                    PayloadLayout::PlainChain, false, nullptr, 2, 0, 3, EventId::Flick,
+                    PayloadLayout::PlainChain, false, nullptr, 2, 0, EventId::Flick,
                     EventId::Push, EventId::Sweep, EventId::PassHit),
       makeMainEvent(EventId::CircleEntry, "Circle Entry", Qt::Key_A, "ENTRY", 8000, 6000,
-                    "Ingreso área", PayloadLayout::TeamThenChain, false, nullptr, 1, 0, 1,
+                    "Ingreso área", PayloadLayout::TeamThenChain, false, nullptr, 1, 0,
                     EventId::Dribbling, EventId::CircleEntryPass, EventId::Deflection),
       makeMainEvent(EventId::SixteenYard, "16-yd", Qt::Key_Q, "16YD", 3000, 10000, nullptr,
-                    PayloadLayout::TeamThenChain, false, nullptr, 0, 0, 0, EventId::ThreeMan,
+                    PayloadLayout::TeamThenChain, false, nullptr, 0, 0, EventId::ThreeMan,
                     EventId::FourMan, EventId::Fast),
       makeMainEvent(EventId::FiftyYard, "50-yd", Qt::Key_W, "50YD", 3000, 8000, nullptr,
-                    PayloadLayout::TeamOnly, false, nullptr, 0, 1, 0),
+                    PayloadLayout::TeamOnly, false, nullptr, 0, 1),
       makeMainEvent(EventId::SeventyFiveYard, "75-yd", Qt::Key_E, "75YD", 3000, 8000, nullptr,
-                    PayloadLayout::ChainThenTeam, false, nullptr, 0, 2, 0, EventId::Forward,
+                    PayloadLayout::ChainThenTeam, false, nullptr, 0, 2, EventId::Forward,
                     EventId::Sideways, EventId::Back),
       makeMainEvent(EventId::Turnover, "Turnover", Qt::Key_C, "TO", 4000, 4000, "Pérdida",
-                    PayloadLayout::PlainChain, true, nullptr, 2, 2, 3, EventId::Interception,
+                    PayloadLayout::PlainChain, true, nullptr, 2, 2, EventId::Interception,
                     EventId::Tackle, EventId::Pressure, EventId::UnforcedError),
       makeMainEvent(EventId::Special, "Special", Qt::Key_X, "SPC", 4000, 4000, nullptr,
-                    PayloadLayout::PlainChain, false, "☆", 2, 1, 3, EventId::Good, EventId::Bad,
+                    PayloadLayout::PlainChain, false, "☆", 2, 1, EventId::Good, EventId::Bad,
                     EventId::Neutral, EventId::Referee),
       makeMainEvent(EventId::PenaltyStroke, "PS", Qt::Key_B, "PS", 3000, 4000, "Penal",
-                    PayloadLayout::TeamThenChain, false, nullptr, 3, 0, 3, EventId::FollowUpGoal,
+                    PayloadLayout::TeamThenChain, false, nullptr, 3, 0, EventId::FollowUpGoal,
                     EventId::NoGoal),
       makeMainEvent(EventId::Shootout, "S.O.", Qt::Key_N, "SO", 2000, 9000, nullptr,
-                    PayloadLayout::TeamThenChain, false, nullptr, 3, 1, 3, shootoutEvent(),
+                    PayloadLayout::TeamThenChain, false, nullptr, 3, 1, shootoutEvent(),
                     EventId::Converted, EventId::Missed, EventId::Replay),
 
       makeFollowUp(EventId::OnTarget, "On target", "Al arco", EventId::FollowUpGoal, EventId::Saved,
@@ -286,7 +284,6 @@ struct PlacedButton {
   int nodeIndex = 0;
   int row = 0;
   int column = 0;
-  int leftOffsetUnits = 0;
 };
 
 void appendButtonGrid(const std::array<Node, 66>& nodes, CatalogIndex* index) {
@@ -296,16 +293,14 @@ void appendButtonGrid(const std::array<Node, 66>& nodes, CatalogIndex* index) {
     const Node& node = nodes.at(static_cast<std::size_t>(nodeIndex));
     if (!node.mainEvent) {
       Q_ASSERT_X(node.buttonRow == kNoButtonGridPosition &&
-                     node.buttonColumn == kNoButtonGridPosition && node.buttonRowOffsetUnits == 0,
+                     node.buttonColumn == kNoButtonGridPosition,
                  "EventCatalog", "follow-up is on the button grid");
       continue;
     }
     Q_ASSERT_X(node.buttonRow >= 0, "EventCatalog", "main event is missing a button row");
     Q_ASSERT_X(node.buttonColumn >= 0 && node.buttonColumn < kButtonGridColumnCount, "EventCatalog",
                "main event button column is out of range");
-    Q_ASSERT_X(node.buttonRowOffsetUnits >= 0, "EventCatalog", "button row offset is negative");
-    placed.append(
-        PlacedButton{nodeIndex, node.buttonRow, node.buttonColumn, node.buttonRowOffsetUnits});
+    placed.append(PlacedButton{nodeIndex, node.buttonRow, node.buttonColumn});
   }
 
   std::sort(placed.begin(), placed.end(), [](const PlacedButton& left, const PlacedButton& right) {
@@ -316,18 +311,13 @@ void appendButtonGrid(const std::array<Node, 66>& nodes, CatalogIndex* index) {
   index->buttonGridNodeIndexes.reserve(placed.size());
   int expectedRow = 0;
   int expectedColumn = 0;
-  int rowOffsetUnits = 0;
   int rowStart = 0;
   for (int placedIndex = 0; placedIndex < placed.size(); ++placedIndex) {
     const PlacedButton& item = placed.at(placedIndex);
     Q_ASSERT_X(item.row == expectedRow && item.column == expectedColumn, "EventCatalog",
                "button grid skips a row or column");
     if (expectedColumn == 0) {
-      rowOffsetUnits = item.leftOffsetUnits;
       rowStart = index->buttonGridNodeIndexes.size();
-    } else {
-      Q_ASSERT_X(item.leftOffsetUnits == rowOffsetUnits, "EventCatalog",
-                 "one keyboard row has two left offsets");
     }
     index->buttonGridNodeIndexes.append(item.nodeIndex);
     ++expectedColumn;
@@ -340,7 +330,6 @@ void appendButtonGrid(const std::array<Node, 66>& nodes, CatalogIndex* index) {
                    "button grid skips a row");
       }
       ButtonGridRow row;
-      row.leftOffsetUnits = rowOffsetUnits;
       row.firstEventIndex = rowStart;
       row.eventCount = expectedColumn;
       index->buttonGridRows.append(row);

@@ -1,4 +1,5 @@
 #include "GameControls.h"
+#include "GameControlGrid.h"
 #include "FollowUpCatalog.h"
 #include "../state/EventCatalog.h"
 #include "../state/EventControlsValidation.h"
@@ -15,7 +16,6 @@
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QVBoxLayout>
-#include <QSpacerItem>
 #include <QPushButton>
 #include <QWidget>
 #include <QTimer>
@@ -276,37 +276,6 @@ struct FocusNavEntry {
   int row = 0;
   int col = 0;
 };
-
-void addKeyboardRow(QVBoxLayout* column, QWidget* parent, const QList<QPushButton*>& buttons,
-                    int leftOffsetUnits, int maximumLeftOffsetUnits) {
-  if (!column) return;
-  auto* row = new QWidget(parent);
-  row->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-  auto* layout = new QHBoxLayout(row);
-  layout->setContentsMargins(0, 0, 0, 0);
-  layout->setSpacing(4);
-
-  auto* leftSpacer = new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Minimum);
-  layout->addSpacerItem(leftSpacer);
-  layout->setStretch(layout->count() - 1, qMax(0, leftOffsetUnits));
-
-  for (QPushButton* button : buttons) {
-    if (!button) continue;
-    layout->addWidget(button, EventCatalog::kButtonGridUnitsPerKey);
-  }
-
-  const int buttonCount = static_cast<int>(buttons.size());
-  const int missingButtons = qMax(0, EventCatalog::kButtonGridColumnCount - buttonCount);
-  // The widest row offset is the right edge of a full row. Shorter rows and
-  // rows that start further left take the remaining units on the right.
-  const int rightOffsetUnits = qMax(0, maximumLeftOffsetUnits - leftOffsetUnits) +
-                                (EventCatalog::kButtonGridUnitsPerKey * missingButtons);
-  auto* rightSpacer = new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Minimum);
-  layout->addSpacerItem(rightSpacer);
-  layout->setStretch(layout->count() - 1, rightOffsetUnits);
-
-  column->addWidget(row);
-}
 
 void publishFittedText(QLabel* titleLabel, const QString& fullText, const Style::FittedButtonTitle& fitted) {
   if (!titleLabel) return;
@@ -1129,19 +1098,11 @@ void GameControls::buildUi() {
   teamRowLayout->addWidget(awayTeamButton_, 1);
   setTabOrder(homeTeamButton_, awayTeamButton_);
 
-  // QWERTY block. Row offsets come from the catalog so Q sits above the gap before A.
-  auto* mainGridWidget = new QWidget(this);
-  auto* keyboardRowsLayout = new QVBoxLayout(mainGridWidget);
-  keyboardRowsLayout->setContentsMargins(0, 0, 0, 0);
-  keyboardRowsLayout->setSpacing(4);
-
+  // Aligned key grid. Catalog row and column place each key. A short row
+  // leaves the remaining cells empty so every key stays the same width.
+  QList<QList<QPushButton*>> keyboardRows;
   const int keyboardRowCount = EventCatalog::buttonGridRowCount();
-  int maximumLeftOffsetUnits = 0;
-  for (int rowIndex = 0; rowIndex < keyboardRowCount; ++rowIndex) {
-    maximumLeftOffsetUnits = std::max(
-        maximumLeftOffsetUnits, EventCatalog::buttonGridRowAt(rowIndex).leftOffsetUnits);
-  }
-
+  keyboardRows.reserve(keyboardRowCount);
   for (int rowIndex = 0; rowIndex < keyboardRowCount; ++rowIndex) {
     const EventCatalog::ButtonGridRow gridRow = EventCatalog::buttonGridRowAt(rowIndex);
     QList<QPushButton*> rowButtons;
@@ -1149,21 +1110,23 @@ void GameControls::buildUi() {
     for (int column = 0; column < gridRow.eventCount; ++column) {
       const EventCatalog::Node& node =
           EventCatalog::buttonGridNodeAt(gridRow.firstEventIndex + column);
-      auto* button = new QPushButton(mainGridWidget);
+      auto* button = new QPushButton(this);
       bindMainEventButton(button, node.id);
       Style::setSize(button, "md");
       Style::setVariant(button, "gameControl");
       // ClickFocus: not in Tab chain; main actions use letter shortcuts and mouse.
       button->setFocusPolicy(Qt::ClickFocus);
-      button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+      // Minimum height: the key fills its row. Fixed would sit in a slightly
+      // taller cell and open a gap that is not the grid spacing.
+      button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
       button->setMinimumWidth(0);
       button->setMinimumHeight(44);
       rowButtons.append(button);
       mainEventButtons_.append(button);
     }
-    addKeyboardRow(keyboardRowsLayout, mainGridWidget, rowButtons, gridRow.leftOffsetUnits,
-                   maximumLeftOffsetUnits);
+    keyboardRows.append(rowButtons);
   }
+  auto keyGrid = GameControlGrid::makeAlignedKeyGrid(this, keyboardRows);
   setFocusPolicy(Qt::StrongFocus);
 
   // Follow-up buttons container (initially hidden)
@@ -1178,7 +1141,7 @@ void GameControls::buildUi() {
 
   mainLayout->addWidget(gameTimeRowWidget);
   mainLayout->addWidget(teamRowWidget);
-  mainLayout->addWidget(mainGridWidget);
+  mainLayout->addWidget(keyGrid.get());
   mainLayout->addWidget(followUpContainer_);
 
   Style::usePointingHandCursor(periodAdvanceButton_);

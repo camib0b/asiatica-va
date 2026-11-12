@@ -61,6 +61,7 @@ qt_add_executable(AVA
   components/PlaybackSpeedometer.cpp
   components/TimelineBar.cpp
   components/GameControls.cpp
+  components/GameControlGrid.cpp
   components/TagToastOverlay.cpp
   components/FollowUpCatalog.cpp
   components/MatchNotesEditor.cpp
@@ -258,6 +259,7 @@ qt_add_executable(AVAExportTests
   state/Telestration.cpp
   components/FollowUpCatalog.cpp
   components/GameControls.cpp
+  components/GameControlGrid.cpp
   style/Motion.cpp
   state/PresentationQueue.cpp
   style/TextFit.cpp
