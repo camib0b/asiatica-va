@@ -299,12 +299,14 @@ QPushButton[variant="ghost"][speedActive="true"] {
    Game Controls
 ========================= */
 
-/* Rest stroke is zinc-400, not --border (zinc-200): the panel behind these
-   keys is the same white as the fill, and zinc-200 disappears into it.
-   Hover and press step to zinc-500. No drop shadow — the keys sit 4px apart. */
+/* Rest stroke is zinc-500, not zinc-400. zinc-400 (#a1a1aa) is 2.56:1 on the
+   white key and the white panel, under the 3:1 boundary minimum. zinc-500
+   (#71717a) is the next darker token already used for this stroke on hover
+   and press, and for muted text. It is 4.83:1 on white. Hover and press keep
+   that stroke; the fill steps to zinc-100 / zinc-200. No drop shadow. */
 QPushButton[variant="gameControl"] {
   background: #FFFFFF;
-  border: 1px solid #a1a1aa;
+  border: 1px solid #71717a;
   border-radius: 6px;
   font-weight: 500;
 }
@@ -357,7 +359,7 @@ QPushButton[variant="gameControl"][activeMain="true"]:focus {
 }
 
 QPushButton[variant="gameControl"][flash="true"] {
-  border: 1px solid #18181b;
+  border-color: #18181b;
   background: #f4f4f5;
 }
 QPushButton[variant="gameControl"][flash="true"]:focus {
@@ -378,6 +380,15 @@ QPushButton[variant="gameControl"] QLabel[role="muted"] {
   color: #71717a;
   font-size: 11px;
   font-weight: 400;
+}
+/* zinc-500 on zinc-100 is 4.40:1 and on zinc-200 is 3.81:1. zinc-600 is the
+   next darker token already used for the active-main shortcut and for
+   disabled text. It stays above 4.5:1 on those fills. */
+QPushButton[variant="gameControl"]:hover QLabel[role="muted"],
+QPushButton[variant="gameControl"]:pressed QLabel[role="muted"],
+QPushButton[variant="gameControl"][flash="true"] QLabel[role="muted"],
+QPushButton[variant="gameControl"][teamSelected="true"] QLabel[role="muted"] {
+  color: #52525b;
 }
 QPushButton[variant="gameControl"][activeMain="true"] QLabel[role="gameControlTitle"] {
   color: #09090b;
@@ -404,17 +415,17 @@ QPushButton[variant="gameControlFollowUp"]:pressed {
   border-color: #000000;
 }
 QPushButton[variant="gameControlFollowUp"]:focus {
-  border: 2px solid #18181b;
+  border: 2px solid #71717a;
   background: #09090b;
   padding: 7px 15px;
 }
 QPushButton[variant="gameControlFollowUp"][flash="true"] {
-  border: 1px solid #18181b;
+  border-color: #18181b;
   background: #18181b;
   padding: 8px 16px;
 }
 QPushButton[variant="gameControlFollowUp"][flash="true"]:focus {
-  border: 2px solid #18181b;
+  border: 2px solid #71717a;
   background: #09090b;
   padding: 7px 15px;
 }
@@ -1853,13 +1864,23 @@ QLineEdit#TeamColorHexEdit {
 /* Hidden tagging keys stay in the QWERTY holes. The dashed stroke is the cue
    that a click will not tag. Right-click still opens Show. */
 QPushButton[variant="gameControl"][controlsHidden="true"] {
-  border: 1px dashed #a1a1aa;
+  border: 1px dashed #71717a;
   background: #fafafa;
   color: #71717a;
 }
 QPushButton[variant="gameControl"][controlsHidden="true"] QLabel[role="gameControlTitle"],
 QPushButton[variant="gameControl"][controlsHidden="true"] QLabel[role="muted"] {
   color: #71717a;
+}
+/* Hidden text is zinc-500, which is 4.63:1 on zinc-50 and 4.83:1 on white.
+   Hover and press fills are darker, so the label steps to zinc-600. */
+QPushButton[variant="gameControl"][controlsHidden="true"]:hover QLabel[role="gameControlTitle"],
+QPushButton[variant="gameControl"][controlsHidden="true"]:hover QLabel[role="muted"],
+QPushButton[variant="gameControl"][controlsHidden="true"]:pressed QLabel[role="gameControlTitle"],
+QPushButton[variant="gameControl"][controlsHidden="true"]:pressed QLabel[role="muted"],
+QPushButton[variant="gameControl"][controlsHidden="true"][flash="true"] QLabel[role="gameControlTitle"],
+QPushButton[variant="gameControl"][controlsHidden="true"][flash="true"] QLabel[role="muted"] {
+  color: #52525b;
 }
 
 QDialog[role="controlsEditor"] {

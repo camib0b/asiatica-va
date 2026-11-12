@@ -9,6 +9,7 @@
 #include "../state/TagSession.h"
 #include "../style/StyleProps.h"
 
+#include <QAbstractButton>
 #include <QAction>
 #include <QDialog>
 #include <QGridLayout>
@@ -34,6 +35,13 @@ constexpr int kMenuTitleWidthPx = 280;
 QString elidedMenuTitle(const QMenu* menu, const QString& fullText) {
   if (!menu) return fullText;
   return menu->fontMetrics().elidedText(fullText, Qt::ElideMiddle, kMenuTitleWidthPx);
+}
+
+void usePointingHandOnClickableButtons(QWidget* widget) {
+  if (!widget) return;
+  for (QAbstractButton* button : widget->findChildren<QAbstractButton*>()) {
+    Style::usePointingHandCursor(button);
+  }
 }
 
 void publishTable(TagSession* session, const EventLabelOverrides::Table& table) {
@@ -129,6 +137,7 @@ class NameDialog final : public QDialog {
     connect(field_, &QLineEdit::returnPressed, ok_, &QPushButton::click);
     refresh();
     field_->selectAll();
+    usePointingHandOnClickableButtons(this);
   }
 
  private:
@@ -219,6 +228,7 @@ class KeyDialog final : public QDialog {
     connect(field_, &QLineEdit::returnPressed, ok_, &QPushButton::click);
     refresh();
     field_->selectAll();
+    usePointingHandOnClickableButtons(this);
   }
 
  private:
@@ -358,6 +368,7 @@ void addFollowUpMenu(QMenu* parentMenu, QWidget* anchor, TagSession* session,
   if (!parentMenu || !node || !session || path.isEmpty()) return;
   const QString fullName = EventLabelResolver::labelForPath(path, session->eventLabelOverrides());
   QMenu* menu = parentMenu->addMenu(elidedMenuTitle(parentMenu, fullName));
+  Style::usePointingHandCursor(menu);
   menu->setToolTip(fullName);
   menu->setProperty("eventId", static_cast<int>(eventId));
 
@@ -402,6 +413,7 @@ bool confirmDestructive(QWidget* parent, const QString& title, const QString& me
       box.addButton(AppLocale::trUi("controls_editor.confirm_no"), QMessageBox::NoRole);
   no->setObjectName(QStringLiteral("ControlsConfirmNo"));
   box.setDefaultButton(no);
+  usePointingHandOnClickableButtons(&box);
   box.exec();
   return box.clickedButton() == yes;
 }
@@ -411,6 +423,7 @@ void populate(QMenu* menu, TagSession* session, EventCatalog::EventId eventId,
               const EventLabelOverrides::FollowUpPath& path) {
   if (!menu || !session || EventCatalog::nodeForId(eventId) == nullptr) return;
   menu->setObjectName(QStringLiteral("GameControlsContextMenu"));
+  Style::usePointingHandCursor(menu);
 
   QWidget* anchor = menu->parentWidget();
   const EventLabelOverrides::Table& table = session->eventLabelOverrides();
@@ -442,6 +455,7 @@ void populate(QMenu* menu, TagSession* session, EventCatalog::EventId eventId,
   if (node != nullptr && node->childCount > 0) {
     QMenu* followUps = menu->addMenu(AppLocale::trUi("controls_menu.follow_ups"));
     followUps->setObjectName(QStringLiteral("ControlsMenuFollowUps"));
+    Style::usePointingHandCursor(followUps);
     EventLabelOverrides::FollowUpPath root = path;
     if (root.isEmpty()) root.mainEventId = eventId;
     for (int childIndex = 0; childIndex < node->childCount; ++childIndex) {
@@ -593,6 +607,7 @@ class SharedPathsDialog final : public QDialog {
 
     if (qEnvironmentVariableIsSet("AVA_BREAK_UI")) buildBreakToggle(layout.get());
     showLines(demoLines_);
+    usePointingHandOnClickableButtons(this);
   }
 
   SharedScopeChoice choice() const { return choice_; }

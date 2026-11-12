@@ -20,9 +20,11 @@ inline QColor quietText() { return QColor(QStringLiteral("#71717a")); } // --mut
 inline QColor border() { return QColor(QStringLiteral("#e4e4e7")); } // --border / zinc-200
 inline QColor hoverBorder() { return QColor(QStringLiteral("#d4d4d8")); } // zinc-300
 // Game-control hairline on the white tagging panel. zinc-200 matches the panel
-// and vanishes; zinc-400 is the resting stroke and zinc-500 is hover/press.
-inline QColor gameControlBorder() { return QColor(QStringLiteral("#a1a1aa")); }
-inline QColor gameControlHoverBorder() { return QColor(QStringLiteral("#71717a")); }
+// and vanishes. zinc-400 (#a1a1aa) is 2.56:1 on white, under the 3:1 boundary
+// minimum. zinc-500 (quietText) is the next darker token already in the
+// palette: 4.83:1 on white, and already the hover and press stroke.
+inline QColor gameControlBorder() { return quietText(); }
+inline QColor gameControlHoverBorder() { return quietText(); }
 inline QColor surface() { return QColor(QStringLiteral("#ffffff")); }
 // --primary-foreground / zinc-50. QWidget#ExportJobsBar uses the same fill.
 inline QColor primaryForeground() { return QColor(QStringLiteral("#fafafa")); }
