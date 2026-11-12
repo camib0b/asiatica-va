@@ -137,7 +137,7 @@ void TagsTableController::syncFilterMenu() {
   filterMenuStructureSyncDeferred_ = false;
 }
 
-void TagsTableController::refreshTagsTableRows() {
+void TagsTableController::refreshTagsTableRows(quint64 addedTagId) {
   if (!tagsTable_ || !tagsModel_) return;
   if (rebuildingTagsTable_) {
     tagsTableRebuildRequested_ = true;
@@ -147,12 +147,22 @@ void TagsTableController::refreshTagsTableRows() {
   const ScopedReentrancyFlag rebuilding(rebuildingTagsTable_);
   do {
     tagsTableRebuildRequested_ = false;
-    rebuildTagsTableOnce();
+    rebuildTagsTableOnce(addedTagId);
+    addedTagId = 0;
   } while (tagsTableRebuildRequested_);
 }
 
 void TagsTableController::updatePlayheadHighlight(qint64 positionMs) {
   if (tagsModel_) tagsModel_->setPlayheadMs(positionMs);
+}
+
+void TagsTableController::refreshRowWhenStoredMarkMoves(int sessionIndex) {
+  if (!tagSession_ || !tagsModel_ || !tagSession_->isValidTagIndex(sessionIndex)) return;
+  const TagSession::GameTag& tag = tagSession_->tags().at(sessionIndex);
+  const int row = tagsModel_->rowForTagId(tag.id);
+  if (row < 0) return;
+  if (tagsModel_->markMsAt(row) == tag.markMs) return;
+  refreshTagsTableRows();
 }
 
 void TagsTableController::onFilterByEventPathRequested(const TagEvent::MainEventKey& mainEvent,
@@ -256,7 +266,7 @@ void TagsTableController::updateFilterIndicator() const {
   tagsFilterIndicator_->show();
 }
 
-void TagsTableController::rebuildTagsTableOnce() {
+void TagsTableController::rebuildTagsTableOnce(quint64 addedTagId) {
   const quint64 previouslySelectedTagId = notesController_->selectedTagId();
   const int previousVerticalScroll =
       tagsTable_->verticalScrollBar() ? tagsTable_->verticalScrollBar()->value() : 0;
@@ -268,11 +278,13 @@ void TagsTableController::rebuildTagsTableOnce() {
   if (!tagSession_) {
     showEmptyTagsTable();
   } else {
-    tagsModel_->setRows(visibleTagRowsSortedByMark());
-    fitTagsTableColumns();
+    const QVector<TagsTableModel::Row> builtRows = visibleTagRowsSortedByMark();
+    tagsModel_->setRows(builtRows);
+    if (addedTagId != 0 && builtRows.size() > 1) growColumnsForAddedTag(addedTagId, builtRows);
+    else fitTagsTableColumns(builtRows);
     restoreTagsTableSelection(previouslySelectedTagId, previousVerticalScroll);
     if (videoPlayer_) {
-      tagsModel_->setPlayheadMs(videoPlayer_->currentPositionMs());
+      tagsModel_->setPlayheadMs(videoPlayer_->positionShownForTaggingMs());
     }
     updateFilterIndicator();
     updateRemoveFiltersButtonVisibility();
@@ -307,7 +319,8 @@ QVector<TagsTableModel::Row> TagsTableController::visibleTagRowsSortedByMark() c
   }
 
   std::sort(visibleTags.begin(), visibleTags.end(), [](const VisibleTag& left, const VisibleTag& right) {
-    return left.tag.markMs < right.tag.markMs;
+    if (left.tag.markMs != right.tag.markMs) return left.tag.markMs < right.tag.markMs;
+    return left.tagSessionIndex < right.tagSessionIndex;
   });
 
   QVector<TagsTableModel::Row> rows;
@@ -332,9 +345,35 @@ TagsTableModel::Row TagsTableController::tagsTableRowFor(const TagSession::GameT
   return row;
 }
 
-void TagsTableController::fitTagsTableColumns() {
+void TagsTableController::fitTagsTableColumns(const QVector<TagsTableModel::Row>& rows) {
   tagsTable_->resizeColumnToContents(0);
   tagsTable_->resizeColumnToContents(1);
+  widestTimeTextPx_ = 0;
+  widestTeamTextPx_ = 0;
+  const QFontMetrics metrics = tagsTable_->fontMetrics();
+  for (const TagsTableModel::Row& row : rows) {
+    widestTimeTextPx_ = std::max(widestTimeTextPx_, metrics.horizontalAdvance(row.timeText));
+    widestTeamTextPx_ = std::max(widestTeamTextPx_, metrics.horizontalAdvance(row.teamText));
+  }
+}
+
+void TagsTableController::growColumnsForAddedTag(quint64 addedTagId,
+                                                 const QVector<TagsTableModel::Row>& rows) {
+  const QFontMetrics metrics = tagsTable_->fontMetrics();
+  for (const TagsTableModel::Row& row : rows) {
+    if (row.tagId != addedTagId) continue;
+    const int timePx = metrics.horizontalAdvance(row.timeText);
+    const int teamPx = metrics.horizontalAdvance(row.teamText);
+    if (timePx > widestTimeTextPx_) {
+      widestTimeTextPx_ = timePx;
+      tagsTable_->resizeColumnToContents(0);
+    }
+    if (teamPx > widestTeamTextPx_) {
+      widestTeamTextPx_ = teamPx;
+      tagsTable_->resizeColumnToContents(1);
+    }
+    return;
+  }
 }
 
 void TagsTableController::restoreTagsTableSelection(quint64 previouslySelectedTagId,
@@ -346,8 +385,9 @@ void TagsTableController::restoreTagsTableSelection(quint64 previouslySelectedTa
     if (tagsTable_->verticalScrollBar()) {
       tagsTable_->verticalScrollBar()->setValue(previousVerticalScroll);
     }
-  } else {
-    tagsTable_->scrollToBottom();
+  } else if (QScrollBar* scrollBar = tagsTable_->verticalScrollBar()) {
+    // scrollToBottom lays out every row. The bar's maximum is the same end.
+    scrollBar->setValue(scrollBar->maximum());
   }
 }
 

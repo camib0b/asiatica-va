@@ -178,6 +178,7 @@ void TimelineBar::wireSignals() {
 
     lastSliderMovedMs_ = posMs;
     pendingScrubSeekMs_ = posMs;
+    emit taggingPositionChanged(posMs);
     if (!scrubSeekThrottleTimer_->isActive()) {
       scrubSeekThrottleTimer_->start();
     }
@@ -206,6 +207,7 @@ void TimelineBar::wireSignals() {
     isScrubbing_ = false;
     lastKnownPositionMs_ = releasedPosMs;
     updateLabel(releasedPosMs, durationMs_);
+    emit taggingPositionChanged(releasedPosMs);
     emit scrubFinished(releasedPosMs);
   });
 
@@ -259,22 +261,43 @@ void TimelineBar::setDurationMs(qint64 durMs) {
 void TimelineBar::beginSeekCommitWait(qint64 pendingMs) {
   waitingForSeekCommit_ = true;
   pendingSeekMs_ = pendingMs;
+  positionWhenSeekStartedMs_ = lastKnownPositionMs_;
   seekCommitElapsed_.restart();
 }
 
 void TimelineBar::clearSeekCommitWait() {
   waitingForSeekCommit_ = false;
   pendingSeekMs_ = -1;
+  positionWhenSeekStartedMs_ = 0;
   seekCommitElapsed_.invalidate();
+}
+
+qint64 TimelineBar::positionShownForTaggingMs(qint64 playerPositionMs) const {
+  if (isScrubbing_) {
+    if (lastSliderMovedMs_ >= 0) return lastSliderMovedMs_;
+    return lastKnownPositionMs_;
+  }
+  if (waitingForSeekCommit_ && pendingSeekMs_ >= 0) return pendingSeekMs_;
+  return playerPositionMs;
 }
 
 void TimelineBar::setPositionMs(qint64 posMs) {
   posMs = std::max<qint64>(0, std::min(posMs, durationMs_));
+  // The handle is the time the coach is aiming at. A decoder report from
+  // before the drag must not paint that old time over the label.
+  if (isScrubbing_) return;
+
   if (waitingForSeekCommit_ && pendingSeekMs_ >= 0) {
-    const bool seekCommitted = qAbs(posMs - pendingSeekMs_) <= kSeekCommitToleranceMs;
+    const qint64 distanceToTarget = qAbs(posMs - pendingSeekMs_);
+    const qint64 distanceToStart = qAbs(posMs - positionWhenSeekStartedMs_);
+    // Keyboard nudge is 250ms and this window is 250ms, so the pre-seek
+    // report is inside the window. Keep the target until a report is closer
+    // to it than to the time the seek left, or the report lands on it.
+    const bool arrivedAtTarget = posMs == pendingSeekMs_
+        || (distanceToTarget <= kSeekCommitToleranceMs && distanceToTarget < distanceToStart);
     const bool waitTimedOut = !seekCommitElapsed_.isValid()
         || seekCommitElapsed_.elapsed() >= kSeekCommitTimeoutMs;
-    if (!seekCommitted && !waitTimedOut) {
+    if (!arrivedAtTarget && !waitTimedOut) {
       lastKnownPositionMs_ = pendingSeekMs_;
       updateLabel(pendingSeekMs_, durationMs_);
       return;
@@ -377,6 +400,7 @@ void TimelineBar::commitTimeEntry() {
   updateLabel(targetMs, durationMs_);
   timeEntryTransition_ = false;
 
+  emit taggingPositionChanged(targetMs);
   emit timeEntryFinished(targetMs);
   emit scrubFinished(targetMs);
 }

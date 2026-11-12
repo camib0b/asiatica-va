@@ -36,6 +36,7 @@
 #include <QPaintEvent>
 #include <QPolygon>
 #include <QPointer>
+#include <QShowEvent>
 #include <QPushButton>
 #include <QResizeEvent>
 #include <QScreen>
@@ -1113,6 +1114,22 @@ void PresentationPanel::setTagSession(TagSession* session) {
 }
 
 void PresentationPanel::refreshFromSession() {
+  QWidget* topLevel = window();
+  const bool windowIsOnScreen = topLevel && topLevel->isVisible();
+  if (!isVisible() && windowIsOnScreen) {
+    sessionRefreshDeferred_ = true;
+    return;
+  }
+  applySessionRefresh();
+}
+
+void PresentationPanel::showEvent(QShowEvent* event) {
+  QWidget::showEvent(event);
+  if (sessionRefreshDeferred_) applySessionRefresh();
+}
+
+void PresentationPanel::applySessionRefresh() {
+  sessionRefreshDeferred_ = false;
   pruneSelectionToExistingTags();
   rebuildEventFilterOptions();
   rebuildRows();

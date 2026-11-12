@@ -19,11 +19,15 @@ public:
   void setEnabledForMedia(bool on);   // main enable toggle
   void setDurationMs(qint64 durMs);
   void setPositionMs(qint64 posMs);
+  /// Time the coach is looking at. During a drag or an uncommitted seek this is
+  /// the timeline target; otherwise it is the player position passed in.
+  qint64 positionShownForTaggingMs(qint64 playerPositionMs) const;
 
 signals:
   void scrubStarted();                // user grabbed the handle
   void scrubSeekTo(qint64 posMs);     // optional throttled live seeking
   void scrubFinished(qint64 posMs);   // definitive seek on release/click
+  void taggingPositionChanged(qint64 positionMs);
   void timeEntryStarted();            // user clicked timestamp entry and requested pause
   void timeEntryFinished(qint64 posMs); // user committed a typed seek
   void timeEntryCancelled();          // user dismissed typed seek (Escape, invalid input, disable)
@@ -53,6 +57,7 @@ private:
   bool isEditingTimeEntry_ = false;
   bool timeEntryTransition_ = false;
   qint64 pendingSeekMs_ = -1;
+  qint64 positionWhenSeekStartedMs_ = 0;
   bool waitingForSeekCommit_ = false;
   QElapsedTimer seekCommitElapsed_;
   QTimer* scrubSeekThrottleTimer_ = nullptr;

@@ -149,6 +149,12 @@ qint64 VideoPlayer::currentPositionMs() const {
     return player_ ? player_->position() : 0;
 }
 
+qint64 VideoPlayer::positionShownForTaggingMs() const {
+    const qint64 playerPositionMs = currentPositionMs();
+    if (!videoTimelineBar_) return playerPositionMs;
+    return videoTimelineBar_->positionShownForTaggingMs(playerPositionMs);
+}
+
 qint64 VideoPlayer::durationMs() const {
     if (!player_) return 0;
     const qint64 duration = player_->duration();

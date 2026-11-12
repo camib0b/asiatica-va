@@ -14,6 +14,7 @@
 #include "../style/TextFit.h"
 #include "../style/WorkDataView.h"
 #include "../components/VideoPlayer.h"
+#include "../components/TimelineBar.h"
 #include "../components/GameControls.h"
 #include "../components/TagToastOverlay.h"
 #include "../components/MatchNotesEditor.h"
@@ -552,12 +553,15 @@ void WorkWindow::connectTagSessionSignals() {
     tagSessionConnections_.append(connect(
         tagSession_, &TagSession::eventLabelOverridesChanged, this,
         &WorkWindow::onEventLabelOverridesChanged));
+    tagSessionConnections_.append(connect(
+        tagSession_, &TagSession::tagIntervalChanged, tagsTableController_.get(),
+        &TagsTableController::refreshRowWhenStoredMarkMoves));
 }
 
 void WorkWindow::onTagSessionTagsChanged(quint64 addedTagId) {
     if (!tagSession_) return;
     tagsTableController_->syncFilterMenu();
-    tagsTableController_->refreshTagsTableRows();
+    tagsTableController_->refreshTagsTableRows(addedTagId);
     if (addedTagId != 0) flashNewTagRow(addedTagId);
 }
 
@@ -1283,7 +1287,7 @@ void WorkWindow::wireGameControlsSignals() {
 
 void WorkWindow::rememberCapturedMainEvent(const QString& mainEvent) {
     if (!videoPlayer_) return;
-    capturedMainEvent_ = CapturedMainEvent{mainEvent, videoPlayer_->currentPositionMs()};
+    capturedMainEvent_ = CapturedMainEvent{mainEvent, videoPlayer_->positionShownForTaggingMs()};
 }
 
 void WorkWindow::showTagSequenceStep(const QString& shortcutKey, const QString& stepLabel,
@@ -1308,7 +1312,7 @@ void WorkWindow::dismissTagSequenceToast() {
 void WorkWindow::commitTagFromGameControls(const QString& mainEvent, const QString& followUpEvent) {
     if (!videoPlayer_) return;
 
-    qint64 markMs = videoPlayer_->currentPositionMs();
+    qint64 markMs = videoPlayer_->positionShownForTaggingMs();
     if (capturedMainEvent_ && capturedMainEvent_->event == mainEvent) {
         markMs = capturedMainEvent_->markMs;
     }
@@ -1394,6 +1398,11 @@ void WorkWindow::wireApplicationLanguageSignals() {
 void WorkWindow::wirePlaybackAndTemporaryDirectorySignals() {
     connect(videoPlayer_, &VideoPlayer::positionChangedMs, this, &WorkWindow::onVideoPositionChanged);
     connect(videoPlayer_, &VideoPlayer::durationChangedMs, this, &WorkWindow::onVideoDurationChanged);
+    if (TimelineBar* timeline = videoPlayer_->timelineBar()) {
+        connect(timeline, &TimelineBar::taggingPositionChanged, this, [this](qint64 positionMs) {
+            tagsTableController_->updatePlayheadHighlight(positionMs);
+        });
+    }
     playbackTemporaryDirectoryController_->setVideoPlayer(videoPlayer_);
     notesController_->setVideoPlayer(videoPlayer_);
     tagsTableController_->setVideoPlayer(videoPlayer_);
@@ -1401,7 +1410,10 @@ void WorkWindow::wirePlaybackAndTemporaryDirectorySignals() {
 }
 
 void WorkWindow::onVideoPositionChanged(qint64 positionMs) {
-    tagsTableController_->updatePlayheadHighlight(positionMs);
+    const qint64 taggingPositionMs =
+        videoPlayer_ ? videoPlayer_->positionShownForTaggingMs() : positionMs;
+    tagsTableController_->updatePlayheadHighlight(taggingPositionMs);
+    // Presentation pauses from the decoder clock. A scrub preview must not end a clip early.
     presentationPlaybackController_->updatePresentationPlayhead(positionMs);
 }
 
@@ -1676,12 +1688,12 @@ void WorkWindow::onGameStartRequested() {
     // Returning here leaves the panel where it is. The panel does not advance
     // until the session emits quarterPhaseChanged.
     if (!videoPlayer_ || !tagSession_) return;
-    tagSession_->startGame(videoPlayer_->currentPositionMs());
+    tagSession_->startGame(videoPlayer_->positionShownForTaggingMs());
 }
 
 void WorkWindow::onNextQuarterRequested() {
     if (!videoPlayer_ || !tagSession_) return;
-    tagSession_->advanceQuarter(videoPlayer_->currentPositionMs());
+    tagSession_->advanceQuarter(videoPlayer_->positionShownForTaggingMs());
 }
 
 void WorkWindow::onGameSetupCancelled() {

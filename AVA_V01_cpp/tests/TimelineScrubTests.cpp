@@ -25,6 +25,8 @@ class TimelineScrubTest : public QObject {
 
 private slots:
   void releaseSeeksToTheDropPosition();
+  void playerReportDuringDragKeepsTheDragTime();
+  void stalePositionWithinToleranceDoesNotCancelAShortSeek();
 };
 
 void TimelineScrubTest::releaseSeeksToTheDropPosition() {
@@ -76,6 +78,52 @@ void TimelineScrubTest::releaseSeeksToTheDropPosition() {
   QCOMPARE(finished.at(1).at(0).toLongLong(), kDropPositionMs);
   QCOMPARE(slider->value(), static_cast<int>(kDropPositionMs));
   QCOMPARE(label->text(), QStringLiteral("01:20 / 01:40"));
+}
+
+void TimelineScrubTest::playerReportDuringDragKeepsTheDragTime() {
+  TimelineBar bar;
+  bar.setDurationMs(kDurationMs);
+  bar.setPositionMs(kPressPositionMs);
+
+  auto* slider = bar.findChild<QSlider*>(QStringLiteral("TimelineSlider"));
+  auto* label = bar.findChild<QLabel*>();
+  QVERIFY(slider);
+  QVERIFY(label);
+
+  dragSlider(slider, static_cast<int>(kDropPositionMs));
+  QCOMPARE(label->text(), QStringLiteral("01:20 / 01:40"));
+
+  // The player is still at the press point while the handle is at 01:20.
+  bar.setPositionMs(kPressPositionMs);
+  QCOMPARE(label->text(), QStringLiteral("01:20 / 01:40"));
+  QCOMPARE(slider->sliderPosition(), static_cast<int>(kDropPositionMs));
+}
+
+void TimelineScrubTest::stalePositionWithinToleranceDoesNotCancelAShortSeek() {
+  // Keyboard nudge is 250ms, and the commit window is also 250ms. A report that
+  // is still the pre-seek position is inside that window of a 200ms seek.
+  constexpr qint64 startMs = 10000;
+  constexpr qint64 targetMs = 10200;
+
+  TimelineBar bar;
+  bar.setDurationMs(kDurationMs);
+  bar.setPositionMs(startMs);
+
+  auto* slider = bar.findChild<QSlider*>(QStringLiteral("TimelineSlider"));
+  QVERIFY(slider);
+
+  dragSlider(slider, static_cast<int>(targetMs));
+  slider->setSliderDown(false);
+  QCOMPARE(slider->value(), static_cast<int>(targetMs));
+
+  bar.setPositionMs(startMs);
+  QCOMPARE(slider->value(), static_cast<int>(targetMs));
+
+  bar.setPositionMs(targetMs);
+  QCOMPARE(slider->value(), static_cast<int>(targetMs));
+
+  bar.setPositionMs(startMs);
+  QCOMPARE(slider->value(), static_cast<int>(startMs));
 }
 
 int runTimelineScrubTests(int argc, char** argv) {
