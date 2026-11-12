@@ -1,5 +1,6 @@
 #include "AppLocale.h"
 #include "EventCatalog.h"
+#include "GameControlGrid.h"
 #include "GameControls.h"
 #include "TagSession.h"
 #include "TagToastOverlay.h"
@@ -7,8 +8,10 @@
 #include "WorkWindow.h"
 
 #include <QApplication>
+#include <QCursor>
 #include <QFile>
 #include <QFontMetrics>
+#include <QGridLayout>
 #include <QHash>
 #include <QLabel>
 #include <QLayout>
@@ -47,6 +50,10 @@ void settleLayout(QWidget* widget) {
 
 int mappedX(QWidget* widget, QWidget* ancestor) {
   return widget->mapTo(ancestor, QPoint(0, 0)).x();
+}
+
+int mappedY(QWidget* widget, QWidget* ancestor) {
+  return widget->mapTo(ancestor, QPoint(0, 0)).y();
 }
 
 bool textIsWellFormed(const QString& text) {
@@ -198,7 +205,7 @@ private slots:
   void escapeKeepsTheMainTag();
   void mouseAndKeyboardBothPublishTheShortcut();
   void shotChainPublishesEachAnswer();
-  void keyboardRowsFollowQwertyOffsets();
+  void keyboardRowsShareColumnsAndFillThePanel();
   void longTeamNamesDoNotWidenThePanel();
   void fitButtonTitleKeepsWordsInsideTheLine();
   void spanishFollowUpLabelsFitAtPanelExtremes();
@@ -455,43 +462,110 @@ void TaggingToastTest::shotChainPublishesEachAnswer() {
   QCOMPARE(committed.at(0).at(1).toString(), QStringLiteral("On target \u2192 Saved"));
 }
 
-void TaggingToastTest::keyboardRowsFollowQwertyOffsets() {
+void TaggingToastTest::keyboardRowsShareColumnsAndFillThePanel() {
   GameControls controls;
-  controls.resize(420, 780);
-  controls.show();
-  settleLayout(&controls);
-  controls.resize(420, 780);
-  settleLayout(&controls);
+  const int panelWidths[] = {GameControls::kMinimumPanelWidthPx, 420,
+                             WorkWindow::kMaximumTaggingSidePanelWidthPx};
+  int previousKeyWidth = 0;
+  for (const int panelWidth : panelWidths) {
+    controls.resize(panelWidth, 820);
+    controls.show();
+    settleLayout(&controls);
 
-  QPushButton* top = buttonNamed(&controls, "16-yd");
-  QPushButton* home = buttonNamed(&controls, "Circle Entry");
-  QPushButton* bottom = buttonNamed(&controls, "Pass");
-  QPushButton* penaltyStroke = buttonNamed(&controls, "PS");
-  QPushButton* shootout = buttonNamed(&controls, "S.O.");
-  QPushButton* special = buttonNamed(&controls, "Special");
-  QVERIFY(top && home && bottom && penaltyStroke && shootout && special);
-  QVERIFY(top->width() > 20);
+    QWidget* grid = controls.findChild<QWidget*>(QLatin1String(GameControlGrid::kObjectName));
+    QVERIFY2(grid != nullptr, qPrintable(QString::number(panelWidth)));
+    auto* gridLayout = qobject_cast<QGridLayout*>(grid->layout());
+    QVERIFY(gridLayout != nullptr);
+    QCOMPARE(gridLayout->horizontalSpacing(), GameControlGrid::kKeyGapPx);
+    QCOMPARE(gridLayout->verticalSpacing(), GameControlGrid::kKeyGapPx);
+    QCOMPARE(gridLayout->columnCount(), EventCatalog::kButtonGridColumnCount);
 
-  const int narrowHomeShift = mappedX(home, &controls) - mappedX(top, &controls);
-  const int narrowBottomShift = mappedX(bottom, &controls) - mappedX(top, &controls);
-  QVERIFY(narrowHomeShift > top->width() / 8);
-  QVERIFY(narrowHomeShift < top->width() / 2);
-  QVERIFY(narrowBottomShift > top->width() / 2);
-  QVERIFY(narrowBottomShift < top->width());
-  QVERIFY(narrowBottomShift > narrowHomeShift);
-  QVERIFY(qAbs(top->width() - bottom->width()) <= 2);
-  QVERIFY(qAbs(top->width() - penaltyStroke->width()) <= 2);
-  QVERIFY(qAbs(mappedX(bottom, &controls) - mappedX(penaltyStroke, &controls)) <= 3);
-  QVERIFY(qAbs(mappedX(special, &controls) - mappedX(shootout, &controls)) <= 3);
+    QPushButton* top = buttonNamed(&controls, "16-yd");
+    QPushButton* home = buttonNamed(&controls, "Circle Entry");
+    QPushButton* pass = buttonNamed(&controls, "Pass");
+    QPushButton* penaltyStroke = buttonNamed(&controls, "PS");
+    QPushButton* fifty = buttonNamed(&controls, "50-yd");
+    QPushButton* special = buttonNamed(&controls, "Special");
+    QPushButton* shootout = buttonNamed(&controls, "S.O.");
+    QPushButton* card = buttonNamed(&controls, "Card");
+    QPushButton* goal = buttonNamed(&controls, "Goal");
+    QPushButton* turnover = buttonNamed(&controls, "Turnover");
+    QVERIFY(top && home && pass && penaltyStroke && fifty && special && shootout && card && goal &&
+            turnover);
 
-  controls.resize(680, 780);
-  settleLayout(&controls);
-  const int wideHomeShift = mappedX(home, &controls) - mappedX(top, &controls);
-  QVERIFY(wideHomeShift > narrowHomeShift);
+    QVERIFY2(qAbs(mappedX(top, grid) - mappedX(home, grid)) <= 2,
+             qPrintable(QString::number(panelWidth)));
+    QVERIFY2(qAbs(mappedX(top, grid) - mappedX(pass, grid)) <= 2,
+             qPrintable(QString::number(panelWidth)));
+    QVERIFY2(qAbs(mappedX(top, grid) - mappedX(penaltyStroke, grid)) <= 2,
+             qPrintable(QString::number(panelWidth)));
+    QVERIFY2(qAbs(mappedX(fifty, grid) - mappedX(special, grid)) <= 2,
+             qPrintable(QString::number(panelWidth)));
+    QVERIFY2(qAbs(mappedX(fifty, grid) - mappedX(shootout, grid)) <= 2,
+             qPrintable(QString::number(panelWidth)));
+    QVERIFY2(qAbs(mappedY(top, grid) - mappedY(fifty, grid)) <= 2,
+             qPrintable(QString::number(panelWidth)));
+    QVERIFY2(qAbs(mappedY(home, grid) - mappedY(goal, grid)) <= 2,
+             qPrintable(QString::number(panelWidth)));
+    QVERIFY2(qAbs(mappedY(pass, grid) - mappedY(card, grid)) <= 2,
+             qPrintable(QString::number(panelWidth)));
+    QVERIFY2(qAbs(mappedY(penaltyStroke, grid) - mappedY(shootout, grid)) <= 2,
+             qPrintable(QString::number(panelWidth)));
+
+    const QList<QPushButton*> keys = {top,
+                                      home,
+                                      pass,
+                                      penaltyStroke,
+                                      fifty,
+                                      special,
+                                      shootout,
+                                      card,
+                                      goal,
+                                      turnover,
+                                      buttonNamed(&controls, "75-yd"),
+                                      buttonNamed(&controls, "PC"),
+                                      buttonNamed(&controls, "PC Foul"),
+                                      buttonNamed(&controls, "Shot")};
+    QCOMPARE(keys.size(), EventCatalog::buttonGridCount());
+    for (QPushButton* key : keys) {
+      QVERIFY(key != nullptr);
+      QVERIFY2(qAbs(key->width() - top->width()) <= 2, qPrintable(QString::number(panelWidth)));
+      QVERIFY2(qAbs(key->height() - top->height()) <= 2, qPrintable(QString::number(panelWidth)));
+      QCOMPARE(key->cursor().shape(), Qt::PointingHandCursor);
+    }
+
+    const int horizontalGap = mappedX(fifty, grid) - (mappedX(top, grid) + top->width());
+    const int verticalGap = mappedY(home, grid) - (mappedY(top, grid) + top->height());
+    QVERIFY2(qAbs(horizontalGap - GameControlGrid::kKeyGapPx) <= 1,
+             qPrintable(QString::number(horizontalGap)));
+    QVERIFY2(qAbs(verticalGap - GameControlGrid::kKeyGapPx) <= 1,
+             qPrintable(QString::number(verticalGap)));
+    QVERIFY2(qAbs(mappedX(top, grid)) <= 1, qPrintable(QString::number(mappedX(top, grid))));
+    const int cardRight = mappedX(card, grid) + card->width();
+    QVERIFY2(qAbs(cardRight - grid->width()) <= 2, qPrintable(QString::number(cardRight)));
+    QVERIFY2(qAbs(grid->mapTo(&controls, QPoint(0, 0)).x()) <= 1,
+             qPrintable(QString::number(grid->x())));
+    QVERIFY2(qAbs(grid->width() - controls.width()) <= 2,
+             qPrintable(QString::number(grid->width()) + QStringLiteral(" vs ") +
+                        QString::number(controls.width())));
+    QVERIFY(card->mapTo(&controls, QPoint(card->width() - 1, 0)).x() < controls.width());
+
+    const int shootoutRight = mappedX(shootout, grid) + shootout->width();
+    const int expectedRemainder = shootout->width() * 2 + GameControlGrid::kKeyGapPx * 2;
+    QVERIFY2(qAbs((grid->width() - shootoutRight) - expectedRemainder) <= 4,
+             qPrintable(QString::number(grid->width() - shootoutRight)));
+
+    if (previousKeyWidth > 0) {
+      QVERIFY2(top->width() > previousKeyWidth, qPrintable(QString::number(top->width())));
+    }
+    previousKeyWidth = top->width();
+  }
 
   controls.resize(GameControls::kMinimumPanelWidthPx, 820);
   settleLayout(&controls);
+  QPushButton* home = buttonNamed(&controls, "Circle Entry");
   QPushButton* turnover = buttonNamed(&controls, "Turnover");
+  QVERIFY(home);
   QVERIFY(turnover);
   QLabel* turnoverTitle = nullptr;
   QLabel* circleTitle = nullptr;

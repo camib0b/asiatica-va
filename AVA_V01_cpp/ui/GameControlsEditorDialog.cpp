@@ -1,5 +1,7 @@
 #include "GameControlsEditorDialog.h"
 
+#include "GameControlGrid.h"
+
 #include "GameControlsContextMenu.h"
 #include "QtPtr.h"
 
@@ -44,29 +46,6 @@
 #include <utility>
 
 namespace {
-
-void addKeyboardRow(QVBoxLayout* column, QWidget* parent, const QList<QPushButton*>& buttons,
-                    int leftOffsetUnits, int maximumLeftOffsetUnits) {
-  if (!column) return;
-  auto row = makeQtPtr<QWidget>(parent);
-  row->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-  auto layout = makeQtPtr<QHBoxLayout>(row.get());
-  layout->setContentsMargins(0, 0, 0, 0);
-  layout->setSpacing(4);
-
-  layout->addSpacerItem(new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Minimum));
-  layout->setStretch(layout->count() - 1, qMax(0, leftOffsetUnits));
-  for (QPushButton* button : buttons) {
-    if (!button) continue;
-    layout->addWidget(button, EventCatalog::kButtonGridUnitsPerKey);
-  }
-  const int missingButtons = qMax(0, EventCatalog::kButtonGridColumnCount - buttons.size());
-  const int rightOffsetUnits = qMax(0, maximumLeftOffsetUnits - leftOffsetUnits) +
-                                (EventCatalog::kButtonGridUnitsPerKey * missingButtons);
-  layout->addSpacerItem(new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Minimum));
-  layout->setStretch(layout->count() - 1, rightOffsetUnits);
-  column->addWidget(row.get());
-}
 
 void fitTitleLabel(QLabel* titleLabel) {
   if (!titleLabel) return;
@@ -385,12 +364,9 @@ void GameControlsEditorDialog::buildGrid(QWidget* host) {
   gridCaption_ = caption.get();
   column->addWidget(caption.get());
 
-  int maximumLeftOffsetUnits = 0;
+  QList<QList<QPushButton*>> keyboardRows;
   const int rowCount = EventCatalog::buttonGridRowCount();
-  for (int rowIndex = 0; rowIndex < rowCount; ++rowIndex) {
-    maximumLeftOffsetUnits = qMax(maximumLeftOffsetUnits,
-                                  EventCatalog::buttonGridRowAt(rowIndex).leftOffsetUnits);
-  }
+  keyboardRows.reserve(rowCount);
   for (int rowIndex = 0; rowIndex < rowCount; ++rowIndex) {
     const EventCatalog::ButtonGridRow gridRow = EventCatalog::buttonGridRowAt(rowIndex);
     QList<QPushButton*> rowButtons;
@@ -405,7 +381,7 @@ void GameControlsEditorDialog::buildGrid(QWidget* host) {
       Style::setSize(button.get(), "md");
       Style::setVariant(button.get(), "gameControl");
       button->setFocusPolicy(Qt::ClickFocus);
-      button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+      button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
       button->setMinimumWidth(0);
       button->setMinimumHeight(44);
       button->installEventFilter(this);
@@ -439,8 +415,10 @@ void GameControlsEditorDialog::buildGrid(QWidget* host) {
       rowButtons.append(button.get());
       gridButtons_.append(button.get());
     }
-    addKeyboardRow(column.get(), host, rowButtons, gridRow.leftOffsetUnits, maximumLeftOffsetUnits);
+    keyboardRows.append(rowButtons);
   }
+  auto keyGrid = GameControlGrid::makeAlignedKeyGrid(host, keyboardRows);
+  column->addWidget(keyGrid.get());
   column->addStretch(1);
 }
 

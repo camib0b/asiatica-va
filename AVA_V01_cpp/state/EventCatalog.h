@@ -15,12 +15,9 @@ inline constexpr int kMaxFollowUpDepth = 3;
 /// Widest follow-up row. Pass, Turnover, Special, and PC Foul each have four.
 inline constexpr int kMaxFollowUpChildren = 4;
 
-/// Buttons across one GameControls keyboard row. A shorter row stays left-aligned.
+/// Buttons across one GameControls keyboard row. A shorter row stays in the
+/// left columns at the same key width.
 inline constexpr int kButtonGridColumnCount = 4;
-
-/// Layout weight of one key. Button-row offsets use the same units, so 1 is a
-/// quarter key and 3 is three quarters of a key.
-inline constexpr int kButtonGridUnitsPerKey = 4;
 
 /// buttonRow and buttonColumn when the node is not on the GameControls grid.
 inline constexpr int kNoButtonGridPosition = -1;
@@ -157,9 +154,6 @@ struct Node {
   int buttonRow = kNoButtonGridPosition;
   /// Left-to-right slot within buttonRow. kNoButtonGridPosition for follow-ups.
   int buttonColumn = kNoButtonGridPosition;
-  /// Left spacer for this button's row, in kButtonGridUnitsPerKey units.
-  /// Zero for follow-ups. Every button in a row uses the same offset.
-  int buttonRowOffsetUnits = 0;
   std::array<EventId, kMaxFollowUpChildren> children{};
   int childCount = 0;
 };
@@ -167,7 +161,6 @@ struct Node {
 /// One horizontal row of the GameControls keyboard, top to bottom.
 /// Events are buttonGridNodeAt(firstEventIndex + column).
 struct ButtonGridRow {
-  int leftOffsetUnits = 0;
   int firstEventIndex = 0;
   int eventCount = 0;
 };

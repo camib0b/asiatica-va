@@ -4,6 +4,7 @@
 #include "EventDefaults.h"
 #include "ExportClipBuilder.h"
 #include "FollowUpCatalog.h"
+#include "GameControlGrid.h"
 #include "GameControls.h"
 #include "ShootoutState.h"
 #include "TagEvent.h"
@@ -11,9 +12,10 @@
 #include "XmlExporter.h"
 
 #include <QApplication>
+#include <QCursor>
 #include <QDate>
 #include <QFontMetrics>
-#include <QHBoxLayout>
+#include <QGridLayout>
 #include <QLabel>
 #include <QLayout>
 #include <QPushButton>
@@ -81,67 +83,56 @@ struct ExpectedGridButton {
   Qt::Key key;
   int row;
   int column;
-  int leftOffsetUnits;
 };
 
-// The hand-laid QWERTY block: row, then column. Offsets are quarter-key units.
+// Keyboard order: row, then column. The last row has two keys.
 const std::array<ExpectedGridButton, 14>& expectedButtonGrid() {
   static const std::array<ExpectedGridButton, 14> buttons{{
-      {EventCatalog::EventId::SixteenYard, "16-yd", Qt::Key_Q, 0, 0, 0},
-      {EventCatalog::EventId::FiftyYard, "50-yd", Qt::Key_W, 0, 1, 0},
-      {EventCatalog::EventId::SeventyFiveYard, "75-yd", Qt::Key_E, 0, 2, 0},
-      {EventCatalog::EventId::PenaltyCorner, "PC", Qt::Key_R, 0, 3, 0},
-      {EventCatalog::EventId::CircleEntry, "Circle Entry", Qt::Key_A, 1, 0, 1},
-      {EventCatalog::EventId::PenaltyCornerFoul, "PC Foul", Qt::Key_S, 1, 1, 1},
-      {EventCatalog::EventId::Shot, "Shot", Qt::Key_D, 1, 2, 1},
-      {EventCatalog::EventId::Goal, "Goal", Qt::Key_F, 1, 3, 1},
-      {EventCatalog::EventId::Pass, "Pass", Qt::Key_Z, 2, 0, 3},
-      {EventCatalog::EventId::Special, "Special", Qt::Key_X, 2, 1, 3},
-      {EventCatalog::EventId::Turnover, "Turnover", Qt::Key_C, 2, 2, 3},
-      {EventCatalog::EventId::Card, "Card", Qt::Key_V, 2, 3, 3},
-      {EventCatalog::EventId::PenaltyStroke, "PS", Qt::Key_B, 3, 0, 3},
-      {EventCatalog::EventId::Shootout, "S.O.", Qt::Key_N, 3, 1, 3},
+      {EventCatalog::EventId::SixteenYard, "16-yd", Qt::Key_Q, 0, 0},
+      {EventCatalog::EventId::FiftyYard, "50-yd", Qt::Key_W, 0, 1},
+      {EventCatalog::EventId::SeventyFiveYard, "75-yd", Qt::Key_E, 0, 2},
+      {EventCatalog::EventId::PenaltyCorner, "PC", Qt::Key_R, 0, 3},
+      {EventCatalog::EventId::CircleEntry, "Circle Entry", Qt::Key_A, 1, 0},
+      {EventCatalog::EventId::PenaltyCornerFoul, "PC Foul", Qt::Key_S, 1, 1},
+      {EventCatalog::EventId::Shot, "Shot", Qt::Key_D, 1, 2},
+      {EventCatalog::EventId::Goal, "Goal", Qt::Key_F, 1, 3},
+      {EventCatalog::EventId::Pass, "Pass", Qt::Key_Z, 2, 0},
+      {EventCatalog::EventId::Special, "Special", Qt::Key_X, 2, 1},
+      {EventCatalog::EventId::Turnover, "Turnover", Qt::Key_C, 2, 2},
+      {EventCatalog::EventId::Card, "Card", Qt::Key_V, 2, 3},
+      {EventCatalog::EventId::PenaltyStroke, "PS", Qt::Key_B, 3, 0},
+      {EventCatalog::EventId::Shootout, "S.O.", Qt::Key_N, 3, 1},
   }};
   return buttons;
 }
 
 struct ObservedKeyboardRow {
-  int leftOffsetUnits = 0;
   QStringList names;
   QList<QPushButton*> buttons;
 };
 
-std::optional<ObservedKeyboardRow> keyboardRowFromLayout(QLayout* layout) {
-  auto* rowLayout = qobject_cast<QHBoxLayout*>(layout);
-  if (!rowLayout) return std::nullopt;
-  ObservedKeyboardRow row;
-  row.leftOffsetUnits = rowLayout->stretch(0);
-  for (int index = 0; index < rowLayout->count(); ++index) {
-    QLayoutItem* item = rowLayout->itemAt(index);
-    if (!item) continue;
-    auto* button = qobject_cast<QPushButton*>(item->widget());
-    if (!button) continue;
-    const QString name = button->property("gameEventName").toString();
-    if (name.isEmpty()) continue;
-    row.names.append(name);
-    row.buttons.append(button);
+QList<ObservedKeyboardRow> keyboardRowsFromGrid(QWidget* root) {
+  QList<ObservedKeyboardRow> rows;
+  if (!root) return rows;
+  QWidget* grid = root->findChild<QWidget*>(QLatin1String(GameControlGrid::kObjectName));
+  if (!grid) return rows;
+  auto* layout = qobject_cast<QGridLayout*>(grid->layout());
+  if (!layout) return rows;
+  for (int rowIndex = 0; rowIndex < layout->rowCount(); ++rowIndex) {
+    ObservedKeyboardRow row;
+    for (int column = 0; column < layout->columnCount(); ++column) {
+      QLayoutItem* item = layout->itemAtPosition(rowIndex, column);
+      if (!item) continue;
+      auto* button = qobject_cast<QPushButton*>(item->widget());
+      if (!button) continue;
+      const QString name = button->property("gameEventName").toString();
+      if (name.isEmpty()) continue;
+      row.names.append(name);
+      row.buttons.append(button);
+    }
+    if (!row.names.isEmpty()) rows.append(row);
   }
-  if (row.names.isEmpty()) return std::nullopt;
-  return row;
-}
-
-void collectKeyboardRows(QWidget* widget, QList<ObservedKeyboardRow>* rows) {
-  if (!widget || !widget->layout()) return;
-  if (std::optional<ObservedKeyboardRow> row = keyboardRowFromLayout(widget->layout())) {
-    rows->append(*row);
-    return;
-  }
-  QLayout* layout = widget->layout();
-  for (int index = 0; index < layout->count(); ++index) {
-    QLayoutItem* item = layout->itemAt(index);
-    if (!item) continue;
-    if (QWidget* child = item->widget()) collectKeyboardRows(child, rows);
-  }
+  return rows;
 }
 
 QStringList names(std::initializer_list<const char*> values) {
@@ -688,8 +679,6 @@ void EventCatalogTest::buttonGridMatchesTheHandLaidKeyboard() {
     const int rowLength = rowIndex == 3 ? 2 : EventCatalog::kButtonGridColumnCount;
     QCOMPARE(row.eventCount, rowLength);
     QCOMPARE(row.firstEventIndex, expectedRowStart);
-    const ExpectedGridButton& rowStart = expected.at(static_cast<std::size_t>(expectedRowStart));
-    QCOMPARE(row.leftOffsetUnits, rowStart.leftOffsetUnits);
     for (int column = 0; column < row.eventCount; ++column) {
       const ExpectedGridButton& expectedButton = expected.at(static_cast<std::size_t>(flatIndex));
       QCOMPARE(expectedButton.row, rowIndex);
@@ -700,7 +689,6 @@ void EventCatalogTest::buttonGridMatchesTheHandLaidKeyboard() {
       QCOMPARE(node.shortcut, expectedButton.key);
       QCOMPARE(node.buttonRow, expectedButton.row);
       QCOMPARE(node.buttonColumn, expectedButton.column);
-      QCOMPARE(node.buttonRowOffsetUnits, expectedButton.leftOffsetUnits);
       QCOMPARE(EventCatalog::shortcutKey(node.id), expectedButton.key);
       QCOMPARE(EventCatalog::shortcutLabel(node.id),
                QString(QLatin1Char(static_cast<char>(expectedButton.key))));
@@ -724,7 +712,6 @@ void EventCatalogTest::buttonGridMatchesTheHandLaidKeyboard() {
     }
     QCOMPARE(node.buttonRow, EventCatalog::kNoButtonGridPosition);
     QCOMPARE(node.buttonColumn, EventCatalog::kNoButtonGridPosition);
-    QCOMPARE(node.buttonRowOffsetUnits, 0);
   }
   QCOMPARE(mainEventCount, static_cast<int>(expected.size()));
 }
@@ -736,8 +723,18 @@ void EventCatalogTest::gameControlsGridMatchesTheCatalogOrder() {
   controls.show();
   QApplication::processEvents();
 
-  QList<ObservedKeyboardRow> rows;
-  collectKeyboardRows(&controls, &rows);
+  QWidget* grid = controls.findChild<QWidget*>(QLatin1String(GameControlGrid::kObjectName));
+  QVERIFY(grid != nullptr);
+  auto* gridLayout = qobject_cast<QGridLayout*>(grid->layout());
+  QVERIFY(gridLayout != nullptr);
+  QCOMPARE(gridLayout->columnCount(), EventCatalog::kButtonGridColumnCount);
+  for (int column = 0; column < EventCatalog::kButtonGridColumnCount; ++column) {
+    QCOMPARE(gridLayout->columnStretch(column), 1);
+  }
+  QCOMPARE(gridLayout->horizontalSpacing(), GameControlGrid::kKeyGapPx);
+  QCOMPARE(gridLayout->verticalSpacing(), GameControlGrid::kKeyGapPx);
+
+  const QList<ObservedKeyboardRow> rows = keyboardRowsFromGrid(&controls);
   const std::array<ExpectedGridButton, 14>& expected = expectedButtonGrid();
   QCOMPARE(rows.size(), EventCatalog::buttonGridRowCount());
 
@@ -752,7 +749,6 @@ void EventCatalogTest::gameControlsGridMatchesTheCatalogOrder() {
   for (int rowIndex = 0; rowIndex < rows.size(); ++rowIndex) {
     const ObservedKeyboardRow& row = rows.at(rowIndex);
     const EventCatalog::ButtonGridRow catalogRow = EventCatalog::buttonGridRowAt(rowIndex);
-    QCOMPARE(row.leftOffsetUnits, catalogRow.leftOffsetUnits);
     QCOMPARE(row.names.size(), catalogRow.eventCount);
     QCOMPARE(row.buttons.size(), catalogRow.eventCount);
     for (int column = 0; column < row.names.size(); ++column) {
@@ -775,7 +771,8 @@ void EventCatalogTest::gameControlsGridMatchesTheCatalogOrder() {
       QVERIFY(titleLabel->minimumHeight() >= titleLabel->fontMetrics().lineSpacing() * 2);
       QVERIFY(button->minimumHeight() >= titleLabel->minimumHeight());
       QCOMPARE(button->sizePolicy().horizontalPolicy(), QSizePolicy::Expanding);
-      QCOMPARE(button->sizePolicy().verticalPolicy(), QSizePolicy::Fixed);
+      QCOMPARE(button->sizePolicy().verticalPolicy(), QSizePolicy::Minimum);
+      QCOMPARE(button->cursor().shape(), Qt::PointingHandCursor);
 
       captured.clear();
       QTest::keyClick(&controls, expectedButton.key);

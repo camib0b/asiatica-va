@@ -4,6 +4,7 @@
 #include "EventControlsTemplateStore.h"
 #include "EventLabelOverrides.h"
 #include "EventLabelResolver.h"
+#include "GameControlGrid.h"
 #include "GameControls.h"
 #include "GameControlsContextMenu.h"
 #include "GameControlsEditorDialog.h"
@@ -15,8 +16,10 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QCursor>
 #include <QDir>
 #include <QFile>
+#include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -24,6 +27,8 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QSignalSpy>
+#include <QSizePolicy>
+#include <QSplitter>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
@@ -259,6 +264,8 @@ class GameControlsEditorTest : public QObject {
   void hidingGoalOnPenaltyStrokeKeepsShotTaggable();
   void circleEntryLeftRenameSkipsThePopup();
   void oldSessionAndTemplateFilesLoad();
+  void editorGridColumnsAlignAndFill();
+  void savedSetupOmitsGridGeometryAndStillAligns();
   void sharedPathListBreakUi();
 
  private:
@@ -948,6 +955,146 @@ void GameControlsEditorTest::sharedPathListBreakUi() {
   QVERIFY(buttonsRemain);
   QVERIFY(!session.eventLabelOverrides().hasLabel(EventCatalog::EventId::FollowUpGoal));
   QVERIFY(session.eventLabelOverrides().pathRecords().isEmpty());
+}
+
+void GameControlsEditorTest::editorGridColumnsAlignAndFill() {
+  TagSession session;
+  GameControlsEditorDialog dialog(&session);
+  dialog.resize(1100, 720);
+  dialog.show();
+  QApplication::processEvents();
+  if (auto* splitter = dialog.findChild<QSplitter*>(QStringLiteral("ControlsEditorSplitter"))) {
+    splitter->setSizes({480, 580});
+  }
+  if (dialog.layout()) dialog.layout()->activate();
+  QApplication::processEvents();
+
+  QWidget* grid = dialog.findChild<QWidget*>(QLatin1String(GameControlGrid::kObjectName));
+  QVERIFY(grid != nullptr);
+  auto* gridLayout = qobject_cast<QGridLayout*>(grid->layout());
+  QVERIFY(gridLayout != nullptr);
+  QCOMPARE(gridLayout->horizontalSpacing(), GameControlGrid::kKeyGapPx);
+  QCOMPARE(gridLayout->verticalSpacing(), GameControlGrid::kKeyGapPx);
+  QCOMPARE(gridLayout->columnCount(), EventCatalog::kButtonGridColumnCount);
+  for (int column = 0; column < EventCatalog::kButtonGridColumnCount; ++column) {
+    QCOMPARE(gridLayout->columnStretch(column), 1);
+  }
+
+  QWidget* editorHost = dialog.findChild<QWidget*>(QStringLiteral("ControlsEditorGrid"));
+  QVERIFY(editorHost != nullptr && editorHost->layout() != nullptr);
+  const QRect contents = editorHost->layout()->contentsRect();
+  QVERIFY2(qAbs(grid->width() - contents.width()) <= 2,
+           qPrintable(QString::number(grid->width()) + QStringLiteral(" vs ") +
+                      QString::number(contents.width())));
+  QVERIFY(qAbs(grid->mapTo(editorHost, QPoint(0, 0)).x() - contents.left()) <= 2);
+
+  QPushButton* sixteen = gridButton(&dialog, EventCatalog::EventId::SixteenYard);
+  QPushButton* circle = gridButton(&dialog, EventCatalog::EventId::CircleEntry);
+  QPushButton* pass = gridButton(&dialog, EventCatalog::EventId::Pass);
+  QPushButton* penaltyStroke = gridButton(&dialog, EventCatalog::EventId::PenaltyStroke);
+  QPushButton* fifty = gridButton(&dialog, EventCatalog::EventId::FiftyYard);
+  QPushButton* shootout = gridButton(&dialog, EventCatalog::EventId::Shootout);
+  QPushButton* card = gridButton(&dialog, EventCatalog::EventId::Card);
+  QVERIFY(sixteen && circle && pass && penaltyStroke && fifty && shootout && card);
+
+  const auto originX = [&](QWidget* widget) { return widget->mapTo(grid, QPoint(0, 0)).x(); };
+  const auto originY = [&](QWidget* widget) { return widget->mapTo(grid, QPoint(0, 0)).y(); };
+  QVERIFY(qAbs(originX(sixteen) - originX(circle)) <= 2);
+  QVERIFY(qAbs(originX(sixteen) - originX(pass)) <= 2);
+  QVERIFY(qAbs(originX(sixteen) - originX(penaltyStroke)) <= 2);
+  QVERIFY(qAbs(originX(fifty) - originX(shootout)) <= 2);
+  QVERIFY(qAbs(originY(sixteen) - originY(fifty)) <= 2);
+  QVERIFY(qAbs(originY(penaltyStroke) - originY(shootout)) <= 2);
+  const int verticalGap = originY(circle) - (originY(sixteen) + sixteen->height());
+  QVERIFY2(qAbs(verticalGap - GameControlGrid::kKeyGapPx) <= 1,
+           qPrintable(QString::number(verticalGap)));
+  QVERIFY(qAbs(sixteen->width() - card->width()) <= 2);
+  QVERIFY(qAbs(sixteen->width() - penaltyStroke->width()) <= 2);
+  QVERIFY(qAbs(sixteen->height() - card->height()) <= 2);
+  QVERIFY(originX(sixteen) <= 1);
+  QVERIFY(qAbs(originX(card) + card->width() - grid->width()) <= 2);
+  const int shootoutRight = originX(shootout) + shootout->width();
+  const int expectedRemainder = shootout->width() * 2 + GameControlGrid::kKeyGapPx * 2;
+  QVERIFY2(qAbs((grid->width() - shootoutRight) - expectedRemainder) <= 4,
+           qPrintable(QString::number(grid->width() - shootoutRight)));
+  QCOMPARE(sixteen->cursor().shape(), Qt::PointingHandCursor);
+  QCOMPARE(card->cursor().shape(), Qt::PointingHandCursor);
+  QCOMPARE(sixteen->sizePolicy().horizontalPolicy(), QSizePolicy::Expanding);
+}
+
+void GameControlsEditorTest::savedSetupOmitsGridGeometryAndStillAligns() {
+  QTemporaryDir directory;
+  QVERIFY(directory.isValid());
+  const QString sessionPath = QDir(directory.path()).filePath(QStringLiteral("old-session.json"));
+  const QByteArray sessionBytes =
+      QStringLiteral(
+          "{\"format\":\"ava-match-session\",\"version\":1,\"tags\":[],"
+          "\"labelOverrides\":["
+          "{\"eventId\":%1,\"label\":\"Jugadora 7\",\"shortcutKey\":%2},"
+          "{\"eventId\":%3,\"hidden\":true}]}\n")
+          .arg(static_cast<int>(EventCatalog::EventId::Shot))
+          .arg(static_cast<int>(Qt::Key_J))
+          .arg(static_cast<int>(EventCatalog::EventId::Pass))
+          .toUtf8();
+  QVERIFY(writeBytes(sessionPath, sessionBytes));
+
+  const MatchSessionFile::LoadResult loaded = MatchSessionFile::loadFile(sessionPath);
+  QCOMPARE(loaded.status, MatchSessionFile::LoadStatus::Loaded);
+  QCOMPARE(loaded.document.controls.labelOverrides.label(EventCatalog::EventId::Shot),
+           QStringLiteral("Jugadora 7"));
+  QCOMPARE(loaded.document.controls.labelOverrides.shortcutKey(EventCatalog::EventId::Shot),
+           Qt::Key_J);
+  QVERIFY(loaded.document.controls.labelOverrides.hidden(EventCatalog::EventId::Pass));
+
+  TagSession session;
+  QCOMPARE(EventControlsSetup::applyToSession(session, loaded.document.controls),
+           EventControlsSetup::ApplyStatus::Applied);
+
+  GameControls controls;
+  controls.setTagSession(&session);
+  showTaggingGrid(&controls);
+
+  QPushButton* shot = buttonNamed(&controls, "Shot");
+  QPushButton* pass = buttonNamed(&controls, "Pass");
+  QPushButton* sixteen = buttonNamed(&controls, "16-yd");
+  QPushButton* penaltyStroke = buttonNamed(&controls, "PS");
+  QVERIFY(shot && pass && sixteen && penaltyStroke);
+  QCOMPARE(titleText(shot), QStringLiteral("Jugadora 7"));
+  QCOMPARE(shot->property("shortcutHint").toString(), QStringLiteral("J"));
+  QCOMPARE(pass->property("controlsHidden").toBool(), true);
+  QVERIFY(pass->isVisible());
+  QVERIFY(qAbs(pass->mapTo(&controls, QPoint(0, 0)).x() - sixteen->mapTo(&controls, QPoint(0, 0)).x()) <=
+          2);
+  QVERIFY(qAbs(penaltyStroke->mapTo(&controls, QPoint(0, 0)).x() -
+               sixteen->mapTo(&controls, QPoint(0, 0)).x()) <= 2);
+  QVERIFY(qAbs(pass->width() - sixteen->width()) <= 2);
+  QCOMPARE(pass->cursor().shape(), Qt::PointingHandCursor);
+
+  QSignalSpy captured(&controls, &GameControls::mainEventTimestampCaptured);
+  QTest::keyClick(&controls, Qt::Key_Z);
+  QCOMPARE(captured.count(), 0);
+  QTest::keyClick(&controls, Qt::Key_D);
+  QCOMPARE(captured.count(), 0);
+  QTest::keyClick(&controls, Qt::Key_J);
+  QCOMPARE(captured.count(), 1);
+  QCOMPARE(captured.at(0).at(0).toString(), QStringLiteral("Shot"));
+
+  const QString roundTripPath = QDir(directory.path()).filePath(QStringLiteral("round-trip.json"));
+  const MatchSessionFile::Document capturedDocument =
+      MatchSessionFile::capture(session, nullptr, nullptr, {});
+  QCOMPARE(MatchSessionFile::saveFile(roundTripPath, capturedDocument,
+                                      MatchSessionFile::ExistingFileGuard::Replace)
+               .status,
+           MatchSessionFile::SaveStatus::Saved);
+  QFile roundTripFile(roundTripPath);
+  QVERIFY(roundTripFile.open(QIODevice::ReadOnly));
+  const QByteArray savedBytes = roundTripFile.readAll();
+  QVERIFY(savedBytes.contains("Jugadora 7"));
+  QVERIFY(savedBytes.contains("\"hidden\": true"));
+  QVERIFY(!savedBytes.contains("leftOffset"));
+  QVERIFY(!savedBytes.contains("buttonRow"));
+  QVERIFY(!savedBytes.contains("rowOffset"));
+  QVERIFY(!savedBytes.contains("buttonColumn"));
 }
 
 int runGameControlsEditorTests(int argc, char** argv) {
