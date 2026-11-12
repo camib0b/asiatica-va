@@ -174,10 +174,9 @@ private:
   void fadeNewTagFlash();
   void syncModeToggleChecks();
 
-  /// Period and team for a tag that is about to be added. Computed from the
-  /// session and GameControls; not stored.
+  /// Team for a tag that is about to be added. The quarter stored on the tag
+  /// is TagSession::periodRecordedForNewTag, not a second copy of the phase.
   struct PendingTagPeriodAndTeam {
-    QString period;
     TagSession::TeamSide team = TagSession::TeamSide::Unspecified;
   };
   PendingTagPeriodAndTeam pendingTagPeriodAndTeam() const;

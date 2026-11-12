@@ -3,10 +3,13 @@
 #include "GameControls.h"
 #include "TagSession.h"
 #include "TagToastOverlay.h"
+#include "TaggingKeys.h"
 #include "TextFit.h"
 #include "WorkWindow.h"
 
 #include <QApplication>
+#include <QElapsedTimer>
+#include <QKeyEvent>
 #include <QFile>
 #include <QFontMetrics>
 #include <QHash>
@@ -17,6 +20,9 @@
 #include <QSet>
 #include <QSignalSpy>
 #include <QTest>
+
+#include <algorithm>
+#include <cstdlib>
 
 namespace {
 
@@ -43,6 +49,24 @@ void settleLayout(QWidget* widget) {
   widget->ensurePolished();
   if (widget->layout()) widget->layout()->activate();
   QApplication::processEvents();
+}
+
+void sendPress(QWidget* target, int key, bool autoRepeat = false,
+               Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
+  QKeyEvent event(QEvent::KeyPress, key, modifiers, QString(), autoRepeat);
+  QApplication::sendEvent(target, &event);
+}
+
+QPushButton* periodButton(QWidget* root) {
+  const QStringList titles = {
+      AppLocale::trUi("gamecontrols.start_game"), AppLocale::trUi("gamecontrols.start_q2"),
+      AppLocale::trUi("gamecontrols.start_q3"), AppLocale::trUi("gamecontrols.start_q4"),
+      AppLocale::trUi("gamecontrols.end_game")};
+  for (QLabel* label : root->findChildren<QLabel*>()) {
+    if (!titles.contains(label->property("fullLabel").toString())) continue;
+    if (auto* button = qobject_cast<QPushButton*>(label->parentWidget())) return button;
+  }
+  return nullptr;
 }
 
 int mappedX(QWidget* widget, QWidget* ancestor) {
@@ -198,6 +222,16 @@ private slots:
   void escapeKeepsTheMainTag();
   void mouseAndKeyboardBothPublishTheShortcut();
   void shotChainPublishesEachAnswer();
+  void shortcutDecisionKeepsQuarterRepeatAndFollowUpRepeatApart();
+  void shortcutDecisionMatrix_data();
+  void shortcutDecisionMatrix();
+  void unchangedShortcutPathsMatchThePreviousHandler();
+  void sharedShortcutKeepsTheFirstVisibleButton();
+  void hiddenMainEventIsNotAShortcut();
+  void textFieldDoesNotTag();
+  void finishedGameDoesNotAdvanceOnG();
+  void repeatedFollowUpDigitStaysOnTheOpenQuestion();
+  void repeatedEscapeLeavesTheOpenQuestion();
   void keyboardRowsFollowQwertyOffsets();
   void longTeamNamesDoNotWidenThePanel();
   void fitButtonTitleKeepsWordsInsideTheLine();
@@ -453,6 +487,462 @@ void TaggingToastTest::shotChainPublishesEachAnswer() {
   QCOMPARE(committed.count(), 1);
   QCOMPARE(committed.at(0).at(0).toString(), QStringLiteral("Shot"));
   QCOMPARE(committed.at(0).at(1).toString(), QStringLiteral("On target \u2192 Saved"));
+}
+
+void TaggingToastTest::shortcutDecisionKeepsQuarterRepeatAndFollowUpRepeatApart() {
+  TaggingKeys::Context idle;
+  idle.autoRepeat = true;
+  idle.keySelectsMainEvent = true;
+  const TaggingKeys::Decision heldShot = TaggingKeys::decide(Qt::Key_D, idle);
+  QCOMPARE(heldShot.action, TaggingKeys::Action::ActivateMainEvent);
+
+  TaggingKeys::Context quarter;
+  quarter.autoRepeat = true;
+  const TaggingKeys::Decision heldQuarter = TaggingKeys::decide(Qt::Key_H, quarter);
+  QCOMPARE(heldQuarter.action, TaggingKeys::Action::Swallow);
+
+  TaggingKeys::Context reassigned;
+  reassigned.keySelectsMainEvent = true;
+  const TaggingKeys::Decision shotOnG = TaggingKeys::decide(Qt::Key_G, reassigned);
+  QCOMPARE(shotOnG.action, TaggingKeys::Action::ActivateMainEvent);
+  reassigned.autoRepeat = true;
+  const TaggingKeys::Decision heldReassigned = TaggingKeys::decide(Qt::Key_G, reassigned);
+  QCOMPARE(heldReassigned.action, TaggingKeys::Action::Swallow);
+
+  TaggingKeys::Context open;
+  open.autoRepeat = true;
+  open.followUpPromptOpen = true;
+  open.followUpRowVisible = true;
+  open.followUpChoiceCount = 3;
+  const TaggingKeys::Decision heldDigit = TaggingKeys::decide(Qt::Key_1, open);
+  QCOMPARE(heldDigit.action, TaggingKeys::Action::Swallow);
+  QCOMPARE(heldDigit.followUpIndex, -1);
+
+  open.keySelectsMainEvent = true;
+  const TaggingKeys::Decision heldShotWhileOpen = TaggingKeys::decide(Qt::Key_D, open);
+  QCOMPARE(heldShotWhileOpen.action, TaggingKeys::Action::Swallow);
+
+  open.autoRepeat = false;
+  open.keySelectsMainEvent = false;
+  open.followUpPromptOpen = true;
+  const TaggingKeys::Decision escape = TaggingKeys::decide(Qt::Key_Escape, open);
+  QCOMPARE(escape.action, TaggingKeys::Action::CancelFollowUp);
+  open.followUpPromptOpen = false;
+  QCOMPARE(TaggingKeys::decide(Qt::Key_Escape, open).action, TaggingKeys::Action::Ignore);
+
+  TaggingKeys::Context arrows;
+  arrows.autoRepeat = true;
+  arrows.followUpPromptOpen = true;
+  QCOMPARE(TaggingKeys::decide(Qt::Key_Right, arrows).action, TaggingKeys::Action::Ignore);
+}
+
+void TaggingToastTest::shortcutDecisionMatrix_data() {
+  QTest::addColumn<int>("key");
+  QTest::addColumn<bool>("autoRepeat");
+  QTest::addColumn<bool>("promptOpen");
+  QTest::addColumn<bool>("rowVisible");
+  QTest::addColumn<int>("choiceCount");
+  QTest::addColumn<bool>("selectsMain");
+  QTest::addColumn<int>("action");
+  QTest::addColumn<int>("followUpIndex");
+
+  const auto add = [](const char* name, int key, bool autoRepeat, bool promptOpen, bool rowVisible,
+                      int choiceCount, bool selectsMain, TaggingKeys::Action action, int followUpIndex) {
+    QTest::newRow(name) << key << autoRepeat << promptOpen << rowVisible << choiceCount << selectsMain
+                        << static_cast<int>(action) << followUpIndex;
+  };
+
+  const auto activate = TaggingKeys::Action::ActivateMainEvent;
+  const auto quarter = TaggingKeys::Action::AdvanceQuarter;
+  const auto choose = TaggingKeys::Action::ChooseFollowUp;
+  const auto cancel = TaggingKeys::Action::CancelFollowUp;
+  const auto swallow = TaggingKeys::Action::Swallow;
+  const auto ignore = TaggingKeys::Action::Ignore;
+
+  // These rows are the inlined handler. A repeat of a main-event letter while
+  // no question is open still tags. A repeat of G or H does not.
+  add("held shot while idle", Qt::Key_D, true, false, false, 0, true, activate, -1);
+  add("shot press", Qt::Key_D, false, false, false, 0, true, activate, -1);
+  add("quarter press", Qt::Key_H, false, false, false, 0, false, quarter, -1);
+  add("held quarter", Qt::Key_H, true, false, false, 0, false, swallow, -1);
+  add("reassigned G", Qt::Key_G, false, false, false, 0, true, activate, -1);
+  add("held reassigned G", Qt::Key_G, true, false, false, 0, true, swallow, -1);
+  add("held plain G", Qt::Key_G, true, true, true, 3, false, swallow, -1);
+
+  // A real digit answers. A digit past the row, or a digit with no row, does not.
+  add("first follow-up", Qt::Key_1, false, true, true, 3, false, choose, 0);
+  add("third follow-up", Qt::Key_3, false, true, true, 3, false, choose, 2);
+  add("ninth follow-up", Qt::Key_9, false, true, true, 9, false, choose, 8);
+  add("digit past the row", Qt::Key_4, false, true, true, 3, false, ignore, -1);
+  add("held digit past the row", Qt::Key_4, true, true, true, 3, false, ignore, -1);
+  add("digit with no row", Qt::Key_1, false, false, false, 0, false, ignore, -1);
+  add("held digit with no row", Qt::Key_1, true, true, false, 3, false, ignore, -1);
+  add("zero is not a follow-up", Qt::Key_0, false, true, true, 3, false, ignore, -1);
+
+  // Holding a digit while the question is open is the behavior change. A repeat
+  // while the row is visible but the walk is idle still chooses.
+  add("held digit on an open question", Qt::Key_1, true, true, true, 3, false, swallow, -1);
+  add("held digit while the walk is idle", Qt::Key_1, true, false, true, 3, false, choose, 0);
+
+  add("escape cancels", Qt::Key_Escape, false, true, true, 3, false, cancel, -1);
+  add("held escape on an open question", Qt::Key_Escape, true, true, true, 3, false, swallow, -1);
+  add("escape while idle", Qt::Key_Escape, false, false, false, 0, false, ignore, -1);
+  add("held escape while idle", Qt::Key_Escape, true, false, false, 0, false, ignore, -1);
+
+  add("held arrow", Qt::Key_Right, true, true, true, 3, false, ignore, -1);
+  add("shot press during a question", Qt::Key_D, false, true, true, 3, true, activate, -1);
+  add("held shot during a question", Qt::Key_D, true, true, true, 3, true, swallow, -1);
+  add("quarter press during a question", Qt::Key_H, false, true, true, 3, false, quarter, -1);
+  add("held quarter during a question", Qt::Key_H, true, true, true, 3, false, swallow, -1);
+}
+
+void TaggingToastTest::shortcutDecisionMatrix() {
+  QFETCH(int, key);
+  QFETCH(bool, autoRepeat);
+  QFETCH(bool, promptOpen);
+  QFETCH(bool, rowVisible);
+  QFETCH(int, choiceCount);
+  QFETCH(bool, selectsMain);
+  QFETCH(int, action);
+  QFETCH(int, followUpIndex);
+
+  TaggingKeys::Context context;
+  context.autoRepeat = autoRepeat;
+  context.followUpPromptOpen = promptOpen;
+  context.followUpRowVisible = rowVisible;
+  context.followUpChoiceCount = choiceCount;
+  context.keySelectsMainEvent = selectsMain;
+  const TaggingKeys::Decision decision = TaggingKeys::decide(key, context);
+  QCOMPARE(static_cast<int>(decision.action), action);
+  QCOMPARE(decision.followUpIndex, followUpIndex);
+}
+
+void TaggingToastTest::unchangedShortcutPathsMatchThePreviousHandler() {
+  GameControls controls;
+  controls.setSessionTeamNames(QStringLiteral("Los Tilos"), QStringLiteral("San Martín"),
+                              QStringLiteral("#1d4ed8"), QStringLiteral("#b91c1c"));
+  controls.resize(420, 760);
+  controls.show();
+  settleLayout(&controls);
+
+  TagSession session;
+  controls.setTagSession(&session);
+  connect(&controls, &GameControls::gameStartRequested, &session, [&session]() {
+    session.startGame(0);
+  });
+  connect(&controls, &GameControls::nextQuarterRequested, &session, [&session]() {
+    session.advanceQuarter(15000);
+  });
+
+  QSignalSpy advanced(&controls, &GameControls::tagSequenceAdvanced);
+  QSignalSpy committed(&controls, &GameControls::tagCommitted);
+
+  // No team yet, so the letter is dropped. A modifier is never a tagging key.
+  sendPress(&controls, Qt::Key_D);
+  controls.setTeamSide(TagSession::TeamSide::Home);
+  sendPress(&controls, Qt::Key_D, false, Qt::ShiftModifier);
+  QCOMPARE(advanced.count(), 0);
+  QCOMPARE(committed.count(), 0);
+
+  // Shortcuts stop while the tagging page is hidden.
+  controls.hide();
+  sendPress(&controls, Qt::Key_W);
+  QCOMPARE(committed.count(), 0);
+  controls.show();
+  settleLayout(&controls);
+
+  // Digits, Escape, and arrows do nothing until a question is open.
+  sendPress(&controls, Qt::Key_1);
+  sendPress(&controls, Qt::Key_Escape);
+  sendPress(&controls, Qt::Key_Right);
+  sendPress(&controls, Qt::Key_0);
+  QCOMPARE(advanced.count(), 0);
+  QCOMPARE(committed.count(), 0);
+
+  // G opens Q1. Holding G does not open another quarter.
+  sendPress(&controls, Qt::Key_G);
+  QCOMPARE(session.currentQuarterIndex(), 0);
+  QCOMPARE(session.tags().size(), 1);
+  sendPress(&controls, Qt::Key_G, true);
+  QCOMPARE(session.tags().size(), 1);
+  QCOMPARE(controls.currentPeriodName(), QStringLiteral("Q1"));
+
+  // 50-yd has no follow-up. A held W still tags a second time.
+  sendPress(&controls, Qt::Key_W);
+  sendPress(&controls, Qt::Key_W, true);
+  QCOMPARE(committed.count(), 2);
+  QCOMPARE(committed.at(0).at(0).toString(), QStringLiteral("50-yd"));
+  QCOMPARE(committed.at(0).at(1).toString(), QStringLiteral("Los Tilos"));
+  QCOMPARE(committed.at(1).at(0).toString(), QStringLiteral("50-yd"));
+  QCOMPARE(committed.at(1).at(1).toString(), QStringLiteral("Los Tilos"));
+
+  // 9 is past Shot's three choices. 3 is Blocked, which commits on its own.
+  sendPress(&controls, Qt::Key_D);
+  const int advancedAtShot = advanced.count();
+  QCOMPARE(advanced.at(advancedAtShot - 1).at(1).toString(), QStringLiteral("Shot"));
+  sendPress(&controls, Qt::Key_9);
+  QCOMPARE(advanced.count(), advancedAtShot);
+  sendPress(&controls, Qt::Key_3);
+  QCOMPARE(committed.count(), 3);
+  QCOMPARE(committed.at(2).at(0).toString(), QStringLiteral("Shot"));
+  QCOMPARE(committed.at(2).at(1).toString(), QStringLiteral("Blocked"));
+
+  // H during the next question closes Q1 and leaves the question on screen.
+  sendPress(&controls, Qt::Key_D);
+  const int advancedWhileOpen = advanced.count();
+  sendPress(&controls, Qt::Key_H);
+  QCOMPARE(session.currentQuarterIndex(), 1);
+  QCOMPARE(controls.currentPeriodName(), QStringLiteral("Q2"));
+  QCOMPARE(advanced.count(), advancedWhileOpen);
+  QCOMPARE(committed.count(), 3);
+  sendPress(&controls, Qt::Key_H, true);
+  QCOMPARE(session.currentQuarterIndex(), 1);
+  sendPress(&controls, Qt::Key_3);
+  QCOMPARE(committed.count(), 4);
+  QCOMPARE(committed.at(3).at(1).toString(), QStringLiteral("Blocked"));
+
+  // 1 then 2 walks On target, then Saved.
+  sendPress(&controls, Qt::Key_D);
+  sendPress(&controls, Qt::Key_1);
+  sendPress(&controls, Qt::Key_2);
+  QCOMPARE(committed.count(), 5);
+  QCOMPARE(committed.at(4).at(0).toString(), QStringLiteral("Shot"));
+  QCOMPARE(committed.at(4).at(1).toString(),
+           QStringLiteral("On target") + AppLocale::kCompoundPathSeparator + QStringLiteral("Saved"));
+
+  // Escape records the main event and drops the answers.
+  sendPress(&controls, Qt::Key_D);
+  sendPress(&controls, Qt::Key_Escape);
+  QCOMPARE(committed.count(), 6);
+  QCOMPARE(committed.at(5).at(0).toString(), QStringLiteral("Shot"));
+  QCOMPARE(committed.at(5).at(1).toString(), QString());
+
+  // Turnover's first answer commits and hands the next tag to the other side.
+  sendPress(&controls, Qt::Key_C);
+  sendPress(&controls, Qt::Key_1);
+  QCOMPARE(committed.count(), 7);
+  QCOMPARE(committed.at(6).at(0).toString(), QStringLiteral("Turnover"));
+  QCOMPARE(committed.at(6).at(1).toString(), QStringLiteral("Interception"));
+  QCOMPARE(controls.selectedTeamSide(), TagSession::TeamSide::Away);
+
+  sendPress(&controls, Qt::Key_W);
+  QCOMPARE(committed.count(), 8);
+  QCOMPARE(committed.at(7).at(0).toString(), QStringLiteral("50-yd"));
+  QCOMPARE(committed.at(7).at(1).toString(), QStringLiteral("San Martín"));
+
+  if (qgetenv("AVA_MEASURE_TAGGING").isEmpty()) return;
+
+  const QStringList expected = {
+      QStringLiteral("50-yd|Los Tilos"),
+      QStringLiteral("50-yd|Los Tilos"),
+      QStringLiteral("Shot|Blocked"),
+      QStringLiteral("Shot|On target") + AppLocale::kCompoundPathSeparator + QStringLiteral("Saved"),
+      QStringLiteral("Shot|"),
+      QStringLiteral("Turnover|Interception"),
+      QStringLiteral("50-yd|San Martín"),
+  };
+  const auto play = [&controls]() {
+    controls.setTeamSide(TagSession::TeamSide::Home);
+    QSignalSpy pass(&controls, &GameControls::tagCommitted);
+    sendPress(&controls, Qt::Key_W);
+    sendPress(&controls, Qt::Key_W, true);
+    sendPress(&controls, Qt::Key_D);
+    sendPress(&controls, Qt::Key_9);
+    sendPress(&controls, Qt::Key_3);
+    sendPress(&controls, Qt::Key_D);
+    sendPress(&controls, Qt::Key_1);
+    sendPress(&controls, Qt::Key_2);
+    sendPress(&controls, Qt::Key_D);
+    sendPress(&controls, Qt::Key_Escape);
+    sendPress(&controls, Qt::Key_C);
+    sendPress(&controls, Qt::Key_1);
+    sendPress(&controls, Qt::Key_W);
+    QStringList lines;
+    for (int index = 0; index < pass.count(); ++index) {
+      lines.append(pass.at(index).at(0).toString() + QLatin1Char('|') +
+                   pass.at(index).at(1).toString());
+    }
+    return lines;
+  };
+  for (int warm = 0; warm < 20; ++warm) {
+    QCOMPARE(play(), expected);
+  }
+  QList<qint64> samples;
+  samples.reserve(31);
+  for (int sample = 0; sample < 31; ++sample) {
+    QElapsedTimer timer;
+    timer.start();
+    const QStringList trace = play();
+    const qint64 elapsed = timer.nsecsElapsed();
+    QCOMPARE(trace, expected);
+    samples.append(elapsed);
+  }
+  QList<qint64> sorted = samples;
+  std::sort(sorted.begin(), sorted.end());
+  qInfo("TAGGING_WORKLOAD_NS min=%lld median=%lld max=%lld",
+        static_cast<long long>(sorted.first()),
+        static_cast<long long>(sorted.at(sorted.size() / 2)),
+        static_cast<long long>(sorted.last()));
+}
+
+void TaggingToastTest::sharedShortcutKeepsTheFirstVisibleButton() {
+  GameControls controls;
+  controls.setTeamSide(TagSession::TeamSide::Home);
+  controls.resize(420, 760);
+  controls.show();
+  settleLayout(&controls);
+  TagSession session;
+  controls.setTagSession(&session);
+  QVERIFY(session.setEventShortcutKey(EventCatalog::EventId::SixteenYard, Qt::Key_K).accepted);
+  QVERIFY(session.setEventShortcutKey(EventCatalog::EventId::Shot, Qt::Key_K).accepted);
+
+  QSignalSpy advanced(&controls, &GameControls::tagSequenceAdvanced);
+  QSignalSpy started(&controls, &GameControls::gameStartRequested);
+  // 16-yd is the first button in keyboard order, so K is its key. D was Shot's key.
+  sendPress(&controls, Qt::Key_K);
+  QCOMPARE(advanced.count(), 1);
+  QCOMPARE(advanced.at(0).at(1).toString(), QStringLiteral("16-yd"));
+  sendPress(&controls, Qt::Key_D);
+  QCOMPARE(advanced.count(), 1);
+  // G is still the quarter key.
+  sendPress(&controls, Qt::Key_G);
+  QCOMPARE(started.count(), 1);
+  QCOMPARE(advanced.count(), 1);
+}
+
+void TaggingToastTest::hiddenMainEventIsNotAShortcut() {
+  GameControls controls;
+  controls.setTeamSide(TagSession::TeamSide::Home);
+  controls.resize(420, 760);
+  controls.show();
+  settleLayout(&controls);
+  TagSession session;
+  controls.setTagSession(&session);
+  QVERIFY(session.setEventHidden(EventCatalog::EventId::Shot, true).accepted);
+
+  QSignalSpy advanced(&controls, &GameControls::tagSequenceAdvanced);
+  sendPress(&controls, Qt::Key_D);
+  QCOMPARE(advanced.count(), 0);
+  QPushButton* shot = buttonNamed(&controls, "Shot");
+  QVERIFY(shot);
+  shot->click();
+  QCOMPARE(advanced.count(), 0);
+
+  sendPress(&controls, Qt::Key_W);
+  QCOMPARE(advanced.count(), 1);
+  QCOMPARE(advanced.at(0).at(1).toString(), QStringLiteral("50-yd"));
+}
+
+void TaggingToastTest::textFieldDoesNotTag() {
+  GameControls controls;
+  controls.setTeamSide(TagSession::TeamSide::Home);
+  controls.resize(420, 760);
+  controls.show();
+  settleLayout(&controls);
+
+  QWidget window;
+  auto* layout = new QVBoxLayout(&window);
+  auto* editor = new QLineEdit(&window);
+  layout->addWidget(editor);
+  window.resize(320, 80);
+  window.show();
+  window.activateWindow();
+  QApplication::setActiveWindow(&window);
+  QVERIFY(QTest::qWaitForWindowExposed(&window));
+  editor->setFocus(Qt::OtherFocusReason);
+  QVERIFY(QTest::qWaitFor([&editor]() { return QApplication::focusWidget() == editor; }));
+
+  QSignalSpy advanced(&controls, &GameControls::tagSequenceAdvanced);
+  QKeyEvent typed(QEvent::KeyPress, Qt::Key_D, Qt::NoModifier, QStringLiteral("d"), false);
+  QApplication::sendEvent(editor, &typed);
+  QCOMPARE(advanced.count(), 0);
+  QCOMPARE(editor->text(), QStringLiteral("d"));
+}
+
+void TaggingToastTest::finishedGameDoesNotAdvanceOnG() {
+  GameControls controls;
+  controls.resize(420, 760);
+  controls.show();
+  settleLayout(&controls);
+  TagSession session;
+  controls.setTagSession(&session);
+  QVERIFY(session.startGame(0));
+  QVERIFY(session.advanceQuarter(1000));
+  QVERIFY(session.advanceQuarter(2000));
+  QVERIFY(session.advanceQuarter(3000));
+  QVERIFY(session.advanceQuarter(4000));
+  QCOMPARE(session.quarterPhase(), TagSession::QuarterPhase::GameEnded);
+  settleLayout(&controls);
+
+  QPushButton* period = periodButton(&controls);
+  QVERIFY(period != nullptr);
+  QVERIFY(!period->isEnabled());
+  QCOMPARE(period->cursor().shape(), Qt::ArrowCursor);
+
+  QSignalSpy started(&controls, &GameControls::gameStartRequested);
+  QSignalSpy advanced(&controls, &GameControls::nextQuarterRequested);
+  sendPress(&controls, Qt::Key_G);
+  sendPress(&controls, Qt::Key_H, true);
+  QCOMPARE(started.count(), 0);
+  QCOMPARE(advanced.count(), 0);
+  QCOMPARE(session.quarterPhase(), TagSession::QuarterPhase::GameEnded);
+  QCOMPARE(controls.currentPeriodName(), QString());
+}
+
+void TaggingToastTest::repeatedFollowUpDigitStaysOnTheOpenQuestion() {
+  GameControls controls;
+  controls.setTeamSide(TagSession::TeamSide::Home);
+  controls.resize(420, 760);
+  controls.show();
+  settleLayout(&controls);
+
+  QSignalSpy advanced(&controls, &GameControls::tagSequenceAdvanced);
+  QTest::keyClick(&controls, Qt::Key_D);
+  QCOMPARE(advanced.count(), 1);
+  QCOMPARE(advanced.at(0).at(1).toString(), QStringLiteral("Shot"));
+
+  // The breaking input: Shot's follow-ups are open, then the key-repeat of 1
+  // arrives before the coach releases it. That used to select "On target".
+  QKeyEvent heldDigit(QEvent::KeyPress, Qt::Key_1, Qt::NoModifier, QStringLiteral("1"), true);
+  QApplication::sendEvent(&controls, &heldDigit);
+  QCOMPARE(advanced.count(), 1);
+
+  // A held D while that question is open used to restart Shot and move the mark.
+  QKeyEvent heldShot(QEvent::KeyPress, Qt::Key_D, Qt::NoModifier, QStringLiteral("d"), true);
+  QApplication::sendEvent(&controls, &heldShot);
+  QCOMPARE(advanced.count(), 1);
+
+  QTest::keyClick(&controls, Qt::Key_1);
+  QCOMPARE(advanced.count(), 2);
+  QCOMPARE(advanced.at(1).at(1).toString(), QStringLiteral("On target"));
+  QCOMPARE(advanced.at(1).at(4).toBool(), false);
+}
+
+void TaggingToastTest::repeatedEscapeLeavesTheOpenQuestion() {
+  GameControls controls;
+  controls.setTeamSide(TagSession::TeamSide::Home);
+  controls.resize(420, 760);
+  controls.show();
+  settleLayout(&controls);
+
+  QSignalSpy advanced(&controls, &GameControls::tagSequenceAdvanced);
+  QSignalSpy committed(&controls, &GameControls::tagCommitted);
+  sendPress(&controls, Qt::Key_D);
+  QCOMPARE(advanced.count(), 1);
+
+  // A held Escape used to commit Shot and drop the open answers.
+  sendPress(&controls, Qt::Key_Escape, true);
+  QCOMPARE(committed.count(), 0);
+  QCOMPARE(advanced.count(), 1);
+
+  sendPress(&controls, Qt::Key_2, true);
+  QCOMPARE(committed.count(), 0);
+  QCOMPARE(advanced.count(), 1);
+
+  sendPress(&controls, Qt::Key_Escape);
+  QCOMPARE(committed.count(), 1);
+  QCOMPARE(committed.at(0).at(0).toString(), QStringLiteral("Shot"));
+  QCOMPARE(committed.at(0).at(1).toString(), QString());
 }
 
 void TaggingToastTest::keyboardRowsFollowQwertyOffsets() {

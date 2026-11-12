@@ -1,5 +1,6 @@
 #include "GameControls.h"
 #include "FollowUpCatalog.h"
+#include "TaggingKeys.h"
 #include "../state/EventCatalog.h"
 #include "../state/EventControlsValidation.h"
 #include "../state/EventLabelResolver.h"
@@ -1224,11 +1225,14 @@ bool GameControls::handleApplicationShortcut(QKeyEvent* event) {
   if (TextInputFocus::widgetIsTextInput(QApplication::focusWidget())) {
     return false;
   }
-  // Key repeat would close several quarters while G or H is held.
-  const bool quarterAdvanceKey = event->key() == Qt::Key_G || event->key() == Qt::Key_H;
-  if (event->isAutoRepeat() && quarterAdvanceKey) {
-    return true;
-  }
+
+  TaggingKeys::Context context;
+  context.autoRepeat = event->isAutoRepeat();
+  context.followUpPromptOpen = !followUpState_.isIdle();
+  context.followUpRowVisible = followUpContainer_ && followUpContainer_->isVisible();
+  context.followUpChoiceCount = followUpButtons_.size();
+  context.keySelectsMainEvent = mainEventButtonsByKey_.contains(event->key());
+  const TaggingKeys::Decision decision = TaggingKeys::decide(event->key(), context);
 
   auto clickIfReady = [](QPushButton* button) -> bool {
     if (!button || !button->isVisible() || !button->isEnabled()) {
@@ -1238,42 +1242,28 @@ bool GameControls::handleApplicationShortcut(QKeyEvent* event) {
     return true;
   };
 
-  const auto mainEventButton = mainEventButtonsByKey_.constFind(event->key());
-  if (mainEventButton != mainEventButtonsByKey_.cend()) {
-    return clickIfReady(mainEventButton.value());
-  }
-
-  switch (event->key()) {
-    case Qt::Key_G:
-    case Qt::Key_H:
-      return clickIfReady(periodAdvanceButton_);
-    case Qt::Key_1:
-    case Qt::Key_2:
-    case Qt::Key_3:
-    case Qt::Key_4:
-    case Qt::Key_5:
-    case Qt::Key_6:
-    case Qt::Key_7:
-    case Qt::Key_8:
-    case Qt::Key_9: {
-      if (!followUpContainer_ || !followUpContainer_->isVisible()) {
-        return false;
-      }
-      const int followUpIndex = event->key() - Qt::Key_1;
-      if (followUpIndex < 0 || followUpIndex >= followUpButtons_.size()) {
-        return false;
-      }
-      return clickIfReady(followUpButtons_.at(followUpIndex));
+  switch (decision.action) {
+    case TaggingKeys::Action::Ignore:
+      return false;
+    case TaggingKeys::Action::Swallow:
+      return true;
+    case TaggingKeys::Action::ActivateMainEvent: {
+      const auto mainEventButton = mainEventButtonsByKey_.constFind(event->key());
+      if (mainEventButton == mainEventButtonsByKey_.cend()) return false;
+      return clickIfReady(mainEventButton.value());
     }
-    case Qt::Key_Escape:
-      if (followUpState_.isIdle()) {
+    case TaggingKeys::Action::AdvanceQuarter:
+      return clickIfReady(periodAdvanceButton_);
+    case TaggingKeys::Action::ChooseFollowUp:
+      if (decision.followUpIndex < 0 || decision.followUpIndex >= followUpButtons_.size()) {
         return false;
       }
+      return clickIfReady(followUpButtons_.at(decision.followUpIndex));
+    case TaggingKeys::Action::CancelFollowUp:
       cancelFollowUpFlow();
       return true;
-    default:
-      return false;
   }
+  return false;
 }
 
 void GameControls::onMainButtonClicked() {
