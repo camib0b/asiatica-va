@@ -18,6 +18,7 @@ class QComboBox;
 class QDoubleSpinBox;
 class QEvent;
 class QLabel;
+class QShowEvent;
 class QPushButton;
 class QTableView;
 class QTimer;
@@ -53,6 +54,7 @@ public:
 protected:
   bool eventFilter(QObject* watched, QEvent* event) override;
   void changeEvent(QEvent* event) override;
+  void showEvent(QShowEvent* event) override;
 
 signals:
   void selectedTagIndexesChanged(const QVector<int>& tagSessionIndexes);
@@ -79,6 +81,7 @@ private slots:
 
 private:
   enum class ListFixture { Session, WorstCase, Empty, One, Thousand };
+  void applySessionRefresh();
   enum class SelectionMapFixture { Live, WorstCase, Empty, One };
 
   void buildUi();
@@ -156,4 +159,8 @@ private:
   quint64 currentTagId_ = 0;
   int currentTagSessionIndex_ = -1;
   QVector<int> lastEmittedSelectedIndexes_{};
+  /// While the work window is on screen and this panel is not the visible page,
+  /// tag updates set this and return. Showing the panel applies them. A window
+  /// that has not been shown still refreshes, so the list can be read before show.
+  bool sessionRefreshDeferred_ = false;
 };

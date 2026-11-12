@@ -438,6 +438,12 @@ QString PresentationPlaybackController::presentationContextText(
 
 void PresentationPlaybackController::configurePresentationClipBarForCurrentClip() {
   if (!presentationClipBar_) return;
+  // Queue updates also arrive while the coach is tagging. Showing the bar
+  // there puts the presentation trim control on the tagging page.
+  if (!isPresenting()) {
+    presentationClipBar_->hide();
+    return;
+  }
 
   const PresentationQueue::Clip* clip =
       presentationQueue_ ? presentationQueue_->currentClip() : nullptr;

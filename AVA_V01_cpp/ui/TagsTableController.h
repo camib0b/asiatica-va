@@ -48,7 +48,11 @@ public:
   void wireFilterSignals();
 
   void syncFilterMenu();
-  void refreshTagsTableRows();
+  /// addedTagId is the tag just inserted. The table still rebuilds, but only
+  /// grows the time and team columns for that row and jumps the scrollbar
+  /// instead of measuring every cell again.
+  void refreshTagsTableRows(quint64 addedTagId = 0);
+  void refreshRowWhenStoredMarkMoves(int sessionIndex);
   void updatePlayheadHighlight(qint64 positionMs);
   void onFilterByEventPathRequested(const TagEvent::MainEventKey& mainEvent,
                                    const TagEvent::FollowUpChain& followUps);
@@ -65,11 +69,12 @@ private:
   bool hasAnyFilterActive() const;
   void updateRemoveFiltersButtonVisibility() const;
   void updateFilterIndicator() const;
-  void rebuildTagsTableOnce();
+  void rebuildTagsTableOnce(quint64 addedTagId);
   void showEmptyTagsTable();
+  void growColumnsForAddedTag(quint64 addedTagId, const QVector<TagsTableModel::Row>& rows);
   QVector<TagsTableModel::Row> visibleTagRowsSortedByMark() const;
   TagsTableModel::Row tagsTableRowFor(const TagSession::GameTag& tag, int tagSessionIndex) const;
-  void fitTagsTableColumns();
+  void fitTagsTableColumns(const QVector<TagsTableModel::Row>& rows);
   void restoreTagsTableSelection(quint64 previouslySelectedTagId, int previousVerticalScroll);
   QSet<TagEvent::MainEventKey> refreshFilterMenuActions(bool deferStructureChanges);
   void hideRetiredFilterMenuActions(const QSet<TagEvent::MainEventKey>& liveMainEvents);
@@ -90,4 +95,6 @@ private:
   bool tagsTableRebuildRequested_ = false;
   bool filterMenuStructureSyncDeferred_ = false;
   bool filterMenuForceStructureSync_ = false;
+  int widestTimeTextPx_ = 0;
+  int widestTeamTextPx_ = 0;
 };

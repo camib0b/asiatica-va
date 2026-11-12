@@ -51,6 +51,9 @@ public:
   TimelineBar* timelineBar() const { return videoTimelineBar_; }
 
   qint64 currentPositionMs() const;
+  /// Timeline target while the coach is scrubbing or a seek has not landed.
+  /// The player position the rest of the time.
+  qint64 positionShownForTaggingMs() const;
   qint64 durationMs() const;
   void seekToMs(qint64 posMs);
 

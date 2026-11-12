@@ -202,6 +202,7 @@ qt_add_executable(AVAExportTests
   tests/WorkDataViewTests.cpp
   tests/WorkWindowCorrectnessTests.cpp
   tests/TimelineScrubTests.cpp
+  tests/TaggingWorkloadBench.cpp
   tests/PlaybackSpeedTests.cpp
   tests/TelestrationTests.cpp
   tests/MatchSessionFileTests.cpp

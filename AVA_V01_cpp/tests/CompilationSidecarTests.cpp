@@ -1316,6 +1316,7 @@ int runVideoClipSequenceTests(int argc, char** argv);
 int runShootoutStateTests(int argc, char** argv);
 int runExportVideoEncoderTests(int argc, char** argv);
 int runTimelineScrubTests(int argc, char** argv);
+int runTaggingWorkloadBench(int argc, char** argv);
 int runPlaybackSpeedTests(int argc, char** argv);
 int runTelestrationTests(int argc, char** argv);
 int runMatchSessionFileTests(int argc, char** argv);
@@ -1323,6 +1324,9 @@ int runStateMachineTests(int argc, char** argv);
 
 int main(int argc, char** argv) {
     QApplication application(argc, argv);
+    if (qEnvironmentVariableIsSet("AVA_TAGGING_BENCH")) {
+        return runTaggingWorkloadBench(argc, argv);
+    }
     const int encoderStatus = runExportVideoEncoderTests(argc, argv);
     if (encoderStatus != 0) {
         return encoderStatus;

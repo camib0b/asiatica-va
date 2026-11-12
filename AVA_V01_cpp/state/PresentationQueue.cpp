@@ -166,6 +166,15 @@ void PresentationQueue::applyRequestedInterval(Clip& clip, qint64 startMs, qint6
   if (endMs < startMs + kMinimumClipDurationMs) {
     endMs = startMs + kMinimumClipDurationMs;
   }
+  // Keep the event inside the requested interval when the video is long
+  // enough. setTagInterval would otherwise slide the mark onto the new edge.
+  if (clip.markMs >= 0) {
+    if (startMs > clip.markMs) startMs = clip.markMs;
+    if (endMs < clip.markMs) endMs = clip.markMs;
+  }
+  if (endMs < startMs + kMinimumClipDurationMs) {
+    endMs = startMs + kMinimumClipDurationMs;
+  }
   clip.startMs = startMs;
   clip.endMs = endMs;
   clampClipToVideo(clip);

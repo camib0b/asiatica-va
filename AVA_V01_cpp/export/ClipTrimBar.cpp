@@ -97,21 +97,26 @@ void ClipTrimBar::normalizeClipInterval() {
 }
 
 qint64 ClipTrimBar::clampedClipStartMs(qint64 proposedStartMs) const {
-    const qint64 latestStartMs = clipEndMs_ - effectiveMinClipDurationMs();
-    const qint64 lo = windowStartMs_;
-    const qint64 hi = latestStartMs;
-    // std::clamp requires lo <= hi; a window shorter than the minimum duration (or a
-    // start that cannot stay in-window without crossing the end) has no legal range.
-    if (hi < lo) return clipStartMs_;
-    return std::clamp(proposedStartMs, lo, hi);
+    qint64 latestStartMs = clipEndMs_ - effectiveMinClipDurationMs();
+    // The event mark stays inside the clip. A start dragged past the mark would
+    // make TagSession pull the mark forward and the tags table would seek to
+    // the new start instead of the event.
+    if (markMs_ >= windowStartMs_ && markMs_ <= windowEndMs_) {
+        latestStartMs = std::min(latestStartMs, markMs_);
+    }
+    const qint64 earliestStartMs = windowStartMs_;
+    if (latestStartMs < earliestStartMs) return clipStartMs_;
+    return std::clamp(proposedStartMs, earliestStartMs, latestStartMs);
 }
 
 qint64 ClipTrimBar::clampedClipEndMs(qint64 proposedEndMs) const {
-    const qint64 earliestEndMs = clipStartMs_ + effectiveMinClipDurationMs();
-    const qint64 lo = earliestEndMs;
-    const qint64 hi = windowEndMs_;
-    if (lo > hi) return clipEndMs_;
-    return std::clamp(proposedEndMs, lo, hi);
+    qint64 earliestEndMs = clipStartMs_ + effectiveMinClipDurationMs();
+    if (markMs_ >= windowStartMs_ && markMs_ <= windowEndMs_) {
+        earliestEndMs = std::max(earliestEndMs, markMs_);
+    }
+    const qint64 latestEndMs = windowEndMs_;
+    if (earliestEndMs > latestEndMs) return clipEndMs_;
+    return std::clamp(proposedEndMs, earliestEndMs, latestEndMs);
 }
 
 QString ClipTrimBar::formatMs(qint64 ms) {
